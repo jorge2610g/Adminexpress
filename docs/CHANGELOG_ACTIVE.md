@@ -2,6 +2,15 @@
 
 ---
 
+## 2026-09-30 — Build Android solo bajo solicitud
+
+- los pushes normales de Expressdelivery ya no generan APK/AAB;
+- el build 60 automático fue cancelado;
+- Android se compila únicamente cuando el administrador lo solicita desde App Builder;
+- el scheduler de GitHub Actions solo procesa trabajos Android que estén en cola.
+
+---
+
 ## 2026-09-30 — Separación definitiva y App Builder Android
 
 - Adminexpress queda como único frontend administrativo;
