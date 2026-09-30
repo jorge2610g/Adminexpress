@@ -1880,11 +1880,17 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
                     icon: const Icon(Icons.terminal_rounded, size: 17),
                     label: const Text('Ver compilación'),
                   ),
-                if (status == 'ready')
+                if (status == 'ready' && signing == 'production')
                   FilledButton.icon(
                     onPressed: () => _publish(row),
                     icon: const Icon(Icons.publish_rounded, size: 17),
                     label: const Text('Publicar actualización'),
+                  ),
+                if (status == 'ready' && signing != 'production')
+                  OutlinedButton.icon(
+                    onPressed: null,
+                    icon: const Icon(Icons.key_off_outlined, size: 17),
+                    label: const Text('Falta firma de producción'),
                   ),
               ],
             ),
