@@ -126,3 +126,12 @@ Cuando cambie:
 - backend administrativo;
 
 actualizar este documento y `docs/CHANGELOG_ACTIVE.md`.
+
+
+## 9. Dirección visual de la app operativa
+
+La app `jorge2610g/Expressdelivery` adoptó la referencia **Express Dual**: una sola app para Cliente + Conductor + Delivery.
+
+Adminexpress sigue siendo un producto web separado. No copiar esta UI administrativa dentro del APK/AAB.
+
+La compilación Android continúa iniciándose únicamente desde App Builder cuando el administrador lo decide.
