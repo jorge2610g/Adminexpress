@@ -6,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'admin_panel.dart';
 import 'core/supabase_client.dart';
 
-const adminExpressVersion = 'Adminexpress v1.0.0 · build 1';
+const adminExpressVersion = 'Adminexpress v1.0.1 · build 2';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
