@@ -62,6 +62,8 @@ Archivos principales:
 
 El botón Compilar Android no ejecuta Flutter en el navegador.
 
+Los pushes de Expressdelivery no disparan builds Android. Adminexpress es el punto de inicio intencional: crea el `build_jobs` y el scheduler de GitHub Actions recoge únicamente trabajos que estén en cola.
+
 Flujo:
 
 1. Adminexpress crea un registro en `build_jobs`.
