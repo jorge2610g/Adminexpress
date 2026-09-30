@@ -1963,7 +1963,7 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
                       title: 'Compilación Cloud',
                       badge: 'Activa',
                       description:
-                          'GitHub levanta un runner, instala Flutter, compila y sube los archivos automáticamente.',
+                          'GitHub levanta un runner, instala Flutter, firma, compila y crea el Release automáticamente.',
                       primaryLabel: 'Sin VS Code',
                       secondaryLabel: 'Cola automática',
                       accent: _blue,
@@ -2004,7 +2004,7 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
                   SizedBox(width: 9),
                   Expanded(
                     child: Text(
-                      'El código se compila en GitHub. Los APK/AAB terminados se copian a almacenamiento de releases. Sin keystore configurado, el build queda con firma de prueba y no debe enviarse todavía a Google Play.',
+                      'El código se compila en GitHub. Los APK/AAB terminados se publican en GitHub Releases. La firma de producción usa un keystore privado persistente y contraseñas cifradas en Supabase Vault.',
                       style: TextStyle(
                         color: Color(0xFF7A4A0B),
                         fontSize: 11,
@@ -2068,7 +2068,7 @@ class _BuildCloudNotice extends StatelessWidget {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Adminexpress crea el trabajo; GitHub Actions compila Express en la nube y devuelve los enlaces de descarga.',
+              'Adminexpress crea el trabajo; GitHub Actions compila Express, lo firma y publica APK/AAB en GitHub Releases.',
               style: TextStyle(fontSize: 11, color: _dark, height: 1.35),
             ),
           ),
