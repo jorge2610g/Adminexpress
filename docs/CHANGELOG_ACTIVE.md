@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-09-30 — Referencia Express Dual
+
+- Expressdelivery adopta la referencia visual Express Dual;
+- Cliente + Conductor + Delivery permanecen dentro de una sola app;
+- Adminexpress continúa separado y solo web;
+- ningún cambio visual de Express vuelve a introducir Admin dentro del APK;
+- los APK/AAB siguen compilándose únicamente bajo solicitud desde App Builder.
+
+---
+
 ## 2026-09-30 — Build Android solo bajo solicitud
 
 - los pushes normales de Expressdelivery ya no generan APK/AAB;
