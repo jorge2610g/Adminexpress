@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
 
@@ -1542,57 +1545,193 @@ class AdminBuildsPage extends StatefulWidget {
 
 class _AdminBuildsPageState extends State<AdminBuildsPage> {
   int revision = 0;
+  Timer? poller;
+
+  @override
+  void initState() {
+    super.initState();
+    poller = Timer.periodic(const Duration(seconds: 7), (_) {
+      if (mounted) setState(() => revision++);
+    });
+  }
+
+  @override
+  void dispose() {
+    poller?.cancel();
+    super.dispose();
+  }
 
   Future<List<Map<String, dynamic>>> _load() async {
     final value = await supabase.rpc('admin_build_list');
     return _list(value);
   }
 
+  Future<void> _openUrl(String? value) async {
+    if (value == null || value.trim().isEmpty) return;
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   Future<void> _create() async {
-    final version = TextEditingController(text: '1.5.5');
-    final build = TextEditingController(text: '42');
+    List<Map<String, dynamic>> existing = const [];
+    try {
+      existing = await _load();
+    } catch (_) {}
+
+    final android = existing
+        .where((row) => row['platform']?.toString() == 'android')
+        .toList();
+    final latestBuild = android.fold<int>(
+      56,
+      (value, row) {
+        final raw = row['build_number'];
+        final n = raw is num ? raw.toInt() : int.tryParse(raw?.toString() ?? '');
+        return n != null && n > value ? n : value;
+      },
+    );
+    final latestVersion = android.isNotEmpty
+        ? android.first['version_name']?.toString() ?? '1.5.19'
+        : '1.5.19';
+
+    final version = TextEditingController(text: latestVersion);
+    final build = TextEditingController(text: (latestBuild + 1).toString());
     final changelog = TextEditingController();
-    String artifact = 'apk';
 
     final save = await showDialog<bool>(
       context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Compilar Express para Android'),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _BuildCloudNotice(),
+              const SizedBox(height: 14),
+              TextField(
+                controller: version,
+                decoration: const InputDecoration(
+                  labelText: 'Versión',
+                  hintText: 'Ej. 1.6.0',
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: build,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Build number',
+                  hintText: 'Debe ser mayor al anterior',
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: changelog,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Notas de actualización',
+                  hintText: 'Describe los cambios de esta versión',
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Row(
+                children: [
+                  Icon(Icons.android_rounded, size: 18, color: Color(0xFF14804A)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Se generarán automáticamente APK + AAB en GitHub Actions.',
+                      style: TextStyle(fontSize: 11, color: _muted),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.cloud_upload_outlined),
+            label: const Text('Enviar a compilar'),
+          ),
+        ],
+      ),
+    );
+
+    if (save == true) {
+      final buildNumber = int.tryParse(build.text.trim());
+      if (version.text.trim().isEmpty || buildNumber == null || buildNumber < 1) {
+        if (mounted) {
+          _snack(context, 'Versión o build number no válido.');
+        }
+      } else {
+        try {
+          await supabase.rpc(
+            'admin_create_build_job',
+            params: {
+              'p_platform': 'android',
+              'p_artifact_type': 'apk+aab',
+              'p_version_name': version.text.trim(),
+              'p_build_number': buildNumber,
+              'p_changelog': changelog.text.trim(),
+              'p_commit_sha': null,
+            },
+          );
+          if (mounted) {
+            setState(() => revision++);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Build enviado. El compilador en la nube lo tomará automáticamente.',
+                ),
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) _snack(context, e);
+        }
+      }
+    }
+
+    version.dispose();
+    build.dispose();
+    changelog.dispose();
+  }
+
+  Future<void> _publish(Map<String, dynamic> row) async {
+    bool mandatory = false;
+    final confirmed = await showDialog<bool>(
+      context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: const Text('Preparar build Android'),
+          title: const Text('Publicar actualización'),
           content: SizedBox(
             width: 460,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: artifact,
-                  decoration: const InputDecoration(labelText: 'Artifact'),
-                  items: const [
-                    DropdownMenuItem(value: 'apk', child: Text('APK')),
-                    DropdownMenuItem(value: 'aab', child: Text('AAB')),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) setLocal(() => artifact = value);
-                  },
+                Text(
+                  'Express v' +
+                      (row['version_name'] ?? '—').toString() +
+                      ' · build ' +
+                      (row['build_number'] ?? '—').toString(),
+                  style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: version,
-                  decoration: const InputDecoration(labelText: 'Versión'),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: build,
-                  keyboardType: TextInputType.number,
-                  decoration:
-                      const InputDecoration(labelText: 'Build number'),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: changelog,
-                  maxLines: 3,
-                  decoration:
-                      const InputDecoration(labelText: 'Notas del build'),
+                const SizedBox(height: 12),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: mandatory,
+                  onChanged: (value) => setLocal(() => mandatory = value),
+                  title: const Text('Actualización obligatoria'),
+                  subtitle: const Text(
+                    'Si la activas, más adelante la app podrá impedir continuar con una versión antigua.',
+                  ),
                 ),
               ],
             ),
@@ -1600,39 +1739,159 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
+              child: const Text('Volver'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Crear solicitud'),
+              child: const Text('Publicar versión'),
             ),
           ],
         ),
       ),
     );
 
-    if (save == true) {
-      try {
-        await supabase.rpc(
-          'admin_create_build_job',
-          params: {
-            'p_platform': 'android',
-            'p_artifact_type': artifact,
-            'p_version_name': version.text.trim(),
-            'p_build_number': int.tryParse(build.text) ?? 1,
-            'p_changelog': changelog.text.trim(),
-            'p_commit_sha': null,
-          },
-        );
-        if (mounted) setState(() => revision++);
-      } catch (e) {
-        if (mounted) _snack(context, e);
-      }
-    }
+    if (confirmed != true) return;
 
-    version.dispose();
-    build.dispose();
-    changelog.dispose();
+    try {
+      await supabase.rpc(
+        'admin_publish_build',
+        params: {
+          'p_build_id': row['id'].toString(),
+          'p_mandatory': mandatory,
+        },
+      );
+      if (!mounted) return;
+      setState(() => revision++);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Actualización publicada para Express.'),
+        ),
+      );
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    }
+  }
+
+  Widget _buildRow(Map<String, dynamic> row) {
+    final status = (row['status'] ?? 'queued').toString();
+    final apkUrl = row['apk_url']?.toString();
+    final aabUrl = row['aab_url']?.toString();
+    final runUrl = row['run_url']?.toString();
+    final signing = row['signing_mode']?.toString() ?? 'test';
+    final error = row['error_message']?.toString();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F8EF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.android_rounded,
+                  color: Color(0xFF14804A),
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'APK + AAB · v' +
+                          (row['version_name'] ?? '—').toString() +
+                          ' (' +
+                          (row['build_number'] ?? '—').toString() +
+                          ')',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _formatDate(row['created_at']),
+                      style: const TextStyle(fontSize: 10, color: _muted),
+                    ),
+                    if (status == 'ready') ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        signing == 'production'
+                            ? 'Firmado con certificado de producción'
+                            : 'Firma de prueba · configura el keystore antes de publicar en Play Store',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: signing == 'production'
+                              ? const Color(0xFF14804A)
+                              : const Color(0xFFA15C07),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                    if (error != null && error.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        error,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFFD92D20),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _BuildStatus(status: status),
+            ],
+          ),
+          if (status == 'ready' || runUrl?.isNotEmpty == true) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (apkUrl?.isNotEmpty == true)
+                  FilledButton.icon(
+                    onPressed: () => _openUrl(apkUrl),
+                    icon: const Icon(Icons.download_rounded, size: 17),
+                    label: const Text('Descargar APK'),
+                  ),
+                if (aabUrl?.isNotEmpty == true)
+                  OutlinedButton.icon(
+                    onPressed: () => _openUrl(aabUrl),
+                    icon: const Icon(Icons.inventory_2_outlined, size: 17),
+                    label: const Text('Descargar AAB'),
+                  ),
+                if (runUrl?.isNotEmpty == true)
+                  OutlinedButton.icon(
+                    onPressed: () => _openUrl(runUrl),
+                    icon: const Icon(Icons.terminal_rounded, size: 17),
+                    label: const Text('Ver compilación'),
+                  ),
+                if (status == 'ready')
+                  FilledButton.icon(
+                    onPressed: () => _publish(row),
+                    icon: const Icon(Icons.publish_rounded, size: 17),
+                    label: const Text('Publicar actualización'),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   @override
@@ -1656,10 +1915,15 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
         return ListView(
           padding: const EdgeInsets.all(22),
           children: [
-            const _Header(
+            _Header(
               title: 'App Builder',
               subtitle:
-                  'Compilación y distribución de las aplicaciones Express.',
+                  'Compila Express Android en la nube. No necesitas Visual Studio Code ni tener Flutter instalado en tu computador.',
+              action: FilledButton.icon(
+                onPressed: _create,
+                icon: const Icon(Icons.android_rounded),
+                label: const Text('Compilar Android'),
+              ),
             ),
             const SizedBox(height: 16),
             LayoutBuilder(
@@ -1678,36 +1942,36 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
                       width: cardWidth,
                       icon: Icons.android_rounded,
                       title: 'Android',
-                      badge: 'Disponible',
+                      badge: 'Automático',
                       description:
-                          'APK para distribución directa y AAB para Google Play.',
-                      primaryLabel: 'Nuevo Build',
-                      secondaryLabel: 'Publicar en Google Play',
+                          'Genera APK instalable + AAB para Google Play usando GitHub Actions.',
+                      primaryLabel: 'Compilar APK + AAB',
+                      secondaryLabel: 'Publicación desde historial',
                       accent: const Color(0xFF14804A),
                       soft: const Color(0xFFE8F8EF),
                       onPrimary: _create,
                     ),
                     _BuildProductCard(
                       width: cardWidth,
-                      icon: Icons.apple_rounded,
-                      title: 'iOS',
-                      badge: 'Próximamente',
+                      icon: Icons.cloud_done_outlined,
+                      title: 'Compilación Cloud',
+                      badge: 'Activa',
                       description:
-                          'IPA, TestFlight y publicación en App Store.',
-                      primaryLabel: 'Configurar credenciales',
-                      secondaryLabel: 'Publicar en App Store',
-                      accent: const Color(0xFF344054),
-                      soft: const Color(0xFFF2F4F7),
+                          'GitHub levanta un runner, instala Flutter, compila y sube los archivos automáticamente.',
+                      primaryLabel: 'Sin VS Code',
+                      secondaryLabel: 'Cola automática',
+                      accent: _blue,
+                      soft: const Color(0xFFEAF2FF),
                     ),
                     _BuildProductCard(
                       width: cardWidth,
-                      icon: Icons.code_rounded,
-                      title: 'Código Fuente',
-                      badge: 'Preparado',
+                      icon: Icons.storefront_outlined,
+                      title: 'Google Play',
+                      badge: 'Siguiente etapa',
                       description:
-                          'Proyecto Flutter completo y paquete ZIP versionado.',
-                      primaryLabel: 'Descargar código',
-                      secondaryLabel: 'Historial de versiones',
+                          'El AAB queda preparado. La publicación automática en Play Store se habilitará con sus credenciales.',
+                      primaryLabel: 'AAB listo para Play',
+                      secondaryLabel: 'Pendiente credenciales',
                       accent: const Color(0xFF6941C6),
                       soft: const Color(0xFFF1EBFF),
                     ),
@@ -1726,11 +1990,15 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
               child: const Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.lock_outline_rounded, size: 18, color: Color(0xFFA15C07)),
+                  Icon(
+                    Icons.lock_outline_rounded,
+                    size: 18,
+                    color: Color(0xFFA15C07),
+                  ),
                   SizedBox(width: 9),
                   Expanded(
                     child: Text(
-                      'Los secretos de GitHub, keystore y credenciales de tiendas nunca se enviarán al navegador. El disparo automático se conectará mediante backend seguro.',
+                      'El código se compila en GitHub. Los APK/AAB terminados se copian a almacenamiento de releases. Sin keystore configurado, el build queda con firma de prueba y no debe enviarse todavía a Google Play.',
                       style: TextStyle(
                         color: Color(0xFF7A4A0B),
                         fontSize: 11,
@@ -1763,44 +2031,9 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
                 child: Column(
                   children: [
                     for (var i = 0; i < rows.length; i++) ...[
-                      ListTile(
-                        dense: true,
-                        leading: Container(
-                          width: 34,
-                          height: 34,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F8EF),
-                            borderRadius: BorderRadius.circular(9),
-                          ),
-                          child: const Icon(
-                            Icons.android_rounded,
-                            color: Color(0xFF14804A),
-                            size: 19,
-                          ),
-                        ),
-                        title: Text(
-                          (rows[i]['artifact_type'] ?? '').toString().toUpperCase() +
-                              ' · v' +
-                              (rows[i]['version_name'] ?? '—').toString() +
-                              ' (' +
-                              (rows[i]['build_number'] ?? '—').toString() +
-                              ')',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        subtitle: Text(
-                          _formatDate(rows[i]['created_at']),
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                        trailing: _BuildStatus(
-                          status: (rows[i]['status'] ?? 'queued').toString(),
-                        ),
-                      ),
+                      _buildRow(rows[i]),
                       if (i != rows.length - 1)
-                        const Divider(height: 1, indent: 62),
+                        const Divider(height: 1, indent: 60),
                     ],
                   ],
                 ),
@@ -1808,6 +2041,33 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
           ],
         );
       },
+    );
+  }
+}
+
+class _BuildCloudNotice extends StatelessWidget {
+  const _BuildCloudNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF2FF),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.cloud_queue_rounded, color: _blue),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Adminexpress crea el trabajo; GitHub Actions compila Express en la nube y devuelve los enlaces de descarga.',
+              style: TextStyle(fontSize: 11, color: _dark, height: 1.35),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
