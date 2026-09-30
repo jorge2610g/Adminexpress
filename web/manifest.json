@@ -1,0 +1,10 @@
+{
+  "name": "Adminexpress",
+  "short_name": "Adminexpress",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F7F9FC",
+  "theme_color": "#0B57D0",
+  "description": "Panel administrativo web de Express Delivery",
+  "orientation": "any"
+}
