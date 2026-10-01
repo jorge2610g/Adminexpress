@@ -197,6 +197,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   int revision = 0;
   String? liveZoneId;
   bool liveDriversTab = false;
+  Future<({Map<String, dynamic> state, List<Map<String, dynamic>> zones})>?
+      _liveFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _liveFuture = _liveState();
+  }
 
   static const sections = <(String, IconData)>[
     ('Dashboard', Icons.dashboard_rounded),
@@ -256,9 +264,21 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     return _list(value);
   }
 
-  void _refresh() => setState(() => revision++);
+  void _refresh() {
+    setState(() {
+      revision++;
+      _liveFuture = _liveState();
+    });
+  }
 
-  void _goTo(int value) => setState(() => section = value);
+  void _goTo(int value) {
+    setState(() {
+      if (value == 1 && section != 1) {
+        _liveFuture = _liveState();
+      }
+      section = value;
+    });
+  }
 
   Future<void> _driverStatus(String id, String status) async {
     try {
@@ -649,7 +669,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     return FutureBuilder<
         ({Map<String, dynamic> state, List<Map<String, dynamic>> zones})>(
       key: ValueKey('live-' + revision.toString()),
-      future: _liveState(),
+      future: _liveFuture ??= _liveState(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting &&
             !snapshot.hasData) {
