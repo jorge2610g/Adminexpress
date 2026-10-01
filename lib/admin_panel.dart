@@ -1723,8 +1723,10 @@ class _QuickActions extends StatelessWidget {
           decoration: BoxDecoration(
             color: action.$4,
             borderRadius: BorderRadius.circular(13),
-            border: Border.all(color: action.$5.withOpacity(.18),)
-            ,boxShadow: [
+            border: Border.all(
+              color: action.$5.withOpacity(.18),
+            ),
+            boxShadow: [
               BoxShadow(
                 color: action.$5.withOpacity(.08),
                 blurRadius: 10,
