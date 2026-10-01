@@ -934,14 +934,93 @@ class AdminPaymentsPage extends StatefulWidget {
 class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   int revision = 0;
 
-  Future<Map<String, dynamic>> _load() async {
-    final value = await supabase.rpc('admin_payment_overview');
-    return _map(value);
+  Future<({
+    Map<String, dynamic> overview,
+    List<Map<String, dynamic>> topups,
+  })> _load() async {
+    final values = await Future.wait([
+      supabase.rpc('admin_payment_overview'),
+      supabase.rpc(
+        'admin_topup_requests',
+        params: {'p_status': 'pending'},
+      ),
+    ]);
+    return (
+      overview: _map(values[0]),
+      topups: _list(values[1]),
+    );
+  }
+
+  Future<void> _resolveTopup(
+    Map<String, dynamic> row,
+    String status,
+  ) async {
+    final approved = status == 'approved';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(approved ? 'Aprobar recarga' : 'Rechazar recarga'),
+        content: Text(
+          (approved
+                  ? 'Se acreditará '
+                  : 'Se rechazará la solicitud de ') +
+              'Bs ' +
+              (row['amount'] ?? 0).toString() +
+              ' para ' +
+              (row['full_name'] ?? 'este usuario').toString() +
+              '.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: approved
+                ? null
+                : FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFD92D20),
+                  ),
+            child: Text(approved ? 'Aprobar' : 'Rechazar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await supabase.rpc(
+        'admin_resolve_wallet_topup',
+        params: {
+          'p_request_id': row['id'],
+          'p_status': status,
+        },
+      );
+      if (!mounted) return;
+      setState(() => revision++);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            approved
+                ? 'Recarga aprobada y saldo acreditado.'
+                : 'Recarga rechazada.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _snack(context, e);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
+    return FutureBuilder<
+        ({
+          Map<String, dynamic> overview,
+          List<Map<String, dynamic>> topups,
+        })>(
       key: ValueKey(revision),
       future: _load(),
       builder: (context, snapshot) {
@@ -950,95 +1029,714 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
           return const _Loading(title: 'Cargando pagos');
         }
         if (snapshot.hasError) {
-          return _Error(error: snapshot.error, onRetry: () => setState(() => revision++));
+          return _Error(
+            error: snapshot.error,
+            onRetry: () => setState(() => revision++),
+          );
         }
 
-        final data = snapshot.data ?? const {};
-        final summary = _map(data['summary']);
-        final recent = _list(data['recent']);
+        final data = snapshot.data ??
+            (
+              overview: <String, dynamic>{},
+              topups: <Map<String, dynamic>>[],
+            );
+        final summary = _map(data.overview['summary']);
+        final recent = _list(data.overview['recent']);
+        final topups = data.topups;
 
-        return ListView(
-          padding: const EdgeInsets.all(22),
-          children: [
-            const _Header(
-              title: 'Pagos y Billetera',
-              subtitle:
-                  'Cobros, pendientes, saldos y movimientos recientes.',
-            ),
-            const SizedBox(height: 18),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _Kpi('Cobrado hoy', 'Bs ' + (summary['paid_today'] ?? 0).toString()),
-                _Kpi(
-                  'Pendiente',
-                  'Bs ' + (summary['pending_total'] ?? 0).toString(),
-                ),
-                _Kpi(
-                  'Pagos hoy',
-                  (summary['paid_count_today'] ?? 0).toString(),
-                ),
-                _Kpi(
-                  'Saldo wallet',
-                  'Bs ' +
-                      (summary['wallet_balance_total'] ?? 0).toString(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Movimientos recientes',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 10),
-            if (recent.isEmpty)
-              const _Empty(text: 'No hay movimientos.')
-            else
-              ...recent.map(
-                (row) => Container(
-                  margin: const EdgeInsets.only(bottom: 7),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: const Color(0xFFE7ECF3)),
-                    borderRadius: BorderRadius.circular(11),
+        return RefreshIndicator(
+          onRefresh: () async => setState(() => revision++),
+          child: ListView(
+            padding: const EdgeInsets.all(22),
+            children: [
+              const _Header(
+                title: 'Pagos y Billetera',
+                subtitle:
+                    'Cobros, recargas pendientes, saldos y movimientos.',
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _Kpi(
+                    'Cobrado hoy',
+                    'Bs ' + (summary['paid_today'] ?? 0).toString(),
                   ),
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 4,
-                    ),
-                    leading: Icon(
-                      row['method'] == 'wallet'
-                          ? Icons.account_balance_wallet_rounded
-                          : row['method'] == 'cash'
-                              ? Icons.payments_outlined
-                              : Icons.credit_card_rounded,
-                      color: _blue,
-                    ),
-                    title: Text(
-                      (row['currency'] ?? 'BOB').toString() +
-                          ' ' +
-                          (row['amount'] ?? 0).toString(),
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    subtitle: Text(
-                      (row['method'] ?? '—').toString() +
-                          ' · ' +
-                          (row['status'] ?? '—').toString() +
-                          ' · ' +
-                          _formatDate(row['created_at']),
+                  _Kpi(
+                    'Pendiente',
+                    'Bs ' + (summary['pending_total'] ?? 0).toString(),
+                  ),
+                  _Kpi(
+                    'Pagos hoy',
+                    (summary['paid_count_today'] ?? 0).toString(),
+                  ),
+                  _Kpi(
+                    'Saldo wallet',
+                    'Bs ' +
+                        (summary['wallet_balance_total'] ?? 0).toString(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Recargas pendientes',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
+                  _MiniStatus(
+                    text: topups.length.toString(),
+                    positive: topups.isEmpty,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (topups.isEmpty)
+                const _Empty(text: 'No hay recargas pendientes.')
+              else
+                ...topups.map(
+                  (row) => Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: const Color(0xFFE7ECF3)),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFFFFF4E5),
+                        child: Icon(
+                          Icons.account_balance_wallet_outlined,
+                          color: Color(0xFFB54708),
+                        ),
+                      ),
+                      title: Text(
+                        (row['full_name'] ?? 'Usuario Express').toString(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Bs ' +
+                            (row['amount'] ?? 0).toString() +
+                            ' · ' +
+                            _formatDate(row['created_at']) +
+                            (row['phone'] == null
+                                ? ''
+                                : ' · ' + row['phone'].toString()),
+                      ),
+                      trailing: Wrap(
+                        spacing: 6,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => _resolveTopup(row, 'rejected'),
+                            child: const Text('Rechazar'),
+                          ),
+                          FilledButton(
+                            onPressed: () => _resolveTopup(row, 'approved'),
+                            child: const Text('Aprobar'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 24),
+              const Text(
+                'Movimientos recientes',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
-          ],
+              const SizedBox(height: 10),
+              if (recent.isEmpty)
+                const _Empty(text: 'No hay movimientos.')
+              else
+                ...recent.map(
+                  (row) => Container(
+                    margin: const EdgeInsets.only(bottom: 7),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: const Color(0xFFE7ECF3)),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 4,
+                      ),
+                      leading: Icon(
+                        row['method'] == 'wallet'
+                            ? Icons.account_balance_wallet_rounded
+                            : row['method'] == 'cash'
+                                ? Icons.payments_outlined
+                                : Icons.credit_card_rounded,
+                        color: _blue,
+                      ),
+                      title: Text(
+                        (row['currency'] ?? 'BOB').toString() +
+                            ' ' +
+                            (row['amount'] ?? 0).toString(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      subtitle: Text(
+                        (row['method'] ?? '—').toString() +
+                            ' · ' +
+                            (row['status'] ?? '—').toString() +
+                            ' · ' +
+                            _formatDate(row['created_at']),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
   }
 }
+
+
+class AdminCommunicationsPage extends StatefulWidget {
+  const AdminCommunicationsPage({super.key});
+
+  @override
+  State<AdminCommunicationsPage> createState() =>
+      _AdminCommunicationsPageState();
+}
+
+class _AdminCommunicationsPageState
+    extends State<AdminCommunicationsPage> {
+  int revision = 0;
+  String? selectedUserId;
+  String? selectedUserName;
+  final replyController = TextEditingController();
+  final announcementTitle = TextEditingController();
+  final announcementBody = TextEditingController();
+  String audience = 'drivers';
+  bool sendingReply = false;
+  bool sendingAnnouncement = false;
+
+  @override
+  void dispose() {
+    replyController.dispose();
+    announcementTitle.dispose();
+    announcementBody.dispose();
+    super.dispose();
+  }
+
+  Future<List<Map<String, dynamic>>> _threads() async {
+    final value = await supabase.rpc('admin_support_threads');
+    return _list(value);
+  }
+
+  Future<List<Map<String, dynamic>>> _messages(String userId) async {
+    final value = await supabase.rpc(
+      'admin_support_messages',
+      params: {'p_user_id': userId},
+    );
+    return _list(value);
+  }
+
+  Future<void> _reply() async {
+    final userId = selectedUserId;
+    final text = replyController.text.trim();
+    if (userId == null || text.isEmpty || sendingReply) return;
+
+    setState(() => sendingReply = true);
+    try {
+      await supabase.rpc(
+        'admin_support_reply',
+        params: {
+          'p_user_id': userId,
+          'p_body': text,
+        },
+      );
+      replyController.clear();
+      if (mounted) setState(() => revision++);
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    } finally {
+      if (mounted) setState(() => sendingReply = false);
+    }
+  }
+
+  Future<void> _sendAnnouncement() async {
+    final title = announcementTitle.text.trim();
+    final body = announcementBody.text.trim();
+    if (title.isEmpty || body.isEmpty || sendingAnnouncement) return;
+
+    final label = switch (audience) {
+      'drivers' => 'conductores',
+      'passengers' => 'pasajeros',
+      _ => 'todos los usuarios',
+    };
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Enviar aviso'),
+        content: Text(
+          'Se enviará “' + title + '” a ' + label + '.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Enviar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => sendingAnnouncement = true);
+    try {
+      final result = await supabase.rpc(
+        'admin_send_announcement',
+        params: {
+          'p_title': title,
+          'p_body': body,
+          'p_audience': audience,
+        },
+      );
+      announcementTitle.clear();
+      announcementBody.clear();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Aviso enviado a ' + result.toString() + ' destinatarios.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    } finally {
+      if (mounted) setState(() => sendingAnnouncement = false);
+    }
+  }
+
+  Widget _supportTab() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      key: ValueKey('threads-' + revision.toString()),
+      future: _threads(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const _Loading(title: 'Cargando soporte');
+        }
+        if (snapshot.hasError) {
+          return _Error(
+            error: snapshot.error,
+            onRetry: () => setState(() => revision++),
+          );
+        }
+
+        final threads = snapshot.data ?? const <Map<String, dynamic>>[];
+        if (threads.isEmpty) {
+          return const Center(
+            child: _Empty(
+              text: 'No hay conversaciones de soporte todavía.',
+            ),
+          );
+        }
+
+        final currentId = selectedUserId ??
+            threads.first['user_id']?.toString();
+        final current = threads.firstWhere(
+          (row) => row['user_id']?.toString() == currentId,
+          orElse: () => threads.first,
+        );
+        final effectiveId = current['user_id']?.toString();
+        if (selectedUserId == null && effectiveId != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && selectedUserId == null) {
+              setState(() {
+                selectedUserId = effectiveId;
+                selectedUserName =
+                    current['full_name']?.toString() ?? 'Usuario Express';
+              });
+            }
+          });
+        }
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 850;
+
+            final threadList = ListView(
+              padding: const EdgeInsets.all(12),
+              children: threads.map((row) {
+                final userId = row['user_id']?.toString();
+                final selected = userId == currentId;
+                final unread =
+                    (row['unread_count'] as num?)?.toInt() ?? 0;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 7),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? const Color(0xFFF4F8FF)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(11),
+                    border: Border.all(
+                      color: selected
+                          ? const Color(0xFFCFE0FF)
+                          : const Color(0xFFE7ECF3),
+                    ),
+                  ),
+                  child: ListTile(
+                    dense: true,
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.person_outline_rounded),
+                    ),
+                    title: Text(
+                      row['full_name']?.toString() ?? 'Usuario Express',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    subtitle: Text(
+                      row['last_message']?.toString() ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: unread > 0
+                        ? CircleAvatar(
+                            radius: 12,
+                            backgroundColor: _blue,
+                            child: Text(
+                              unread.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          )
+                        : null,
+                    onTap: () => setState(() {
+                      selectedUserId = userId;
+                      selectedUserName =
+                          row['full_name']?.toString() ?? 'Usuario Express';
+                      revision++;
+                    }),
+                  ),
+                );
+              }).toList(),
+            );
+
+            final chat = effectiveId == null
+                ? const Center(child: Text('Selecciona una conversación.'))
+                : FutureBuilder<List<Map<String, dynamic>>>(
+                    key: ValueKey(
+                      'messages-' +
+                          effectiveId +
+                          '-' +
+                          revision.toString(),
+                    ),
+                    future: _messages(effectiveId),
+                    builder: (context, messagesSnapshot) {
+                      if (messagesSnapshot.connectionState ==
+                              ConnectionState.waiting &&
+                          !messagesSnapshot.hasData) {
+                        return const _Loading(
+                          title: 'Cargando conversación',
+                        );
+                      }
+                      if (messagesSnapshot.hasError) {
+                        return _Error(
+                          error: messagesSnapshot.error,
+                          onRetry: () =>
+                              setState(() => revision++),
+                        );
+                      }
+                      final messages = messagesSnapshot.data ??
+                          const <Map<String, dynamic>>[];
+
+                      return Column(
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: Color(0xFFE7ECF3),
+                                ),
+                              ),
+                            ),
+                            child: Text(
+                              selectedUserName ??
+                                  current['full_name']?.toString() ??
+                                  'Usuario Express',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: messages.isEmpty
+                                ? const Center(
+                                    child: Text(
+                                      'Sin mensajes.',
+                                      style: TextStyle(color: _muted),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    padding: const EdgeInsets.all(16),
+                                    itemCount: messages.length,
+                                    itemBuilder: (context, index) {
+                                      final row = messages[index];
+                                      final admin =
+                                          row['sender_role'] == 'admin';
+                                      return Align(
+                                        alignment: admin
+                                            ? Alignment.centerRight
+                                            : Alignment.centerLeft,
+                                        child: Container(
+                                          constraints:
+                                              const BoxConstraints(
+                                            maxWidth: 430,
+                                          ),
+                                          margin: const EdgeInsets.only(
+                                            bottom: 8,
+                                          ),
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                            horizontal: 13,
+                                            vertical: 9,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: admin
+                                                ? const Color(0xFFEAF2FF)
+                                                : const Color(0xFFF2F4F7),
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                row['body']?.toString() ??
+                                                    '',
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Text(
+                                                _formatDate(
+                                                  row['created_at'],
+                                                ),
+                                                style: const TextStyle(
+                                                  color: _muted,
+                                                  fontSize: 9,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: replyController,
+                                    minLines: 1,
+                                    maxLines: 4,
+                                    decoration: const InputDecoration(
+                                      hintText:
+                                          'Responder desde soporte...',
+                                    ),
+                                    onSubmitted: (_) => _reply(),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton.filled(
+                                  onPressed:
+                                      sendingReply ? null : _reply,
+                                  icon: sendingReply
+                                      ? const SizedBox.square(
+                                          dimension: 18,
+                                          child:
+                                              CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.send_rounded),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+
+            if (compact) {
+              return Column(
+                children: [
+                  SizedBox(height: 210, child: threadList),
+                  const Divider(height: 1),
+                  Expanded(child: chat),
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                SizedBox(width: 330, child: threadList),
+                const VerticalDivider(width: 1),
+                Expanded(child: chat),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _announcementsTab() {
+    return ListView(
+      padding: const EdgeInsets.all(22),
+      children: [
+        const _Header(
+          title: 'Enviar avisos',
+          subtitle:
+              'Estos son los únicos mensajes que aparecen en “Avisos” dentro de la app.',
+        ),
+        const SizedBox(height: 18),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: const Color(0xFFE7ECF3)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: audience,
+                decoration: const InputDecoration(
+                  labelText: 'Destinatarios',
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'drivers',
+                    child: Text('Conductores'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'passengers',
+                    child: Text('Pasajeros'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'all',
+                    child: Text('Todos'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => audience = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: announcementTitle,
+                maxLength: 90,
+                decoration: const InputDecoration(
+                  labelText: 'Título',
+                  hintText: 'Ej. Actualización de Express',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: announcementBody,
+                maxLength: 1000,
+                minLines: 4,
+                maxLines: 8,
+                decoration: const InputDecoration(
+                  labelText: 'Mensaje',
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed:
+                    sendingAnnouncement ? null : _sendAnnouncement,
+                icon: sendingAnnouncement
+                    ? const SizedBox.square(
+                        dimension: 17,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.campaign_rounded),
+                label: const Text('Enviar aviso'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          const Material(
+            color: Colors.white,
+            child: TabBar(
+              tabs: [
+                Tab(
+                  icon: Icon(Icons.support_agent_rounded),
+                  text: 'Soporte',
+                ),
+                Tab(
+                  icon: Icon(Icons.campaign_outlined),
+                  text: 'Avisos',
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _supportTab(),
+                _announcementsTab(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 class AdminReportsPage extends StatefulWidget {
   const AdminReportsPage({super.key});

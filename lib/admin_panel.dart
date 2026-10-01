@@ -223,6 +223,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Builds', Icons.build_circle_outlined),
     ('Despacho manual', Icons.alt_route_rounded),
     ('Auditoría', Icons.history_rounded),
+    ('Soporte / Avisos', Icons.support_agent_rounded),
   ];
 
   Future<bool> _authorized() async => await supabase.rpc('is_admin') == true;
@@ -472,6 +473,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         return const AdminDispatchPage();
       case 14:
         return const AdminAuditPage();
+      case 15:
+        return const AdminCommunicationsPage();
       default:
         return const SizedBox.shrink();
     }
