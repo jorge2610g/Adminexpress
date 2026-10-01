@@ -196,13 +196,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   int section = 0;
   int revision = 0;
   String? liveZoneId;
-  bool liveDriversTab = false;
+  Future<bool>? _authFuture;
   Future<({Map<String, dynamic> state, List<Map<String, dynamic>> zones})>?
       _liveFuture;
 
   @override
   void initState() {
     super.initState();
+    _authFuture = _authorized();
     _liveFuture = _liveState();
   }
 
@@ -340,7 +341,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<bool>(
-      future: _authorized(),
+      future: _authFuture ??= _authorized(),
       builder: (context, auth) {
         if (auth.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -397,7 +398,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                           selected: section,
                           onSelected: (value) {
                             Navigator.pop(context);
-                            setState(() => section = value);
+                            _goTo(value);
                           },
                           onExit: widget.onExit,
                         ),
@@ -411,8 +412,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                       width: 248,
                       child: _Navigation(
                         selected: section,
-                        onSelected: (value) =>
-                            setState(() => section = value),
+                        onSelected: _goTo,
                         onExit: widget.onExit,
                       ),
                     ),
@@ -698,15 +698,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         }
 
         return Padding(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
+          padding: const EdgeInsets.fromLTRB(22, 10, 22, 22),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _Header(
-                title: 'Viajes en Vivo',
-                subtitle: 'Monitorea viajes, conductores y zonas en tiempo real.',
-              ),
-              const SizedBox(height: 14),
               _LiveZoneStrip(
                 zones: zones,
                 selectedZoneId: liveZoneId,
@@ -719,9 +714,6 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     final side = _LiveSidePanel(
                       trips: trips,
                       drivers: drivers,
-                      showDrivers: liveDriversTab,
-                      onTabChanged: (value) =>
-                          setState(() => liveDriversTab = value),
                     );
                     final map = _OperationsMap(
                       key: ValueKey('live-map-' + (liveZoneId ?? 'all')),
@@ -2163,23 +2155,26 @@ class _LiveZoneStrip extends StatelessWidget {
   }
 }
 
-class _LiveSidePanel extends StatelessWidget {
+class _LiveSidePanel extends StatefulWidget {
   final List<Map<String, dynamic>> trips;
   final List<Map<String, dynamic>> drivers;
-  final bool showDrivers;
-  final ValueChanged<bool> onTabChanged;
 
   const _LiveSidePanel({
     required this.trips,
     required this.drivers,
-    required this.showDrivers,
-    required this.onTabChanged,
   });
 
   @override
+  State<_LiveSidePanel> createState() => _LiveSidePanelState();
+}
+
+class _LiveSidePanelState extends State<_LiveSidePanel> {
+  bool showDrivers = false;
+
+  @override
   Widget build(BuildContext context) {
-    final online = drivers.where((row) {
-      final status = _driverLiveStatus(row, trips);
+    final online = widget.drivers.where((row) {
+      final status = _driverLiveStatus(row, widget.trips);
       return status != 'offline';
     }).length;
 
@@ -2198,7 +2193,7 @@ class _LiveSidePanel extends StatelessWidget {
                 Expanded(
                   child: _LiveMetricCard(
                     label: 'Viajes activos',
-                    value: trips.length,
+                    value: widget.trips.length,
                     icon: Icons.route_rounded,
                     soft: const Color(0xFFE5F8F1),
                     accent: const Color(0xFF12A66A),
@@ -2231,16 +2226,21 @@ class _LiveSidePanel extends StatelessWidget {
               children: [
                 Expanded(
                   child: _LiveTab(
-                    label: 'Viajes (' + trips.length.toString() + ')',
+                    label: 'Viajes (' + widget.trips.length.toString() + ')',
                     selected: !showDrivers,
-                    onTap: () => onTabChanged(false),
+                    onTap: () {
+                      if (showDrivers) setState(() => showDrivers = false);
+                    },
                   ),
                 ),
                 Expanded(
                   child: _LiveTab(
-                    label: 'Conductores (' + drivers.length.toString() + ')',
+                    label:
+                        'Conductores (' + widget.drivers.length.toString() + ')',
                     selected: showDrivers,
-                    onTap: () => onTabChanged(true),
+                    onTap: () {
+                      if (!showDrivers) setState(() => showDrivers = true);
+                    },
                   ),
                 ),
               ],
@@ -2248,8 +2248,11 @@ class _LiveSidePanel extends StatelessWidget {
           ),
           Expanded(
             child: showDrivers
-                ? _LiveDriverList(drivers: drivers, trips: trips)
-                : _LiveTripList(trips: trips),
+                ? _LiveDriverList(
+                    drivers: widget.drivers,
+                    trips: widget.trips,
+                  )
+                : _LiveTripList(trips: widget.trips),
           ),
         ],
       ),
