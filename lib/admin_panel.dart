@@ -1759,8 +1759,7 @@ class _QuickActions extends StatelessWidget {
                     fontSize: 9,
                   ),
                 ),
-                const Spacer(),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Icon(Icons.arrow_forward_rounded, color: action.$5, size: 18),
               ],
             ),
@@ -1799,10 +1798,15 @@ class _QuickActions extends StatelessWidget {
               }
 
               return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   for (var i = 0; i < actions.length; i++) ...[
-                    Expanded(child: actionCard(actions[i])),
+                    Expanded(
+                      child: SizedBox(
+                        height: 166,
+                        child: actionCard(actions[i]),
+                      ),
+                    ),
                     if (i != actions.length - 1) const SizedBox(width: 10),
                   ],
                 ],
@@ -2305,7 +2309,8 @@ class _DailySummary extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           for (var i = 0; i < items.length; i++) ...[
-            Expanded(
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
                 children: [
                   Container(
