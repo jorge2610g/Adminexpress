@@ -1690,7 +1690,7 @@ class _QuickActions extends StatelessWidget {
         'Ver viajes en vivo',
         'Monitorea la operación en tiempo real',
         Icons.location_on_outlined,
-        const Color(0xFFE5F8F1),
+        const Color(0xFFCFF3E2),
         const Color(0xFF129B67),
         onLive,
       ),
@@ -1698,7 +1698,7 @@ class _QuickActions extends StatelessWidget {
         'Gestionar conductores',
         'Administra estados, aprobación y flota',
         Icons.drive_eta_rounded,
-        const Color(0xFFFFF5DF),
+        const Color(0xFFFFE7A8),
         const Color(0xFFC98000),
         onDrivers,
       ),
@@ -1706,7 +1706,7 @@ class _QuickActions extends StatelessWidget {
         'Despacho manual',
         'Asigna un conductor directamente',
         Icons.alt_route_rounded,
-        const Color(0xFFE8F0FF),
+        const Color(0xFFD8E5FF),
         const Color(0xFF246BFD),
         onDispatch,
       ),
@@ -1723,7 +1723,14 @@ class _QuickActions extends StatelessWidget {
           decoration: BoxDecoration(
             color: action.$4,
             borderRadius: BorderRadius.circular(13),
-            border: Border.all(color: Colors.white),
+            border: Border.all(color: action.$5.withOpacity(.18),)
+            ,boxShadow: [
+              BoxShadow(
+                color: action.$5.withOpacity(.08),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 112),
