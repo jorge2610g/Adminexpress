@@ -195,6 +195,8 @@ class ExpressAdminPanel extends StatefulWidget {
 class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   int section = 0;
   int revision = 0;
+  String? liveZoneId;
+  bool liveDriversTab = false;
 
   static const sections = <(String, IconData)>[
     ('Dashboard', Icons.dashboard_rounded),
@@ -219,6 +221,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<Map<String, dynamic>> _dashboardState() async {
     final value = await supabase.rpc('admin_dashboard_state');
     return Map<String, dynamic>.from(value as Map);
+  }
+
+  Future<({Map<String, dynamic> state, List<Map<String, dynamic>> zones})>
+      _liveState() async {
+    final state = await _dashboardState();
+    final zoneValue = await supabase.rpc('admin_zone_list');
+    return (state: state, zones: _list(zoneValue));
   }
 
   Future<List<Map<String, dynamic>>> _drivers() async {
@@ -637,9 +646,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _liveOperations() {
-    return FutureBuilder<Map<String, dynamic>>(
+    return FutureBuilder<
+        ({Map<String, dynamic> state, List<Map<String, dynamic>> zones})>(
       key: ValueKey('live-' + revision.toString()),
-      future: _dashboardState(),
+      future: _liveState(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting &&
             !snapshot.hasData) {
@@ -649,26 +659,79 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           return _ErrorView(error: snapshot.error, onRetry: _refresh);
         }
 
-        final state = snapshot.data ?? const <String, dynamic>{};
+        final data = snapshot.data;
+        final state = data?.state ?? const <String, dynamic>{};
+        final zones = data?.zones ?? const <Map<String, dynamic>>[];
+        final drivers = _list(state['drivers']);
+        final trips = _list(state['active_trips']);
+        final deliveries = _list(state['active_deliveries']);
+        final emergencies = _list(state['emergencies']);
+
+        Map<String, dynamic>? selectedZone;
+        if (liveZoneId != null) {
+          for (final zone in zones) {
+            if ((zone['id'] ?? '').toString() == liveZoneId) {
+              selectedZone = zone;
+              break;
+            }
+          }
+        }
 
         return Padding(
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const _Header(
-                title: 'Operación en vivo',
-                subtitle:
-                    'Conductores, viajes, delivery y alertas en el mapa.',
+                title: 'Viajes en Vivo',
+                subtitle: 'Monitorea viajes, conductores y zonas en tiempo real.',
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+              _LiveZoneStrip(
+                zones: zones,
+                selectedZoneId: liveZoneId,
+                onSelected: (value) => setState(() => liveZoneId = value),
+              ),
+              const SizedBox(height: 12),
               Expanded(
-                child: _OperationsMap(
-                  drivers: _list(state['drivers']),
-                  trips: _list(state['active_trips']),
-                  deliveries: _list(state['active_deliveries']),
-                  emergencies: _list(state['emergencies']),
-                  fullScreen: true,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final side = _LiveSidePanel(
+                      trips: trips,
+                      drivers: drivers,
+                      showDrivers: liveDriversTab,
+                      onTabChanged: (value) =>
+                          setState(() => liveDriversTab = value),
+                    );
+                    final map = _OperationsMap(
+                      key: ValueKey('live-map-' + (liveZoneId ?? 'all')),
+                      drivers: drivers,
+                      trips: trips,
+                      deliveries: deliveries,
+                      emergencies: emergencies,
+                      selectedZone: selectedZone,
+                      fullScreen: true,
+                    );
+
+                    if (constraints.maxWidth < 980) {
+                      return ListView(
+                        children: [
+                          SizedBox(height: 430, child: side),
+                          const SizedBox(height: 12),
+                          SizedBox(height: 560, child: map),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(width: 405, child: side),
+                        const SizedBox(width: 12),
+                        Expanded(child: map),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
@@ -1969,18 +2032,534 @@ class _Surface extends StatelessWidget {
   }
 }
 
+class _LiveZoneStrip extends StatelessWidget {
+  final List<Map<String, dynamic>> zones;
+  final String? selectedZoneId;
+  final ValueChanged<String?> onSelected;
+
+  const _LiveZoneStrip({
+    required this.zones,
+    required this.selectedZoneId,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = <Color>[
+      const Color(0xFF0B57D0),
+      const Color(0xFF12B76A),
+      const Color(0xFFF79009),
+      const Color(0xFF7A2CF3),
+      const Color(0xFF06AED4),
+      const Color(0xFFEF4444),
+    ];
+
+    Widget chip({
+      required String label,
+      required bool selected,
+      required VoidCallback onTap,
+      Color? dot,
+      IconData? icon,
+    }) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? adminBlue : const Color(0xFFF8FAFD),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? adminBlue : const Color(0xFFE4EAF2),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null)
+                Icon(
+                  icon,
+                  size: 15,
+                  color: selected ? Colors.white : adminMuted,
+                )
+              else if (dot != null)
+                Container(
+                  width: 9,
+                  height: 9,
+                  decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+                ),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.white : adminDark,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 68,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE4EAF2)),
+      ),
+      child: Row(
+        children: [
+          chip(
+            label: 'Todas las zonas',
+            selected: selectedZoneId == null,
+            icon: Icons.grid_view_rounded,
+            onTap: () => onSelected(null),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: zones.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final zone = zones[index];
+                final id = (zone['id'] ?? '').toString();
+                return chip(
+                  label: (zone['name'] ?? 'Zona').toString(),
+                  selected: id.isNotEmpty && id == selectedZoneId,
+                  dot: palette[index % palette.length],
+                  onTap: () => onSelected(id.isEmpty ? null : id),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveSidePanel extends StatelessWidget {
+  final List<Map<String, dynamic>> trips;
+  final List<Map<String, dynamic>> drivers;
+  final bool showDrivers;
+  final ValueChanged<bool> onTabChanged;
+
+  const _LiveSidePanel({
+    required this.trips,
+    required this.drivers,
+    required this.showDrivers,
+    required this.onTabChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final online = drivers.where((row) {
+      final status = _driverLiveStatus(row, trips);
+      return status != 'offline';
+    }).length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE4EAF2)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _LiveMetricCard(
+                    label: 'Viajes activos',
+                    value: trips.length,
+                    icon: Icons.route_rounded,
+                    soft: const Color(0xFFE5F8F1),
+                    accent: const Color(0xFF12A66A),
+                    note: 'En tiempo real',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _LiveMetricCard(
+                    label: 'Conductores',
+                    value: online,
+                    icon: Icons.groups_2_outlined,
+                    soft: const Color(0xFFF0E8FF),
+                    accent: const Color(0xFF7A2CF3),
+                    note: 'Conectados ahora',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            height: 45,
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Color(0xFFEEF1F5)),
+                bottom: BorderSide(color: Color(0xFFEEF1F5)),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _LiveTab(
+                    label: 'Viajes (' + trips.length.toString() + ')',
+                    selected: !showDrivers,
+                    onTap: () => onTabChanged(false),
+                  ),
+                ),
+                Expanded(
+                  child: _LiveTab(
+                    label: 'Conductores (' + drivers.length.toString() + ')',
+                    selected: showDrivers,
+                    onTap: () => onTabChanged(true),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: showDrivers
+                ? _LiveDriverList(drivers: drivers, trips: trips)
+                : _LiveTripList(trips: trips),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveMetricCard extends StatelessWidget {
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color soft;
+  final Color accent;
+  final String note;
+
+  const _LiveMetricCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.soft,
+    required this.accent,
+    required this.note,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 104),
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDFEFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE9EDF3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: soft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: accent),
+              ),
+              const Spacer(),
+              Text(
+                value.toString(),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: adminDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: adminDark,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            note,
+            style: TextStyle(
+              color: accent,
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveTab extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _LiveTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? adminBlue : adminMuted,
+                fontSize: 10,
+                fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+              ),
+            ),
+          ),
+          if (selected)
+            Container(
+              height: 2,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              color: adminBlue,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveTripList extends StatelessWidget {
+  final List<Map<String, dynamic>> trips;
+  const _LiveTripList({required this.trips});
+
+  @override
+  Widget build(BuildContext context) {
+    if (trips.isEmpty) {
+      return const Center(
+        child: Text(
+          'No hay viajes activos.',
+          style: TextStyle(color: adminMuted, fontSize: 10),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: trips.length,
+      separatorBuilder: (_, __) =>
+          const Divider(height: 1, color: Color(0xFFEEF1F5)),
+      itemBuilder: (context, index) {
+        final row = trips[index];
+        final id = (row['id'] ?? '').toString();
+        final shortId = id.length > 7 ? id.substring(0, 7).toUpperCase() : id;
+        final status = (row['status'] ?? 'activo').toString();
+        final pickup = (row['pickup_address'] ?? 'Origen').toString();
+        final destination =
+            (row['destination_address'] ?? 'Destino').toString();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 9,
+                height: 9,
+                margin: const EdgeInsets.only(top: 4),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF246BFD),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            shortId.isEmpty ? 'Viaje activo' : '#' + shortId,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: adminDark,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F0FF),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            status,
+                            style: const TextStyle(
+                              color: adminBlue,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      pickup + '  →  ' + destination,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: adminMuted,
+                        fontSize: 8,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LiveDriverList extends StatelessWidget {
+  final List<Map<String, dynamic>> drivers;
+  final List<Map<String, dynamic>> trips;
+
+  const _LiveDriverList({
+    required this.drivers,
+    required this.trips,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (drivers.isEmpty) {
+      return const Center(
+        child: Text(
+          'No hay conductores para mostrar.',
+          style: TextStyle(color: adminMuted, fontSize: 10),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: drivers.length,
+      separatorBuilder: (_, __) =>
+          const Divider(height: 1, color: Color(0xFFEEF1F5)),
+      itemBuilder: (context, index) {
+        final row = drivers[index];
+        final status = _driverLiveStatus(row, trips);
+        final name = (row['name'] ??
+                row['full_name'] ??
+                row['driver_name'] ??
+                'Conductor')
+            .toString();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: _driverStatusColor(status).withOpacity(.12),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(
+                  Icons.drive_eta_rounded,
+                  size: 16,
+                  color: _driverStatusColor(status),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: adminDark,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _driverStatusColor(status),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                _driverStatusLabel(status),
+                style: const TextStyle(
+                  color: adminMuted,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _OperationsMap extends StatelessWidget {
   final List<Map<String, dynamic>> drivers;
   final List<Map<String, dynamic>> trips;
   final List<Map<String, dynamic>> deliveries;
   final List<Map<String, dynamic>> emergencies;
+  final Map<String, dynamic>? selectedZone;
   final bool fullScreen;
 
   const _OperationsMap({
+    super.key,
     required this.drivers,
     required this.trips,
     required this.deliveries,
     required this.emergencies,
+    this.selectedZone,
     this.fullScreen = false,
   });
 
@@ -1993,11 +2572,9 @@ class _OperationsMap extends StatelessWidget {
       String latKey,
       String lngKey,
       IconData icon,
-      String tooltip, {
-      bool dark = false,
-      bool alert = false,
-      bool active = true,
-    }) {
+      String tooltip,
+      Color color,
+    ) {
       final lat = _toDouble(row[latKey]);
       final lng = _toDouble(row[lngKey]);
       if (lat == null || lng == null) return;
@@ -2008,28 +2585,26 @@ class _OperationsMap extends StatelessWidget {
           height: 46,
           child: Tooltip(
             message: tooltip,
-            child: _MapDot(
-              icon: icon,
-              dark: dark,
-              alert: alert,
-              active: active,
-            ),
+            child: _MapDot(icon: icon, color: color),
           ),
         ),
       );
     }
 
     for (final row in drivers) {
-      final online = row['online_status'] == 'online';
+      final status = _driverLiveStatus(row, trips);
+      final name = (row['name'] ??
+              row['full_name'] ??
+              row['driver_name'] ??
+              'Conductor')
+          .toString();
       addMarker(
         row,
         'latitude',
         'longitude',
         Icons.drive_eta_rounded,
-        (row['name'] ?? 'Conductor').toString() +
-            ' · ' +
-            (online ? 'Online' : 'Offline'),
-        active: online,
+        name + ' · ' + _driverStatusLabel(status),
+        _driverStatusColor(status),
       );
     }
 
@@ -2040,7 +2615,7 @@ class _OperationsMap extends StatelessWidget {
         'pickup_longitude',
         Icons.local_taxi_rounded,
         'Viaje · ' + (row['pickup_address'] ?? 'Origen').toString(),
-        dark: true,
+        adminBlue,
       );
     }
 
@@ -2051,7 +2626,7 @@ class _OperationsMap extends StatelessWidget {
         'pickup_longitude',
         Icons.local_shipping_rounded,
         'Delivery · ' + (row['pickup_address'] ?? 'Origen').toString(),
-        dark: true,
+        adminDark,
       );
     }
 
@@ -2062,9 +2637,58 @@ class _OperationsMap extends StatelessWidget {
         'longitude',
         Icons.sos_rounded,
         'SOS · ' + (row['user_name'] ?? 'Usuario').toString(),
-        alert: true,
+        const Color(0xFFD92D20),
       );
     }
+
+    final zoneLat = _toDouble(selectedZone?['center_latitude']);
+    final zoneLng = _toDouble(selectedZone?['center_longitude']);
+    final zoneRadiusKm = _toDouble(selectedZone?['radius_km']);
+
+    final center = zoneLat != null && zoneLng != null
+        ? LatLng(zoneLat, zoneLng)
+        : _center(drivers, trips, deliveries, emergencies);
+
+    final available =
+        drivers.where((d) => _driverLiveStatus(d, trips) == 'available').length;
+    final noSignal =
+        drivers.where((d) => _driverLiveStatus(d, trips) == 'signal').length;
+    final inTrip =
+        drivers.where((d) => _driverLiveStatus(d, trips) == 'trip').length;
+    final offline =
+        drivers.where((d) => _driverLiveStatus(d, trips) == 'offline').length;
+
+    final map = FlutterMap(
+      options: MapOptions(
+        initialCenter: center,
+        initialZoom: selectedZone != null ? 13.5 : (fullScreen ? 13 : 12),
+      ),
+      children: [
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.express.delivery',
+        ),
+        if (zoneLat != null && zoneLng != null && zoneRadiusKm != null)
+          CircleLayer(
+            circles: [
+              CircleMarker(
+                point: LatLng(zoneLat, zoneLng),
+                radius: zoneRadiusKm * 1000,
+                useRadiusInMeter: true,
+                color: const Color(0x1F0B57D0),
+                borderColor: adminBlue,
+                borderStrokeWidth: 2,
+              ),
+            ],
+          ),
+        if (markers.isNotEmpty) MarkerLayer(markers: markers),
+        const RichAttributionWidget(
+          attributions: [
+            TextSourceAttribution('OpenStreetMap contributors'),
+          ],
+        ),
+      ],
+    );
 
     return Card(
       margin: EdgeInsets.zero,
@@ -2073,45 +2697,68 @@ class _OperationsMap extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Icon(Icons.map_outlined, color: adminBlue),
-                SizedBox(width: 8),
-                Text(
-                  'Mapa operativo',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
+          if (!fullScreen) ...[
+            const Padding(
+              padding: EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Icon(Icons.map_outlined, color: adminBlue),
+                  SizedBox(width: 8),
+                  Text(
+                    'Mapa operativo',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: FlutterMap(
-              options: MapOptions(
-                initialCenter: _center(
-                  drivers,
-                  trips,
-                  deliveries,
-                  emergencies,
-                ),
-                initialZoom: fullScreen ? 13 : 12,
+                ],
               ),
+            ),
+            const Divider(height: 1),
+          ],
+          Expanded(
+            child: Stack(
               children: [
-                TileLayer(
-                  urlTemplate:
-                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.express.delivery',
-                ),
-                if (markers.isNotEmpty) MarkerLayer(markers: markers),
-                const RichAttributionWidget(
-                  attributions: [
-                    TextSourceAttribution('OpenStreetMap contributors'),
-                  ],
+                Positioned.fill(child: map),
+                if (selectedZone != null)
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(.94),
+                        borderRadius: BorderRadius.circular(9),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x1A101828),
+                            blurRadius: 10,
+                            offset: Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        (selectedZone?['name'] ?? 'Zona').toString(),
+                        style: const TextStyle(
+                          color: adminDark,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  left: 12,
+                  bottom: 12,
+                  child: _MapStatusLegend(
+                    available: available,
+                    noSignal: noSignal,
+                    inTrip: inTrip,
+                    offline: offline,
+                  ),
                 ),
               ],
             ),
@@ -2122,32 +2769,109 @@ class _OperationsMap extends StatelessWidget {
   }
 }
 
-class _MapDot extends StatelessWidget {
-  final IconData icon;
-  final bool dark;
-  final bool alert;
-  final bool active;
+class _MapStatusLegend extends StatelessWidget {
+  final int available;
+  final int noSignal;
+  final int inTrip;
+  final int offline;
 
-  const _MapDot({
-    required this.icon,
-    this.dark = false,
-    this.alert = false,
-    this.active = true,
+  const _MapStatusLegend({
+    required this.available,
+    required this.noSignal,
+    required this.inTrip,
+    required this.offline,
   });
 
   @override
   Widget build(BuildContext context) {
-    final background = alert
-        ? const Color(0xFFD92D20)
-        : dark
-            ? adminDark
-            : active
-                ? const Color(0xFF12B76A)
-                : const Color(0xFF98A2B3);
+    final rows = [
+      ('Disponibles', available, const Color(0xFF12B76A)),
+      ('En línea, sin señal', noSignal, const Color(0xFF246BFD)),
+      ('En viaje', inTrip, const Color(0xFFF79009)),
+      ('Desconectados', offline, const Color(0xFFE5484D)),
+    ];
 
     return Container(
+      width: 190,
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-        color: background,
+        color: Colors.white.withOpacity(.95),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: const Color(0xFFE4EAF2)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A101828),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Conductores',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: adminDark,
+            ),
+          ),
+          const SizedBox(height: 7),
+          for (final row in rows)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: row.$3,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      row.$1,
+                      style: const TextStyle(
+                        color: adminMuted,
+                        fontSize: 8,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    row.$2.toString(),
+                    style: const TextStyle(
+                      color: adminDark,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapDot extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+
+  const _MapDot({
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 3),
         boxShadow: const [
@@ -2160,6 +2884,83 @@ class _MapDot extends StatelessWidget {
       ),
       child: Icon(icon, color: Colors.white, size: 20),
     );
+  }
+}
+
+String _driverLiveStatus(
+  Map<String, dynamic> driver,
+  List<Map<String, dynamic>> trips,
+) {
+  final online =
+      (driver['online_status'] ?? driver['status'] ?? 'offline')
+          .toString()
+          .toLowerCase();
+  final signal = (driver['signal_status'] ??
+          driver['location_status'] ??
+          driver['gps_status'] ??
+          '')
+      .toString()
+      .toLowerCase();
+
+  final driverId =
+      (driver['user_id'] ?? driver['driver_id'] ?? driver['id'] ?? '')
+          .toString();
+  final driverName =
+      (driver['name'] ?? driver['full_name'] ?? driver['driver_name'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+
+  final inTrip = trips.any((trip) {
+    final tripDriverId =
+        (trip['driver_id'] ?? trip['driver_user_id'] ?? '').toString();
+    final tripDriverName =
+        (trip['driver_name'] ?? '').toString().trim().toLowerCase();
+    return (driverId.isNotEmpty && tripDriverId == driverId) ||
+        (driverName.isNotEmpty && tripDriverName == driverName);
+  });
+
+  if (inTrip || online.contains('trip') || online.contains('busy')) {
+    return 'trip';
+  }
+
+  final connected =
+      online == 'online' || online == 'available' || online == 'connected';
+  if (!connected) return 'offline';
+
+  final noSignal = signal.contains('no_signal') ||
+      signal.contains('no signal') ||
+      signal.contains('lost') ||
+      signal.contains('stale') ||
+      signal.contains('offline');
+  if (noSignal) return 'signal';
+
+  return 'available';
+}
+
+Color _driverStatusColor(String status) {
+  switch (status) {
+    case 'trip':
+      return const Color(0xFFF79009);
+    case 'signal':
+      return const Color(0xFF246BFD);
+    case 'offline':
+      return const Color(0xFFE5484D);
+    default:
+      return const Color(0xFF12B76A);
+  }
+}
+
+String _driverStatusLabel(String status) {
+  switch (status) {
+    case 'trip':
+      return 'En viaje';
+    case 'signal':
+      return 'Sin señal';
+    case 'offline':
+      return 'Desconectado';
+    default:
+      return 'Disponible';
   }
 }
 
