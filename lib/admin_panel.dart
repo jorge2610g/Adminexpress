@@ -463,24 +463,56 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
 
         final state = snapshot.data ?? const <String, dynamic>{};
         final metrics = _map(state['metrics']);
-        final drivers = _list(state['drivers']);
-        final trips = _list(state['active_trips']);
-        final deliveries = _list(state['active_deliveries']);
-        final emergencies = _list(state['emergencies']);
         final activity = _list(state['activity']);
 
         return RefreshIndicator(
           onRefresh: () async => _refresh(),
           child: ListView(
-            padding: const EdgeInsets.all(22),
+            padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
             children: [
-              const _Header(
-                title: 'Express Delivery',
-                subtitle:
-                    'Bienvenido al panel de control de tu empresa.',
-                badge: 'Activa',
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final header = const _Header(
+                    title: 'Express Delivery',
+                    subtitle: 'Bienvenido al panel de control de tu empresa.',
+                    badge: 'Activa',
+                  );
+                  final liveButton = FilledButton.icon(
+                    onPressed: () => _goTo(1),
+                    icon: const Icon(Icons.bolt_rounded, size: 17),
+                    label: const Text('Ver en vivo'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 38),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                    ),
+                  );
+
+                  if (constraints.maxWidth < 680) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        header,
+                        const SizedBox(height: 12),
+                        liveButton,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Expanded(child: _Header(
+                        title: 'Express Delivery',
+                        subtitle: 'Bienvenido al panel de control de tu empresa.',
+                        badge: 'Activa',
+                      )),
+                      const SizedBox(width: 16),
+                      liveButton,
+                    ],
+                  );
+                },
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
@@ -488,18 +520,18 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                       ? width
                       : width < 1100
                           ? (width - 12) / 2
-                          : (width - 36) / 4;
+                          : (width - 42) / 4;
                   return Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
+                    spacing: 14,
+                    runSpacing: 14,
                     children: [
                       SizedBox(
                         width: cardWidth,
                         child: _Metric(
                           'Viajes activos',
                           metrics['active_trips'],
-                          Icons.route_rounded,
-                          tone: _MetricTone.blue,
+                          Icons.location_on_outlined,
+                          tone: _MetricTone.green,
                           footnote: 'En operación ahora',
                         ),
                       ),
@@ -508,20 +540,20 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                         child: _Metric(
                           'Viajes hoy',
                           metrics['trips_today'],
-                          Icons.local_taxi_rounded,
-                          tone: _MetricTone.green,
+                          Icons.schedule_rounded,
+                          tone: _MetricTone.blue,
                           footnote: 'Solicitudes del día',
                         ),
                       ),
                       SizedBox(
                         width: cardWidth,
                         child: _Metric(
-                          'Conductores conectados',
+                          'Conductores',
                           metrics['drivers_online'],
                           Icons.drive_eta_rounded,
                           tone: _MetricTone.orange,
                           footnote:
-                              'de ' + (metrics['drivers_total'] ?? 0).toString(),
+                              'de ' + (metrics['drivers_total'] ?? 0).toString() + ' conectados',
                         ),
                       ),
                       SizedBox(
@@ -529,7 +561,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                         child: _Metric(
                           'Completados',
                           metrics['completed_today'],
-                          Icons.check_circle_rounded,
+                          Icons.task_alt_rounded,
                           tone: _MetricTone.purple,
                           footnote: 'Finalizados hoy',
                         ),
@@ -538,7 +570,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                   );
                 },
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 16),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final quick = _QuickActions(
@@ -547,6 +579,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     onDispatch: () => _goTo(13),
                   );
                   final system = _SystemStatus(metrics: metrics);
+
                   if (constraints.maxWidth < 900) {
                     return Column(
                       children: [
@@ -556,6 +589,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                       ],
                     );
                   }
+
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -566,41 +600,35 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                   );
                 },
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 16),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final map = _OperationsMap(
-                    drivers: drivers,
-                    trips: trips,
-                    deliveries: deliveries,
-                    emergencies: emergencies,
-                  );
                   final recent = _Activity(rows: activity);
+                  final summary = _DailySummary(metrics: metrics);
 
-                  if (constraints.maxWidth < 1000) {
+                  if (constraints.maxWidth < 900) {
                     return Column(
                       children: [
-                        SizedBox(height: 430, child: map),
+                        SizedBox(height: 330, child: recent),
                         const SizedBox(height: 14),
-                        SizedBox(height: 430, child: recent),
+                        summary,
                       ],
                     );
                   }
 
                   return SizedBox(
-                    height: 470,
+                    height: 330,
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(flex: 3, child: map),
+                        Expanded(flex: 3, child: recent),
                         const SizedBox(width: 14),
-                        Expanded(flex: 2, child: recent),
+                        Expanded(flex: 2, child: summary),
                       ],
                     ),
                   );
                 },
               ),
-              const SizedBox(height: 18),
-              _Totals(metrics: metrics),
             ],
           ),
         );
@@ -1544,13 +1572,13 @@ class _Metric extends StatelessWidget {
     if (alert) return const Color(0xFFFFE8E8);
     switch (tone) {
       case _MetricTone.green:
-        return const Color(0xFFE8F8EF);
+        return const Color(0xFFE3F8EF);
       case _MetricTone.orange:
-        return const Color(0xFFFFF3E7);
+        return const Color(0xFFFFF3D9);
       case _MetricTone.purple:
-        return const Color(0xFFF1EBFF);
+        return const Color(0xFFF0E8FF);
       case _MetricTone.blue:
-        return const Color(0xFFEAF2FF);
+        return const Color(0xFFE7F0FF);
     }
   }
 
@@ -1558,73 +1586,86 @@ class _Metric extends StatelessWidget {
     if (alert) return const Color(0xFFD92D20);
     switch (tone) {
       case _MetricTone.green:
-        return const Color(0xFF14804A);
+        return const Color(0xFF12A66A);
       case _MetricTone.orange:
-        return const Color(0xFFC76B16);
+        return const Color(0xFFD98A00);
       case _MetricTone.purple:
-        return const Color(0xFF6941C6);
+        return const Color(0xFF7A2CF3);
       case _MetricTone.blue:
-        return adminBlue;
+        return const Color(0xFF246BFD);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 118),
+      constraints: const BoxConstraints(minHeight: 128),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: const Color(0xFFE7ECF3)),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFE4EAF2)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D101828),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: _soft,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: _accent, size: 21),
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _soft,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(icon, color: _accent, size: 20),
+              ),
+              const Spacer(),
+              const Icon(
+                Icons.trending_up_rounded,
+                color: Color(0xFF98A2B3),
+                size: 17,
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: adminMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  (value ?? 0).toString(),
-                  style: const TextStyle(
-                    fontSize: 25,
-                    fontWeight: FontWeight.w900,
-                    color: adminDark,
-                  ),
-                ),
-                if (footnote != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    footnote!,
-                    style: const TextStyle(
-                      color: Color(0xFF98A2B3),
-                      fontSize: 9,
-                    ),
-                  ),
-                ],
-              ],
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              color: adminMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
             ),
           ),
+          const SizedBox(height: 3),
+          Text(
+            (value ?? 0).toString(),
+            style: const TextStyle(
+              fontSize: 25,
+              height: 1,
+              fontWeight: FontWeight.w900,
+              color: adminDark,
+            ),
+          ),
+          if (footnote != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              footnote!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF98A2B3),
+                fontSize: 9,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1647,29 +1688,86 @@ class _QuickActions extends StatelessWidget {
     final actions = [
       (
         'Ver viajes en vivo',
-        'Supervisa la operación en el mapa',
-        Icons.map_rounded,
-        const Color(0xFFE8F1FF),
-        adminBlue,
+        'Monitorea la operación en tiempo real',
+        Icons.location_on_outlined,
+        const Color(0xFFE5F8F1),
+        const Color(0xFF129B67),
         onLive,
       ),
       (
         'Gestionar conductores',
-        'Estados, aprobación y vehículos',
+        'Administra estados, aprobación y flota',
         Icons.drive_eta_rounded,
-        const Color(0xFFE8F8EF),
-        const Color(0xFF14804A),
+        const Color(0xFFFFF5DF),
+        const Color(0xFFC98000),
         onDrivers,
       ),
       (
         'Despacho manual',
         'Asigna un conductor directamente',
         Icons.alt_route_rounded,
-        const Color(0xFFFFF3E7),
-        const Color(0xFFC76B16),
+        const Color(0xFFE8F0FF),
+        const Color(0xFF246BFD),
         onDispatch,
       ),
     ];
+
+    Widget actionCard(
+      (String, String, IconData, Color, Color, VoidCallback) action,
+    ) {
+      return InkWell(
+        onTap: action.$6,
+        borderRadius: BorderRadius.circular(13),
+        child: Ink(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: action.$4,
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(color: Colors.white),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 112),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(.72),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(action.$3, color: action.$5, size: 19),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  action.$1,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: adminDark,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  action.$2,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: adminMuted,
+                    height: 1.3,
+                    fontSize: 9,
+                  ),
+                ),
+                const Spacer(),
+                const SizedBox(height: 8),
+                Icon(Icons.arrow_forward_rounded, color: action.$5, size: 18),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return _Surface(
       child: Column(
@@ -1684,52 +1782,33 @@ class _QuickActions extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          for (final action in actions) ...[
-            InkWell(
-              onTap: action.$6,
-              borderRadius: BorderRadius.circular(11),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: action.$4,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Row(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 620) {
+                return Column(
                   children: [
-                    Icon(action.$3, color: action.$5, size: 20),
-                    const SizedBox(width: 11),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            action.$1,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          Text(
-                            action.$2,
-                            style: const TextStyle(
-                              color: adminMuted,
-                              fontSize: 9,
-                            ),
-                          ),
-                        ],
+                    for (final action in actions) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: actionCard(action),
                       ),
-                    ),
-                    const Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 12,
-                      color: adminMuted,
-                    ),
+                      if (action != actions.last) const SizedBox(height: 10),
+                    ],
                   ],
-                ),
-              ),
-            ),
-            if (action != actions.last) const SizedBox(height: 8),
-          ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < actions.length; i++) ...[
+                    Expanded(child: actionCard(actions[i])),
+                    if (i != actions.length - 1) const SizedBox(width: 10),
+                  ],
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
@@ -1744,11 +1823,32 @@ class _SystemStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = [
-      ('Conductores', metrics['drivers_total'], Icons.drive_eta_rounded),
-      ('Usuarios', metrics['users_total'], Icons.people_alt_outlined),
-      ('Solicitudes', metrics['ride_searching'], Icons.radar_rounded),
-      ('SOS', metrics['open_emergencies'], Icons.sos_rounded),
+      (
+        'Conductores',
+        metrics['drivers_online'],
+        'de ' + (metrics['drivers_total'] ?? 0).toString() + ' conectados',
+        Icons.drive_eta_rounded,
+      ),
+      (
+        'Usuarios',
+        metrics['users_total'],
+        'Registrados',
+        Icons.people_alt_outlined,
+      ),
+      (
+        'Solicitudes',
+        metrics['ride_searching'],
+        'Pendientes',
+        Icons.radar_rounded,
+      ),
+      (
+        'SOS',
+        metrics['open_emergencies'],
+        'Sin alertas',
+        Icons.sos_rounded,
+      ),
     ];
+
     return _Surface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1761,31 +1861,56 @@ class _SystemStatus extends StatelessWidget {
               color: adminDark,
             ),
           ),
-          const SizedBox(height: 9),
-          for (final row in rows)
+          const SizedBox(height: 8),
+          for (var i = 0; i < rows.length; i++) ...[
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 7),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 children: [
-                  Icon(row.$3, size: 17, color: adminMuted),
+                  Container(
+                    width: 31,
+                    height: 31,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F6FA),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Icon(rows[i].$4, size: 16, color: adminMuted),
+                  ),
                   const SizedBox(width: 9),
                   Expanded(
-                    child: Text(
-                      row.$1,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          rows[i].$1,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: adminDark,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          rows[i].$3,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: adminMuted,
+                            fontSize: 8,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   Text(
-                    (row.$2 ?? 0).toString(),
+                    (rows[i].$2 ?? 0).toString(),
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w900,
+                      color: adminDark,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 7),
                   Container(
                     width: 7,
                     height: 7,
@@ -1797,6 +1922,9 @@ class _SystemStatus extends StatelessWidget {
                 ],
               ),
             ),
+            if (i != rows.length - 1)
+              const Divider(height: 1, color: Color(0xFFEEF1F5)),
+          ],
         ],
       ),
     );
@@ -1810,11 +1938,18 @@ class _Surface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: const Color(0xFFE7ECF3)),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFE4EAF2)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0B101828),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: child,
     );
@@ -2021,66 +2156,193 @@ class _Activity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      surfaceTintColor: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Actividad reciente',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+    return _Surface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Actividad reciente',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: adminDark,
             ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: rows.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Todavía no hay actividad.',
-                        style: TextStyle(color: adminMuted),
-                      ),
-                    )
-                  : ListView.separated(
-                      itemCount: rows.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final row = rows[index];
-                        return ListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(
-                            _activityIcon(row['kind']?.toString()),
-                            color: row['kind'] == 'emergency'
-                                ? const Color(0xFFD92D20)
-                                : adminBlue,
-                          ),
-                          title: Text(
-                            row['title']?.toString() ?? 'Actividad',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          subtitle: Text(
-                            row['subtitle']?.toString() ?? '',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: Text(
-                            _formatTime(row['created_at']),
-                            style: const TextStyle(
-                              color: adminMuted,
-                              fontSize: 10,
-                            ),
-                          ),
-                        );
-                      },
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: rows.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Todavía no hay actividad.',
+                      style: TextStyle(color: adminMuted, fontSize: 11),
                     ),
+                  )
+                : ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: rows.length > 6 ? 6 : rows.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, color: Color(0xFFEEF1F5)),
+                    itemBuilder: (context, index) {
+                      final row = rows[index];
+                      final alert = row['kind'] == 'emergency';
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 31,
+                              height: 31,
+                              decoration: BoxDecoration(
+                                color: alert
+                                    ? const Color(0xFFFFE8E8)
+                                    : const Color(0xFFEAF2FF),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Icon(
+                                _activityIcon(row['kind']?.toString()),
+                                color: alert
+                                    ? const Color(0xFFD92D20)
+                                    : adminBlue,
+                                size: 16,
+                              ),
+                            ),
+                            const SizedBox(width: 9),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    row['title']?.toString() ?? 'Actividad',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: adminDark,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    row['subtitle']?.toString() ?? '',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: adminMuted,
+                                      fontSize: 8,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _formatTime(row['created_at']),
+                              style: const TextStyle(
+                                color: Color(0xFF98A2B3),
+                                fontSize: 8,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DailySummary extends StatelessWidget {
+  final Map<String, dynamic> metrics;
+  const _DailySummary({required this.metrics});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      (
+        'Total de viajes',
+        metrics['trips_today'],
+        Icons.local_taxi_rounded,
+        const Color(0xFFE5F8F1),
+        const Color(0xFF129B67),
+      ),
+      (
+        'Completados',
+        metrics['completed_today'],
+        Icons.task_alt_rounded,
+        const Color(0xFFF0E8FF),
+        const Color(0xFF7A2CF3),
+      ),
+      (
+        'Viajes activos',
+        metrics['active_trips'],
+        Icons.location_on_outlined,
+        const Color(0xFFE8F0FF),
+        const Color(0xFF246BFD),
+      ),
+      (
+        'Conductores online',
+        metrics['drivers_online'],
+        Icons.drive_eta_rounded,
+        const Color(0xFFFFF3D9),
+        const Color(0xFFD98A00),
+      ),
+    ];
+
+    return _Surface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Resumen del día',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: adminDark,
             ),
+          ),
+          const SizedBox(height: 8),
+          for (var i = 0; i < items.length; i++) ...[
+            Expanded(
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: items[i].$4,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(items[i].$3, color: items[i].$5, size: 17),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      items[i].$1,
+                      style: const TextStyle(
+                        color: adminDark,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    (items[i].$2 ?? 0).toString(),
+                    style: const TextStyle(
+                      color: adminDark,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (i != items.length - 1)
+              const Divider(height: 1, color: Color(0xFFEEF1F5)),
           ],
-        ),
+        ],
       ),
     );
   }
