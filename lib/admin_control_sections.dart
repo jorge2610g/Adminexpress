@@ -339,6 +339,117 @@ class AdminAuditPage extends StatefulWidget {
 class _AdminAuditPageState extends State<AdminAuditPage> {
   int revision = 0;
 
+  String _actionLabel(Object? raw) {
+    return switch (raw?.toString()) {
+      'update_user_profile' => 'Perfil de usuario actualizado',
+      'update_driver_profile' => 'Perfil de conductor actualizado',
+      'upsert_driver_document' => 'Documento de conductor actualizado',
+      'send_announcement' => 'Aviso / promoción enviada',
+      'set_driver_approval' => 'Estado de conductor cambiado',
+      'set_account_status' => 'Estado de cuenta cambiado',
+      'service_zone_polygon' => 'Polígono de cobertura actualizado',
+      'upsert_service_zone_polygon' => 'Polígono de cobertura actualizado',
+      'update_service_zone_polygon' => 'Polígono de cobertura actualizado',
+      'upsert_zone' => 'Zona actualizada',
+      'set_zone_service' => 'Servicio de zona actualizado',
+      'update_fare_rule' => 'Tarifa actualizada',
+      'set_fare_rule' => 'Tarifa actualizada',
+      final value when value != null && value.isNotEmpty =>
+        value.replaceAll('_', ' '),
+      _ => 'Acción administrativa',
+    };
+  }
+
+  String _entityLabel(Object? raw) {
+    return switch (raw?.toString()) {
+      'driver_profile' => 'Conductor',
+      'driver_document' => 'Documento',
+      'user' => 'Usuario',
+      'notifications' => 'Notificaciones',
+      'service_zone_polygon' => 'Polígono de zona',
+      'service_zone' => 'Zona',
+      'fare_rule' => 'Tarifa',
+      'zone_service' => 'Servicio',
+      'driver_subscription' => 'Suscripción',
+      final value when value != null && value.isNotEmpty =>
+        value.replaceAll('_', ' '),
+      _ => 'Sistema',
+    };
+  }
+
+  List<String> _detailLines(Object? raw) {
+    if (raw is! Map || raw.isEmpty) return const [];
+    final map = Map<String, dynamic>.from(raw);
+    return map.entries
+        .map((entry) {
+          final key = entry.key
+              .replaceAll('_', ' ')
+              .replaceFirstMapped(
+                RegExp(r'^[a-z]'),
+                (m) => m.group(0)!.toUpperCase(),
+              );
+          final value = entry.value;
+          final rendered = value is Map || value is List
+              ? value.toString()
+              : (value?.toString() ?? '—');
+          return '$key: $rendered';
+        })
+        .toList();
+  }
+
+  Future<void> _showDetail(Map<String, dynamic> row) async {
+    final lines = _detailLines(row['details']);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(_actionLabel(row['action'])),
+        content: SizedBox(
+          width: 620,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ReadOnlyRow('Módulo', _entityLabel(row['entity_type'])),
+                _ReadOnlyRow(
+                  'Administrador',
+                  (row['admin_name'] ?? 'Administrador').toString(),
+                ),
+                _ReadOnlyRow('Fecha', _formatDate(row['created_at'])),
+                _ReadOnlyRow('ID', (row['entity_id'] ?? '—').toString()),
+                if (lines.isNotEmpty) ...[
+                  const Divider(height: 26),
+                  const Text(
+                    'Cambios registrados',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 8),
+                  ...lines.map(
+                    (line) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: SelectableText(
+                        line,
+                        style: const TextStyle(
+                          color: _muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<List<Map<String, dynamic>>> _load() async {
     final value = await supabase.rpc(
       'admin_audit_list',
@@ -385,18 +496,20 @@ class _AdminAuditPageState extends State<AdminAuditPage> {
                     leading:
                         const Icon(Icons.history_rounded, color: _blue),
                     title: Text(
-                      (row['action'] ?? 'acción').toString() +
-                          ' · ' +
-                          (row['entity_type'] ?? 'entidad').toString(),
+                      _actionLabel(row['action']),
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                     subtitle: Text(
-                      (row['admin_name'] ?? 'Administrador').toString() +
+                      _entityLabel(row['entity_type']) +
+                          ' · ' +
+                          (row['admin_name'] ?? 'Administrador').toString() +
                           ' · ' +
                           _formatDate(row['created_at']) +
                           '\nID: ' +
                           (row['entity_id'] ?? '—').toString(),
                     ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _showDetail(row),
                     isThreeLine: true,
                   ),
                 ),
@@ -3539,6 +3652,34 @@ class _AdminCommunicationsPageState
   String audience = 'drivers';
   bool sendingReply = false;
   bool sendingAnnouncement = false;
+  bool loadingCampaignTargets = true;
+  List<Map<String, dynamic>> campaignZones = const [];
+  List<Map<String, dynamic>> campaignPartners = const [];
+  String? campaignZoneId;
+  String? campaignPartnerId;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadCampaignTargets());
+  }
+
+  Future<void> _loadCampaignTargets() async {
+    try {
+      final values = await Future.wait([
+        supabase.rpc('admin_zone_list'),
+        supabase.rpc('admin_partner_list'),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        campaignZones = _list(values[0]);
+        campaignPartners = _list(values[1]);
+        loadingCampaignTargets = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => loadingCampaignTargets = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -3589,18 +3730,37 @@ class _AdminCommunicationsPageState
     final body = announcementBody.text.trim();
     if (title.isEmpty || body.isEmpty || sendingAnnouncement) return;
 
-    final label = switch (audience) {
+    final audienceLabel = switch (audience) {
       'drivers' => 'conductores',
       'passengers' => 'pasajeros',
       _ => 'todos los usuarios',
     };
+    Map<String, dynamic>? zone;
+    for (final row in campaignZones) {
+      if (row['id']?.toString() == campaignZoneId) {
+        zone = row;
+        break;
+      }
+    }
+    Map<String, dynamic>? partner;
+    for (final row in campaignPartners) {
+      if (row['id']?.toString() == campaignPartnerId) {
+        partner = row;
+        break;
+      }
+    }
+    final targetLabel = partner != null
+        ? audienceLabel + ' de ' + (partner['name'] ?? 'la organización').toString()
+        : zone != null
+            ? audienceLabel + ' de ' + (zone['name'] ?? 'la zona').toString()
+            : audienceLabel;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Enviar aviso'),
         content: Text(
-          'Se enviará “' + title + '” a ' + label + '.',
+          'Se enviará “' + title + '” a ' + targetLabel + '.',
         ),
         actions: [
           TextButton(
@@ -3619,20 +3779,26 @@ class _AdminCommunicationsPageState
     setState(() => sendingAnnouncement = true);
     try {
       final result = await supabase.rpc(
-        'admin_send_announcement',
+        'admin_send_announcement_v2',
         params: {
           'p_title': title,
           'p_body': body,
           'p_audience': audience,
+          'p_zone_id': campaignZoneId,
+          'p_partner_id': campaignPartnerId,
         },
       );
       announcementTitle.clear();
       announcementBody.clear();
       if (!mounted) return;
+      final resultMap = _map(result);
+      final recipients = resultMap['recipients'] ?? 0;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Aviso enviado a ' + result.toString() + ' destinatarios.',
+            'Aviso push enviado a ' +
+                recipients.toString() +
+                ' destinatarios.',
           ),
         ),
       );
@@ -3966,9 +4132,118 @@ class _AdminCommunicationsPageState
                 ],
                 onChanged: (value) {
                   if (value != null) {
-                    setState(() => audience = value);
+                    setState(() {
+                      audience = value;
+                      if (value != 'drivers') campaignPartnerId = null;
+                    });
                   }
                 },
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String?>(
+                initialValue: campaignZoneId,
+                decoration: const InputDecoration(
+                  labelText: 'Zona',
+                  helperText:
+                      'Déjalo en Todas para enviar a todas las zonas.',
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Todas las zonas'),
+                  ),
+                  ...campaignZones.map(
+                    (zone) => DropdownMenuItem<String?>(
+                      value: zone['id']?.toString(),
+                      child: Text(
+                        (zone['name'] ?? 'Zona').toString() +
+                            ' · ' +
+                            (zone['currency_code'] ?? '').toString(),
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: loadingCampaignTargets
+                    ? null
+                    : (value) => setState(() {
+                          campaignZoneId = value;
+                          if (campaignPartnerId != null) {
+                            final selected = campaignPartners.where(
+                              (partner) =>
+                                  partner['id']?.toString() ==
+                                  campaignPartnerId,
+                            );
+                            if (selected.isNotEmpty &&
+                                value != null &&
+                                selected.first['zone_id']?.toString() !=
+                                    value) {
+                              campaignPartnerId = null;
+                            }
+                          }
+                        }),
+              ),
+              if (audience == 'drivers' && campaignPartners.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String?>(
+                  initialValue: campaignPartnerId,
+                  decoration: const InputDecoration(
+                    labelText: 'Empresa / sindicato / cooperativa',
+                    helperText:
+                        'Opcional: limita el aviso a los conductores afiliados.',
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Todas las organizaciones'),
+                    ),
+                    ...campaignPartners
+                        .where(
+                          (partner) =>
+                              campaignZoneId == null ||
+                              partner['zone_id']?.toString() ==
+                                  campaignZoneId,
+                        )
+                        .map(
+                          (partner) => DropdownMenuItem<String?>(
+                            value: partner['id']?.toString(),
+                            child: Text(
+                              (partner['name'] ?? 'Organización').toString() +
+                                  ' · ' +
+                                  (partner['organization_type'] ?? '')
+                                      .toString(),
+                            ),
+                          ),
+                        ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => campaignPartnerId = value),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F8FF),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFD5E3FF)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.notifications_active_outlined, color: _blue),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Este aviso se guarda en la bandeja de la app y también se despacha como notificación push.',
+                        style: TextStyle(
+                          color: _muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
