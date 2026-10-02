@@ -409,13 +409,22 @@ class _AdminAuditPageState extends State<AdminAuditPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ReadOnlyRow('Módulo', _entityLabel(row['entity_type'])),
                 _ReadOnlyRow(
-                  'Administrador',
-                  (row['admin_name'] ?? 'Administrador').toString(),
+                  label: 'Módulo',
+                  value: _entityLabel(row['entity_type']),
                 ),
-                _ReadOnlyRow('Fecha', _formatDate(row['created_at'])),
-                _ReadOnlyRow('ID', (row['entity_id'] ?? '—').toString()),
+                _ReadOnlyRow(
+                  label: 'Administrador',
+                  value: (row['admin_name'] ?? 'Administrador').toString(),
+                ),
+                _ReadOnlyRow(
+                  label: 'Fecha',
+                  value: _formatDate(row['created_at']),
+                ),
+                _ReadOnlyRow(
+                  label: 'ID',
+                  value: (row['entity_id'] ?? '—').toString(),
+                ),
                 if (lines.isNotEmpty) ...[
                   const Divider(height: 26),
                   const Text(
@@ -6051,46 +6060,6 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
   }
 }
 
-
-class _ReadOnlyRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _ReadOnlyRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: _muted,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Expanded(
-            child: SelectableText(
-              value,
-              style: const TextStyle(
-                color: _dark,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _InlineNotice extends StatelessWidget {
   final IconData icon;

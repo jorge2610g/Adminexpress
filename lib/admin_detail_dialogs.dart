@@ -289,14 +289,12 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
 
   Future<void> _load() async {
     try {
-      final values = await Future.wait([
-        supabase.rpc(
-          'admin_driver_detail',
-          params: {'p_user_id': widget.userId},
-        ),
-        _zones(),
-      ]);
-      final loaded = _map(values[0]);
+      final detailValue = await supabase.rpc(
+        'admin_driver_detail',
+        params: {'p_user_id': widget.userId},
+      );
+      final loadedZones = await _zones();
+      final loaded = _map(detailValue);
       final user = _map(loaded['user']);
       final driver = _map(loaded['driver']);
       final vehicles = _maps(loaded['vehicles']);
@@ -317,7 +315,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
       if (!mounted) return;
       setState(() {
         detail = loaded;
-        zones = List<Map<String, dynamic>>.from(values[1] as List);
+        zones = loadedZones;
         accountStatus = _text(user['account_status'], 'active');
         approvalStatus = _text(driver['approval_status'], 'pending');
         onlineStatus = _text(driver['online_status'], 'offline');
@@ -832,11 +830,12 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
 
   Future<void> _load() async {
     try {
-      final values = await Future.wait([
-        supabase.rpc('admin_user_detail', params: {'p_user_id': widget.userId}),
-        _zones(),
-      ]);
-      final loaded = _map(values[0]);
+      final detailValue = await supabase.rpc(
+        'admin_user_detail',
+        params: {'p_user_id': widget.userId},
+      );
+      final loadedZones = await _zones();
+      final loaded = _map(detailValue);
       final user = _map(loaded['user']);
       fullName.text = _text(user['full_name'], '');
       phone.text = _text(user['phone'], '');
@@ -844,7 +843,7 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
       if (!mounted) return;
       setState(() {
         detail = loaded;
-        zones = List<Map<String, dynamic>>.from(values[1] as List);
+        zones = loadedZones;
         activeMode = _text(user['active_mode'], 'passenger');
         accountStatus = _text(user['account_status'], 'active');
         zoneId = user['last_zone_id']?.toString() ??
