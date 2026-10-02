@@ -3735,6 +3735,645 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
   }
 }
 
+
+class AdminAdvancedSettingsPage extends StatefulWidget {
+  const AdminAdvancedSettingsPage({super.key});
+
+  @override
+  State<AdminAdvancedSettingsPage> createState() => _AdminAdvancedSettingsPageState();
+}
+
+class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
+  int revision = 0;
+
+  Future<Map<String, dynamic>> _load() async {
+    final value = await supabase.rpc('admin_settings_get');
+    return _map(value);
+  }
+
+  Future<void> _save(Map<String, dynamic> current, Map<String, dynamic> patch) async {
+    final next = <String, dynamic>{...current, ...patch};
+    await supabase.rpc(
+      'admin_advanced_settings_update',
+      params: {
+        'p_allow_pagorut': next['allow_pagorut'] == true,
+        'p_allow_mercadopago': next['allow_mercadopago'] == true,
+        'p_allow_santander': next['allow_santander'] == true,
+        'p_allow_mach': next['allow_mach'] == true,
+        'p_allow_tenpo': next['allow_tenpo'] == true,
+        'p_search_timeout_seconds': (next['search_timeout_seconds'] as num?)?.toInt() ?? 180,
+        'p_request_visible_seconds': (next['request_visible_seconds'] as num?)?.toInt() ?? 180,
+        'p_scheduled_rides_enabled': next['scheduled_rides_enabled'] != false,
+        'p_scheduled_publish_before_minutes':
+            (next['scheduled_publish_before_minutes'] as num?)?.toInt() ?? 30,
+        'p_max_driver_request_radius_km': next['max_driver_request_radius_km'] ?? 15,
+        'p_max_visible_requests_driver':
+            (next['max_visible_requests_driver'] as num?)?.toInt() ?? 20,
+        'p_allow_counteroffers': next['allow_counteroffers'] != false,
+        'p_min_driver_offer': next['min_driver_offer'] ?? 1,
+        'p_max_driver_offer': next['max_driver_offer'] ?? 9999,
+        'p_chat_enabled': next['chat_enabled'] != false,
+        'p_calls_enabled': next['calls_enabled'] != false,
+        'p_share_trip_enabled': next['share_trip_enabled'] != false,
+        'p_sos_enabled': next['sos_enabled'] != false,
+        'p_saved_places_enabled': next['saved_places_enabled'] != false,
+        'p_ratings_enabled': next['ratings_enabled'] != false,
+        'p_rating_comment_enabled': next['rating_comment_enabled'] != false,
+        'p_rating_min': (next['rating_min'] as num?)?.toInt() ?? 1,
+        'p_rating_max': (next['rating_max'] as num?)?.toInt() ?? 5,
+        'p_maintenance_mode': next['maintenance_mode'] == true,
+        'p_maintenance_message': next['maintenance_message']?.toString(),
+        'p_minimum_app_version': next['minimum_app_version']?.toString(),
+      },
+    );
+    if (mounted) {
+      setState(() => revision++);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Configuración avanzada guardada.')),
+      );
+    }
+  }
+
+  Future<void> _payments(Map<String, dynamic> row) async {
+    var pagorut = row['allow_pagorut'] == true;
+    var mp = row['allow_mercadopago'] == true;
+    var santander = row['allow_santander'] == true;
+    var mach = row['allow_mach'] == true;
+    var tenpo = row['allow_tenpo'] == true;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: const Text('Pagos digitales'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const _InlineNotice(
+                  icon: Icons.payments_outlined,
+                  text:
+                      'Activa solo los medios que realmente quieras mostrar. Las credenciales de cada pasarela se gestionan aparte.',
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: pagorut,
+                  onChanged: (v) => setLocal(() => pagorut = v),
+                  title: const Text('PagoRUT'),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: mp,
+                  onChanged: (v) => setLocal(() => mp = v),
+                  title: const Text('Mercado Pago'),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: santander,
+                  onChanged: (v) => setLocal(() => santander = v),
+                  title: const Text('Santander'),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: mach,
+                  onChanged: (v) => setLocal(() => mach = v),
+                  title: const Text('MACH'),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: tenpo,
+                  onChanged: (v) => setLocal(() => tenpo = v),
+                  title: const Text('Tenpo'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok == true) {
+      await _save(row, {
+        'allow_pagorut': pagorut,
+        'allow_mercadopago': mp,
+        'allow_santander': santander,
+        'allow_mach': mach,
+        'allow_tenpo': tenpo,
+      });
+    }
+  }
+
+  Future<void> _offers(Map<String, dynamic> row) async {
+    final search = TextEditingController(text: (row['search_timeout_seconds'] ?? 180).toString());
+    final visible = TextEditingController(text: (row['request_visible_seconds'] ?? 180).toString());
+    final before = TextEditingController(
+      text: (row['scheduled_publish_before_minutes'] ?? 30).toString(),
+    );
+    final radius = TextEditingController(
+      text: (row['max_driver_request_radius_km'] ?? 15).toString(),
+    );
+    final maxVisible = TextEditingController(
+      text: (row['max_visible_requests_driver'] ?? 20).toString(),
+    );
+    final minOffer = TextEditingController(text: (row['min_driver_offer'] ?? 1).toString());
+    final maxOffer = TextEditingController(text: (row['max_driver_offer'] ?? 9999).toString());
+    var scheduled = row['scheduled_rides_enabled'] != false;
+    var counteroffers = row['allow_counteroffers'] != false;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: const Text('Búsqueda y ofertas'),
+          content: SizedBox(
+            width: 620,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  const _InlineNotice(
+                    icon: Icons.radar_rounded,
+                    text:
+                        'Estos valores controlan cuánto dura la búsqueda, cuántas solicitudes ve el conductor y el rango de ofertas.',
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(child: _NumberField(controller: search, label: 'Búsqueda máxima · segundos')),
+                      const SizedBox(width: 10),
+                      Expanded(child: _NumberField(controller: visible, label: 'Solicitud visible · segundos')),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: _NumberField(controller: radius, label: 'Radio máx. conductor · km')),
+                      const SizedBox(width: 10),
+                      Expanded(child: _NumberField(controller: maxVisible, label: 'Máx. solicitudes visibles')),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: _NumberField(controller: minOffer, label: 'Oferta mínima')),
+                      const SizedBox(width: 10),
+                      Expanded(child: _NumberField(controller: maxOffer, label: 'Oferta máxima')),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  _NumberField(
+                    controller: before,
+                    label: 'Publicar viaje programado antes · minutos',
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: scheduled,
+                    onChanged: (v) => setLocal(() => scheduled = v),
+                    title: const Text('Viajes programados'),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: counteroffers,
+                    onChanged: (v) => setLocal(() => counteroffers = v),
+                    title: const Text('Permitir contraofertas'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok == true) {
+      await _save(row, {
+        'search_timeout_seconds': int.tryParse(search.text.trim()) ?? 180,
+        'request_visible_seconds': int.tryParse(visible.text.trim()) ?? 180,
+        'scheduled_publish_before_minutes': int.tryParse(before.text.trim()) ?? 30,
+        'max_driver_request_radius_km': _num(radius.text) ?? 15,
+        'max_visible_requests_driver': int.tryParse(maxVisible.text.trim()) ?? 20,
+        'min_driver_offer': _num(minOffer.text) ?? 1,
+        'max_driver_offer': _num(maxOffer.text) ?? 9999,
+        'scheduled_rides_enabled': scheduled,
+        'allow_counteroffers': counteroffers,
+      });
+    }
+
+    for (final c in [search, visible, before, radius, maxVisible, minOffer, maxOffer]) {
+      c.dispose();
+    }
+  }
+
+  Future<void> _safety(Map<String, dynamic> row) async {
+    var chat = row['chat_enabled'] != false;
+    var calls = row['calls_enabled'] != false;
+    var share = row['share_trip_enabled'] != false;
+    var sos = row['sos_enabled'] != false;
+    var saved = row['saved_places_enabled'] != false;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: const Text('Funciones de seguridad y contacto'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: sos,
+                  onChanged: (v) => setLocal(() => sos = v),
+                  title: const Text('Botón SOS'),
+                  secondary: const Icon(Icons.sos_rounded),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: share,
+                  onChanged: (v) => setLocal(() => share = v),
+                  title: const Text('Compartir viaje'),
+                  secondary: const Icon(Icons.share_location_outlined),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: chat,
+                  onChanged: (v) => setLocal(() => chat = v),
+                  title: const Text('Chat pasajero ↔ conductor'),
+                  secondary: const Icon(Icons.chat_bubble_outline_rounded),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: calls,
+                  onChanged: (v) => setLocal(() => calls = v),
+                  title: const Text('Llamadas'),
+                  secondary: const Icon(Icons.call_outlined),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: saved,
+                  onChanged: (v) => setLocal(() => saved = v),
+                  title: const Text('Lugares guardados'),
+                  secondary: const Icon(Icons.bookmark_outline_rounded),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok == true) {
+      await _save(row, {
+        'chat_enabled': chat,
+        'calls_enabled': calls,
+        'share_trip_enabled': share,
+        'sos_enabled': sos,
+        'saved_places_enabled': saved,
+      });
+    }
+  }
+
+  Future<void> _ratings(Map<String, dynamic> row) async {
+    var enabled = row['ratings_enabled'] != false;
+    var comments = row['rating_comment_enabled'] != false;
+    var min = ((row['rating_min'] as num?)?.toInt() ?? 1).clamp(1, 5);
+    var max = ((row['rating_max'] as num?)?.toInt() ?? 5).clamp(1, 5);
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: const Text('Calificaciones'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const _InlineNotice(
+                  icon: Icons.star_outline_rounded,
+                  text:
+                      'Las calificaciones continúan siendo privadas. Aquí solo controlas la política general.',
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: enabled,
+                  onChanged: (v) => setLocal(() => enabled = v),
+                  title: const Text('Calificaciones habilitadas'),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: comments,
+                  onChanged: (v) => setLocal(() => comments = v),
+                  title: const Text('Permitir comentario'),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        initialValue: min,
+                        decoration: const InputDecoration(labelText: 'Mínimo'),
+                        items: [1, 2, 3, 4, 5]
+                            .map((v) => DropdownMenuItem(value: v, child: Text(v.toString())))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) setLocal(() => min = v);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        initialValue: max,
+                        decoration: const InputDecoration(labelText: 'Máximo'),
+                        items: [1, 2, 3, 4, 5]
+                            .map((v) => DropdownMenuItem(value: v, child: Text(v.toString())))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) setLocal(() => max = v);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok == true) {
+      await _save(row, {
+        'ratings_enabled': enabled,
+        'rating_comment_enabled': comments,
+        'rating_min': min,
+        'rating_max': max < min ? min : max,
+      });
+    }
+  }
+
+  Future<void> _maintenance(Map<String, dynamic> row) async {
+    var enabled = row['maintenance_mode'] == true;
+    final message = TextEditingController(text: row['maintenance_message']?.toString() ?? '');
+    final version = TextEditingController(text: row['minimum_app_version']?.toString() ?? '');
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: const Text('Mantenimiento y versión mínima'),
+          content: SizedBox(
+            width: 560,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: enabled,
+                  onChanged: (v) => setLocal(() => enabled = v),
+                  title: const Text('Modo mantenimiento'),
+                  subtitle: const Text('Úsalo solo cuando quieras bloquear temporalmente la operación.'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: message,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Mensaje de mantenimiento',
+                    hintText: 'Estamos actualizando Express. Vuelve en unos minutos.',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: version,
+                  decoration: const InputDecoration(
+                    labelText: 'Versión mínima permitida',
+                    hintText: 'Ej. 1.5.78',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (ok == true) {
+      await _save(row, {
+        'maintenance_mode': enabled,
+        'maintenance_message': message.text.trim(),
+        'minimum_app_version': version.text.trim(),
+      });
+    }
+    message.dispose();
+    version.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>>(
+      key: ValueKey(revision),
+      future: _load(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return const _Loading(title: 'Cargando configuración avanzada');
+        }
+        if (snapshot.hasError) {
+          return _Error(error: snapshot.error, onRetry: () => setState(() => revision++));
+        }
+        final row = snapshot.data ?? const <String, dynamic>{};
+        final paymentCount = [
+          row['allow_pagorut'],
+          row['allow_mercadopago'],
+          row['allow_santander'],
+          row['allow_mach'],
+          row['allow_tenpo'],
+        ].where((v) => v == true).length;
+
+        return ListView(
+          padding: const EdgeInsets.all(22),
+          children: [
+            const _Header(
+              title: 'Configuración avanzada',
+              subtitle:
+                  'Controla funciones de la app sin modificar código ni generar un APK por cada cambio.',
+            ),
+            const SizedBox(height: 16),
+            _AdminHero(
+              icon: Icons.tune_rounded,
+              title: 'Centro de control',
+              subtitle:
+                  'Cambios operativos centralizados para pasajero, conductor y administración.',
+              stats: [
+                ('Pagos extra', paymentCount.toString()),
+                ('Ofertas', row['allow_counteroffers'] != false ? 'Activas' : 'Off'),
+                ('Mantenimiento', row['maintenance_mode'] == true ? 'Activo' : 'Normal'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final cardWidth = width < 720
+                    ? width
+                    : width < 1120
+                        ? (width - 12) / 2
+                        : (width - 24) / 3;
+                final cards = <Widget>[
+                  _AdminModuleCard(
+                    icon: Icons.account_balance_wallet_outlined,
+                    title: 'Pagos digitales',
+                    subtitle: 'PagoRUT, Mercado Pago, Santander, MACH y Tenpo.',
+                    accent: const Color(0xFF6941C6),
+                    chips: ['$paymentCount activos', 'Credenciales separadas'],
+                    onTap: () => _payments(row),
+                  ),
+                  _AdminModuleCard(
+                    icon: Icons.radar_rounded,
+                    title: 'Búsqueda y ofertas',
+                    subtitle: 'Tiempos, radio, viajes programados y contraofertas.',
+                    accent: _blue,
+                    chips: [
+                      (row['search_timeout_seconds'] ?? 180).toString() + ' s',
+                      (row['max_driver_request_radius_km'] ?? 15).toString() + ' km',
+                    ],
+                    onTap: () => _offers(row),
+                  ),
+                  _AdminModuleCard(
+                    icon: Icons.health_and_safety_outlined,
+                    title: 'Seguridad del viaje',
+                    subtitle: 'SOS, compartir viaje, chat, llamadas y lugares guardados.',
+                    accent: const Color(0xFF0E9384),
+                    chips: [
+                      row['sos_enabled'] != false ? 'SOS activo' : 'SOS off',
+                      row['share_trip_enabled'] != false ? 'Compartir activo' : 'Compartir off',
+                    ],
+                    onTap: () => _safety(row),
+                  ),
+                  _AdminModuleCard(
+                    icon: Icons.star_outline_rounded,
+                    title: 'Calificaciones',
+                    subtitle: 'Política privada de estrellas y comentarios.',
+                    accent: const Color(0xFFF79009),
+                    chips: [
+                      row['ratings_enabled'] != false ? 'Activas' : 'Inactivas',
+                      (row['rating_min'] ?? 1).toString() + '–' + (row['rating_max'] ?? 5).toString() + ' ★',
+                    ],
+                    onTap: () => _ratings(row),
+                  ),
+                  _AdminModuleCard(
+                    icon: Icons.construction_rounded,
+                    title: 'Mantenimiento',
+                    subtitle: 'Bloqueo temporal y versión mínima permitida.',
+                    accent: row['maintenance_mode'] == true
+                        ? const Color(0xFFD92D20)
+                        : const Color(0xFF667085),
+                    chips: [
+                      row['maintenance_mode'] == true ? 'Mantenimiento activo' : 'Operación normal',
+                      row['minimum_app_version']?.toString().isNotEmpty == true
+                          ? 'Min v' + row['minimum_app_version'].toString()
+                          : 'Sin versión mínima',
+                    ],
+                    onTap: () => _maintenance(row),
+                  ),
+                ];
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: cards.map((card) => SizedBox(width: cardWidth, child: card)).toList(),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _InlineNotice extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _InlineNotice({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F9FC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE7ECF3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: _blue, size: 20),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: _muted, fontSize: 10, height: 1.35),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
 class AdminBuildsPage extends StatefulWidget {
   const AdminBuildsPage({super.key});
 
