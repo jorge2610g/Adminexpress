@@ -738,6 +738,8 @@ class _AdminDriverSubscriptionsPageState
     final enforce = settings['enforce_access'] == true;
     final providerEnabled = settings['provider_enabled'] == true;
     final qrValidity = settings['qr_validity']?.toString() ?? '0/00:15';
+    final zoneName =
+        settings['zone_name']?.toString() ?? selectedZoneKey ?? 'Zona';
     final realDrivers = drivers.where((driver) => !_isQaDriver(driver)).toList();
     final qaDrivers = drivers.where(_isQaDriver).toList();
 
@@ -776,6 +778,66 @@ class _AdminDriverSubscriptionsPageState
             const SizedBox(height: 12),
             _AdminSubNotice(text: error!, warning: true),
           ],
+          const SizedBox(height: 14),
+          if (zones.isNotEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_city_rounded),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Zona',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: selectedZoneKey,
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          labelText: 'Administrar suscripciones de',
+                        ),
+                        items: [
+                          for (final zone in zones)
+                            DropdownMenuItem<String>(
+                              value: zone['zone_key']?.toString(),
+                              child: Text(
+                                (zone['name'] ?? 'Zona').toString() +
+                                    ' · ' +
+                                    (zone['currency_code'] ?? 'BOB').toString(),
+                              ),
+                            ),
+                        ],
+                        onChanged: savingSettings
+                            ? null
+                            : (value) {
+                                if (value == null ||
+                                    value == selectedZoneKey) {
+                                  return;
+                                }
+                                setState(() {
+                                  selectedZoneKey = value;
+                                  plans = const [];
+                                  drivers = const [];
+                                  payments = const [];
+                                  settings = const {};
+                                  loading = true;
+                                });
+                                unawaited(_load());
+                              },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+          _AdminSubNotice(
+            text:
+                'Configurando $zoneName. Planes, exigencia y conductores son propios de esta zona. VeriPagos y sus credenciales son globales.',
+          ),
           const SizedBox(height: 16),
           _SettingsCard(
             enabled: enabled,
@@ -797,9 +859,23 @@ class _AdminDriverSubscriptionsPageState
             onVerify: _verifyProvider,
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Planes',
-            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Planes · $zoneName',
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: selectedZoneKey == null ? null : () => _editPlan(),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Nuevo plan'),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           if (plans.isEmpty)
@@ -839,7 +915,10 @@ class _AdminDriverSubscriptionsPageState
                     width: 280,
                     child: _AdminPlanCard(
                       plan: plan,
-                      price: _money(plan['amount']),
+                      price: _money(
+                        plan['amount'],
+                        plan['currency_code']?.toString(),
+                      ),
                       benefits: _benefits(plan),
                       onEdit: () => _editPlan(plan),
                     ),
@@ -969,7 +1048,10 @@ class _AdminDriverSubscriptionsPageState
                 child: ListTile(
                   leading: const Icon(Icons.receipt_long_rounded),
                   title: Text(
-                    _money(payment['amount']),
+                    _money(
+                      payment['amount'],
+                      payment['currency_code']?.toString(),
+                    ),
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                   subtitle: Text(
