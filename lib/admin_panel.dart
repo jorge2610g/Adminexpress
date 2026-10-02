@@ -224,6 +224,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Despacho manual', Icons.alt_route_rounded),
     ('Auditoría', Icons.history_rounded),
     ('Soporte / Avisos', Icons.support_agent_rounded),
+    ('Servicios', Icons.apps_rounded),
+    ('Cobertura y seguridad', Icons.gpp_good_rounded),
+    ('Verificación de identidad', Icons.verified_user_rounded),
   ];
 
   Future<bool> _authorized() async => await supabase.rpc('is_admin') == true;
@@ -475,6 +478,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         return const AdminAuditPage();
       case 15:
         return const AdminCommunicationsPage();
+      case 16:
+        return const AdminServicesPage();
+      case 17:
+        return const AdminGeoSafetyPage();
+      case 18:
+        return const AdminIdentitySecurityPage();
       default:
         return const SizedBox.shrink();
     }
@@ -1180,7 +1189,8 @@ class _Navigation extends StatelessWidget {
     ('OPERACIONES', [1, 2, 13, 3, 4, 5, 6]),
     ('FINANZAS', [9, 8]),
     ('ANÁLISIS', [10, 14]),
-    ('CONFIGURACIÓN', [7, 11, 12]),
+    ('SEGURIDAD', [17, 18]),
+    ('CONFIGURACIÓN', [16, 7, 11, 12]),
   ];
 
   @override
