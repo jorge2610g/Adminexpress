@@ -6,6 +6,7 @@ import 'core/supabase_client.dart';
 import 'admin_control_sections.dart';
 import 'admin_audit_sandbox.dart';
 import 'admin_load_lab.dart';
+import 'admin_driver_subscriptions.dart';
 
 const Color adminBlue = Color(0xFF2563EB);
 const Color adminDark = Color(0xFF0F172A);
@@ -236,6 +237,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Configuración avanzada', Icons.tune_rounded),
     ('Entornos de prueba', Icons.science_rounded),
     ('Carga QA', Icons.speed_rounded),
+    ('Suscripciones', Icons.workspace_premium_rounded),
   ];
 
   Future<bool> _authorized() async => await supabase.rpc('is_admin') == true;
@@ -499,6 +501,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         return const AdminAuditSandboxPage();
       case 21:
         return const AdminLoadLabPage();
+      case 22:
+        return const AdminDriverSubscriptionsPage();
       default:
         return const SizedBox.shrink();
     }
@@ -1202,7 +1206,7 @@ class _Navigation extends StatelessWidget {
   static const groups = <(String, List<int>)>[
     ('GENERAL', [0]),
     ('OPERACIONES', [1, 2, 13, 3, 4, 5, 6]),
-    ('FINANZAS', [9, 8]),
+    ('FINANZAS', [9, 8, 22]),
     ('ANÁLISIS', [10, 14]),
     ('SEGURIDAD', [17, 18]),
     ('PRUEBAS', [20, 21]),
