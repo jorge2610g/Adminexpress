@@ -374,7 +374,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                   ),
                 ),
                 OutlinedButton.icon(
-                  onPressed: busy || !active ? null : () => _call('cleanup'),
+                  onPressed: busy ? null : () => _call('cleanup'),
                   icon: const Icon(Icons.cleaning_services_rounded),
                   label: const Text('Limpiar prueba'),
                 ),
