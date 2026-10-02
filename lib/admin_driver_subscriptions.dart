@@ -5,6 +5,11 @@ import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
 
+int _adminSubscriptionInt(Object? raw) {
+  if (raw is num) return raw.toInt();
+  return int.tryParse(raw?.toString() ?? '') ?? 0;
+}
+
 class AdminDriverSubscriptionsPage extends StatefulWidget {
   const AdminDriverSubscriptionsPage({super.key});
 
@@ -343,7 +348,7 @@ class _AdminDriverSubscriptionsPageState
 
   Future<void> _assignPlan(Map<String, dynamic> driver) async {
     if (plans.isEmpty) return;
-    int selected = Number(driver['plan_id'] ?? plans.first['id']).toInt();
+    int selected = _adminSubscriptionInt(driver['plan_id'] ?? plans.first['id']);
     int customDays = 0;
 
     final ok = await showDialog<bool>(
@@ -367,7 +372,7 @@ class _AdminDriverSubscriptionsPageState
                   items: [
                     for (final plan in plans)
                       DropdownMenuItem<int>(
-                        value: Number(plan['id']).toInt(),
+                        value: _adminSubscriptionInt(plan['id']),
                         child: Text(
                           (plan['name']?.toString() ?? 'Plan') +
                               ' · ' +
