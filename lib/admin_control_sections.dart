@@ -732,6 +732,250 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     return saved;
   }
 
+  Future<List<Map<String, dynamic>>> _loadPartnerMembers(
+    String partnerId,
+  ) async {
+    final value = await supabase.rpc(
+      'admin_partner_member_list',
+      params: {'p_partner_id': partnerId},
+    );
+    return _list(value);
+  }
+
+  Future<void> _managePartnerAccess(
+    Map<String, dynamic> partner,
+  ) async {
+    var localRevision = 0;
+
+    Future<void> addAccess(
+      BuildContext dialogContext,
+      void Function(VoidCallback) setLocal,
+    ) async {
+      final email = TextEditingController();
+      var role = 'manager';
+      final save = await showDialog<bool>(
+        context: dialogContext,
+        builder: (accessContext) => StatefulBuilder(
+          builder: (context, setAccess) => AlertDialog(
+            title: const Text('Asignar acceso al panel'),
+            content: SizedBox(
+              width: 500,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'La persona debe tener una cuenta Express registrada. '
+                    'Usará el mismo correo y contraseña, pero verá solo el '
+                    'panel de esta organización.',
+                    style: TextStyle(
+                      color: _muted,
+                      fontSize: 11,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Correo de la cuenta Express',
+                      prefixIcon: Icon(Icons.mail_outline_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: role,
+                    decoration: const InputDecoration(labelText: 'Rol'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'owner',
+                        child: Text('Propietario / presidente'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'manager',
+                        child: Text('Administrador'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'operator',
+                        child: Text('Operador'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'treasurer',
+                        child: Text('Tesorería'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setAccess(() => role = value);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(accessContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(accessContext, true),
+                icon: const Icon(Icons.person_add_alt_1_rounded),
+                label: const Text('Asignar'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (save == true && email.text.trim().isNotEmpty) {
+        try {
+          await supabase.rpc(
+            'admin_assign_partner_member_by_email',
+            params: {
+              'p_partner_id': partner['id'],
+              'p_email': email.text.trim(),
+              'p_role': role,
+              'p_active': true,
+            },
+          );
+          setLocal(() => localRevision++);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Acceso asignado. Ya puede iniciar sesión en Adminexpress.',
+                ),
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) _snack(context, e);
+        }
+      }
+      email.dispose();
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.admin_panel_settings_outlined, color: _blue),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  'Accesos · ' + (partner['name'] ?? 'Organización').toString(),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: () => addAccess(dialogContext, setLocal),
+                icon: const Icon(Icons.person_add_alt_1_rounded),
+                label: const Text('Asignar acceso'),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 760,
+            height: 430,
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              key: ValueKey(localRevision),
+              future: _loadPartnerMembers(partner['id'].toString()),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
+                  return const _Loading(title: 'Cargando accesos');
+                }
+                if (snapshot.hasError) {
+                  return _Error(
+                    error: snapshot.error,
+                    onRetry: () => setLocal(() => localRevision++),
+                  );
+                }
+                final rows =
+                    snapshot.data ?? const <Map<String, dynamic>>[];
+                if (rows.isEmpty) {
+                  return const _Empty(
+                    text:
+                        'Esta organización todavía no tiene usuarios con acceso al panel.',
+                  );
+                }
+
+                return ListView.separated(
+                  itemCount: rows.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 7),
+                  itemBuilder: (context, index) {
+                    final row = rows[index];
+                    final active = row['active'] == true;
+                    final roleLabel = switch (row['role']?.toString()) {
+                      'owner' => 'Propietario / presidente',
+                      'manager' => 'Administrador',
+                      'operator' => 'Operador',
+                      'treasurer' => 'Tesorería',
+                      _ => row['role']?.toString() ?? 'Usuario',
+                    };
+                    return Card(
+                      elevation: 0,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFFEAF2FF),
+                          child: Icon(
+                            active
+                                ? Icons.verified_user_outlined
+                                : Icons.person_off_outlined,
+                            color: _blue,
+                          ),
+                        ),
+                        title: Text(
+                          (row['full_name']?.toString().trim().isNotEmpty ==
+                                      true
+                                  ? row['full_name']
+                                  : row['email'])
+                              .toString(),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        subtitle: Text(
+                          (row['email'] ?? '—').toString() +
+                              ' · ' +
+                              roleLabel,
+                        ),
+                        trailing: Switch.adaptive(
+                          value: active,
+                          onChanged: (value) async {
+                            try {
+                              await supabase.rpc(
+                                'admin_set_partner_member_active',
+                                params: {
+                                  'p_partner_id': partner['id'],
+                                  'p_user_id': row['user_id'],
+                                  'p_active': value,
+                                },
+                              );
+                              setLocal(() => localRevision++);
+                            } catch (e) {
+                              if (mounted) _snack(context, e);
+                            }
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showPartners(Map<String, dynamic> zone) async {
     var localRevision = 0;
     await showDialog<void>(
@@ -844,6 +1088,14 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                               positive: active,
                             ),
                             const SizedBox(width: 4),
+                            IconButton(
+                              tooltip: 'Usuarios del panel',
+                              onPressed: () => _managePartnerAccess(row),
+                              icon: const Icon(
+                                Icons.admin_panel_settings_outlined,
+                                size: 19,
+                              ),
+                            ),
                             IconButton(
                               tooltip: 'Editar aliado',
                               onPressed: () async {
