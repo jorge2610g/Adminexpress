@@ -543,7 +543,9 @@ class _AdminDriverSubscriptionsPageState
         );
       }
 
-      _snack('VeriPagos conectado correctamente.');
+      _snack(
+        'VeriPagos conectado: generación y verificación de pagos operativas.',
+      );
       await _load();
     } catch (e) {
       _snack('No se pudo conectar con VeriPagos: ' + e.toString());
@@ -903,8 +905,8 @@ class _ProviderCard extends StatelessWidget {
         subtitle: Text(
           configured
               ? (enabled
-                  ? 'Conectado y habilitado para pagos.'
-                  : 'Credenciales verificadas. Falta conectar la verificación de estado QR.')
+                  ? 'Conectado y listo para pagos reales.'
+                  : 'Conectado. QR Bolivia está desactivado.')
               : 'Ingresa tus credenciales y verifica la conexión.',
         ),
         trailing: FilledButton.icon(
