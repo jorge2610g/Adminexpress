@@ -5331,8 +5331,52 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
 
   Future<void> _maintenance(Map<String, dynamic> row) async {
     var enabled = row['maintenance_mode'] == true;
-    final message = TextEditingController(text: row['maintenance_message']?.toString() ?? '');
-    final version = TextEditingController(text: row['minimum_app_version']?.toString() ?? '');
+    final message = TextEditingController(
+      text: row['maintenance_message']?.toString() ?? '',
+    );
+
+    List<Map<String, dynamic>> builds = const [];
+    try {
+      builds = _list(await supabase.rpc('admin_build_list'));
+    } catch (_) {}
+
+    final seen = <String>{};
+    final versions = <Map<String, dynamic>>[];
+    for (final build in builds) {
+      if (build['platform']?.toString() != 'android') continue;
+      if (build['status']?.toString() != 'ready') continue;
+      final value = build['version_name']?.toString().trim() ?? '';
+      if (value.isEmpty || !seen.add(value)) continue;
+      versions.add({
+        'version': value,
+        'build': build['build_number'],
+        'created_at': build['created_at'],
+      });
+    }
+    versions.sort((a, b) {
+      final aBuild = a['build'] is num
+          ? (a['build'] as num).toInt()
+          : int.tryParse(a['build']?.toString() ?? '') ?? 0;
+      final bBuild = b['build'] is num
+          ? (b['build'] as num).toInt()
+          : int.tryParse(b['build']?.toString() ?? '') ?? 0;
+      return bBuild.compareTo(aBuild);
+    });
+
+    final currentMinimum =
+        row['minimum_app_version']?.toString().trim() ?? '';
+    if (currentMinimum.isNotEmpty &&
+        !versions.any((v) => v['version'] == currentMinimum)) {
+      versions.add({
+        'version': currentMinimum,
+        'build': null,
+        'created_at': null,
+      });
+    }
+
+    String selectedVersion = currentMinimum;
+    final latestVersion =
+        versions.isEmpty ? null : versions.first['version']?.toString();
 
     final ok = await showDialog<bool>(
       context: context,
@@ -5340,35 +5384,100 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
         builder: (context, setLocal) => AlertDialog(
           title: const Text('Mantenimiento y versión mínima'),
           content: SizedBox(
-            width: 560,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SwitchListTile.adaptive(
-                  contentPadding: EdgeInsets.zero,
-                  value: enabled,
-                  onChanged: (v) => setLocal(() => enabled = v),
-                  title: const Text('Modo mantenimiento'),
-                  subtitle: const Text('Úsalo solo cuando quieras bloquear temporalmente la operación.'),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: message,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Mensaje de mantenimiento',
-                    hintText: 'Estamos actualizando Express. Vuelve en unos minutos.',
+            width: 580,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: enabled,
+                    onChanged: (v) => setLocal(() => enabled = v),
+                    title: const Text('Modo mantenimiento'),
+                    subtitle: const Text(
+                      'Úsalo solo cuando quieras bloquear temporalmente la operación.',
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: version,
-                  decoration: const InputDecoration(
-                    labelText: 'Versión mínima permitida',
-                    hintText: 'Ej. 1.5.78',
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: message,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Mensaje de mantenimiento',
+                      hintText:
+                          'Estamos actualizando Express. Vuelve en unos minutos.',
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedVersion,
+                    decoration: const InputDecoration(
+                      labelText: 'Versión mínima permitida',
+                      helperText:
+                          'Las versiones inferiores a la elegida quedan bloqueadas.',
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: '',
+                        child: Text('Permitir todas las versiones'),
+                      ),
+                      ...versions.map((entry) {
+                        final value = entry['version']?.toString() ?? '';
+                        final build = entry['build'];
+                        final latest = value == latestVersion;
+                        return DropdownMenuItem(
+                          value: value,
+                          child: Text(
+                            latest
+                                ? 'v$value · Bloquear todas las anteriores'
+                                : 'v$value' +
+                                    (build == null
+                                        ? ''
+                                        : ' · build ' + build.toString()),
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setLocal(() => selectedVersion = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(11),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4F8FF),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFD5E3FF)),
+                    ),
+                    child: Text(
+                      selectedVersion.isEmpty
+                          ? 'No se forzará una actualización por versión.'
+                          : 'Solo podrán operar v' +
+                              selectedVersion +
+                              ' o una versión superior.',
+                      style: const TextStyle(
+                        color: _muted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (versions.isEmpty) ...[
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Todavía no hay builds Android listos registrados en el panel.',
+                      style: TextStyle(
+                        color: Color(0xFFB54708),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           actions: [
@@ -5389,11 +5498,10 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
       await _save(row, {
         'maintenance_mode': enabled,
         'maintenance_message': message.text.trim(),
-        'minimum_app_version': version.text.trim(),
+        'minimum_app_version': selectedVersion,
       });
     }
     message.dispose();
-    version.dispose();
   }
 
   @override
