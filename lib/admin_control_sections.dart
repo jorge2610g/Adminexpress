@@ -2582,6 +2582,7 @@ class _PolygonEditor extends StatelessWidget {
   final List<LatLng> points;
   final Color tone;
   final String title;
+  final LatLng? initialCenter;
   final ValueChanged<LatLng> onAdd;
   final VoidCallback onUndo;
   final VoidCallback onClear;
@@ -2590,6 +2591,7 @@ class _PolygonEditor extends StatelessWidget {
     required this.points,
     required this.tone,
     required this.title,
+    this.initialCenter,
     required this.onAdd,
     required this.onUndo,
     required this.onClear,
@@ -2597,7 +2599,9 @@ class _PolygonEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final center = points.isNotEmpty ? points.first : const LatLng(-14.8333, -64.9000);
+    final center = points.isNotEmpty
+        ? points.first
+        : initialCenter ?? const LatLng(-14.8333, -64.9000);
     return Container(
       height: 430,
       clipBehavior: Clip.antiAlias,
@@ -3287,6 +3291,411 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     commission.dispose();
   }
 
+
+  List<LatLng> _specialPoints(Object? raw) {
+    if (raw is! List) return <LatLng>[];
+    return raw
+        .whereType<Map>()
+        .map((row) {
+          final lat = _double(row['lat']);
+          final lng = _double(row['lng']);
+          if (lat == null || lng == null) return null;
+          return LatLng(lat, lng);
+        })
+        .whereType<LatLng>()
+        .toList();
+  }
+
+  List<Map<String, double>> _specialJsonPoints(List<LatLng> points) =>
+      points
+          .map(
+            (point) => {
+              'lat': point.latitude,
+              'lng': point.longitude,
+            },
+          )
+          .toList();
+
+  Future<bool> _editSpecialFare(
+    Map<String, dynamic> zone,
+    List<Map<String, dynamic>> services, [
+    Map<String, dynamic>? row,
+  ]) async {
+    if (services.isEmpty) {
+      _snack(context, 'No hay servicios disponibles.');
+      return false;
+    }
+
+    final name = TextEditingController(text: row?['name']?.toString() ?? '');
+    final fare = TextEditingController(
+      text: row?['fixed_fare']?.toString() ?? '',
+    );
+    final priority = TextEditingController(
+      text: row?['priority']?.toString() ?? '100',
+    );
+    var type = row?['zone_type']?.toString() ?? 'airport';
+    var service = row?['service_key']?.toString() ??
+        services.first['service_key']?.toString() ??
+        'motorcycle';
+    var active = row?['active'] != false;
+    var points = _specialPoints(row?['polygon']);
+    final centerLat = _double(zone['center_latitude']);
+    final centerLng = _double(zone['center_longitude']);
+
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text(
+            row == null ? 'Nueva tarifa fija por sector' : 'Editar tarifa fija',
+          ),
+          content: SizedBox(
+            width: 820,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF2FF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Si el origen O el destino entra en este polígono, esta tarifa fija tiene prioridad sobre la tarifa normal de ' +
+                          (zone['name'] ?? 'la zona').toString() +
+                          '. Si dos polígonos coinciden, manda el de mayor prioridad.',
+                      style: const TextStyle(fontSize: 11, height: 1.35),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: name,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre',
+                      hintText:
+                          'Ej. Aeropuerto Teniente Jorge Henrich Arauz',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: type,
+                          decoration: const InputDecoration(
+                            labelText: 'Tipo de sector',
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'airport',
+                              child: Text('Aeropuerto'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'terminal',
+                              child: Text('Terminal'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'custom',
+                              child: Text('Otro sector especial'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setLocal(() => type = value);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: service,
+                          decoration: const InputDecoration(
+                            labelText: 'Servicio',
+                          ),
+                          items: services
+                              .map(
+                                (item) => DropdownMenuItem<String>(
+                                  value: item['service_key']?.toString(),
+                                  child: Text(
+                                    item['name']?.toString() ??
+                                        item['service_key']?.toString() ??
+                                        'Servicio',
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setLocal(() => service = value);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _NumberField(
+                          controller: fare,
+                          label: 'Tarifa fija · ' +
+                              (zone['currency_code'] ?? '').toString(),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _NumberField(
+                          controller: priority,
+                          label: 'Prioridad',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _PolygonEditor(
+                    points: points,
+                    tone: type == 'airport'
+                        ? const Color(0xFF7F56D9)
+                        : type == 'terminal'
+                            ? const Color(0xFF0E9384)
+                            : _blue,
+                    title:
+                        'Dibuja el perímetro de ' +
+                        (type == 'airport'
+                            ? 'aeropuerto'
+                            : type == 'terminal'
+                                ? 'terminal'
+                                : 'la zona especial'),
+                    initialCenter: centerLat != null && centerLng != null
+                        ? LatLng(centerLat, centerLng)
+                        : null,
+                    onAdd: (point) =>
+                        setLocal(() => points = [...points, point]),
+                    onUndo: () {
+                      if (points.isNotEmpty) {
+                        setLocal(
+                          () => points =
+                              points.sublist(0, points.length - 1),
+                        );
+                      }
+                    },
+                    onClear: () =>
+                        setLocal(() => points = <LatLng>[]),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: active,
+                    onChanged: (value) =>
+                        setLocal(() => active = value),
+                    title: const Text('Tarifa especial activa'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: points.length < 3 ||
+                      (_num(fare.text) ?? 0) <= 0 ||
+                      name.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Guardar tarifa'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    var saved = false;
+    if (save == true) {
+      try {
+        await supabase.rpc(
+          'admin_upsert_special_fare_zone',
+          params: {
+            'p_id': row?['id'],
+            'p_zone_id': zone['id'],
+            'p_name': name.text.trim(),
+            'p_zone_type': type,
+            'p_service_key': service,
+            'p_polygon': _specialJsonPoints(points),
+            'p_fixed_fare': _num(fare.text),
+            'p_priority': int.tryParse(priority.text.trim()) ?? 100,
+            'p_active': active,
+          },
+        );
+        saved = true;
+      } catch (e) {
+        if (mounted) _snack(context, e);
+      }
+    }
+
+    name.dispose();
+    fare.dispose();
+    priority.dispose();
+    return saved;
+  }
+
+  Future<void> _showSpecialFares(
+    Map<String, dynamic> zone,
+    List<Map<String, dynamic>> services,
+  ) async {
+    var localRevision = 0;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.place_rounded, color: _blue),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  'Tarifas fijas · ' +
+                      (zone['name'] ?? 'Zona').toString(),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  final saved = await _editSpecialFare(zone, services);
+                  if (saved) setLocal(() => localRevision++);
+                },
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Nueva'),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 860,
+            height: 520,
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              key: ValueKey(localRevision),
+              future: () async {
+                final value = await supabase.rpc(
+                  'admin_special_fare_list',
+                  params: {'p_zone_id': zone['id']},
+                );
+                return _list(value);
+              }(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState ==
+                        ConnectionState.waiting &&
+                    !snapshot.hasData) {
+                  return const _Loading(
+                    title: 'Cargando tarifas especiales',
+                  );
+                }
+                if (snapshot.hasError) {
+                  return _Error(
+                    error: snapshot.error,
+                    onRetry: () =>
+                        setLocal(() => localRevision++),
+                  );
+                }
+                final rows =
+                    snapshot.data ?? const <Map<String, dynamic>>[];
+                if (rows.isEmpty) {
+                  return const _Empty(
+                    text:
+                        'No hay sectores con tarifa fija. Crea Aeropuerto, Terminal u otro sector especial.',
+                  );
+                }
+
+                return ListView.separated(
+                  itemCount: rows.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final row = rows[index];
+                    final type = row['zone_type']?.toString();
+                    final label = type == 'airport'
+                        ? 'Aeropuerto'
+                        : type == 'terminal'
+                            ? 'Terminal'
+                            : 'Especial';
+                    return Card(
+                      elevation: 0,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFFEAF2FF),
+                          child: Icon(
+                            type == 'airport'
+                                ? Icons.flight_rounded
+                                : type == 'terminal'
+                                    ? Icons.directions_bus_rounded
+                                    : Icons.place_outlined,
+                            color: _blue,
+                          ),
+                        ),
+                        title: Text(
+                          row['name']?.toString() ?? label,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        subtitle: Text(
+                          label +
+                              ' · ' +
+                              (row['service_key'] ?? 'servicio')
+                                  .toString() +
+                              ' · ' +
+                              (zone['currency_code'] ?? '').toString() +
+                              ' ' +
+                              (row['fixed_fare'] ?? '—').toString() +
+                              ' · prioridad ' +
+                              (row['priority'] ?? 100).toString(),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _MiniStatus(
+                              text: row['active'] == true
+                                  ? 'Activa'
+                                  : 'Inactiva',
+                              positive: row['active'] == true,
+                            ),
+                            IconButton(
+                              tooltip: 'Editar',
+                              onPressed: () async {
+                                final saved = await _editSpecialFare(
+                                  zone,
+                                  services,
+                                  row,
+                                );
+                                if (saved) {
+                                  setLocal(() => localRevision++);
+                                }
+                              },
+                              icon: const Icon(Icons.edit_outlined),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<
@@ -3333,10 +3742,26 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                   'Las reglas de la zona tienen prioridad sobre las reglas globales y de servicio.',
               action: data.zones.isEmpty
                   ? null
-                  : FilledButton.icon(
-                      onPressed: () => _edit(data.zones, data.services),
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Nueva tarifa'),
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (data.zone != null)
+                          OutlinedButton.icon(
+                            onPressed: () => _showSpecialFares(
+                              data.zone!,
+                              data.services,
+                            ),
+                            icon: const Icon(Icons.place_outlined),
+                            label: const Text('Aeropuerto / Terminal'),
+                          ),
+                        const SizedBox(width: 8),
+                        FilledButton.icon(
+                          onPressed: () =>
+                              _edit(data.zones, data.services),
+                          icon: const Icon(Icons.add_rounded),
+                          label: const Text('Nueva tarifa'),
+                        ),
+                      ],
                     ),
             ),
             const SizedBox(height: 14),
