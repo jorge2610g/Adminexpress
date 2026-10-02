@@ -4,9 +4,6 @@ import 'package:latlong2/latlong.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_control_sections.dart';
-import 'admin_services_page.dart';
-import 'admin_geo_safety_page.dart';
-import 'admin_identity_page.dart';
 
 const Color adminBlue = Color(0xFF0B57D0);
 const Color adminDark = Color(0xFF101828);
