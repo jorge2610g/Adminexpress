@@ -227,6 +227,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Servicios', Icons.apps_rounded),
     ('Cobertura y seguridad', Icons.gpp_good_rounded),
     ('Verificación de identidad', Icons.verified_user_rounded),
+    ('Configuración avanzada', Icons.tune_rounded),
   ];
 
   Future<bool> _authorized() async => await supabase.rpc('is_admin') == true;
@@ -484,6 +485,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         return const AdminGeoSafetyPage();
       case 18:
         return const AdminIdentitySecurityPage();
+      case 19:
+        return const AdminAdvancedSettingsPage();
       default:
         return const SizedBox.shrink();
     }
@@ -1190,7 +1193,7 @@ class _Navigation extends StatelessWidget {
     ('FINANZAS', [9, 8]),
     ('ANÁLISIS', [10, 14]),
     ('SEGURIDAD', [17, 18]),
-    ('CONFIGURACIÓN', [16, 7, 11, 12]),
+    ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
   ];
 
   @override
