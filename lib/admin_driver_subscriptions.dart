@@ -22,6 +22,7 @@ class _AdminDriverSubscriptionsPageState
   bool loading = true;
   bool savingSettings = false;
   bool providerSaving = false;
+  bool providerVerifying = false;
   String? error;
   List<Map<String, dynamic>> plans = const [];
   List<Map<String, dynamic>> drivers = const [];
@@ -557,6 +558,34 @@ class _AdminDriverSubscriptionsPageState
     }
   }
 
+  Future<void> _verifyProvider() async {
+    setState(() => providerVerifying = true);
+    try {
+      final response = await supabase.functions.invoke(
+        'driver-subscription-admin',
+        body: const {'action': 'verify'},
+      );
+      final responseData = response.data is Map
+          ? Map<String, dynamic>.from(response.data as Map)
+          : <String, dynamic>{};
+
+      if (responseData['ok'] != true ||
+          responseData['connected'] != true) {
+        throw StateError(
+          responseData['error']?.toString() ??
+              'No se pudo verificar la conexión',
+        );
+      }
+
+      _snack('Conexión VeriPagos verificada correctamente.');
+      await _load();
+    } catch (e) {
+      _snack('VeriPagos no responde correctamente: ' + e.toString());
+    } finally {
+      if (mounted) setState(() => providerVerifying = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (loading) {
@@ -564,6 +593,8 @@ class _AdminDriverSubscriptionsPageState
     }
 
     final providerConfigured = provider['configured'] == true;
+    final providerCredentialsConfigured =
+        provider['credentials_configured'] == true;
     final enabled = settings['enabled'] == true;
     final enforce = settings['enforce_access'] == true;
     final providerEnabled = settings['provider_enabled'] == true;
@@ -617,9 +648,12 @@ class _AdminDriverSubscriptionsPageState
           const SizedBox(height: 14),
           _ProviderCard(
             configured: providerConfigured,
+            credentialsConfigured: providerCredentialsConfigured,
             enabled: providerEnabled,
             saving: providerSaving,
+            verifying: providerVerifying,
             onConfigure: _configureProvider,
+            onVerify: _verifyProvider,
           ),
           const SizedBox(height: 20),
           const Text(
@@ -627,22 +661,50 @@ class _AdminDriverSubscriptionsPageState
             style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 10),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              for (final plan in plans)
-                SizedBox(
-                  width: 280,
-                  child: _AdminPlanCard(
-                    plan: plan,
-                    price: _money(plan['amount']),
-                    benefits: _benefits(plan),
-                    onEdit: () => _editPlan(plan),
-                  ),
+          if (plans.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(0xFFD97706),
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Los planes existen, pero no se cargaron en esta vista. '
+                        'Pulsa Recargar planes para intentarlo nuevamente.',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: _load,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Recargar planes'),
+                    ),
+                  ],
                 ),
-            ],
-          ),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final plan in plans)
+                  SizedBox(
+                    width: 280,
+                    child: _AdminPlanCard(
+                      plan: plan,
+                      price: _money(plan['amount']),
+                      benefits: _benefits(plan),
+                      onEdit: () => _editPlan(plan),
+                    ),
+                  ),
+              ],
+            ),
           const SizedBox(height: 24),
           Row(
             children: [
@@ -876,43 +938,121 @@ class _SettingsCardState extends State<_SettingsCard> {
 
 class _ProviderCard extends StatelessWidget {
   final bool configured;
+  final bool credentialsConfigured;
   final bool enabled;
   final bool saving;
+  final bool verifying;
   final VoidCallback onConfigure;
+  final VoidCallback onVerify;
 
   const _ProviderCard({
     required this.configured,
+    required this.credentialsConfigured,
     required this.enabled,
     required this.saving,
+    required this.verifying,
     required this.onConfigure,
+    required this.onVerify,
   });
 
   @override
   Widget build(BuildContext context) {
+    final serviceActive = configured && enabled;
     return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(18),
-        leading: CircleAvatar(
-          backgroundColor: configured
-              ? const Color(0xFFE8F8EF)
-              : const Color(0xFFFFF3E0),
-          child: const Icon(Icons.qr_code_2_rounded),
-        ),
-        title: const Text(
-          'QR Bolivia · VeriPagos',
-          style: TextStyle(fontWeight: FontWeight.w900),
-        ),
-        subtitle: Text(
-          configured
-              ? (enabled
-                  ? 'Conectado y listo para pagos reales.'
-                  : 'Conectado. QR Bolivia está desactivado.')
-              : 'Ingresa tus credenciales y verifica la conexión.',
-        ),
-        trailing: FilledButton.icon(
-          onPressed: saving ? null : onConfigure,
-          icon: const Icon(Icons.settings_rounded),
-          label: Text(configured ? 'Revisar conexión' : 'Conectar'),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              backgroundColor: configured
+                  ? const Color(0xFFE8F8EF)
+                  : const Color(0xFFFFF3E0),
+              child: const Icon(Icons.qr_code_2_rounded),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'QR Bolivia · VeriPagos',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    configured
+                        ? 'Credenciales guardadas y conexión verificada.'
+                        : credentialsConfigured
+                            ? 'Credenciales guardadas. Falta verificar la conexión.'
+                            : 'Ingresa tus credenciales para conectar VeriPagos.',
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      Chip(
+                        avatar: Icon(
+                          configured
+                              ? Icons.verified_rounded
+                              : Icons.error_outline_rounded,
+                          size: 17,
+                        ),
+                        label: Text(
+                          configured
+                              ? 'Conexión verificada'
+                              : 'Conexión sin verificar',
+                        ),
+                      ),
+                      Chip(
+                        avatar: Icon(
+                          serviceActive
+                              ? Icons.check_circle_rounded
+                              : Icons.pause_circle_outline_rounded,
+                          size: 17,
+                        ),
+                        label: Text(
+                          serviceActive
+                              ? 'Servicio activo'
+                              : 'Servicio inactivo',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.end,
+              children: [
+                if (credentialsConfigured)
+                  OutlinedButton.icon(
+                    onPressed: saving || verifying ? null : onVerify,
+                    icon: verifying
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.wifi_tethering_rounded),
+                    label: const Text('Verificar conexión'),
+                  ),
+                FilledButton.icon(
+                  onPressed: saving || verifying ? null : onConfigure,
+                  icon: const Icon(Icons.manage_accounts_rounded),
+                  label: Text(
+                    credentialsConfigured
+                        ? 'Editar credenciales'
+                        : 'Conectar',
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
