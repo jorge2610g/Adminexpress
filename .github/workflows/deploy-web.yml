@@ -33,6 +33,14 @@ jobs:
       - name: Build Flutter Web
         run: flutter build web --release --base-href /Adminexpress/
 
+      - name: Bust Flutter web cache
+        shell: bash
+        run: |
+          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${GITHUB_SHA}#g" build/web/index.html
+          if [ -f build/web/flutter_bootstrap.js ]; then
+            sed -i "s#main.dart.js#main.dart.js?v=${GITHUB_SHA}#g" build/web/flutter_bootstrap.js
+          fi
+
       - name: Write deployed version marker
         shell: bash
         run: |
