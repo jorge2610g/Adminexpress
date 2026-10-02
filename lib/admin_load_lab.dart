@@ -14,7 +14,7 @@ class AdminLoadLabPage extends StatefulWidget {
 }
 
 class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
-  static const center = LatLng(-20.2307, -70.1357);
+  static const center = LatLng(-14.8333, -64.9000);
   int driversWanted = 100;
   int requestsWanted = 100;
   double radiusKm = 3;
@@ -155,7 +155,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Genera conductores y solicitudes sintéticas en Iquique. Puedes ejecutar el escenario aislado en QA o hacerlo visible dentro del alcance operativo de producción. Los eventos LOADTEST no generan push.',
+          'Genera conductores y solicitudes sintéticas en Trinidad. Puedes ejecutar el escenario aislado en QA o hacerlo visible dentro del alcance operativo de producción. Los eventos LOADTEST no generan push.',
           style: TextStyle(color: Color(0xFF64748B), height: 1.45),
         ),
         const SizedBox(height: 12),
@@ -319,17 +319,17 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                           if (lat == null || lng == null) return null;
                           return Marker(
                             point: LatLng(lat, lng),
-                            width: 28,
-                            height: 28,
+                            width: 18,
+                            height: 18,
                             child: const DecoratedBox(
                               decoration: BoxDecoration(
                                 color: Color(0xFF2563EB),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
-                                Icons.directions_car_filled_rounded,
+                                Icons.two_wheeler_rounded,
                                 color: Colors.white,
-                                size: 16,
+                                size: 11,
                               ),
                             ),
                           );
