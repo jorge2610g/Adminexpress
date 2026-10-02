@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
@@ -423,9 +425,9 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
 
   Future<void> _edit([Map<String, dynamic>? row]) async {
     final name = TextEditingController(text: row?['name']?.toString() ?? '');
-    final city = TextEditingController(text: row?['city']?.toString() ?? 'Iquique');
+    final city = TextEditingController(text: row?['city']?.toString() ?? 'Trinidad');
     final country =
-        TextEditingController(text: row?['country']?.toString() ?? 'Chile');
+        TextEditingController(text: row?['country']?.toString() ?? 'Bolivia');
     final lat = TextEditingController(
       text: row?['center_latitude']?.toString() ?? '-20.2208',
     );
@@ -644,6 +646,1505 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     );
   }
 }
+
+
+class AdminServicesPage extends StatefulWidget {
+  const AdminServicesPage({super.key});
+
+  @override
+  State<AdminServicesPage> createState() => _AdminServicesPageState();
+}
+
+class _AdminServicesPageState extends State<AdminServicesPage> {
+  int revision = 0;
+
+  Future<List<Map<String, dynamic>>> _load() async {
+    final value = await supabase.rpc('admin_service_list');
+    return _list(value);
+  }
+
+  Future<void> _edit([Map<String, dynamic>? row]) async {
+    final key = TextEditingController(text: row?['service_key']?.toString() ?? '');
+    final name = TextEditingController(text: row?['name']?.toString() ?? '');
+    final description =
+        TextEditingController(text: row?['description']?.toString() ?? '');
+    final order = TextEditingController(text: row?['sort_order']?.toString() ?? '0');
+    var vehicle = row?['vehicle_type']?.toString() ?? 'car';
+    var enabled = row?['enabled'] != false;
+    var bidding = row?['allow_bidding'] != false;
+    var fixed = row?['allow_fixed_price'] != false;
+
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text(row == null ? 'Crear servicio' : 'Editar servicio'),
+          content: SizedBox(
+            width: 560,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF2FF),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: Colors.white,
+                          child: Icon(Icons.auto_awesome_rounded, color: _blue),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'El servicio aparecerá en la app según su orden y podrás combinar precio fijo con ofertas del pasajero.',
+                            style: TextStyle(fontSize: 11, color: _dark, height: 1.35),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: name,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre visible',
+                      hintText: 'Ej. Express Premium',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: key,
+                    enabled: row == null,
+                    decoration: const InputDecoration(
+                      labelText: 'Clave interna',
+                      hintText: 'express_premium',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: description,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Descripción'),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: vehicle,
+                    decoration: const InputDecoration(labelText: 'Vehículo requerido'),
+                    items: const [
+                      DropdownMenuItem(value: 'car', child: Text('Auto')),
+                      DropdownMenuItem(value: 'motorcycle', child: Text('Moto')),
+                      DropdownMenuItem(value: 'any', child: Text('Cualquiera')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setLocal(() => vehicle = value);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: order,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Orden en la app'),
+                  ),
+                  const SizedBox(height: 6),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: enabled,
+                    onChanged: (value) => setLocal(() => enabled = value),
+                    title: const Text('Servicio activo'),
+                    subtitle: const Text('Si se desactiva deja de mostrarse sin borrar datos.'),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: bidding,
+                    onChanged: (value) => setLocal(() => bidding = value),
+                    title: const Text('Permitir ofertas'),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: fixed,
+                    onChanged: (value) => setLocal(() => fixed = value),
+                    title: const Text('Permitir precio fijo'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Guardar servicio'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (save == true) {
+      try {
+        await supabase.rpc(
+          'admin_upsert_service',
+          params: {
+            'p_id': row?['id'],
+            'p_service_key': key.text.trim(),
+            'p_name': name.text.trim(),
+            'p_description': description.text.trim(),
+            'p_icon_key': 'local_taxi',
+            'p_vehicle_type': vehicle,
+            'p_enabled': enabled,
+            'p_allow_bidding': bidding,
+            'p_allow_fixed_price': fixed,
+            'p_sort_order': int.tryParse(order.text.trim()) ?? 0,
+          },
+        );
+        if (mounted) {
+          setState(() => revision++);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Servicio guardado.')),
+          );
+        }
+      } catch (e) {
+        if (mounted) _snack(context, e);
+      }
+    }
+
+    key.dispose();
+    name.dispose();
+    description.dispose();
+    order.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      key: ValueKey(revision),
+      future: _load(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return const _Loading(title: 'Cargando servicios');
+        }
+        if (snapshot.hasError) {
+          return _Error(error: snapshot.error, onRetry: () => setState(() => revision++));
+        }
+
+        final rows = snapshot.data ?? const <Map<String, dynamic>>[];
+        final active = rows.where((row) => row['enabled'] == true).length;
+        final bidding = rows.where((row) => row['allow_bidding'] == true).length;
+
+        return ListView(
+          padding: const EdgeInsets.all(22),
+          children: [
+            _Header(
+              title: 'Servicios',
+              subtitle:
+                  'Crea y organiza los tipos de viaje que verá el pasajero. Sin tocar código.',
+              action: FilledButton.icon(
+                onPressed: () => _edit(),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Crear servicio'),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _AdminHero(
+              icon: Icons.apps_rounded,
+              title: 'Catálogo de servicios',
+              subtitle:
+                  'Activa, ordena y combina tarifa fija u ofertas para cada categoría.',
+              stats: [
+                ('Servicios', rows.length.toString()),
+                ('Activos', active.toString()),
+                ('Con ofertas', bidding.toString()),
+              ],
+            ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final cardWidth = width < 680
+                    ? width
+                    : width < 1050
+                        ? (width - 12) / 2
+                        : (width - 24) / 3;
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: rows.map((row) {
+                    final enabled = row['enabled'] == true;
+                    return SizedBox(
+                      width: cardWidth,
+                      child: _AdminModuleCard(
+                        icon: _serviceIcon(row['vehicle_type']?.toString()),
+                        title: row['name']?.toString() ?? 'Servicio',
+                        subtitle: row['description']?.toString() ?? 'Sin descripción',
+                        accent: enabled ? _blue : _muted,
+                        chips: [
+                          enabled ? 'Activo' : 'Inactivo',
+                          row['vehicle_type']?.toString() ?? 'car',
+                          if (row['allow_bidding'] == true) 'Ofertas',
+                          if (row['allow_fixed_price'] == true) 'Precio fijo',
+                        ],
+                        onTap: () => _edit(row),
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class AdminGeoSafetyPage extends StatefulWidget {
+  const AdminGeoSafetyPage({super.key});
+
+  @override
+  State<AdminGeoSafetyPage> createState() => _AdminGeoSafetyPageState();
+}
+
+class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
+  int revision = 0;
+
+  Future<({
+    List<Map<String, dynamic>> zones,
+    List<Map<String, dynamic>> coverage,
+    List<Map<String, dynamic>> safety,
+  })> _load() async {
+    final values = await Future.wait([
+      supabase.rpc('admin_zone_list'),
+      supabase.rpc('admin_zone_polygon_list'),
+      supabase.rpc('admin_security_zone_list'),
+    ]);
+    return (
+      zones: _list(values[0]),
+      coverage: _list(values[1]),
+      safety: _list(values[2]),
+    );
+  }
+
+  List<LatLng> _points(Object? raw) {
+    if (raw is! List) return <LatLng>[];
+    return raw
+        .whereType<Map>()
+        .map((row) {
+          final lat = _double(row['lat']);
+          final lng = _double(row['lng']);
+          if (lat == null || lng == null) return null;
+          return LatLng(lat, lng);
+        })
+        .whereType<LatLng>()
+        .toList();
+  }
+
+  List<Map<String, double>> _jsonPoints(List<LatLng> points) => points
+      .map((point) => {'lat': point.latitude, 'lng': point.longitude})
+      .toList();
+
+  Future<void> _editCoverage(
+    List<Map<String, dynamic>> zones, [
+    Map<String, dynamic>? row,
+  ]) async {
+    if (zones.isEmpty) {
+      _snack(context, 'Primero crea una zona de operación.');
+      return;
+    }
+    var zoneId = row?['zone_id']?.toString() ?? zones.first['id'].toString();
+    var active = row?['active'] != false;
+    final name = TextEditingController(
+      text: row?['name']?.toString() ?? 'Cobertura principal',
+    );
+    var points = _points(row?['polygon']);
+
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text(row == null ? 'Dibujar cobertura' : 'Editar cobertura'),
+          content: SizedBox(
+            width: 760,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: zoneId,
+                          decoration: const InputDecoration(labelText: 'Zona'),
+                          items: zones
+                              .map(
+                                (zone) => DropdownMenuItem(
+                                  value: zone['id'].toString(),
+                                  child: Text(zone['name']?.toString() ?? 'Zona'),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) setLocal(() => zoneId = value);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: name,
+                          decoration: const InputDecoration(labelText: 'Nombre del polígono'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _PolygonEditor(
+                    points: points,
+                    tone: _blue,
+                    title: 'Toca el mapa para marcar la cobertura',
+                    onAdd: (point) => setLocal(() => points = [...points, point]),
+                    onUndo: () {
+                      if (points.isNotEmpty) {
+                        setLocal(() => points = points.sublist(0, points.length - 1));
+                      }
+                    },
+                    onClear: () => setLocal(() => points = <LatLng>[]),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: active,
+                    onChanged: (value) => setLocal(() => active = value),
+                    title: const Text('Polígono activo'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: points.length < 3
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Guardar polígono'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (save == true) {
+      try {
+        await supabase.rpc(
+          'admin_upsert_zone_polygon',
+          params: {
+            'p_id': row?['id'],
+            'p_zone_id': zoneId,
+            'p_name': name.text.trim(),
+            'p_polygon': _jsonPoints(points),
+            'p_active': active,
+          },
+        );
+        if (mounted) setState(() => revision++);
+      } catch (e) {
+        if (mounted) _snack(context, e);
+      }
+    }
+    name.dispose();
+  }
+
+  Future<void> _editSafety([Map<String, dynamic>? row]) async {
+    var type = row?['zone_type']?.toString() ?? 'red';
+    var applies = row?['applies_to']?.toString() ?? 'both';
+    var severity = ((row?['severity'] as num?)?.toInt() ?? 3).clamp(1, 5);
+    var active = row?['active'] != false;
+    var points = _points(row?['polygon']);
+    final name = TextEditingController(text: row?['name']?.toString() ?? '');
+    final message = TextEditingController(text: row?['message']?.toString() ?? '');
+    final city = TextEditingController(text: row?['city']?.toString() ?? 'Trinidad');
+    final country = TextEditingController(text: row?['country']?.toString() ?? 'Bolivia');
+
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text(row == null ? 'Crear zona de seguridad' : 'Editar zona de seguridad'),
+          content: SizedBox(
+            width: 780,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  TextField(
+                    controller: name,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre',
+                      hintText: 'Ej. Zona roja nocturna',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: type,
+                          decoration: const InputDecoration(labelText: 'Tipo'),
+                          items: const [
+                            DropdownMenuItem(value: 'red', child: Text('Zona roja')),
+                            DropdownMenuItem(value: 'caution', child: Text('Precaución')),
+                            DropdownMenuItem(value: 'safe', child: Text('Zona segura')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) setLocal(() => type = value);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: applies,
+                          decoration: const InputDecoration(labelText: 'Aplica a'),
+                          items: const [
+                            DropdownMenuItem(value: 'both', child: Text('Pasajero y conductor')),
+                            DropdownMenuItem(value: 'driver', child: Text('Solo conductor')),
+                            DropdownMenuItem(value: 'passenger', child: Text('Solo pasajero')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) setLocal(() => applies = value);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: city,
+                          decoration: const InputDecoration(labelText: 'Ciudad'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: country,
+                          decoration: const InputDecoration(labelText: 'País'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: message,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Mensaje preventivo',
+                      hintText: 'Este sector requiere mayor precaución.',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Text('Nivel de riesgo', style: TextStyle(fontWeight: FontWeight.w800)),
+                      Expanded(
+                        child: Slider(
+                          value: severity.toDouble(),
+                          min: 1,
+                          max: 5,
+                          divisions: 4,
+                          label: severity.toString(),
+                          onChanged: (value) => setLocal(() => severity = value.round()),
+                        ),
+                      ),
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: _securityTone(type).withOpacity(.12),
+                        child: Text(
+                          severity.toString(),
+                          style: TextStyle(
+                            color: _securityTone(type),
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  _PolygonEditor(
+                    points: points,
+                    tone: _securityTone(type),
+                    title: 'Dibuja el perímetro de seguridad',
+                    onAdd: (point) => setLocal(() => points = [...points, point]),
+                    onUndo: () {
+                      if (points.isNotEmpty) {
+                        setLocal(() => points = points.sublist(0, points.length - 1));
+                      }
+                    },
+                    onClear: () => setLocal(() => points = <LatLng>[]),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: active,
+                    onChanged: (value) => setLocal(() => active = value),
+                    title: const Text('Zona activa'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: points.length < 3
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.shield_outlined),
+              label: const Text('Guardar zona'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (save == true) {
+      try {
+        await supabase.rpc(
+          'admin_upsert_security_zone',
+          params: {
+            'p_id': row?['id'],
+            'p_name': name.text.trim(),
+            'p_zone_type': type,
+            'p_applies_to': applies,
+            'p_severity': severity,
+            'p_polygon': _jsonPoints(points),
+            'p_message': message.text.trim(),
+            'p_active': active,
+            'p_city': city.text.trim(),
+            'p_country': country.text.trim(),
+          },
+        );
+        if (mounted) setState(() => revision++);
+      } catch (e) {
+        if (mounted) _snack(context, e);
+      }
+    }
+
+    name.dispose();
+    message.dispose();
+    city.dispose();
+    country.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<
+        ({
+          List<Map<String, dynamic>> zones,
+          List<Map<String, dynamic>> coverage,
+          List<Map<String, dynamic>> safety,
+        })>(
+      key: ValueKey(revision),
+      future: _load(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return const _Loading(title: 'Cargando cobertura y seguridad');
+        }
+        if (snapshot.hasError) {
+          return _Error(error: snapshot.error, onRetry: () => setState(() => revision++));
+        }
+        final data = snapshot.data ??
+            (
+              zones: <Map<String, dynamic>>[],
+              coverage: <Map<String, dynamic>>[],
+              safety: <Map<String, dynamic>>[],
+            );
+
+        return DefaultTabController(
+          length: 2,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 22, 22, 12),
+                child: _AdminHero(
+                  icon: Icons.gpp_good_rounded,
+                  title: 'Cobertura y seguridad',
+                  subtitle:
+                      'Controla dónde opera Express y qué sectores necesitan reglas especiales.',
+                  stats: [
+                    ('Zonas', data.zones.length.toString()),
+                    ('Polígonos', data.coverage.length.toString()),
+                    ('Seguridad', data.safety.length.toString()),
+                  ],
+                ),
+              ),
+              const Material(
+                color: Colors.white,
+                child: TabBar(
+                  tabs: [
+                    Tab(icon: Icon(Icons.polyline_rounded), text: 'Cobertura'),
+                    Tab(icon: Icon(Icons.shield_outlined), text: 'Zonas de seguridad'),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    ListView(
+                      padding: const EdgeInsets.all(22),
+                      children: [
+                        _Header(
+                          title: 'Polígonos de cobertura',
+                          subtitle:
+                              'Dibuja áreas reales en el mapa. El radio circular queda como respaldo.',
+                          action: FilledButton.icon(
+                            onPressed: () => _editCoverage(data.zones),
+                            icon: const Icon(Icons.draw_rounded),
+                            label: const Text('Dibujar polígono'),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        if (data.coverage.isEmpty)
+                          const _Empty(text: 'Todavía no hay polígonos de cobertura.')
+                        else
+                          ...data.coverage.map(
+                            (row) => _GeoRow(
+                              tone: _blue,
+                              icon: Icons.polyline_rounded,
+                              title: row['name']?.toString() ?? 'Cobertura',
+                              subtitle:
+                                  (row['zone_name'] ?? 'Zona').toString() +
+                                      ' · ' +
+                                      (row['city'] ?? 'Trinidad').toString(),
+                              badge: row['active'] == true ? 'Activa' : 'Inactiva',
+                              onTap: () => _editCoverage(data.zones, row),
+                            ),
+                          ),
+                      ],
+                    ),
+                    ListView(
+                      padding: const EdgeInsets.all(22),
+                      children: [
+                        _Header(
+                          title: 'Zonas rojas y prevención',
+                          subtitle:
+                              'Marca sectores de riesgo, precaución o zonas seguras para conductor y pasajero.',
+                          action: FilledButton.icon(
+                            onPressed: () => _editSafety(),
+                            icon: const Icon(Icons.add_moderator_outlined),
+                            label: const Text('Crear zona'),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        if (data.safety.isEmpty)
+                          const _Empty(text: 'Todavía no hay zonas de seguridad.')
+                        else
+                          ...data.safety.map(
+                            (row) => _GeoRow(
+                              tone: _securityTone(row['zone_type']?.toString()),
+                              icon: row['zone_type'] == 'safe'
+                                  ? Icons.verified_user_outlined
+                                  : Icons.warning_amber_rounded,
+                              title: row['name']?.toString() ?? 'Zona de seguridad',
+                              subtitle:
+                                  _securityLabel(row['zone_type']?.toString()) +
+                                      ' · nivel ' +
+                                      (row['severity'] ?? 3).toString() +
+                                      ' · ' +
+                                      (row['applies_to'] ?? 'both').toString(),
+                              badge: row['active'] == true ? 'Activa' : 'Inactiva',
+                              onTap: () => _editSafety(row),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class AdminIdentitySecurityPage extends StatefulWidget {
+  const AdminIdentitySecurityPage({super.key});
+
+  @override
+  State<AdminIdentitySecurityPage> createState() => _AdminIdentitySecurityPageState();
+}
+
+class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
+  int revision = 0;
+
+  Future<({
+    Map<String, dynamic> settings,
+    List<Map<String, dynamic>> verifications,
+  })> _load() async {
+    final values = await Future.wait([
+      supabase.rpc('admin_identity_settings_get'),
+      supabase.rpc('admin_identity_verification_list', params: {'p_limit': 200}),
+    ]);
+    return (
+      settings: _map(values[0]),
+      verifications: _list(values[1]),
+    );
+  }
+
+  Future<void> _configure(Map<String, dynamic> row) async {
+    var provider = row['provider']?.toString() ?? 'manual';
+    var document = row['document_enabled'] != false;
+    var face = row['face_enabled'] != false;
+    var match = row['face_match_enabled'] != false;
+    var liveness = row['liveness_enabled'] == true;
+    var driver = row['require_driver'] != false;
+    var passenger = row['require_passenger'] == true;
+    var review = row['manual_review_on_fail'] != false;
+    var faceScore = _double(row['min_face_score']) ?? .75;
+    var liveScore = _double(row['min_liveness_score']) ?? .70;
+
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: const Text('Política de verificación'),
+          content: SizedBox(
+            width: 620,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFEAF2FF), Color(0xFFF7F5FF)],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded, color: _blue),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'La política ya queda preparada. La conexión con un proveedor externo se activa aparte para no enviar documentos a un servicio sin credenciales.',
+                            style: TextStyle(fontSize: 11, color: _dark, height: 1.35),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: provider,
+                    decoration: const InputDecoration(labelText: 'Motor actual'),
+                    items: const [
+                      DropdownMenuItem(value: 'manual', child: Text('Revisión manual segura')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setLocal(() => provider = value);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: document,
+                    onChanged: (value) => setLocal(() => document = value),
+                    title: const Text('Revisar documento'),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: face,
+                    onChanged: (value) => setLocal(() => face = value),
+                    title: const Text('Capturar rostro'),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: match,
+                    onChanged: (value) => setLocal(() => match = value),
+                    title: const Text('Comparar rostro con documento'),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: liveness,
+                    onChanged: (value) => setLocal(() => liveness = value),
+                    title: const Text('Prueba de vida'),
+                  ),
+                  const Divider(),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: driver,
+                    onChanged: (value) => setLocal(() => driver = value),
+                    title: const Text('Obligatorio para conductores'),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: passenger,
+                    onChanged: (value) => setLocal(() => passenger = value),
+                    title: const Text('Obligatorio para pasajeros'),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: review,
+                    onChanged: (value) => setLocal(() => review = value),
+                    title: const Text('Enviar a revisión manual si falla'),
+                  ),
+                  const SizedBox(height: 8),
+                  Text('Coincidencia facial mínima · ' + (faceScore * 100).round().toString() + '%'),
+                  Slider(
+                    value: faceScore.clamp(0, 1),
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    onChanged: (value) => setLocal(() => faceScore = value),
+                  ),
+                  Text('Prueba de vida mínima · ' + (liveScore * 100).round().toString() + '%'),
+                  Slider(
+                    value: liveScore.clamp(0, 1),
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    onChanged: (value) => setLocal(() => liveScore = value),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.security_rounded),
+              label: const Text('Guardar política'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (save == true) {
+      try {
+        await supabase.rpc(
+          'admin_identity_settings_update',
+          params: {
+            'p_provider': provider,
+            'p_document_enabled': document,
+            'p_face_enabled': face,
+            'p_face_match_enabled': match,
+            'p_liveness_enabled': liveness,
+            'p_require_driver': driver,
+            'p_require_passenger': passenger,
+            'p_min_face_score': faceScore,
+            'p_min_liveness_score': liveScore,
+            'p_manual_review_on_fail': review,
+          },
+        );
+        if (mounted) setState(() => revision++);
+      } catch (e) {
+        if (mounted) _snack(context, e);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<
+        ({
+          Map<String, dynamic> settings,
+          List<Map<String, dynamic>> verifications,
+        })>(
+      key: ValueKey(revision),
+      future: _load(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return const _Loading(title: 'Cargando seguridad de identidad');
+        }
+        if (snapshot.hasError) {
+          return _Error(error: snapshot.error, onRetry: () => setState(() => revision++));
+        }
+
+        final data = snapshot.data ??
+            (settings: <String, dynamic>{}, verifications: <Map<String, dynamic>>[]);
+        final pending = data.verifications
+            .where((row) => ['pending', 'processing', 'review'].contains(row['status']))
+            .length;
+        final verified =
+            data.verifications.where((row) => row['status'] == 'verified').length;
+
+        return ListView(
+          padding: const EdgeInsets.all(22),
+          children: [
+            _Header(
+              title: 'Verificación de identidad',
+              subtitle:
+                  'Documento, rostro, coincidencia facial y prueba de vida para proteger a pasajeros y conductores.',
+              action: FilledButton.icon(
+                onPressed: () => _configure(data.settings),
+                icon: const Icon(Icons.tune_rounded),
+                label: const Text('Configurar política'),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _AdminHero(
+              icon: Icons.verified_user_rounded,
+              title: 'Centro de identidad',
+              subtitle:
+                  'La política queda centralizada y preparada para conectar un proveedor automático.',
+              stats: [
+                ('Motor', (data.settings['provider'] ?? 'manual').toString()),
+                ('Pendientes', pending.toString()),
+                ('Verificados', verified.toString()),
+              ],
+            ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final cardWidth = width < 760 ? width : (width - 12) / 2;
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    SizedBox(
+                      width: cardWidth,
+                      child: _AdminModuleCard(
+                        icon: Icons.badge_outlined,
+                        title: 'Documento oficial',
+                        subtitle:
+                            'Captura y revisión del documento. La automatización OCR se conectará por proveedor.',
+                        accent: const Color(0xFF6941C6),
+                        chips: [
+                          data.settings['document_enabled'] == true ? 'Activo' : 'Inactivo',
+                          data.settings['require_driver'] == true ? 'Conductor obligatorio' : 'Opcional',
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _AdminModuleCard(
+                        icon: Icons.face_retouching_natural_rounded,
+                        title: 'Rostro y coincidencia',
+                        subtitle:
+                            'Compara la selfie con la identidad y permite exigir prueba de vida.',
+                        accent: const Color(0xFF0E9384),
+                        chips: [
+                          data.settings['face_match_enabled'] == true ? 'Comparación activa' : 'Comparación inactiva',
+                          data.settings['liveness_enabled'] == true ? 'Liveness activo' : 'Liveness pendiente',
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Solicitudes de verificación',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: _dark),
+            ),
+            const SizedBox(height: 10),
+            if (data.verifications.isEmpty)
+              const _Empty(
+                text:
+                    'Todavía no hay verificaciones. El módulo está listo para recibirlas cuando conectemos el flujo de registro.',
+              )
+            else
+              ...data.verifications.map(
+                (row) => _GeoRow(
+                  tone: row['status'] == 'verified'
+                      ? const Color(0xFF12B76A)
+                      : row['status'] == 'rejected'
+                          ? const Color(0xFFD92D20)
+                          : const Color(0xFFF79009),
+                  icon: Icons.person_search_rounded,
+                  title: row['full_name']?.toString() ?? 'Usuario Express',
+                  subtitle:
+                      (row['subject_role'] ?? 'driver').toString() +
+                          ' · ' +
+                          (row['provider'] ?? 'manual').toString(),
+                  badge: row['status']?.toString() ?? 'pending',
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _PolygonEditor extends StatelessWidget {
+  final List<LatLng> points;
+  final Color tone;
+  final String title;
+  final ValueChanged<LatLng> onAdd;
+  final VoidCallback onUndo;
+  final VoidCallback onClear;
+
+  const _PolygonEditor({
+    required this.points,
+    required this.tone,
+    required this.title,
+    required this.onAdd,
+    required this.onUndo,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final center = points.isNotEmpty ? points.first : const LatLng(-14.8333, -64.9000);
+    return Container(
+      height: 430,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDDE3EC)),
+      ),
+      child: Stack(
+        children: [
+          FlutterMap(
+            options: MapOptions(
+              initialCenter: center,
+              initialZoom: 13,
+              onTap: (_, point) => onAdd(point),
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.express.delivery.admin',
+              ),
+              if (points.length >= 3)
+                PolygonLayer(
+                  polygons: [
+                    Polygon(
+                      points: points,
+                      color: tone.withOpacity(.16),
+                      borderColor: tone,
+                      borderStrokeWidth: 3,
+                    ),
+                  ],
+                )
+              else if (points.length >= 2)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(points: points, color: tone, strokeWidth: 3),
+                  ],
+                ),
+              if (points.isNotEmpty)
+                MarkerLayer(
+                  markers: [
+                    for (var i = 0; i < points.length; i++)
+                      Marker(
+                        point: points[i],
+                        width: 24,
+                        height: 24,
+                        child: Container(
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: tone,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: Text(
+                            (i + 1).toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              const RichAttributionWidget(
+                attributions: [TextSourceAttribution('OpenStreetMap contributors')],
+              ),
+            ],
+          ),
+          Positioned(
+            top: 12,
+            left: 12,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(.95),
+                borderRadius: BorderRadius.circular(11),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x1A101828), blurRadius: 12, offset: Offset(0, 4)),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.touch_app_rounded, color: tone, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title + ' · ' + points.length.toString() + ' puntos',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: points.isEmpty ? null : onUndo,
+                    icon: const Icon(Icons.undo_rounded, size: 16),
+                    label: const Text('Deshacer'),
+                  ),
+                  TextButton.icon(
+                    onPressed: points.isEmpty ? null : onClear,
+                    icon: const Icon(Icons.delete_sweep_outlined, size: 16),
+                    label: const Text('Limpiar'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminHero extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final List<(String, String)> stats;
+
+  const _AdminHero({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.stats,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0B57D0), Color(0xFF5B74F5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(color: Color(0x2A0B57D0), blurRadius: 24, offset: Offset(0, 10)),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final info = Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(.16),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: Colors.white, size: 26),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Color(0xFFE7EEFF),
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+
+          final statRow = Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: stats
+                .map(
+                  (stat) => Container(
+                    constraints: const BoxConstraints(minWidth: 105),
+                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(.13),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withOpacity(.14)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          stat.$2,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          stat.$1,
+                          style: const TextStyle(color: Color(0xFFE7EEFF), fontSize: 9),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+                .toList(),
+          );
+
+          if (constraints.maxWidth < 780) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [info, const SizedBox(height: 14), statRow],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: info),
+              const SizedBox(width: 20),
+              statRow,
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _AdminModuleCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color accent;
+  final List<String> chips;
+  final VoidCallback? onTap;
+
+  const _AdminModuleCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.accent,
+    required this.chips,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        padding: const EdgeInsets.all(17),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE4EAF2)),
+          boxShadow: const [
+            BoxShadow(color: Color(0x0D101828), blurRadius: 18, offset: Offset(0, 7)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(.10),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: accent, size: 22),
+                ),
+                const Spacer(),
+                if (onTap != null)
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: _muted),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: _dark),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              subtitle,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 10, color: _muted, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: chips
+                  .map(
+                    (chip) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F7FA),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0xFFE7ECF3)),
+                      ),
+                      child: Text(
+                        chip,
+                        style: const TextStyle(
+                          color: _dark,
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GeoRow extends StatelessWidget {
+  final Color tone;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String badge;
+  final VoidCallback? onTap;
+
+  const _GeoRow({
+    required this.tone,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.badge,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFFE4EAF2)),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: tone.withOpacity(.10),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(icon, color: tone, size: 20),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: _dark),
+        ),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 9, color: _muted)),
+        trailing: Wrap(
+          spacing: 7,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: tone.withOpacity(.10),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                badge,
+                style: TextStyle(color: tone, fontSize: 8.5, fontWeight: FontWeight.w900),
+              ),
+            ),
+            if (onTap != null)
+              IconButton(
+                onPressed: onTap,
+                icon: const Icon(Icons.edit_outlined, size: 18),
+              ),
+          ],
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+IconData _serviceIcon(String? vehicle) {
+  switch (vehicle) {
+    case 'motorcycle':
+      return Icons.two_wheeler_rounded;
+    case 'any':
+      return Icons.commute_rounded;
+    default:
+      return Icons.local_taxi_rounded;
+  }
+}
+
+Color _securityTone(String? type) {
+  switch (type) {
+    case 'safe':
+      return const Color(0xFF12B76A);
+    case 'caution':
+      return const Color(0xFFF79009);
+    default:
+      return const Color(0xFFD92D20);
+  }
+}
+
+String _securityLabel(String? type) {
+  switch (type) {
+    case 'safe':
+      return 'Zona segura';
+    case 'caution':
+      return 'Precaución';
+    default:
+      return 'Zona roja';
+  }
+}
+
+double? _double(Object? value) {
+  if (value is num) return value.toDouble();
+  return double.tryParse(value?.toString() ?? '');
+}
+
 
 class AdminFaresPage extends StatefulWidget {
   const AdminFaresPage({super.key});
@@ -2923,36 +4424,78 @@ class _SettingsCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE7ECF3)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D101828),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-              color: _dark,
-            ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 3),
-            Text(
-              subtitle!,
-              style: const TextStyle(
-                color: _muted,
-                fontSize: 10,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF2FF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(_settingsIcon(title), color: _blue, size: 20),
               ),
-            ),
-          ],
-          const SizedBox(height: 12),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: _dark,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle!,
+                        style: const TextStyle(
+                          color: _muted,
+                          fontSize: 10,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFEEF1F5)),
+          const SizedBox(height: 8),
           ...children,
         ],
       ),
     );
   }
+}
+
+IconData _settingsIcon(String title) {
+  final value = title.toLowerCase();
+  if (value.contains('pago')) return Icons.account_balance_wallet_outlined;
+  if (value.contains('servicio') || value.contains('módulo')) return Icons.apps_rounded;
+  if (value.contains('operación') || value.contains('dispatch')) return Icons.alt_route_rounded;
+  if (value.contains('tarifa') || value.contains('alcance')) return Icons.payments_outlined;
+  if (value.contains('soporte') || value.contains('localización')) return Icons.support_agent_rounded;
+  return Icons.tune_rounded;
 }
 
 class _ReadOnlyRow extends StatelessWidget {
