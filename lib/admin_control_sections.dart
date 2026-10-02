@@ -2506,23 +2506,61 @@ class AdminFaresPage extends StatefulWidget {
 
 class _AdminFaresPageState extends State<AdminFaresPage> {
   int revision = 0;
+  String? selectedZoneId;
 
-  Future<({List<Map<String, dynamic>> fares, List<Map<String, dynamic>> zones})>
-      _load() async {
+  Future<({
+    List<Map<String, dynamic>> fares,
+    List<Map<String, dynamic>> zones,
+    List<Map<String, dynamic>> services,
+    Map<String, dynamic>? zone,
+  })> _load() async {
     final values = await Future.wait([
       supabase.rpc('admin_fare_list'),
       supabase.rpc('admin_zone_list'),
+      supabase.rpc('admin_service_list'),
     ]);
-    return (fares: _list(values[0]), zones: _list(values[1]));
+    final zones = _list(values[1]);
+
+    if (zones.isEmpty) {
+      return (
+        fares: _list(values[0]),
+        zones: zones,
+        services: _list(values[2]),
+        zone: null,
+      );
+    }
+
+    var zoneId = selectedZoneId;
+    if (zoneId == null ||
+        !zones.any((row) => row['id']?.toString() == zoneId)) {
+      final trinidad =
+          zones.where((row) => row['zone_key']?.toString() == 'trinidad');
+      zoneId = trinidad.isNotEmpty
+          ? trinidad.first['id'].toString()
+          : zones.first['id'].toString();
+      selectedZoneId = zoneId;
+    }
+
+    return (
+      fares: _list(values[0]),
+      zones: zones,
+      services: _list(values[2]),
+      zone: zones.firstWhere((row) => row['id']?.toString() == zoneId),
+    );
   }
 
   Future<void> _edit(
-    List<Map<String, dynamic>> zones, [
+    List<Map<String, dynamic>> zones,
+    List<Map<String, dynamic>> services, [
     Map<String, dynamic>? row,
   ]) async {
-    var scope = row?['scope_type']?.toString() ?? 'global';
-    var service = row?['service_key']?.toString() ?? 'ride';
-    String? zoneId = row?['zone_id']?.toString();
+    var scope = row?['scope_type']?.toString() ?? 'zone_service';
+    var service = row?['service_key']?.toString() ??
+        (services.isNotEmpty
+            ? services.first['service_key']?.toString() ?? 'motorcycle'
+            : 'motorcycle');
+    String? zoneId =
+        row?['zone_id']?.toString() ?? selectedZoneId;
     var active = row?['active'] != false;
 
     final base = TextEditingController(
@@ -2550,25 +2588,37 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
         builder: (context, setLocal) => AlertDialog(
           title: Text(row == null ? 'Nueva tarifa' : 'Editar tarifa'),
           content: SizedBox(
-            width: 500,
+            width: 520,
             child: SingleChildScrollView(
               child: Column(
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF2FF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Usa “Zona + servicio” para que una tarifa afecte solo a una ciudad. Global y Por servicio quedan como reglas de respaldo.',
+                      style: TextStyle(fontSize: 11, height: 1.35),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: scope,
                     decoration: const InputDecoration(labelText: 'Jerarquía'),
                     items: const [
                       DropdownMenuItem(
-                        value: 'global',
-                        child: Text('Global'),
+                        value: 'zone_service',
+                        child: Text('Zona + servicio · recomendado'),
                       ),
                       DropdownMenuItem(
                         value: 'service',
-                        child: Text('Por servicio'),
+                        child: Text('Por servicio · respaldo'),
                       ),
                       DropdownMenuItem(
-                        value: 'zone_service',
-                        child: Text('Zona + servicio'),
+                        value: 'global',
+                        child: Text('Global · respaldo general'),
                       ),
                     ],
                     onChanged: (value) {
@@ -2581,26 +2631,18 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                       initialValue: service,
                       decoration:
                           const InputDecoration(labelText: 'Servicio'),
-                      items: const [
-                        DropdownMenuItem(value: 'ride', child: Text('Viaje')),
-                        DropdownMenuItem(
-                          value: 'delivery',
-                          child: Text('Delivery'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'economy',
-                          child: Text('Express / Economy'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'comfort',
-                          child: Text('Comfort'),
-                        ),
-                        DropdownMenuItem(value: 'xl', child: Text('XL')),
-                        DropdownMenuItem(
-                          value: 'motorcycle',
-                          child: Text('Moto'),
-                        ),
-                      ],
+                      items: services
+                          .map(
+                            (item) => DropdownMenuItem<String>(
+                              value: item['service_key']?.toString(),
+                              child: Text(
+                                item['name']?.toString() ??
+                                    item['service_key']?.toString() ??
+                                    'Servicio',
+                              ),
+                            ),
+                          )
+                          .toList(),
                       onChanged: (value) {
                         if (value != null) setLocal(() => service = value);
                       },
@@ -2613,9 +2655,13 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                       decoration: const InputDecoration(labelText: 'Zona'),
                       items: zones
                           .map(
-                            (zone) => DropdownMenuItem(
+                            (zone) => DropdownMenuItem<String>(
                               value: zone['id'].toString(),
-                              child: Text(zone['name']?.toString() ?? 'Zona'),
+                              child: Text(
+                                (zone['name'] ?? 'Zona').toString() +
+                                    ' · ' +
+                                    (zone['currency_code'] ?? 'BOB').toString(),
+                              ),
                             ),
                           )
                           .toList(),
@@ -2682,7 +2728,12 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
             'p_active': active,
           },
         );
-        if (mounted) setState(() => revision++);
+        if (mounted) {
+          setState(() => revision++);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Tarifa guardada.')),
+          );
+        }
       } catch (e) {
         if (mounted) _snack(context, e);
       }
@@ -2699,76 +2750,147 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<
-        ({List<Map<String, dynamic>> fares, List<Map<String, dynamic>> zones})>(
-      key: ValueKey(revision),
+        ({
+          List<Map<String, dynamic>> fares,
+          List<Map<String, dynamic>> zones,
+          List<Map<String, dynamic>> services,
+          Map<String, dynamic>? zone,
+        })>(
+      key: ValueKey('$revision-$selectedZoneId'),
       future: _load(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting &&
             !snapshot.hasData) {
-          return const _Loading(title: 'Cargando tarifas');
+          return const _Loading(title: 'Cargando tarifas por zona');
         }
         if (snapshot.hasError) {
-          return _Error(error: snapshot.error, onRetry: () => setState(() => revision++));
+          return _Error(
+            error: snapshot.error,
+            onRetry: () => setState(() => revision++),
+          );
         }
 
         final data = snapshot.data ??
-            (fares: <Map<String, dynamic>>[], zones: <Map<String, dynamic>>[]);
+            (
+              fares: <Map<String, dynamic>>[],
+              zones: <Map<String, dynamic>>[],
+              services: <Map<String, dynamic>>[],
+              zone: null,
+            );
+        final zoneId = data.zone?['id']?.toString();
+        final visibleFares = data.fares.where((row) {
+          final scope = row['scope_type']?.toString();
+          if (scope == 'global' || scope == 'service') return true;
+          return row['zone_id']?.toString() == zoneId;
+        }).toList();
+
         return ListView(
           padding: const EdgeInsets.all(22),
           children: [
             _Header(
-              title: 'Motor de tarifas',
+              title: 'Tarifas por zona',
               subtitle:
-                  'Jerarquía Global → Servicio → Zona + Servicio.',
-              action: FilledButton.icon(
-                onPressed: () => _edit(data.zones),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Nueva regla'),
-              ),
+                  'Las reglas de la zona tienen prioridad sobre las reglas globales y de servicio.',
+              action: data.zones.isEmpty
+                  ? null
+                  : FilledButton.icon(
+                      onPressed: () => _edit(data.zones, data.services),
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Nueva tarifa'),
+                    ),
             ),
-            const SizedBox(height: 18),
-            ...data.fares.map(
-              (row) => Container(
-                margin: const EdgeInsets.only(bottom: 7),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: const Color(0xFFE7ECF3)),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: ListTile(
-                  dense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 4,
-                  ),
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFEAF2FF),
-                    child: Icon(Icons.payments_outlined, color: _blue),
-                  ),
-                  title: Text(
-                    _fareTitle(row),
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                  subtitle: Text(
-                    'Base ' +
-                        (row['base_fare'] ?? 0).toString() +
-                        ' · km ' +
-                        (row['per_km'] ?? 0).toString() +
-                        ' · min ' +
-                        (row['per_minute'] ?? 0).toString() +
-                        ' · mínimo ' +
-                        (row['minimum_fare'] ?? 0).toString() +
-                        ' · comisión ' +
-                        (row['commission_percent'] ?? 0).toString() +
-                        '%',
-                  ),
-                  trailing: IconButton(
-                    onPressed: () => _edit(data.zones, row),
-                    icon: const Icon(Icons.edit_outlined),
+            const SizedBox(height: 14),
+            if (data.zones.isNotEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_city_rounded, color: _blue),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Zona',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: selectedZoneId,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            labelText: 'Editar tarifas de',
+                          ),
+                          items: data.zones
+                              .map(
+                                (zone) => DropdownMenuItem<String>(
+                                  value: zone['id'].toString(),
+                                  child: Text(
+                                    (zone['name'] ?? 'Zona').toString() +
+                                        ' · ' +
+                                        (zone['currency_code'] ?? 'BOB')
+                                            .toString(),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => selectedZoneId = value);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ),
+            const SizedBox(height: 14),
+            if (visibleFares.isEmpty)
+              const _Empty(text: 'No hay reglas de tarifa configuradas.')
+            else
+              ...visibleFares.map(
+                (row) => Container(
+                  margin: const EdgeInsets.only(bottom: 7),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: const Color(0xFFE7ECF3)),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 4,
+                    ),
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFFEAF2FF),
+                      child: Icon(Icons.payments_outlined, color: _blue),
+                    ),
+                    title: Text(
+                      _fareTitle(row),
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    subtitle: Text(
+                      'Base ' +
+                          (row['base_fare'] ?? 0).toString() +
+                          ' · km ' +
+                          (row['per_km'] ?? 0).toString() +
+                          ' · min ' +
+                          (row['per_minute'] ?? 0).toString() +
+                          ' · mínimo ' +
+                          (row['minimum_fare'] ?? 0).toString() +
+                          ' · comisión ' +
+                          (row['commission_percent'] ?? 0).toString() +
+                          '%',
+                    ),
+                    trailing: IconButton(
+                      onPressed: () =>
+                          _edit(data.zones, data.services, row),
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                  ),
+                ),
+              ),
           ],
         );
       },
