@@ -27,6 +27,8 @@ class _AdminDriverSubscriptionsPageState
   List<Map<String, dynamic>> plans = const [];
   List<Map<String, dynamic>> drivers = const [];
   List<Map<String, dynamic>> payments = const [];
+  List<Map<String, dynamic>> zones = const [];
+  String? selectedZoneKey;
   Map<String, dynamic> settings = const {};
   Map<String, dynamic> provider = const {};
   final search = TextEditingController();
@@ -79,59 +81,101 @@ class _AdminDriverSubscriptionsPageState
     }
 
     String? loadError;
+    List<Map<String, dynamic>> zoneRows = zones;
+    String? zoneKey = selectedZoneKey;
 
     try {
-      final planRows = await supabase
-          .from('driver_subscription_plans')
-          .select('*')
-          .order('sort_order');
-      if (mounted) {
-        setState(() => plans = _maps(planRows));
+      final rawZones = await supabase.rpc('admin_zone_list');
+      zoneRows = _maps(rawZones);
+      if (zoneRows.isNotEmpty &&
+          (zoneKey == null ||
+              !zoneRows.any(
+                (row) => row['zone_key']?.toString() == zoneKey,
+              ))) {
+        final trinidad = zoneRows.where(
+          (row) => row['zone_key']?.toString() == 'trinidad',
+        );
+        zoneKey = trinidad.isNotEmpty
+            ? 'trinidad'
+            : zoneRows.first['zone_key']?.toString();
       }
-    } catch (e) {
-      loadError = 'Planes: ' + e.toString();
-    }
-
-    try {
-      final settingsRow = await supabase
-          .from('driver_subscription_settings')
-          .select('*')
-          .eq('id', true)
-          .single();
       if (mounted) {
         setState(() {
-          settings = Map<String, dynamic>.from(settingsRow);
+          zones = zoneRows;
+          selectedZoneKey = zoneKey;
         });
       }
     } catch (e) {
-      loadError ??= 'Configuración: ' + e.toString();
+      loadError = 'Zonas: ' + e.toString();
     }
 
-    try {
-      final driverRows = await supabase.rpc(
-        'admin_driver_subscriptions',
-        params: {'p_search': search.text.trim()},
-      );
-      if (mounted) {
-        setState(() => drivers = _maps(driverRows));
+    if (zoneKey != null && zoneKey.isNotEmpty) {
+      try {
+        final planRows = await supabase
+            .from('driver_subscription_plans')
+            .select('*')
+            .eq('zone_key', zoneKey)
+            .order('sort_order');
+        if (mounted) {
+          setState(() => plans = _maps(planRows));
+        }
+      } catch (e) {
+        loadError ??= 'Planes: ' + e.toString();
       }
-    } catch (e) {
-      loadError ??= 'Conductores: ' + e.toString();
-    }
 
-    try {
-      final paymentRows = await supabase
-          .from('driver_subscription_payments')
-          .select(
-            'id,driver_id,plan_id,amount,currency_code,provider,status,created_at,paid_at,expires_at',
-          )
-          .order('created_at', ascending: false)
-          .limit(100);
-      if (mounted) {
-        setState(() => payments = _maps(paymentRows));
+      try {
+        final settingsRow = await supabase.rpc(
+          'admin_zone_subscription_settings',
+          params: {'p_zone_key': zoneKey},
+        );
+        if (mounted && settingsRow is Map) {
+          setState(() {
+            settings = Map<String, dynamic>.from(settingsRow);
+          });
+        }
+      } catch (e) {
+        loadError ??= 'Configuración: ' + e.toString();
       }
-    } catch (e) {
-      loadError ??= 'Pagos: ' + e.toString();
+
+      try {
+        final driverRows = await supabase.rpc(
+          'admin_driver_subscriptions',
+          params: {
+            'p_search': search.text.trim(),
+            'p_zone_key': zoneKey,
+          },
+        );
+        if (mounted) {
+          setState(() => drivers = _maps(driverRows));
+        }
+      } catch (e) {
+        loadError ??= 'Conductores: ' + e.toString();
+      }
+
+      try {
+        final paymentRows = await supabase
+            .from('driver_subscription_payments')
+            .select(
+              'id,driver_id,plan_id,amount,currency_code,provider,status,zone_key,created_at,paid_at,expires_at',
+            )
+            .eq('zone_key', zoneKey)
+            .order('created_at', ascending: false)
+            .limit(100);
+        if (mounted) {
+          setState(() => payments = _maps(paymentRows));
+        }
+      } catch (e) {
+        loadError ??= 'Pagos: ' + e.toString();
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          plans = const [];
+          drivers = const [];
+          payments = const [];
+          settings = const {};
+        });
+      }
     }
 
     try {
@@ -162,11 +206,16 @@ class _AdminDriverSubscriptionsPageState
     );
   }
 
-  String _money(Object? raw) {
+  String _money(Object? raw, [String? currency]) {
     final value = raw is num
         ? raw.toDouble()
         : double.tryParse(raw?.toString() ?? '') ?? 0;
-    return 'Bs ' +
+    final code =
+        (currency ?? settings['currency_code']?.toString() ?? 'BOB')
+            .toUpperCase();
+    final prefix = code == 'BOB' ? 'Bs' : code;
+    return prefix +
+        ' ' +
         (value == value.roundToDouble()
             ? value.toStringAsFixed(0)
             : value.toStringAsFixed(2));
@@ -212,22 +261,41 @@ class _AdminDriverSubscriptionsPageState
     return raw.map((e) => e.toString()).toList();
   }
 
-  Future<void> _editPlan(Map<String, dynamic> plan) async {
-    final name = TextEditingController(text: plan['name']?.toString() ?? '');
-    final amount = TextEditingController(text: plan['amount']?.toString() ?? '');
-    final days = TextEditingController(text: plan['days']?.toString() ?? '');
-    final benefits = TextEditingController(text: _benefits(plan).join('\n'));
-    var active = plan['active'] == true;
+  Future<void> _editPlan([Map<String, dynamic>? plan]) async {
+    final zoneKey = selectedZoneKey;
+    if (zoneKey == null) {
+      _snack('Selecciona una zona.');
+      return;
+    }
+
+    final code = TextEditingController(text: plan?['code']?.toString() ?? '');
+    final name = TextEditingController(text: plan?['name']?.toString() ?? '');
+    final amount =
+        TextEditingController(text: plan?['amount']?.toString() ?? '');
+    final days = TextEditingController(text: plan?['days']?.toString() ?? '');
+    final benefits =
+        TextEditingController(text: plan == null ? '' : _benefits(plan).join('\n'));
+    var active = plan?['active'] != false;
+
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: const Text('Editar plan'),
+          title: Text(plan == null ? 'Nuevo plan' : 'Editar plan'),
           content: SizedBox(
             width: 520,
             child: SingleChildScrollView(
               child: Column(
                 children: [
+                  TextField(
+                    controller: code,
+                    enabled: plan == null,
+                    decoration: const InputDecoration(
+                      labelText: 'Código',
+                      hintText: 'Ej. daily, weekly, monthly',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   TextField(
                     controller: name,
                     decoration: const InputDecoration(labelText: 'Nombre'),
@@ -237,8 +305,9 @@ class _AdminDriverSubscriptionsPageState
                     controller: amount,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                      labelText: 'Precio (Bs)',
+                    decoration: InputDecoration(
+                      labelText:
+                          'Precio (' + (settings['currency_code'] ?? 'BOB').toString() + ')',
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -284,6 +353,7 @@ class _AdminDriverSubscriptionsPageState
     );
 
     if (saved != true) {
+      code.dispose();
       name.dispose();
       amount.dispose();
       days.dispose();
@@ -300,32 +370,37 @@ class _AdminDriverSubscriptionsPageState
         .where((e) => e.isNotEmpty)
         .toList();
 
-    if (name.text.trim().isEmpty ||
+    if (code.text.trim().isEmpty ||
+        name.text.trim().isEmpty ||
         parsedAmount == null ||
         parsedAmount < 0 ||
         parsedDays == null ||
         parsedDays < 1) {
-      _snack('Revisa nombre, precio y duración.');
+      _snack('Revisa código, nombre, precio y duración.');
       return;
     }
 
     try {
-      await supabase
-          .from('driver_subscription_plans')
-          .update({
-            'name': name.text.trim(),
-            'amount': parsedAmount,
-            'days': parsedDays,
-            'benefits': benefitList,
-            'active': active,
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
-          })
-          .eq('id', plan['id']);
-      _snack('Plan actualizado.');
+      await supabase.rpc(
+        'admin_upsert_driver_subscription_plan',
+        params: {
+          'p_id': plan?['id'],
+          'p_zone_key': zoneKey,
+          'p_code': code.text.trim(),
+          'p_name': name.text.trim(),
+          'p_amount': parsedAmount,
+          'p_days': parsedDays,
+          'p_benefits': benefitList,
+          'p_active': active,
+          'p_sort_order': plan?['sort_order'] ?? (plans.length + 1) * 10,
+        },
+      );
+      _snack(plan == null ? 'Plan creado.' : 'Plan actualizado.');
       await _load();
     } catch (e) {
       _snack('No se pudo guardar: ' + e.toString());
     } finally {
+      code.dispose();
       name.dispose();
       amount.dispose();
       days.dispose();
@@ -339,14 +414,21 @@ class _AdminDriverSubscriptionsPageState
     required bool providerEnabled,
     required String qrValidity,
   }) async {
+    final zoneKey = selectedZoneKey;
+    if (zoneKey == null) {
+      _snack('Selecciona una zona.');
+      return;
+    }
+
     if (enforce && settings['enforce_access'] != true) {
+      final zoneName = settings['zone_name']?.toString() ?? zoneKey;
       final ok = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Exigir suscripción'),
-          content: const Text(
-            'Al activar esta regla, los conductores sin una suscripción vigente '
-            'serán puestos offline y no podrán ofertar hasta tener un plan activo.',
+          title: Text('Exigir suscripción · $zoneName'),
+          content: Text(
+            'Solo los conductores de $zoneName sin una suscripción vigente '
+            'serán puestos offline. Las demás zonas no se modificarán.',
           ),
           actions: [
             TextButton(
@@ -377,15 +459,21 @@ class _AdminDriverSubscriptionsPageState
     setState(() => savingSettings = true);
     try {
       await supabase.rpc(
-        'admin_set_driver_subscription_settings',
+        'admin_set_driver_subscription_zone_settings',
         params: {
+          'p_zone_key': zoneKey,
           'p_enabled': enabled,
           'p_enforce_access': enforce,
+        },
+      );
+      await supabase.rpc(
+        'admin_set_driver_subscription_provider_settings',
+        params: {
           'p_provider_enabled': providerEnabled,
           'p_qr_validity': qrValidity,
         },
       );
-      _snack('Configuración guardada.');
+      _snack('Configuración de la zona guardada.');
       await _load();
     } catch (e) {
       _snack('No se pudo guardar: ' + e.toString());
@@ -396,7 +484,12 @@ class _AdminDriverSubscriptionsPageState
 
   Future<void> _assignPlan(Map<String, dynamic> driver) async {
     if (plans.isEmpty) return;
-    int selected = _adminSubscriptionInt(driver['plan_id'] ?? plans.first['id']);
+    final validPlanIds =
+        plans.map((plan) => _adminSubscriptionInt(plan['id'])).toSet();
+    final currentPlanId = _adminSubscriptionInt(driver['plan_id']);
+    int selected = validPlanIds.contains(currentPlanId)
+        ? currentPlanId
+        : _adminSubscriptionInt(plans.first['id']);
     int customDays = 0;
 
     final ok = await showDialog<bool>(
