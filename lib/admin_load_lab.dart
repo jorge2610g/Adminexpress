@@ -14,10 +14,20 @@ class AdminLoadLabPage extends StatefulWidget {
 }
 
 class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
-  static const center = LatLng(-14.8333, -64.9000);
+  static const Map<String, LatLng> cityCenters = {
+    'trinidad': LatLng(-14.8333, -64.9000),
+    'iquique': LatLng(-20.2307, -70.1357),
+  };
+
+  static const Map<String, String> cityLabels = {
+    'trinidad': 'Trinidad',
+    'iquique': 'Iquique',
+  };
+
   int driversWanted = 100;
   int requestsWanted = 100;
   double radiusKm = 3;
+  String selectedCity = 'trinidad';
   String targetScope = 'sandbox';
   bool busy = false;
   String? error;
@@ -59,6 +69,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
       builder: (context) => AlertDialog(
         title: const Text('Lanzar carga QA en producción'),
         content: Text(
+          'Ciudad QA: $selectedCityLabel. '
           'Este escenario será visible dentro del alcance operativo real. '
           'Los $driversWanted conductores sintéticos aparecerán online y las '
           '$requestsWanted solicitudes podrán verse en la app de producción. '
@@ -99,8 +110,9 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                 'action': 'seed',
                 'drivers': driversWanted,
                 'requests': requestsWanted,
-                'center_latitude': center.latitude,
-                'center_longitude': center.longitude,
+                'city_key': selectedCity,
+                'center_latitude': selectedCenter.latitude,
+                'center_longitude': selectedCenter.longitude,
                 'radius_km': radiusKm,
                 'scope': targetScope,
               }
@@ -123,6 +135,12 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
       if (mounted) setState(() => busy = false);
     }
   }
+
+  LatLng get selectedCenter =>
+      cityCenters[selectedCity] ?? cityCenters['trinidad']!;
+
+  String get selectedCityLabel =>
+      cityLabels[selectedCity] ?? cityLabels['trinidad']!;
 
   double? _d(Object? value) {
     if (value is num) return value.toDouble();
@@ -155,7 +173,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Genera conductores y solicitudes sintéticas en Trinidad. Puedes ejecutar el escenario aislado en QA o hacerlo visible dentro del alcance operativo de producción. Los eventos LOADTEST no generan push.',
+          'Genera conductores y solicitudes sintéticas en la ciudad QA que elijas. La operación real sigue centrada en Trinidad; este selector solo cambia el escenario de carga. Los eventos LOADTEST no generan push.',
           style: TextStyle(color: Color(0xFF64748B), height: 1.45),
         ),
         const SizedBox(height: 12),
@@ -188,6 +206,30 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                         ? null
                         : (v) {
                             if (v != null) setState(() => targetScope = v);
+                          },
+                  ),
+                ),
+                SizedBox(
+                  width: 200,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: selectedCity,
+                    decoration: const InputDecoration(labelText: 'Ciudad QA'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'trinidad',
+                        child: Text('Trinidad'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'iquique',
+                        child: Text('Iquique'),
+                      ),
+                    ],
+                    onChanged: busy
+                        ? null
+                        : (v) {
+                            if (v != null) {
+                              setState(() => selectedCity = v);
+                            }
                           },
                   ),
                 ),
@@ -262,7 +304,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
           builder: (context, constraints) {
             final w = constraints.maxWidth < 760
                 ? constraints.maxWidth
-                : (constraints.maxWidth - 36) / 4;
+                : (constraints.maxWidth - 48) / 5;
             return Wrap(
               spacing: 12,
               runSpacing: 12,
@@ -276,6 +318,12 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                       ? 'PRODUCCIÓN'
                       : 'PRUEBA',
                   Icons.layers_rounded,
+                ),
+                _metric(
+                  w,
+                  'Ciudad',
+                  (metrics['city'] ?? run['city'] ?? selectedCityLabel).toString(),
+                  Icons.location_city_rounded,
                 ),
                 _metric(w, 'Conductores', drivers.length.toString(),
                     Icons.drive_eta_rounded),
@@ -301,8 +349,19 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
             child: Stack(
               children: [
                 FlutterMap(
-                  options: const MapOptions(
-                    initialCenter: center,
+                  key: ValueKey(
+                    (run['id'] ?? 'selector').toString() +
+                        '-' +
+                        (run['city'] ?? selectedCity).toString(),
+                  ),
+                  options: MapOptions(
+                    initialCenter: run['center_latitude'] != null &&
+                            run['center_longitude'] != null
+                        ? LatLng(
+                            _d(run['center_latitude']) ?? selectedCenter.latitude,
+                            _d(run['center_longitude']) ?? selectedCenter.longitude,
+                          )
+                        : selectedCenter,
                     initialZoom: 13.5,
                   ),
                   children: [
@@ -369,7 +428,8 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      'Azul: ' +
+                      (run['city'] ?? selectedCityLabel).toString() +
+                          ' · Azul: ' +
                           drivers.length.toString() +
                           ' conductores · Naranja: ' +
                           requests.length.toString() +
@@ -399,6 +459,8 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                       (((metrics['scope_mode'] ?? 'sandbox').toString() == 'production')
                           ? 'PRODUCCIÓN'
                           : 'PRUEBA') +
+                      ' · ' +
+                      (run['city'] ?? selectedCityLabel).toString() +
                       ' · ' +
                       drivers.length.toString() +
                       ' conductores · ' +
