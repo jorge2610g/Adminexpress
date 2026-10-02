@@ -7,6 +7,7 @@ import 'admin_control_sections.dart';
 import 'admin_audit_sandbox.dart';
 import 'admin_load_lab.dart';
 import 'admin_driver_subscriptions.dart';
+import 'admin_detail_dialogs.dart';
 
 const Color adminBlue = Color(0xFF2563EB);
 const Color adminDark = Color(0xFF0F172A);
@@ -255,13 +256,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Future<List<Map<String, dynamic>>> _drivers() async {
-    final value = await supabase.rpc('admin_driver_queue');
-    return List<Map<String, dynamic>>.from(value as List);
+    final value = await supabase.rpc('admin_driver_list_v2');
+    return _list(value);
   }
 
   Future<List<Map<String, dynamic>>> _users() async {
-    final value = await supabase.rpc('admin_user_list');
-    return List<Map<String, dynamic>>.from(value as List);
+    final value = await supabase.rpc('admin_user_list_v2');
+    return _list(value);
   }
 
   Future<List<Map<String, dynamic>>> _trips() async {
@@ -821,6 +822,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               'Pago: ' + (row['payment_status'] ?? '—').toString(),
               'Creado: ' + _formatDate(row['created_at']),
             ],
+            onTap: () => showAdminTripDetail(
+              context,
+              row['id'].toString(),
+            ),
           ),
         );
       },
@@ -889,6 +894,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               'Aprobación, estado, licencia, vehículo y control de conductores.',
           empty: 'Todavía no hay conductores registrados.',
           rows: snapshot.data ?? const [],
+          showQaFilter: true,
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
             final online = (row['online_status'] ?? 'offline').toString();
@@ -951,11 +957,31 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
 
                   final actions = PopupMenuButton<String>(
                     tooltip: 'Acciones',
-                    onSelected: (value) => _driverStatus(
-                      row['user_id'].toString(),
-                      value,
-                    ),
+                    onSelected: (value) async {
+                      if (value == 'edit') {
+                        final changed = await showAdminDriverEditor(
+                          context,
+                          row['user_id'].toString(),
+                        );
+                        if (changed && mounted) _refresh();
+                        return;
+                      }
+                      await _driverStatus(
+                        row['user_id'].toString(),
+                        value,
+                      );
+                    },
                     itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.manage_accounts_outlined),
+                          title: Text('Ver / editar ficha'),
+                        ),
+                      ),
+                      PopupMenuDivider(),
                       PopupMenuItem(
                         value: 'approved',
                         child: Text('Aprobar'),
@@ -1077,6 +1103,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               'Pasajeros, conductores y control del estado de las cuentas.',
           empty: 'Todavía no hay usuarios registrados.',
           rows: snapshot.data ?? const [],
+          showQaFilter: true,
           item: (row) => Container(
             margin: const EdgeInsets.only(bottom: 7),
             decoration: BoxDecoration(
@@ -1114,11 +1141,31 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     (row['account_status'] ?? 'active').toString(),
               ),
               trailing: PopupMenuButton<String>(
-                onSelected: (value) => _accountStatus(
-                  row['user_id'].toString(),
-                  value,
-                ),
+                onSelected: (value) async {
+                  if (value == 'edit') {
+                    final changed = await showAdminUserEditor(
+                      context,
+                      row['user_id'].toString(),
+                    );
+                    if (changed && mounted) _refresh();
+                    return;
+                  }
+                  await _accountStatus(
+                    row['user_id'].toString(),
+                    value,
+                  );
+                },
                 itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.manage_accounts_outlined),
+                      title: Text('Ver / editar perfil'),
+                    ),
+                  ),
+                  PopupMenuDivider(),
                   PopupMenuItem(
                     value: 'active',
                     child: Text('Activar'),
@@ -3437,6 +3484,7 @@ class _Records extends StatefulWidget {
   final String empty;
   final List<Map<String, dynamic>> rows;
   final Widget Function(Map<String, dynamic>) item;
+  final bool showQaFilter;
 
   const _Records({
     required this.title,
@@ -3444,6 +3492,7 @@ class _Records extends StatefulWidget {
     required this.empty,
     required this.rows,
     required this.item,
+    this.showQaFilter = false,
   });
 
   @override
@@ -3454,6 +3503,7 @@ class _RecordsState extends State<_Records> {
   final search = TextEditingController();
   String query = '';
   String? status;
+  String qaFilter = 'all';
 
   @override
   void dispose() {
@@ -3479,7 +3529,12 @@ class _RecordsState extends State<_Records> {
               .contains(query.toLowerCase());
       final matchesStatus =
           status == null || row['status']?.toString() == status;
-      return matchesText && matchesStatus;
+      final isQa = row['is_qa'] == true;
+      final matchesQa = !widget.showQaFilter ||
+          qaFilter == 'all' ||
+          (qaFilter == 'qa' && isQa) ||
+          (qaFilter == 'real' && !isQa);
+      return matchesText && matchesStatus && matchesQa;
     }).toList();
 
     return ListView(
@@ -3523,6 +3578,26 @@ class _RecordsState extends State<_Records> {
                   selected: status == value,
                   onSelected: (_) => setState(() => status = value),
                 ),
+              if (widget.showQaFilter) ...[
+                const SizedBox(width: 4),
+                ChoiceChip(
+                  avatar: const Icon(Icons.people_alt_outlined, size: 15),
+                  label: const Text('Reales'),
+                  selected: qaFilter == 'real',
+                  onSelected: (_) => setState(() => qaFilter = 'real'),
+                ),
+                ChoiceChip(
+                  avatar: const Icon(Icons.science_outlined, size: 15),
+                  label: const Text('QA / pruebas'),
+                  selected: qaFilter == 'qa',
+                  onSelected: (_) => setState(() => qaFilter = 'qa'),
+                ),
+                if (qaFilter != 'all')
+                  TextButton(
+                    onPressed: () => setState(() => qaFilter = 'all'),
+                    child: const Text('Quitar filtro QA'),
+                  ),
+              ],
               OutlinedButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -3567,12 +3642,14 @@ class _OperationCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final List<String> details;
+  final VoidCallback? onTap;
 
   const _OperationCard({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.details,
+    this.onTap,
   });
 
   @override
@@ -3584,55 +3661,91 @@ class _OperationCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE7ECF3)),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: ExpansionTile(
-        dense: true,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        childrenPadding: const EdgeInsets.fromLTRB(50, 0, 14, 12),
-        leading: Container(
-          width: 32,
-          height: 32,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: const Color(0xFFEAF2FF),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: adminBlue, size: 17),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(
-            color: adminMuted,
-            fontSize: 10,
-          ),
-        ),
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Wrap(
-              spacing: 18,
-              runSpacing: 6,
-              children: details
-                  .map(
-                    (value) => Text(
-                      value,
-                      style: const TextStyle(
-                        color: adminMuted,
-                        fontSize: 10,
-                      ),
-                    ),
-                  )
-                  .toList(),
+      child: onTap != null
+          ? ListTile(
+              dense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+              onTap: onTap,
+              leading: Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF2FF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: adminBlue, size: 17),
+              ),
+              title: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              subtitle: Text(
+                subtitle,
+                style: const TextStyle(
+                  color: adminMuted,
+                  fontSize: 10,
+                ),
+              ),
+              trailing: const Tooltip(
+                message: 'Ver detalle completo',
+                child: Icon(Icons.open_in_new_rounded, color: adminBlue),
+              ),
+            )
+          : ExpansionTile(
+              dense: true,
+              tilePadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              childrenPadding: const EdgeInsets.fromLTRB(50, 0, 14, 12),
+              leading: Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF2FF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: adminBlue, size: 17),
+              ),
+              title: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              subtitle: Text(
+                subtitle,
+                style: const TextStyle(
+                  color: adminMuted,
+                  fontSize: 10,
+                ),
+              ),
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 18,
+                    runSpacing: 6,
+                    children: details
+                        .map(
+                          (value) => Text(
+                            value,
+                            style: const TextStyle(
+                              color: adminMuted,
+                              fontSize: 10,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
