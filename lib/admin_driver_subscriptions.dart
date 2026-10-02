@@ -56,6 +56,15 @@ class _AdminDriverSubscriptionsPageState
         .toList();
   }
 
+  bool _isQaDriver(Map<String, dynamic> driver) {
+    final email = (driver['email']?.toString() ?? '').trim().toLowerCase();
+    final name = (driver['full_name']?.toString() ?? '').trim().toLowerCase();
+    return email.startsWith('qa-load-driver-') ||
+        email.startsWith('qa-prod-load-driver-') ||
+        name.startsWith('qa load driver ') ||
+        name.startsWith('qa prod load driver ');
+  }
+
   Future<void> _load() async {
     if (mounted) {
       setState(() {
@@ -631,6 +640,8 @@ class _AdminDriverSubscriptionsPageState
     final enforce = settings['enforce_access'] == true;
     final providerEnabled = settings['provider_enabled'] == true;
     final qrValidity = settings['qr_validity']?.toString() ?? '0/00:15';
+    final realDrivers = drivers.where((driver) => !_isQaDriver(driver)).toList();
+    final qaDrivers = drivers.where(_isQaDriver).toList();
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -740,10 +751,13 @@ class _AdminDriverSubscriptionsPageState
           const SizedBox(height: 24),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Conductores',
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+                  'Conductores reales (' + realDrivers.length.toString() + ')',
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
               SizedBox(
@@ -764,11 +778,19 @@ class _AdminDriverSubscriptionsPageState
               ),
             ],
           ),
+          const SizedBox(height: 6),
+          Text(
+            qaDrivers.isEmpty
+                ? 'Los usuarios de prueba no se mezclan con los conductores reales.'
+                : qaDrivers.length.toString() +
+                    ' conductores QA están separados y no cuentan como reales.',
+            style: const TextStyle(color: Color(0xFF64748B)),
+          ),
           const SizedBox(height: 10),
-          if (drivers.isEmpty)
-            const _AdminSubNotice(text: 'No hay conductores para mostrar.')
+          if (realDrivers.isEmpty)
+            const _AdminSubNotice(text: 'No hay conductores reales para mostrar.')
           else
-            for (final driver in drivers)
+            for (final driver in realDrivers)
               Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
@@ -797,6 +819,43 @@ class _AdminDriverSubscriptionsPageState
                   ),
                 ),
               ),
+          if (qaDrivers.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: ExpansionTile(
+                leading: const Icon(Icons.science_outlined),
+                title: Text(
+                  'Conductores de prueba (' + qaDrivers.length.toString() + ')',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                subtitle: const Text(
+                  'Usuarios QA del laboratorio de carga. No cuentan como conductores reales.',
+                ),
+                children: [
+                  for (final driver in qaDrivers)
+                    ListTile(
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.science_outlined),
+                      ),
+                      title: Text(
+                        driver['full_name']?.toString().trim().isNotEmpty == true
+                            ? driver['full_name'].toString()
+                            : driver['email']?.toString() ?? 'Conductor QA',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        (driver['plan_name']?.toString() ?? 'Sin plan') +
+                            ' · ' +
+                            _remaining(driver['expires_at']) +
+                            '\n' +
+                            (driver['email']?.toString() ?? ''),
+                      ),
+                      isThreeLine: true,
+                    ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           const Text(
             'Pagos recientes',
