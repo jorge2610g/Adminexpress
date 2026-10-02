@@ -138,7 +138,7 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
       );
       _snack(active
           ? 'Entorno activado. El aislamiento está operativo.'
-          : 'Entorno desactivado. Sus miembros vuelven al alcance normal de producción.');
+          : 'Entorno pausado. Sus miembros siguen aislados y no reciben tráfico de producción.');
       _refresh();
     } catch (error) {
       _snack('No se pudo actualizar el entorno: $error', error: true);
@@ -685,7 +685,7 @@ class _AuditGroupCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      active ? 'AISLADO / ACTIVO' : 'DESACTIVADO',
+                      active ? 'AISLADO / ACTIVO' : 'PAUSADO / AISLADO',
                       style: TextStyle(
                         color: active
                             ? const Color(0xFF067647)
