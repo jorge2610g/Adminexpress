@@ -29,6 +29,8 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
   double radiusKm = 3;
   String selectedCity = 'trinidad';
   String targetScope = 'sandbox';
+  String demandLevel = 'automatic';
+  Map<String, dynamic> demandState = const <String, dynamic>{};
   bool busy = false;
   String? error;
   Map<String, dynamic> snapshot = const {};
@@ -51,11 +53,16 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
   Future<void> _load() async {
     try {
       final value = await supabase.rpc('admin_audit_load_snapshot');
+      final demandRaw = await supabase.rpc('admin_dynamic_pricing_qa_state');
       if (!mounted) return;
+      final demandMap = demandRaw is Map
+          ? Map<String, dynamic>.from(demandRaw)
+          : <String, dynamic>{};
       setState(() {
         snapshot = value is Map
             ? Map<String, dynamic>.from(value)
             : <String, dynamic>{};
+        demandState = demandMap;
         error = null;
       });
     } catch (e) {
@@ -128,6 +135,14 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
             ? Map<String, dynamic>.from(data)
             : <String, dynamic>{};
       });
+      if (action == 'seed') {
+        await _applyDemand(silent: true);
+      } else if (action == 'cleanup') {
+        final previousLevel = demandLevel;
+        demandLevel = 'automatic';
+        await _applyDemand(silent: true);
+        demandLevel = previousLevel;
+      }
       await _load();
     } catch (e) {
       if (mounted) setState(() => error = e.toString());
@@ -141,6 +156,42 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
 
   String get selectedCityLabel =>
       cityLabels[selectedCity] ?? cityLabels['trinidad']!;
+
+  Future<void> _applyDemand({bool silent = false}) async {
+    if (!silent && busy) return;
+    try {
+      final value = await supabase.rpc(
+        'admin_set_dynamic_pricing_qa_override',
+        params: {
+          'p_city_key': selectedCity,
+          'p_level': demandLevel,
+          'p_minutes': 60,
+        },
+      );
+      if (!mounted) return;
+      if (!silent) {
+        setState(() {
+          result = value is Map
+              ? Map<String, dynamic>.from(value)
+              : <String, dynamic>{};
+        });
+        await _load();
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString());
+    }
+  }
+
+  Map<String, dynamic> get selectedDemandCityState {
+    final raw = demandState['cities'];
+    if (raw is! List) return const <String, dynamic>{};
+    for (final item in raw) {
+      if (item is Map && item['city_key']?.toString() == selectedCity) {
+        return Map<String, dynamic>.from(item);
+      }
+    }
+    return const <String, dynamic>{};
+  }
 
   double? _d(Object? value) {
     if (value is num) return value.toDouble();
@@ -173,7 +224,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Genera conductores y solicitudes sintéticas en la ciudad QA que elijas. La operación real sigue centrada en Trinidad; este selector solo cambia el escenario de carga. Los eventos LOADTEST no generan push.',
+          'Genera conductores y solicitudes sintéticas en la ciudad QA que elijas y permite simular demanda para Express Preview. La operación real sigue centrada en Trinidad; LOADTEST y la demanda QA no alteran la tarifa real de producción.',
           style: TextStyle(color: Color(0xFF64748B), height: 1.45),
         ),
         const SizedBox(height: 12),
@@ -232,6 +283,51 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                             }
                           },
                   ),
+                ),
+                SizedBox(
+                  width: 220,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: demandLevel,
+                    decoration: const InputDecoration(
+                      labelText: 'Demanda Preview',
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'automatic',
+                        child: Text('Automática (real)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'normal',
+                        child: Text('Normal · 1.00x'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'medium',
+                        child: Text('Media · 1.10x'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'high',
+                        child: Text('Alta · 1.20x'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'very_high',
+                        child: Text('Muy alta · 1.35x'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'critical',
+                        child: Text('Crítica · 1.50x'),
+                      ),
+                    ],
+                    onChanged: busy
+                        ? null
+                        : (v) {
+                            if (v != null) setState(() => demandLevel = v);
+                          },
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: busy ? null : _applyDemand,
+                  icon: const Icon(Icons.trending_up_rounded),
+                  label: const Text('Aplicar demanda'),
                 ),
                 _selector(
                   'Conductores',
@@ -304,7 +400,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
           builder: (context, constraints) {
             final w = constraints.maxWidth < 760
                 ? constraints.maxWidth
-                : (constraints.maxWidth - 48) / 5;
+                : (constraints.maxWidth - 60) / 6;
             return Wrap(
               spacing: 12,
               runSpacing: 12,
@@ -324,6 +420,14 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                   'Ciudad',
                   (metrics['city'] ?? run['city'] ?? selectedCityLabel).toString(),
                   Icons.location_city_rounded,
+                ),
+                _metric(
+                  w,
+                  'Demanda QA',
+                  selectedDemandCityState['active'] == true
+                      ? (selectedDemandCityState['multiplier']?.toString() ?? '1') + 'x'
+                      : 'AUTO',
+                  Icons.trending_up_rounded,
                 ),
                 _metric(w, 'Conductores', drivers.length.toString(),
                     Icons.drive_eta_rounded),
