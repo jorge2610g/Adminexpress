@@ -423,6 +423,335 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     return _list(value);
   }
 
+  Future<List<Map<String, dynamic>>> _loadPartners(String zoneId) async {
+    final value = await supabase.rpc(
+      'admin_partner_list',
+      params: {'p_zone_id': zoneId},
+    );
+    return _list(value);
+  }
+
+  Future<bool> _editPartner(
+    Map<String, dynamic> zone, [
+    Map<String, dynamic>? row,
+  ]) async {
+    final name = TextEditingController(text: row?['name']?.toString() ?? '');
+    final code =
+        TextEditingController(text: row?['partner_code']?.toString() ?? '');
+    final commission = TextEditingController(
+      text: row?['commission_percent']?.toString() ?? '0',
+    );
+    final contactName =
+        TextEditingController(text: row?['contact_name']?.toString() ?? '');
+    final contactPhone =
+        TextEditingController(text: row?['contact_phone']?.toString() ?? '');
+    final contactEmail =
+        TextEditingController(text: row?['contact_email']?.toString() ?? '');
+    final notes =
+        TextEditingController(text: row?['notes']?.toString() ?? '');
+    var type = row?['organization_type']?.toString() ?? 'syndicate';
+    var status = row?['status']?.toString() ?? 'active';
+
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text(
+            row == null
+                ? 'Nuevo sindicato · ${zone['name'] ?? 'Zona'}'
+                : 'Editar aliado · ${zone['name'] ?? 'Zona'}',
+          ),
+          content: SizedBox(
+            width: 560,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: name,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre del sindicato o aliado',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: code,
+                    decoration: const InputDecoration(
+                      labelText: 'Código interno',
+                      hintText: 'Se genera automáticamente si queda vacío',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: type,
+                    decoration:
+                        const InputDecoration(labelText: 'Tipo de organización'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'syndicate',
+                        child: Text('Sindicato'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'allied_company',
+                        child: Text('Empresa aliada'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'cooperative',
+                        child: Text('Cooperativa'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setLocal(() => type = value);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: status,
+                    decoration: const InputDecoration(labelText: 'Estado'),
+                    items: const [
+                      DropdownMenuItem(value: 'active', child: Text('Activo')),
+                      DropdownMenuItem(
+                        value: 'suspended',
+                        child: Text('Suspendido'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'inactive',
+                        child: Text('Inactivo'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setLocal(() => status = value);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: commission,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Comisión para el aliado (%)',
+                      helperText:
+                          'Se calcula solo sobre pagos de sus conductores.',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: contactName,
+                    decoration:
+                        const InputDecoration(labelText: 'Responsable / presidente'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: contactPhone,
+                    decoration: const InputDecoration(labelText: 'Teléfono'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: contactEmail,
+                    decoration: const InputDecoration(labelText: 'Correo'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: notes,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Notas'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    var saved = false;
+    if (save == true) {
+      try {
+        await supabase.rpc(
+          'admin_upsert_partner',
+          params: {
+            'p_id': row?['id'],
+            'p_zone_id': zone['id'],
+            'p_partner_code': code.text.trim(),
+            'p_name': name.text.trim(),
+            'p_organization_type': type,
+            'p_status': status,
+            'p_commission_percent':
+                double.tryParse(commission.text.trim()) ?? 0,
+            'p_contact_name': contactName.text.trim(),
+            'p_contact_phone': contactPhone.text.trim(),
+            'p_contact_email': contactEmail.text.trim(),
+            'p_notes': notes.text.trim(),
+          },
+        );
+        saved = true;
+      } catch (e) {
+        if (mounted) _snack(context, e);
+      }
+    }
+
+    name.dispose();
+    code.dispose();
+    commission.dispose();
+    contactName.dispose();
+    contactPhone.dispose();
+    contactEmail.dispose();
+    notes.dispose();
+    return saved;
+  }
+
+  Future<void> _showPartners(Map<String, dynamic> zone) async {
+    var localRevision = 0;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.groups_2_outlined, color: _blue),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Aliados y sindicatos · ${zone['name'] ?? 'Zona'}',
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  final saved = await _editPartner(zone);
+                  if (saved) setLocal(() => localRevision++);
+                },
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Nuevo'),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 920,
+            height: 560,
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              key: ValueKey(localRevision),
+              future: _loadPartners(zone['id'].toString()),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
+                  return const _Loading(title: 'Cargando aliados');
+                }
+                if (snapshot.hasError) {
+                  return _Error(
+                    error: snapshot.error,
+                    onRetry: () => setLocal(() => localRevision++),
+                  );
+                }
+                final rows =
+                    snapshot.data ?? const <Map<String, dynamic>>[];
+                if (rows.isEmpty) {
+                  return const _Empty(
+                    text:
+                        'Esta zona todavía no tiene sindicatos o empresas aliadas.',
+                  );
+                }
+                return ListView.separated(
+                  itemCount: rows.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final row = rows[index];
+                    final active = row['status']?.toString() == 'active';
+                    final generated =
+                        row['commission_generated']?.toString() ?? '0';
+                    final paid = row['commission_paid']?.toString() ?? '0';
+                    final payments =
+                        row['payments_approved']?.toString() ?? '0';
+                    return Card(
+                      elevation: 0,
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: const Color(0xFFEAF2FF),
+                              child: Icon(
+                                row['organization_type'] == 'syndicate'
+                                    ? Icons.groups_2_rounded
+                                    : Icons.business_outlined,
+                                color: _blue,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    row['name']?.toString() ?? 'Aliado',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Comisión: ${row['commission_percent'] ?? 0}% · '
+                                    'Conductores activos: ${row['drivers_active'] ?? 0}',
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    'Pagos de conductores: $payments · '
+                                    'Comisión generada: $generated · '
+                                    'Liquidada: $paid',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: _muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            _MiniStatus(
+                              text: active ? 'Activo' : 'No activo',
+                              positive: active,
+                            ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              tooltip: 'Editar aliado',
+                              onPressed: () async {
+                                final saved = await _editPartner(zone, row);
+                                if (saved) {
+                                  setLocal(() => localRevision++);
+                                }
+                              },
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _edit([Map<String, dynamic>? row]) async {
     final name = TextEditingController(text: row?['name']?.toString() ?? '');
     final city =
@@ -702,6 +1031,11 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           positive: row['active'] == true,
                         ),
                         const SizedBox(width: 4),
+                        IconButton(
+                          tooltip: 'Aliados / sindicatos',
+                          onPressed: () => _showPartners(row),
+                          icon: const Icon(Icons.groups_2_outlined, size: 19),
+                        ),
                         IconButton(
                           tooltip: 'Editar zona',
                           onPressed: () => _edit(row),
