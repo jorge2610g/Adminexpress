@@ -58,28 +58,26 @@ class _AdminDriverSubscriptionsPageState
 
   Future<void> _load() async {
     try {
-      final results = await Future.wait([
-        supabase
-            .from('driver_subscription_plans')
-            .select('*')
-            .order('sort_order'),
-        supabase
-            .from('driver_subscription_settings')
-            .select('*')
-            .eq('id', true)
-            .single(),
-        supabase.rpc(
-          'admin_driver_subscriptions',
-          params: {'p_search': search.text.trim()},
-        ),
-        supabase
-            .from('driver_subscription_payments')
-            .select(
-              'id,driver_id,plan_id,amount,currency_code,provider,status,created_at,paid_at,expires_at',
-            )
-            .order('created_at', ascending: false)
-            .limit(100),
-      ]);
+      final planRows = await supabase
+          .from('driver_subscription_plans')
+          .select('*')
+          .order('sort_order');
+      final settingsRow = await supabase
+          .from('driver_subscription_settings')
+          .select('*')
+          .eq('id', true)
+          .single();
+      final driverRows = await supabase.rpc(
+        'admin_driver_subscriptions',
+        params: {'p_search': search.text.trim()},
+      );
+      final paymentRows = await supabase
+          .from('driver_subscription_payments')
+          .select(
+            'id,driver_id,plan_id,amount,currency_code,provider,status,created_at,paid_at,expires_at',
+          )
+          .order('created_at', ascending: false)
+          .limit(100);
 
       Map<String, dynamic> providerState = const {};
       try {
@@ -94,12 +92,10 @@ class _AdminDriverSubscriptionsPageState
 
       if (!mounted) return;
       setState(() {
-        plans = _maps(results[0]);
-        settings = results[1] is Map
-            ? Map<String, dynamic>.from(results[1] as Map)
-            : <String, dynamic>{};
-        drivers = _maps(results[2]);
-        payments = _maps(results[3]);
+        plans = _maps(planRows);
+        settings = Map<String, dynamic>.from(settingsRow);
+        drivers = _maps(driverRows);
+        payments = _maps(paymentRows);
         provider = providerState;
         loading = false;
         error = null;
