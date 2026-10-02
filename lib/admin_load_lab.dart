@@ -18,6 +18,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
   int driversWanted = 100;
   int requestsWanted = 100;
   double radiusKm = 3;
+  String targetScope = 'sandbox';
   bool busy = false;
   String? error;
   Map<String, dynamic> snapshot = const {};
@@ -52,8 +53,40 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
     }
   }
 
+  Future<bool> _confirmProductionLaunch() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Lanzar carga QA en producción'),
+        content: Text(
+          'Este escenario será visible dentro del alcance operativo real. '
+          'Los $driversWanted conductores sintéticos aparecerán online y las '
+          '$requestsWanted solicitudes podrán verse en la app de producción. '
+          'Los push LOADTEST seguirán desactivados. Las solicitudes expiran '
+          'automáticamente y puedes usar “Limpiar prueba” en cualquier momento.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Lanzar en producción'),
+          ),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
   Future<void> _call(String action) async {
     if (busy) return;
+    if (action == 'seed' &&
+        targetScope == 'production' &&
+        !await _confirmProductionLaunch()) {
+      return;
+    }
     setState(() {
       busy = true;
       error = null;
@@ -69,6 +102,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                 'center_latitude': center.latitude,
                 'center_longitude': center.longitude,
                 'radius_km': radiusKm,
+                'scope': targetScope,
               }
             : {'action': 'cleanup'},
       );
@@ -121,9 +155,11 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Genera conductores y solicitudes sintéticas en Iquique. Solo existen dentro del sandbox QA y no generan push.',
+          'Genera conductores y solicitudes sintéticas en Iquique. Puedes ejecutar el escenario aislado en QA o hacerlo visible dentro del alcance operativo de producción. Los eventos LOADTEST no generan push.',
           style: TextStyle(color: Color(0xFF64748B), height: 1.45),
         ),
+        const SizedBox(height: 12),
+        _scopeBanner(),
         const SizedBox(height: 16),
         Card(
           child: Padding(
@@ -133,6 +169,28 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
               runSpacing: 14,
               crossAxisAlignment: WrapCrossAlignment.end,
               children: [
+                SizedBox(
+                  width: 220,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: targetScope,
+                    decoration: const InputDecoration(labelText: 'Entorno'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'sandbox',
+                        child: Text('Prueba (aislado)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'production',
+                        child: Text('Producción (real)'),
+                      ),
+                    ],
+                    onChanged: busy
+                        ? null
+                        : (v) {
+                            if (v != null) setState(() => targetScope = v);
+                          },
+                  ),
+                ),
                 _selector(
                   'Conductores',
                   driversWanted,
@@ -211,6 +269,14 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
               children: [
                 _metric(w, 'Estado', active ? 'ACTIVO' : 'LIMPIO',
                     Icons.bolt_rounded),
+                _metric(
+                  w,
+                  'Entorno',
+                  ((metrics['scope_mode'] ?? 'sandbox').toString() == 'production')
+                      ? 'PRODUCCIÓN'
+                      : 'PRUEBA',
+                  Icons.layers_rounded,
+                ),
                 _metric(w, 'Conductores', drivers.length.toString(),
                     Icons.drive_eta_rounded),
                 _metric(w, 'Solicitudes', requests.length.toString(),
@@ -330,10 +396,14 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                   : 'Run ' +
                       run['id'].toString() +
                       ' · ' +
+                      (((metrics['scope_mode'] ?? 'sandbox').toString() == 'production')
+                          ? 'PRODUCCIÓN'
+                          : 'PRUEBA') +
+                      ' · ' +
                       drivers.length.toString() +
                       ' conductores · ' +
                       requests.length.toString() +
-                      ' solicitudes. El escenario mide renderizado, Realtime, filtrado por radio y lectura masiva dentro del sandbox.',
+                      ' solicitudes. El escenario mide renderizado, Realtime, filtrado por radio y lectura masiva usando el entorno seleccionado.',
               style: const TextStyle(
                 color: Color(0xFF475467),
                 height: 1.5,
@@ -343,6 +413,50 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _scopeBanner() {
+    final production = targetScope == 'production';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: production
+            ? const Color(0xFFFFF4E5)
+            : const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: production
+              ? const Color(0xFFF79009)
+              : const Color(0xFF93C5FD),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            production ? Icons.warning_amber_rounded : Icons.science_rounded,
+            color: production
+                ? const Color(0xFFB54708)
+                : const Color(0xFF2563EB),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              production
+                  ? 'Producción real: los usuarios sintéticos compartirán alcance con usuarios reales y podrán aparecer en la app hasta limpiar o expirar.'
+                  : 'Prueba aislada: los usuarios sintéticos solo interactúan dentro de qa-core y no aparecen a usuarios reales.',
+              style: TextStyle(
+                color: production
+                    ? const Color(0xFF7A2E0E)
+                    : const Color(0xFF1E3A8A),
+                fontWeight: FontWeight.w700,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
