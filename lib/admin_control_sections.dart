@@ -868,22 +868,19 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
   Future<void> _edit([Map<String, dynamic>? row]) async {
     final name = TextEditingController(text: row?['name']?.toString() ?? '');
     final city =
-        TextEditingController(text: row?['city']?.toString() ?? 'Trinidad');
+        TextEditingController(text: row?['city']?.toString() ?? '');
     final country =
-        TextEditingController(text: row?['country']?.toString() ?? 'Bolivia');
+        TextEditingController(text: row?['country']?.toString() ?? '');
     final zoneKey =
         TextEditingController(text: row?['zone_key']?.toString() ?? '');
     final currency = TextEditingController(
-      text: row?['currency_code']?.toString() ??
-          ((row?['country']?.toString() ?? 'Bolivia') == 'Chile'
-              ? 'CLP'
-              : 'BOB'),
+      text: row?['currency_code']?.toString() ?? '',
     );
     final lat = TextEditingController(
-      text: row?['center_latitude']?.toString() ?? '-14.8333',
+      text: row?['center_latitude']?.toString() ?? '',
     );
     final lng = TextEditingController(
-      text: row?['center_longitude']?.toString() ?? '-64.9000',
+      text: row?['center_longitude']?.toString() ?? '',
     );
     final radius = TextEditingController(
       text: row?['radius_km']?.toString() ?? '25',
@@ -982,6 +979,102 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.map_outlined,
+                              color: _blue,
+                              size: 19,
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Seleccionar centro en el mapa',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        const Text(
+                          'Toca el punto que será el centro de la ciudad. La latitud y longitud se completan automáticamente.',
+                          style: TextStyle(
+                            color: _muted,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: 270,
+                          child: FlutterMap(
+                            key: ValueKey(
+                              'zone-map-' + lat.text + '-' + lng.text,
+                            ),
+                            options: MapOptions(
+                              initialCenter: LatLng(
+                                _num(lat.text)?.toDouble() ?? -18.0,
+                                _num(lng.text)?.toDouble() ?? -66.0,
+                              ),
+                              initialZoom:
+                                  _num(lat.text) != null &&
+                                          _num(lng.text) != null
+                                      ? 12
+                                      : 4.2,
+                              onTap: (_, point) {
+                                setLocal(() {
+                                  lat.text =
+                                      point.latitude.toStringAsFixed(6);
+                                  lng.text =
+                                      point.longitude.toStringAsFixed(6);
+                                });
+                              },
+                            ),
+                            children: [
+                              TileLayer(
+                                urlTemplate:
+                                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                userAgentPackageName:
+                                    'com.express.admin',
+                              ),
+                              if (_num(lat.text) != null &&
+                                  _num(lng.text) != null)
+                                MarkerLayer(
+                                  markers: [
+                                    Marker(
+                                      point: LatLng(
+                                        _num(lat.text)!.toDouble(),
+                                        _num(lng.text)!.toDouble(),
+                                      ),
+                                      width: 44,
+                                      height: 44,
+                                      child: const Icon(
+                                        Icons.location_pin,
+                                        color: Color(0xFFD92D20),
+                                        size: 42,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
