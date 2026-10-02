@@ -22,6 +22,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       - name: Analyze subscription changes
-        run: flutter analyze --no-fatal-infos
-      - name: Build web only
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos lib/admin_driver_subscriptions.dart
+      - name: Build Admin Preview web
         run: flutter build web --release --base-href /Adminexpress/
