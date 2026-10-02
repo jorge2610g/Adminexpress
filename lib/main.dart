@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'admin_panel.dart';
 import 'core/supabase_client.dart';
+import 'partner_panel.dart';
 
 const adminExpressVersion = 'Adminexpress v1.0.1 · build 2';
 
@@ -53,9 +54,22 @@ class _AdminAuthGate extends StatefulWidget {
   State<_AdminAuthGate> createState() => _AdminAuthGateState();
 }
 
+enum _ExpressPanelAccess { admin, partner, denied }
+
 class _AdminAuthGateState extends State<_AdminAuthGate> {
   StreamSubscription<AuthState>? subscription;
   int revision = 0;
+
+  Future<_ExpressPanelAccess> _resolveAccess() async {
+    final isAdmin = await supabase.rpc('is_admin') == true;
+    if (isAdmin) return _ExpressPanelAccess.admin;
+
+    final raw = await supabase.rpc('partner_my_dashboard');
+    if (raw is List && raw.isNotEmpty) {
+      return _ExpressPanelAccess.partner;
+    }
+    return _ExpressPanelAccess.denied;
+  }
 
   @override
   void initState() {
@@ -86,7 +100,42 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
       );
     }
 
-    return ExpressAdminPanel(onExit: _logout);
+    return FutureBuilder<_ExpressPanelAccess>(
+      key: ValueKey(
+        'access-' + session.user.id + '-' + revision.toString(),
+      ),
+      future: _resolveAccess(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return _AccessDenied(
+            title: 'No se pudo validar tu acceso',
+            message: snapshot.error.toString(),
+            onExit: _logout,
+          );
+        }
+
+        switch (snapshot.data ?? _ExpressPanelAccess.denied) {
+          case _ExpressPanelAccess.admin:
+            return ExpressAdminPanel(onExit: _logout);
+          case _ExpressPanelAccess.partner:
+            return PartnerExpressPanel(onExit: _logout);
+          case _ExpressPanelAccess.denied:
+            return _AccessDenied(
+              title: 'Cuenta sin acceso al panel',
+              message:
+                  'Esta cuenta no es administrador de Express ni tiene una organización asignada.',
+              onExit: _logout,
+            );
+        }
+      },
+    );
   }
 }
 
@@ -126,9 +175,16 @@ class _AdminLoginState extends State<_AdminLogin> {
     try {
       await supabase.auth.signInWithPassword(email: mail, password: pass);
       final isAdmin = await supabase.rpc('is_admin') == true;
+      var hasPartnerAccess = false;
       if (!isAdmin) {
+        final raw = await supabase.rpc('partner_my_dashboard');
+        hasPartnerAccess = raw is List && raw.isNotEmpty;
+      }
+      if (!isAdmin && !hasPartnerAccess) {
         await supabase.auth.signOut();
-        throw Exception('Esta cuenta no tiene acceso de administrador.');
+        throw Exception(
+          'Esta cuenta no tiene acceso de administrador ni de organización.',
+        );
       }
       if (mounted) widget.onSignedIn();
     } catch (e) {
@@ -322,6 +378,67 @@ class _AdminBrandPanel extends StatelessWidget {
             style: TextStyle(color: Color(0xFFBFD8FF)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+class _AccessDenied extends StatelessWidget {
+  final String title;
+  final String message;
+  final VoidCallback onExit;
+
+  const _AccessDenied({
+    required this.title,
+    required this.message,
+    required this.onExit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Card(
+            elevation: 0,
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.admin_panel_settings_outlined,
+                    size: 52,
+                    color: Color(0xFFD92D20),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w900,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Color(0xFF667085)),
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: onExit,
+                    icon: const Icon(Icons.logout_rounded),
+                    label: const Text('Cerrar sesión'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
