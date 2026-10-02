@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -321,6 +320,12 @@ class _AdminDriverSubscriptionsPageState
       _snack('Configura y verifica primero VeriPagos.');
       return;
     }
+    if (providerEnabled && provider['status_endpoint_ready'] != true) {
+      _snack(
+        'Falta conectar el endpoint de verificación de estado QR antes de habilitar cobros.',
+      );
+      return;
+    }
 
     setState(() => savingSettings = true);
     try {
@@ -436,68 +441,35 @@ class _AdminDriverSubscriptionsPageState
     final data = provider['settings'] is Map
         ? Map<String, dynamic>.from(provider['settings'] as Map)
         : <String, dynamic>{};
-    final base = TextEditingController(
-      text: data['api_base_url']?.toString() ?? '',
-    );
-    final create = TextEditingController(
-      text: data['create_path']?.toString() ?? '',
-    );
-    final status = TextEditingController(
-      text: data['status_path']?.toString() ?? '',
-    );
+
     final user = TextEditingController(
       text: data['username']?.toString() ?? '',
     );
     final password = TextEditingController();
     final secret = TextEditingController();
-    final extra = TextEditingController(
-      text: const JsonEncoder.withIndent('  ').convert(
-        data['extra_config'] is Map
-            ? data['extra_config']
-            : <String, dynamic>{},
-      ),
-    );
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Configurar VeriPagos'),
+        title: const Text('Conectar VeriPagos'),
         content: SizedBox(
-          width: 650,
+          width: 520,
           child: SingleChildScrollView(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Las credenciales se guardan solo en el backend privado. '
-                  'No se envían a la app del conductor.',
+                  'Express ya tiene configuradas internamente las rutas oficiales '
+                  'de VeriPagos. Solo ingresa las credenciales de API.',
                 ),
                 const SizedBox(height: 14),
                 TextField(
-                  controller: base,
-                  decoration:
-                      const InputDecoration(labelText: 'API base URL'),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: create,
-                  decoration: const InputDecoration(
-                    labelText: 'Ruta para generar QR',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: status,
-                  decoration: const InputDecoration(
-                    labelText: 'Ruta para verificar movimiento',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
                   controller: user,
-                  decoration:
-                      const InputDecoration(labelText: 'Usuario Basic Auth'),
+                  decoration: const InputDecoration(
+                    labelText: 'Usuario Basic Auth',
+                  ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 TextField(
                   controller: password,
                   obscureText: true,
@@ -507,7 +479,7 @@ class _AdminDriverSubscriptionsPageState
                         : 'Contraseña Basic Auth',
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 TextField(
                   controller: secret,
                   obscureText: true,
@@ -517,16 +489,11 @@ class _AdminDriverSubscriptionsPageState
                         : 'Secret Key',
                   ),
                 ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: extra,
-                  minLines: 5,
-                  maxLines: 10,
-                  decoration: const InputDecoration(
-                    labelText: 'Mapeo avanzado JSON',
-                    helperText:
-                        'Permite adaptar los nombres de campos de VeriPagos sin cambiar la app.',
-                  ),
+                const SizedBox(height: 14),
+                const _AdminSubNotice(
+                  text:
+                      'Al verificar, Express generará un QR de prueba por Bs 0 '
+                      'con vigencia de 1 minuto. No genera un cobro real.',
                 ),
               ],
             ),
@@ -537,21 +504,19 @@ class _AdminDriverSubscriptionsPageState
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancelar'),
           ),
-          FilledButton(
+          FilledButton.icon(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Guardar configuración'),
+            icon: const Icon(Icons.verified_rounded),
+            label: const Text('Guardar y verificar conexión'),
           ),
         ],
       ),
     );
-    if (ok != true) return;
 
-    Map<String, dynamic> extraJson = const {};
-    try {
-      final decoded = jsonDecode(extra.text.trim().isEmpty ? '{}' : extra.text);
-      if (decoded is Map) extraJson = Map<String, dynamic>.from(decoded);
-    } catch (_) {
-      _snack('El JSON avanzado no es válido.');
+    if (ok != true) {
+      user.dispose();
+      password.dispose();
+      secret.dispose();
       return;
     }
 
@@ -560,34 +525,32 @@ class _AdminDriverSubscriptionsPageState
       final response = await supabase.functions.invoke(
         'driver-subscription-admin',
         body: {
-          'action': 'save',
-          'api_base_url': base.text.trim(),
-          'create_path': create.text.trim(),
-          'status_path': status.text.trim(),
+          'action': 'save_and_verify',
           'username': user.text.trim(),
           'password': password.text,
           'secret_key': secret.text,
-          'extra_config': extraJson,
         },
       );
       final responseData = response.data is Map
           ? Map<String, dynamic>.from(response.data as Map)
           : <String, dynamic>{};
-      if (responseData['ok'] != true) {
-        throw StateError(responseData['error']?.toString() ?? 'Error');
+
+      if (responseData['ok'] != true ||
+          responseData['connected'] != true) {
+        throw StateError(
+          responseData['error']?.toString() ??
+              'No se pudo verificar la conexión',
+        );
       }
-      _snack('Configuración VeriPagos guardada.');
+
+      _snack('VeriPagos conectado correctamente.');
       await _load();
     } catch (e) {
-      _snack('No se pudo guardar VeriPagos: ' + e.toString());
+      _snack('No se pudo conectar con VeriPagos: ' + e.toString());
     } finally {
-      base.dispose();
-      create.dispose();
-      status.dispose();
       user.dispose();
       password.dispose();
       secret.dispose();
-      extra.dispose();
       if (mounted) setState(() => providerSaving = false);
     }
   }
@@ -940,14 +903,14 @@ class _ProviderCard extends StatelessWidget {
         subtitle: Text(
           configured
               ? (enabled
-                  ? 'Configurado y habilitado para pagos.'
-                  : 'Configurado. Falta habilitar cobros.')
-              : 'Faltan endpoint y/o credenciales de VeriPagos.',
+                  ? 'Conectado y habilitado para pagos.'
+                  : 'Credenciales verificadas. Falta conectar la verificación de estado QR.')
+              : 'Ingresa tus credenciales y verifica la conexión.',
         ),
         trailing: FilledButton.icon(
           onPressed: saving ? null : onConfigure,
           icon: const Icon(Icons.settings_rounded),
-          label: const Text('Configurar'),
+          label: Text(configured ? 'Revisar conexión' : 'Conectar'),
         ),
       ),
     );
