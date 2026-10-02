@@ -6051,6 +6051,47 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
   }
 }
 
+
+class _ReadOnlyRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ReadOnlyRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: _muted,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: const TextStyle(
+                color: _dark,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _InlineNotice extends StatelessWidget {
   final IconData icon;
   final String text;
