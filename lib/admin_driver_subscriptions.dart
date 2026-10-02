@@ -59,10 +59,15 @@ class _AdminDriverSubscriptionsPageState
   bool _isQaDriver(Map<String, dynamic> driver) {
     final email = (driver['email']?.toString() ?? '').trim().toLowerCase();
     final name = (driver['full_name']?.toString() ?? '').trim().toLowerCase();
-    return email.startsWith('qa-load-driver-') ||
-        email.startsWith('qa-prod-load-driver-') ||
-        name.startsWith('qa load driver ') ||
-        name.startsWith('qa prod load driver ');
+
+    // Los usuarios QA usan el prefijo "qa-" en correo o "QA " en nombre.
+    // Esto cubre tanto qa-driver@... como qa-load-driver-###@...
+    // sin afectar perfiles reales como "conductor prueba".
+    final qaEmail =
+        email.startsWith('qa-') && email.endsWith('@expressdelivery.pro');
+    final qaName = name == 'qa' || name.startsWith('qa ');
+
+    return qaEmail || qaName;
   }
 
   Future<void> _load() async {
