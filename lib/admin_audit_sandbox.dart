@@ -438,10 +438,10 @@ class _AuditHero extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    _AuditIcon(),
-                    SizedBox(width: 13),
+                    const _AuditIcon(),
+                    const SizedBox(width: 13),
                     Expanded(child: copy),
                   ],
                 ),
@@ -465,7 +465,7 @@ class _AuditHero extends StatelessWidget {
             children: [
               const _AuditIcon(),
               const SizedBox(width: 13),
-              const Expanded(child: copy),
+              Expanded(child: copy),
               summary,
               const SizedBox(width: 14),
               FilledButton.icon(
