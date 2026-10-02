@@ -57,20 +57,55 @@ class _AdminDriverSubscriptionsPageState
   }
 
   Future<void> _load() async {
+    if (mounted) {
+      setState(() {
+        loading = plans.isEmpty && settings.isEmpty;
+        error = null;
+      });
+    }
+
+    String? loadError;
+
     try {
       final planRows = await supabase
           .from('driver_subscription_plans')
           .select('*')
           .order('sort_order');
+      if (mounted) {
+        setState(() => plans = _maps(planRows));
+      }
+    } catch (e) {
+      loadError = 'Planes: ' + e.toString();
+    }
+
+    try {
       final settingsRow = await supabase
           .from('driver_subscription_settings')
           .select('*')
           .eq('id', true)
           .single();
+      if (mounted) {
+        setState(() {
+          settings = Map<String, dynamic>.from(settingsRow);
+        });
+      }
+    } catch (e) {
+      loadError ??= 'Configuración: ' + e.toString();
+    }
+
+    try {
       final driverRows = await supabase.rpc(
         'admin_driver_subscriptions',
         params: {'p_search': search.text.trim()},
       );
+      if (mounted) {
+        setState(() => drivers = _maps(driverRows));
+      }
+    } catch (e) {
+      loadError ??= 'Conductores: ' + e.toString();
+    }
+
+    try {
       final paymentRows = await supabase
           .from('driver_subscription_payments')
           .select(
@@ -78,35 +113,32 @@ class _AdminDriverSubscriptionsPageState
           )
           .order('created_at', ascending: false)
           .limit(100);
-
-      Map<String, dynamic> providerState = const {};
-      try {
-        final response = await supabase.functions.invoke(
-          'driver-subscription-admin',
-          body: const {'action': 'get'},
-        );
-        if (response.data is Map) {
-          providerState = Map<String, dynamic>.from(response.data as Map);
-        }
-      } catch (_) {}
-
-      if (!mounted) return;
-      setState(() {
-        plans = _maps(planRows);
-        settings = Map<String, dynamic>.from(settingsRow);
-        drivers = _maps(driverRows);
-        payments = _maps(paymentRows);
-        provider = providerState;
-        loading = false;
-        error = null;
-      });
+      if (mounted) {
+        setState(() => payments = _maps(paymentRows));
+      }
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        loading = false;
-        error = e.toString();
-      });
+      loadError ??= 'Pagos: ' + e.toString();
     }
+
+    try {
+      final response = await supabase.functions.invoke(
+        'driver-subscription-admin',
+        body: const {'action': 'get'},
+      );
+      if (response.data is Map && mounted) {
+        setState(() {
+          provider = Map<String, dynamic>.from(response.data as Map);
+        });
+      }
+    } catch (e) {
+      loadError ??= 'VeriPagos: ' + e.toString();
+    }
+
+    if (!mounted) return;
+    setState(() {
+      loading = false;
+      error = loadError;
+    });
   }
 
   void _snack(String text) {
@@ -674,8 +706,8 @@ class _AdminDriverSubscriptionsPageState
                     const SizedBox(width: 10),
                     const Expanded(
                       child: Text(
-                        'Los planes existen, pero no se cargaron en esta vista. '
-                        'Pulsa Recargar planes para intentarlo nuevamente.',
+                        'No se pudieron cargar los planes en esta vista. '
+                        'El resto del módulo seguirá funcionando mientras se reintenta.',
                       ),
                     ),
                     const SizedBox(width: 12),
