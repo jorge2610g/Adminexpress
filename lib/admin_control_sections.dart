@@ -429,10 +429,10 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     final country =
         TextEditingController(text: row?['country']?.toString() ?? 'Bolivia');
     final lat = TextEditingController(
-      text: row?['center_latitude']?.toString() ?? '-20.2208',
+      text: row?['center_latitude']?.toString() ?? '-14.8333',
     );
     final lng = TextEditingController(
-      text: row?['center_longitude']?.toString() ?? '-70.1431',
+      text: row?['center_longitude']?.toString() ?? '-64.9000',
     );
     final radius = TextEditingController(
       text: row?['radius_km']?.toString() ?? '25',
@@ -673,6 +673,9 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
     var enabled = row?['enabled'] != false;
     var bidding = row?['allow_bidding'] != false;
     var fixed = row?['allow_fixed_price'] != false;
+    var passengerVisible = row?['passenger_visible'] != false;
+    var driverVisible = row?['driver_visible'] != false;
+    var scheduled = row?['scheduled_enabled'] != false;
 
     final save = await showDialog<bool>(
       context: context,
@@ -768,6 +771,25 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                     onChanged: (value) => setLocal(() => fixed = value),
                     title: const Text('Permitir precio fijo'),
                   ),
+                  const Divider(),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: passengerVisible,
+                    onChanged: (value) => setLocal(() => passengerVisible = value),
+                    title: const Text('Visible para pasajeros'),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: driverVisible,
+                    onChanged: (value) => setLocal(() => driverVisible = value),
+                    title: const Text('Visible para conductores'),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: scheduled,
+                    onChanged: (value) => setLocal(() => scheduled = value),
+                    title: const Text('Permitir viajes programados'),
+                  ),
                 ],
               ),
             ),
@@ -801,6 +823,9 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
             'p_enabled': enabled,
             'p_allow_bidding': bidding,
             'p_allow_fixed_price': fixed,
+            'p_passenger_visible': passengerVisible,
+            'p_driver_visible': driverVisible,
+            'p_scheduled_enabled': scheduled,
             'p_sort_order': int.tryParse(order.text.trim()) ?? 0,
           },
         );
@@ -889,6 +914,9 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                           row['vehicle_type']?.toString() ?? 'car',
                           if (row['allow_bidding'] == true) 'Ofertas',
                           if (row['allow_fixed_price'] == true) 'Precio fijo',
+                          if (row['passenger_visible'] == true) 'Pasajero',
+                          if (row['driver_visible'] == true) 'Conductor',
+                          if (row['scheduled_enabled'] == true) 'Programados',
                         ],
                         onTap: () => _edit(row),
                       ),
@@ -1559,6 +1587,96 @@ class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
         if (mounted) _snack(context, e);
       }
     }
+  }
+
+
+  Future<void> _reviewVerification(Map<String, dynamic> row) async {
+    var status = row['status']?.toString() ?? 'review';
+    if (!const ['review', 'verified', 'rejected'].contains(status)) {
+      status = 'review';
+    }
+    final note = TextEditingController();
+
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: const Text('Revisar verificación'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  decoration: const InputDecoration(labelText: 'Resultado'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'review',
+                      child: Text('Mantener en revisión'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'verified',
+                      child: Text('Verificado'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'rejected',
+                      child: Text('Rechazado'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setLocal(() => status = value);
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: note,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Nota administrativa',
+                    hintText: 'Opcional',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.verified_user_outlined),
+              label: const Text('Guardar revisión'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (save == true) {
+      try {
+        await supabase.rpc(
+          'admin_identity_resolve',
+          params: {
+            'p_verification_id': row['id'],
+            'p_status': status,
+            'p_review_note': note.text.trim(),
+          },
+        );
+        if (mounted) {
+          setState(() => revision++);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Verificación actualizada.')),
+          );
+        }
+      } catch (e) {
+        if (mounted) _snack(context, e);
+      }
+    }
+
+    note.dispose();
   }
 
   @override
