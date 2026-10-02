@@ -7,9 +7,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
 
-const Color _blue = Color(0xFF0B57D0);
-const Color _dark = Color(0xFF101828);
-const Color _muted = Color(0xFF667085);
+const Color _blue = Color(0xFF2563EB);
+const Color _dark = Color(0xFF0F172A);
+const Color _muted = Color(0xFF64748B);
 
 class AdminDispatchPage extends StatefulWidget {
   const AdminDispatchPage({super.key});
@@ -5053,48 +5053,104 @@ class _Header extends StatelessWidget {
         Text(
           title,
           style: const TextStyle(
-            fontSize: 24,
+            fontSize: 23,
             fontWeight: FontWeight.w900,
-            color: _dark,
+            color: Colors.white,
+            letterSpacing: -.35,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 5),
         Text(
           subtitle,
           style: const TextStyle(
-            color: _muted,
-            height: 1.35,
-            fontSize: 12,
+            color: Color(0xFFD7E7FA),
+            height: 1.4,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
     );
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (action == null) return copy;
-        if (constraints.maxWidth < 620) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF102A56), Color(0xFF174B91), Color(0xFF0D6B8D)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x2B174B91),
+            blurRadius: 24,
+            offset: Offset(0, 9),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (action == null) {
+            return Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(.12),
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(color: Colors.white.withOpacity(.16)),
+                  ),
+                  child: const Icon(
+                    Icons.dashboard_customize_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 13),
+                Expanded(child: copy),
+              ],
+            );
+          }
+
+          if (constraints.maxWidth < 680) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                copy,
+                const SizedBox(height: 14),
+                action!,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              copy,
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: action!,
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(.12),
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: Colors.white.withOpacity(.16)),
+                ),
+                child: const Icon(
+                  Icons.dashboard_customize_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
+              const SizedBox(width: 13),
+              Expanded(child: copy),
+              const SizedBox(width: 16),
+              action!,
             ],
           );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: copy),
-            const SizedBox(width: 12),
-            action!,
-          ],
-        );
-      },
+        },
+      ),
     );
   }
 }
@@ -5109,30 +5165,59 @@ class _Kpi extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 220,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE7ECF3)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFDDE6F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 23,
-              fontWeight: FontWeight.w900,
-              color: _dark,
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE1ECFF),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(
+              Icons.auto_graph_rounded,
+              color: _blue,
+              size: 20,
             ),
           ),
-          const SizedBox(height: 3),
-          Text(
-            title,
-            style: const TextStyle(
-              color: _muted,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 23,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                    color: _dark,
+                    letterSpacing: -.5,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: _muted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
