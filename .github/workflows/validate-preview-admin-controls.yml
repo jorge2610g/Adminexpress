@@ -1,0 +1,24 @@
+name: Validate preview admin controls
+
+on:
+  push:
+    branches:
+      - feat/preview-production-gate-ui
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-warnings --no-fatal-infos lib/admin_panel.dart lib/admin_control_sections.dart lib/admin_marketplace.dart lib/admin_driver_priority.dart
+      - run: flutter build web --release --base-href /Adminexpress/
