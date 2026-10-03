@@ -204,6 +204,16 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   int section = 0;
   int revision = 0;
   String? liveZoneId;
+
+  String tripPeriod = 'today';
+  DateTimeRange? tripCustomRange;
+  String deliveryPeriod = 'today';
+  DateTimeRange? deliveryCustomRange;
+
+  String? usersZoneId;
+  String? usersCity;
+  String? usersRegionDepartment;
+
   Future<bool>? _authFuture;
   Future<({Map<String, dynamic> state, List<Map<String, dynamic>> zones})>?
       _liveFuture;
@@ -260,25 +270,309 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     return _list(value);
   }
 
+  Future<List<Map<String, dynamic>>> _filterZones() async {
+    final value = await supabase.rpc('admin_zone_list_v2');
+    return _list(value);
+  }
+
+  ({DateTime from, DateTime to}) _periodBounds(
+    String period,
+    DateTimeRange? custom,
+  ) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    switch (period) {
+      case 'week':
+        final from = today.subtract(Duration(days: today.weekday - 1));
+        return (from: from, to: from.add(const Duration(days: 7)));
+      case 'month':
+        final from = DateTime(now.year, now.month, 1);
+        final to = now.month == 12
+            ? DateTime(now.year + 1, 1, 1)
+            : DateTime(now.year, now.month + 1, 1);
+        return (from: from, to: to);
+      case 'custom':
+        final range = custom;
+        if (range != null) {
+          final from = DateTime(
+            range.start.year,
+            range.start.month,
+            range.start.day,
+          );
+          final endDay = DateTime(
+            range.end.year,
+            range.end.month,
+            range.end.day,
+          );
+          return (from: from, to: endDay.add(const Duration(days: 1)));
+        }
+        return (from: today, to: today.add(const Duration(days: 1)));
+      case 'today':
+      default:
+        return (from: today, to: today.add(const Duration(days: 1)));
+    }
+  }
+
   Future<List<Map<String, dynamic>>> _users() async {
-    final value = await supabase.rpc('admin_user_list_v2');
+    final value = await supabase.rpc(
+      'admin_user_list_v3',
+      params: {
+        'p_zone_id': usersZoneId,
+        'p_city': usersCity,
+        'p_region_department': usersRegionDepartment,
+        'p_country': null,
+        'p_search': null,
+        'p_limit': 100,
+        'p_offset': 0,
+      },
+    );
     return _list(value);
   }
 
   Future<List<Map<String, dynamic>>> _trips() async {
+    final range = _periodBounds(tripPeriod, tripCustomRange);
     final value = await supabase.rpc(
-      'admin_trip_list',
-      params: {'p_limit': 200},
+      'admin_trip_list_v2',
+      params: {
+        'p_from': range.from.toIso8601String(),
+        'p_to': range.to.toIso8601String(),
+        'p_zone_id': null,
+        'p_status': null,
+        'p_limit': 200,
+        'p_offset': 0,
+      },
     );
     return _list(value);
   }
 
   Future<List<Map<String, dynamic>>> _deliveries() async {
+    final range = _periodBounds(deliveryPeriod, deliveryCustomRange);
     final value = await supabase.rpc(
-      'admin_delivery_list',
-      params: {'p_limit': 200},
+      'admin_delivery_list_v2',
+      params: {
+        'p_from': range.from.toIso8601String(),
+        'p_to': range.to.toIso8601String(),
+        'p_status': null,
+        'p_limit': 200,
+        'p_offset': 0,
+      },
     );
     return _list(value);
+  }
+
+  Widget _periodFilter(String target) {
+    final isTrip = target == 'trip';
+    final period = isTrip ? tripPeriod : deliveryPeriod;
+    final custom = isTrip ? tripCustomRange : deliveryCustomRange;
+
+    Future<void> selectCustom() async {
+      final now = DateTime.now();
+      final picked = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(now.year - 3),
+        lastDate: DateTime(now.year + 1, 12, 31),
+        initialDateRange: custom ??
+            DateTimeRange(
+              start: DateTime(now.year, now.month, now.day),
+              end: DateTime(now.year, now.month, now.day),
+            ),
+      );
+      if (picked == null || !mounted) return;
+      setState(() {
+        if (isTrip) {
+          tripPeriod = 'custom';
+          tripCustomRange = picked;
+        } else {
+          deliveryPeriod = 'custom';
+          deliveryCustomRange = picked;
+        }
+        revision++;
+      });
+    }
+
+    void select(String value) {
+      setState(() {
+        if (isTrip) {
+          tripPeriod = value;
+        } else {
+          deliveryPeriod = value;
+        }
+        revision++;
+      });
+    }
+
+    final label = custom == null
+        ? 'Fecha'
+        : custom.start.day.toString() +
+            '/' +
+            custom.start.month.toString() +
+            '/' +
+            custom.start.year.toString() +
+            ' – ' +
+            custom.end.day.toString() +
+            '/' +
+            custom.end.month.toString() +
+            '/' +
+            custom.end.year.toString();
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        ChoiceChip(
+          label: const Text('Hoy'),
+          selected: period == 'today',
+          onSelected: (_) => select('today'),
+        ),
+        ChoiceChip(
+          label: const Text('Semana'),
+          selected: period == 'week',
+          onSelected: (_) => select('week'),
+        ),
+        ChoiceChip(
+          label: const Text('Mes'),
+          selected: period == 'month',
+          onSelected: (_) => select('month'),
+        ),
+        OutlinedButton.icon(
+          onPressed: selectCustom,
+          icon: const Icon(Icons.date_range_outlined, size: 17),
+          label: Text(label),
+        ),
+      ],
+    );
+  }
+
+  Widget _userGeoFilters() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _filterZones(),
+      builder: (context, snapshot) {
+        final zones = snapshot.data ?? const <Map<String, dynamic>>[];
+        final cities = zones
+            .map((row) => row['city']?.toString().trim())
+            .whereType<String>()
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+        final regions = zones
+            .map((row) => row['region_department']?.toString().trim())
+            .whereType<String>()
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            SizedBox(
+              width: 190,
+              child: DropdownButtonFormField<String?>(
+                value: usersZoneId,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  labelText: 'Zona',
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Todas las zonas'),
+                  ),
+                  ...zones.map(
+                    (row) => DropdownMenuItem<String?>(
+                      value: row['id']?.toString(),
+                      child: Text(
+                        (row['name'] ?? 'Zona').toString() +
+                            ' · ' +
+                            (row['city'] ?? '').toString(),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    usersZoneId = value;
+                    if (value != null) {
+                      final zone = zones.firstWhere(
+                        (row) => row['id']?.toString() == value,
+                      );
+                      usersCity = zone['city']?.toString();
+                      usersRegionDepartment =
+                          zone['region_department']?.toString();
+                    }
+                    revision++;
+                  });
+                },
+              ),
+            ),
+            SizedBox(
+              width: 165,
+              child: DropdownButtonFormField<String?>(
+                value: usersCity,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  labelText: 'Ciudad',
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Todas'),
+                  ),
+                  ...cities.map(
+                    (value) => DropdownMenuItem<String?>(
+                      value: value,
+                      child: Text(value, overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    usersCity = value;
+                    usersZoneId = null;
+                    revision++;
+                  });
+                },
+              ),
+            ),
+            SizedBox(
+              width: 180,
+              child: DropdownButtonFormField<String?>(
+                value: usersRegionDepartment,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  labelText: 'Región / departamento',
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Todas'),
+                  ),
+                  ...regions.map(
+                    (value) => DropdownMenuItem<String?>(
+                      value: value,
+                      child: Text(value, overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    usersRegionDepartment = value;
+                    usersZoneId = null;
+                    revision++;
+                  });
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _refresh() {
@@ -804,6 +1098,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           subtitle: 'Historial y operación de viajes Express.',
           empty: 'Todavía no hay viajes.',
           rows: rows,
+          serverFilters: _periodFilter('trip'),
           item: (row) => _OperationCard(
             icon: Icons.local_taxi_rounded,
             title:
@@ -851,6 +1146,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           subtitle: 'Pedidos y entregas de Express.',
           empty: 'Todavía no hay delivery.',
           rows: rows,
+          serverFilters: _periodFilter('delivery'),
           item: (row) => _OperationCard(
             icon: Icons.local_shipping_rounded,
             title:
@@ -1103,6 +1399,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               'Pasajeros, conductores y control del estado de las cuentas.',
           empty: 'Todavía no hay usuarios registrados.',
           rows: snapshot.data ?? const [],
+          serverFilters: _userGeoFilters(),
           showQaFilter: true,
           item: (row) => Container(
             margin: const EdgeInsets.only(bottom: 7),
@@ -3486,6 +3783,7 @@ class _Records extends StatefulWidget {
   final List<Map<String, dynamic>> rows;
   final Widget Function(Map<String, dynamic>) item;
   final bool showQaFilter;
+  final Widget? serverFilters;
 
   const _Records({
     required this.title,
@@ -3494,6 +3792,7 @@ class _Records extends StatefulWidget {
     required this.rows,
     required this.item,
     this.showQaFilter = false,
+    this.serverFilters,
   });
 
   @override
@@ -3555,6 +3854,7 @@ class _RecordsState extends State<_Records> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
+              if (widget.serverFilters != null) widget.serverFilters!,
               SizedBox(
                 width: 240,
                 child: TextField(
