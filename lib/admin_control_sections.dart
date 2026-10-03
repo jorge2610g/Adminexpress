@@ -557,7 +557,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
   int revision = 0;
 
   Future<List<Map<String, dynamic>>> _load() async {
-    final value = await supabase.rpc('admin_zone_list');
+    final value = await supabase.rpc('admin_zone_list_v2');
     return _list(value);
   }
 
@@ -1148,6 +1148,9 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         TextEditingController(text: row?['city']?.toString() ?? '');
     final country =
         TextEditingController(text: row?['country']?.toString() ?? '');
+    final regionDepartment = TextEditingController(
+      text: row?['region_department']?.toString() ?? '',
+    );
     final zoneKey =
         TextEditingController(text: row?['zone_key']?.toString() ?? '');
     final currency = TextEditingController(
@@ -1187,7 +1190,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                         SizedBox(width: 9),
                         Expanded(
                           child: Text(
-                            'Cada zona puede tener servicios, tarifas y planes de suscripción propios. Las integraciones como VeriPagos siguen siendo globales.',
+                            'Cada zona puede tener servicios, tarifas, suscripciones y varios métodos de pago propios. Las credenciales sensibles se administran de forma segura por integración.',
                             style: TextStyle(fontSize: 11, height: 1.35),
                           ),
                         ),
@@ -1219,6 +1222,14 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                   TextField(
                     controller: country,
                     decoration: const InputDecoration(labelText: 'País'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: regionDepartment,
+                    decoration: const InputDecoration(
+                      labelText: 'Región / departamento',
+                      hintText: 'Ej. Tarapacá / Beni',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -1391,12 +1402,13 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_upsert_zone',
+        final savedZoneId = await supabase.rpc(
+          'admin_upsert_zone_v2',
           params: {
             'p_id': row?['id'],
             'p_name': name.text.trim(),
             'p_city': city.text.trim(),
+            'p_region_department': regionDepartment.text.trim(),
             'p_country': country.text.trim(),
             'p_active': active,
             'p_center_latitude': _num(lat.text),
@@ -1411,10 +1423,21 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'Zona guardada. Sus servicios y suscripciones ya pueden configurarse por separado.',
+                'Zona guardada. Ahora puedes definir uno o varios métodos de pago.',
               ),
             ),
           );
+          final zoneForPayments = <String, dynamic>{
+            ...?row,
+            'id': savedZoneId?.toString(),
+            'name': name.text.trim(),
+            'city': city.text.trim(),
+            'region_department': regionDepartment.text.trim(),
+            'country': country.text.trim(),
+            'currency_code': currency.text.trim().toUpperCase(),
+          };
+          await showAdminZonePaymentMethodsEditor(context, zoneForPayments);
+          if (mounted) setState(() => revision++);
         }
       } catch (e) {
         if (mounted) _snack(context, e);
@@ -1424,6 +1447,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     name.dispose();
     city.dispose();
     country.dispose();
+    regionDepartment.dispose();
     zoneKey.dispose();
     currency.dispose();
     lat.dispose();
@@ -1518,6 +1542,23 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           tooltip: 'Aliados / sindicatos',
                           onPressed: () => _showPartners(row),
                           icon: const Icon(Icons.groups_2_outlined, size: 19),
+                        ),
+                        IconButton(
+                          tooltip: 'Métodos de pago',
+                          onPressed: () async {
+                            final changed =
+                                await showAdminZonePaymentMethodsEditor(
+                              context,
+                              row,
+                            );
+                            if (changed && mounted) {
+                              setState(() => revision++);
+                            }
+                          },
+                          icon: const Icon(
+                            Icons.account_balance_wallet_outlined,
+                            size: 18,
+                          ),
                         ),
                         IconButton(
                           tooltip: 'Editar zona',
@@ -4137,6 +4178,293 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
         );
       },
     );
+  }
+}
+
+
+Future<bool> showAdminZonePaymentMethodsEditor(
+  BuildContext context,
+  Map<String, dynamic> zone,
+) async {
+  final zoneId = zone['id']?.toString();
+  if (zoneId == null || zoneId.isEmpty) return false;
+
+  try {
+    final values = await Future.wait([
+      supabase.rpc('admin_payment_method_catalog_list'),
+      supabase.rpc(
+        'admin_zone_payment_methods',
+        params: {'p_zone_id': zoneId},
+      ),
+    ]);
+    final catalog = _list(values[0]);
+    final existing = _list(values[1]);
+    final state = <String, Map<String, dynamic>>{};
+
+    for (final provider in catalog) {
+      final key = provider['provider_key']?.toString() ?? '';
+      if (key.isEmpty) continue;
+      Map<String, dynamic> current = <String, dynamic>{};
+      for (final item in existing) {
+        if (item['provider_key']?.toString() == key) {
+          current = item;
+          break;
+        }
+      }
+      state[key] = <String, dynamic>{
+        'selected': current.isNotEmpty,
+        'enabled': current.isEmpty ? true : current['enabled'] != false,
+        'use_rides': current.isEmpty
+            ? provider['supports_rides'] == true
+            : current['use_rides'] == true,
+        'use_delivery': current.isEmpty
+            ? provider['supports_delivery'] == true
+            : current['use_delivery'] == true,
+        'use_subscriptions': current.isEmpty
+            ? provider['supports_subscriptions'] == true
+            : current['use_subscriptions'] == true,
+        'use_wallet': current.isEmpty
+            ? provider['supports_wallet'] == true
+            : current['use_wallet'] == true,
+        'is_primary': current['is_primary'] == true,
+        'sort_order': current['sort_order'] ?? 100,
+      };
+    }
+
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text(
+            'Métodos de pago · ' + (zone['name'] ?? 'Zona').toString(),
+          ),
+          content: SizedBox(
+            width: 720,
+            height: 590,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _AdminPaymentNotice(
+                  text:
+                      'Puedes habilitar varios métodos en una misma zona y decidir si cada uno se usa en Viajes, Delivery, Suscripciones y/o Billetera. “Principal” mantiene compatibilidad con la app móvil publicada.',
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: catalog.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final provider = catalog[index];
+                      final key = provider['provider_key']?.toString() ?? '';
+                      final row = state[key]!;
+                      final selected = row['selected'] == true;
+                      final supportedRides =
+                          provider['supports_rides'] == true;
+                      final supportedDelivery =
+                          provider['supports_delivery'] == true;
+                      final supportedSubscriptions =
+                          provider['supports_subscriptions'] == true;
+                      final supportedWallet =
+                          provider['supports_wallet'] == true;
+
+                      void setFlag(String name, bool value) {
+                        setLocal(() => row[name] = value);
+                      }
+
+                      return Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? const Color(0xFFF8FAFF)
+                              : Colors.white,
+                          border: Border.all(
+                            color: selected
+                                ? const Color(0xFFB8CDF8)
+                                : const Color(0xFFE7ECF3),
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            CheckboxListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              value: selected,
+                              onChanged: (value) {
+                                setLocal(() {
+                                  row['selected'] = value == true;
+                                  if (value != true) {
+                                    row['is_primary'] = false;
+                                  }
+                                });
+                              },
+                              title: Text(
+                                provider['display_name']?.toString() ?? key,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              subtitle: Text(
+                                (provider['provider_type'] ?? 'gateway')
+                                        .toString() +
+                                    ' · credenciales ' +
+                                    (provider['credential_scope'] ?? 'zone')
+                                        .toString(),
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                              secondary: Switch(
+                                value: row['enabled'] == true,
+                                onChanged: selected
+                                    ? (value) => setFlag('enabled', value)
+                                    : null,
+                              ),
+                            ),
+                            if (selected)
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Wrap(
+                                  spacing: 7,
+                                  runSpacing: 7,
+                                  children: [
+                                    FilterChip(
+                                      label: const Text('Viajes'),
+                                      selected: row['use_rides'] == true,
+                                      onSelected: supportedRides
+                                          ? (value) =>
+                                              setFlag('use_rides', value)
+                                          : null,
+                                    ),
+                                    FilterChip(
+                                      label: const Text('Delivery'),
+                                      selected: row['use_delivery'] == true,
+                                      onSelected: supportedDelivery
+                                          ? (value) =>
+                                              setFlag('use_delivery', value)
+                                          : null,
+                                    ),
+                                    FilterChip(
+                                      label: const Text('Suscripciones'),
+                                      selected:
+                                          row['use_subscriptions'] == true,
+                                      onSelected: supportedSubscriptions
+                                          ? (value) => setFlag(
+                                                'use_subscriptions',
+                                                value,
+                                              )
+                                          : null,
+                                    ),
+                                    FilterChip(
+                                      label: const Text('Billetera'),
+                                      selected: row['use_wallet'] == true,
+                                      onSelected: supportedWallet
+                                          ? (value) =>
+                                              setFlag('use_wallet', value)
+                                          : null,
+                                    ),
+                                    ChoiceChip(
+                                      avatar: const Icon(
+                                        Icons.star_outline_rounded,
+                                        size: 16,
+                                      ),
+                                      label: const Text('Principal'),
+                                      selected: row['is_primary'] == true,
+                                      onSelected: (value) {
+                                        setLocal(() {
+                                          for (final item in state.values) {
+                                            item['is_primary'] = false;
+                                          }
+                                          row['is_primary'] = value;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Guardar métodos'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (save != true) return false;
+
+    final selected = <MapEntry<String, Map<String, dynamic>>>[
+      for (final entry in state.entries)
+        if (entry.value['selected'] == true) entry,
+    ];
+    if (selected.isNotEmpty &&
+        !selected.any((entry) => entry.value['is_primary'] == true)) {
+      selected.first.value['is_primary'] = true;
+    }
+    selected.sort(
+      (a, b) => (b.value['is_primary'] == true ? 1 : 0)
+          .compareTo(a.value['is_primary'] == true ? 1 : 0),
+    );
+
+    final selectedKeys = selected.map((entry) => entry.key).toSet();
+    for (final entry in selected) {
+      final row = entry.value;
+      await supabase.rpc(
+        'admin_upsert_zone_payment_method',
+        params: {
+          'p_zone_id': zoneId,
+          'p_provider_key': entry.key,
+          'p_enabled': row['enabled'] == true,
+          'p_use_rides': row['use_rides'] == true,
+          'p_use_delivery': row['use_delivery'] == true,
+          'p_use_subscriptions': row['use_subscriptions'] == true,
+          'p_use_wallet': row['use_wallet'] == true,
+          'p_is_primary': row['is_primary'] == true,
+          'p_sort_order': row['sort_order'] ?? 100,
+        },
+      );
+    }
+
+    for (final row in existing) {
+      final key = row['provider_key']?.toString() ?? '';
+      if (key.isEmpty || selectedKeys.contains(key)) continue;
+      await supabase.rpc(
+        'admin_delete_zone_payment_method',
+        params: {
+          'p_zone_id': zoneId,
+          'p_provider_key': key,
+        },
+      );
+    }
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Métodos de pago actualizados para ' +
+                (zone['name'] ?? 'la zona').toString() +
+                '.',
+          ),
+        ),
+      );
+    }
+    return true;
+  } catch (e) {
+    if (context.mounted) _snack(context, e);
+    return false;
   }
 }
 
