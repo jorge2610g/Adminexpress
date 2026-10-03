@@ -992,6 +992,362 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     );
   }
 
+  Future<void> _showPartnerDashboard(Map<String, dynamic> partner) async {
+    var localRevision = 0;
+    final now = DateTime.now();
+    var range = DateTimeRange(
+      start: DateTime(now.year, now.month, 1),
+      end: DateTime(now.year, now.month, now.day),
+    );
+
+    Future<Map<String, dynamic>> load() async {
+      final endExclusive = DateTime(
+        range.end.year,
+        range.end.month,
+        range.end.day,
+      ).add(const Duration(days: 1));
+      final value = await supabase.rpc(
+        'admin_partner_dashboard',
+        params: {
+          'p_partner_id': partner['id'],
+          'p_from': range.start.toIso8601String(),
+          'p_to': endExclusive.toIso8601String(),
+        },
+      );
+      return _map(value);
+    }
+
+    Future<void> createSettlement(StateSetter setLocal) async {
+      try {
+        final endExclusive = DateTime(
+          range.end.year,
+          range.end.month,
+          range.end.day,
+          23,
+          59,
+          59,
+        );
+        await supabase.rpc(
+          'admin_create_partner_settlement',
+          params: {
+            'p_partner_id': partner['id'],
+            'p_period_start': range.start.toIso8601String(),
+            'p_period_end': endExclusive.toIso8601String(),
+            'p_notes': 'Liquidación creada desde Adminexpress',
+          },
+        );
+        setLocal(() => localRevision++);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Liquidación creada.')),
+          );
+        }
+      } catch (e) {
+        if (mounted) _snack(context, e);
+      }
+    }
+
+    Future<void> markPaid(
+      Map<String, dynamic> settlement,
+      StateSetter setLocal,
+    ) async {
+      final reference = TextEditingController();
+      final notes = TextEditingController();
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Marcar liquidación como pagada'),
+          content: SizedBox(
+            width: 460,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: reference,
+                  decoration: const InputDecoration(
+                    labelText: 'Referencia / comprobante',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: notes,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Nota opcional',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Confirmar pago'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) {
+        reference.dispose();
+        notes.dispose();
+        return;
+      }
+      try {
+        await supabase.rpc(
+          'admin_mark_partner_settlement_paid',
+          params: {
+            'p_settlement_id': settlement['id'],
+            'p_reference': reference.text.trim(),
+            'p_notes': notes.text.trim(),
+          },
+        );
+        setLocal(() => localRevision++);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Liquidación marcada como pagada.')),
+          );
+        }
+      } catch (e) {
+        if (mounted) _snack(context, e);
+      } finally {
+        reference.dispose();
+        notes.dispose();
+      }
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.dashboard_customize_outlined, color: _blue),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Dashboard · ' + (partner['name'] ?? 'Aliado').toString(),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final picked = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(now.year - 3),
+                    lastDate: DateTime(now.year + 1, 12, 31),
+                    initialDateRange: range,
+                  );
+                  if (picked != null) {
+                    setLocal(() {
+                      range = picked;
+                      localRevision++;
+                    });
+                  }
+                },
+                icon: const Icon(Icons.date_range_outlined, size: 17),
+                label: const Text('Período'),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: () => createSettlement(setLocal),
+                icon: const Icon(Icons.receipt_long_outlined, size: 17),
+                label: const Text('Crear liquidación'),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 1020,
+            height: 650,
+            child: FutureBuilder<Map<String, dynamic>>(
+              key: ValueKey(localRevision),
+              future: load(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
+                  return const _Loading(title: 'Cargando dashboard del aliado');
+                }
+                if (snapshot.hasError) {
+                  return _Error(
+                    error: snapshot.error,
+                    onRetry: () => setLocal(() => localRevision++),
+                  );
+                }
+                final data = snapshot.data ?? const <String, dynamic>{};
+                final info = _map(data['partner']);
+                final metrics = _map(data['metrics']);
+                final payments = _list(data['payments']);
+                final settlements = _list(data['settlements']);
+                final currency =
+                    (info['currency_code'] ?? '').toString();
+
+                Widget metric(String label, Object? value) {
+                  return Container(
+                    width: 180,
+                    padding: const EdgeInsets.all(13),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: const Color(0xFFE7ECF3)),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          value?.toString() ?? '0',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            color: _muted,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView(
+                  children: [
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        metric('Conductores', metrics['drivers_total']),
+                        metric('Conductores online', metrics['drivers_online']),
+                        metric('Pagos aprobados', metrics['payments_count']),
+                        metric(
+                          'Facturación ' + currency,
+                          metrics['gross_amount'],
+                        ),
+                        metric(
+                          'Comisión generada ' + currency,
+                          metrics['commission_generated'],
+                        ),
+                        metric(
+                          'Comisión pendiente ' + currency,
+                          metrics['commission_pending'],
+                        ),
+                        metric(
+                          'Comisión liquidada ' + currency,
+                          metrics['commission_paid'],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Liquidaciones',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (settlements.isEmpty)
+                      const _Empty(text: 'Todavía no hay liquidaciones.')
+                    else
+                      for (final settlement in settlements)
+                        Card(
+                          elevation: 0,
+                          child: ListTile(
+                            leading: const Icon(
+                              Icons.account_balance_outlined,
+                              color: _blue,
+                            ),
+                            title: Text(
+                              currency +
+                                  ' ' +
+                                  (settlement['commission_amount'] ?? 0)
+                                      .toString(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            subtitle: Text(
+                              'Bruto: ' +
+                                  currency +
+                                  ' ' +
+                                  (settlement['gross_amount'] ?? 0).toString() +
+                                  ' · ' +
+                                  _formatDate(settlement['created_at']),
+                            ),
+                            trailing: settlement['status'] == 'paid'
+                                ? _MiniStatus(
+                                    text: 'Pagada',
+                                    positive: true,
+                                  )
+                                : FilledButton(
+                                    onPressed: () =>
+                                        markPaid(settlement, setLocal),
+                                    child: const Text('Marcar pagada'),
+                                  ),
+                          ),
+                        ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Pagos de conductores',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (payments.isEmpty)
+                      const _Empty(text: 'No hay pagos en este período.')
+                    else
+                      for (final payment in payments.take(30))
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(
+                            Icons.receipt_long_rounded,
+                            color: _blue,
+                          ),
+                          title: Text(
+                            (payment['driver_name'] ?? 'Conductor').toString(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          subtitle: Text(
+                            (payment['provider'] ?? '—').toString() +
+                                ' · ' +
+                                _formatDate(
+                                  payment['paid_at'] ?? payment['created_at'],
+                                ),
+                          ),
+                          trailing: Text(
+                            (payment['currency_code'] ?? currency).toString() +
+                                ' ' +
+                                (payment['amount'] ?? 0).toString() +
+                                '\nComisión ' +
+                                (payment['partner_commission_amount'] ?? 0)
+                                    .toString(),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                  ],
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showPartners(Map<String, dynamic> zone) async {
     var localRevision = 0;
     await showDialog<void>(
@@ -1104,6 +1460,14 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                               positive: active,
                             ),
                             const SizedBox(width: 4),
+                            IconButton(
+                              tooltip: 'Dashboard financiero',
+                              onPressed: () => _showPartnerDashboard(row),
+                              icon: const Icon(
+                                Icons.dashboard_customize_outlined,
+                                size: 19,
+                              ),
+                            ),
                             IconButton(
                               tooltip: 'Usuarios del panel',
                               onPressed: () => _managePartnerAccess(row),
