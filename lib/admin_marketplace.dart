@@ -70,7 +70,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: const Text('Configuración de Express Market'),
+          title: const Text('Configuración de Express Delivery'),
           content: SizedBox(
             width: 560,
             child: SingleChildScrollView(
