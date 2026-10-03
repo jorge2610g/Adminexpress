@@ -7960,14 +7960,20 @@ class AdminBuildsPage extends StatefulWidget {
 }
 
 class _AdminBuildsPageState extends State<AdminBuildsPage> {
-  int revision = 0;
   Timer? poller;
+  List<Map<String, dynamic>> buildRows = const [];
+  bool initialLoading = true;
+  bool refreshing = false;
+  bool showAllHistory = false;
+  Object? loadError;
+  DateTime? lastRefreshAt;
 
   @override
   void initState() {
     super.initState();
-    poller = Timer.periodic(const Duration(seconds: 7), (_) {
-      if (mounted) setState(() => revision++);
+    _refreshBuilds(initial: true);
+    poller = Timer.periodic(const Duration(seconds: 20), (_) {
+      _refreshBuilds(silent: true);
     });
   }
 
@@ -7980,6 +7986,38 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
   Future<List<Map<String, dynamic>>> _load() async {
     final value = await supabase.rpc('admin_build_list');
     return _list(value);
+  }
+
+  Future<void> _refreshBuilds({
+    bool initial = false,
+    bool silent = false,
+  }) async {
+    if (refreshing) return;
+    if (mounted) {
+      setState(() {
+        refreshing = true;
+        if (initial) initialLoading = true;
+        if (!silent) loadError = null;
+      });
+    }
+    try {
+      final rows = await _load();
+      if (!mounted) return;
+      setState(() {
+        buildRows = rows;
+        initialLoading = false;
+        refreshing = false;
+        loadError = null;
+        lastRefreshAt = DateTime.now();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        initialLoading = false;
+        refreshing = false;
+        loadError = e;
+      });
+    }
   }
 
   Future<void> _openUrl(String? value) async {
@@ -8121,11 +8159,12 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
             },
           );
           if (mounted) {
-            setState(() => revision++);
+            await _refreshBuilds(silent: true);
+            if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
-                  'Build en cola. El worker de GitHub lo tomará automáticamente y el panel irá actualizando el estado.',
+                  'Build en cola. El estado se actualizará en segundo plano sin recargar la pantalla.',
                 ),
               ),
             );
@@ -8198,7 +8237,8 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
         },
       );
       if (!mounted) return;
-      setState(() => revision++);
+      await _refreshBuilds(silent: true);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Actualización publicada para Express.'),
