@@ -430,6 +430,16 @@ class _AdminDriverSubscriptionsPageState
       return;
     }
 
+    Map<String, dynamic>? selectedZone;
+    for (final zone in zones) {
+      if (zone['zone_key']?.toString() == zoneKey) {
+        selectedZone = zone;
+        break;
+      }
+    }
+    final isBolivia =
+        (selectedZone?['country']?.toString() ?? '').toLowerCase() == 'bolivia';
+
     if (enforce && settings['enforce_access'] != true) {
       final zoneName = settings['zone_name']?.toString() ?? zoneKey;
       final ok = await showDialog<bool>(
