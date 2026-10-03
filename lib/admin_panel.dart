@@ -334,8 +334,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     final value = await supabase.rpc(
       'admin_trip_list_v2',
       params: {
-        'p_from': range.from.toIso8601String(),
-        'p_to': range.to.toIso8601String(),
+        'p_from': range.from.toUtc().toIso8601String(),
+        'p_to': range.to.toUtc().toIso8601String(),
         'p_zone_id': null,
         'p_status': null,
         'p_limit': 200,
@@ -350,8 +350,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     final value = await supabase.rpc(
       'admin_delivery_list_v2',
       params: {
-        'p_from': range.from.toIso8601String(),
-        'p_to': range.to.toIso8601String(),
+        'p_from': range.from.toUtc().toIso8601String(),
+        'p_to': range.to.toUtc().toIso8601String(),
         'p_status': null,
         'p_limit': 200,
         'p_offset': 0,
