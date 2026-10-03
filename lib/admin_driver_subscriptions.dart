@@ -161,8 +161,8 @@ class _AdminDriverSubscriptionsPageState
           'admin_subscription_payment_list_v2',
           params: {
             'p_zone_key': zoneKey,
-            'p_from': range.from.toIso8601String(),
-            'p_to': range.to.toIso8601String(),
+            'p_from': range.from.toUtc().toIso8601String(),
+            'p_to': range.to.toUtc().toIso8601String(),
             'p_status': null,
             'p_limit': 100,
             'p_offset': 0,
