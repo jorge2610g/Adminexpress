@@ -268,6 +268,16 @@ class _AdminDriverSubscriptionsPageState
       return;
     }
 
+    Map<String, dynamic>? selectedZone;
+    for (final zone in zones) {
+      if (zone['zone_key']?.toString() == zoneKey) {
+        selectedZone = zone;
+        break;
+      }
+    }
+    final isBolivia =
+        (selectedZone?['country']?.toString() ?? '').toLowerCase() == 'bolivia';
+
     final code = TextEditingController(text: plan?['code']?.toString() ?? '');
     final name = TextEditingController(text: plan?['name']?.toString() ?? '');
     final amount =
@@ -445,11 +455,13 @@ class _AdminDriverSubscriptionsPageState
       if (ok != true) return;
     }
 
-    if (providerEnabled && provider['configured'] != true) {
+    if (isBolivia && providerEnabled && provider['configured'] != true) {
       _snack('Configura y verifica primero VeriPagos.');
       return;
     }
-    if (providerEnabled && provider['status_endpoint_ready'] != true) {
+    if (isBolivia &&
+        providerEnabled &&
+        provider['status_endpoint_ready'] != true) {
       _snack(
         'Falta conectar el endpoint de verificación de estado QR antes de habilitar cobros.',
       );
@@ -466,13 +478,15 @@ class _AdminDriverSubscriptionsPageState
           'p_enforce_access': enforce,
         },
       );
-      await supabase.rpc(
-        'admin_set_driver_subscription_provider_settings',
-        params: {
-          'p_provider_enabled': providerEnabled,
-          'p_qr_validity': qrValidity,
-        },
-      );
+      if (isBolivia) {
+        await supabase.rpc(
+          'admin_set_driver_subscription_provider_settings',
+          params: {
+            'p_provider_enabled': providerEnabled,
+            'p_qr_validity': qrValidity,
+          },
+        );
+      }
       _snack('Configuración de la zona guardada.');
       await _load();
     } catch (e) {
@@ -740,6 +754,16 @@ class _AdminDriverSubscriptionsPageState
     final qrValidity = settings['qr_validity']?.toString() ?? '0/00:15';
     final zoneName =
         settings['zone_name']?.toString() ?? selectedZoneKey ?? 'Zona';
+    Map<String, dynamic>? selectedZone;
+    for (final zone in zones) {
+      if (zone['zone_key']?.toString() == selectedZoneKey) {
+        selectedZone = zone;
+        break;
+      }
+    }
+    final selectedCountry = selectedZone?['country']?.toString() ?? '';
+    final isBolivia = selectedCountry.toLowerCase() == 'bolivia';
+    final isChile = selectedCountry.toLowerCase() == 'chile';
     final realDrivers = drivers.where((driver) => !_isQaDriver(driver)).toList();
     final qaDrivers = drivers.where(_isQaDriver).toList();
 
@@ -761,7 +785,7 @@ class _AdminDriverSubscriptionsPageState
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Planes, vigencias, pagos y QR Bolivia.',
+                      'Planes, vigencias y pagos por zona.',
                       style: TextStyle(color: Color(0xFF64748B)),
                     ),
                   ],
@@ -835,8 +859,11 @@ class _AdminDriverSubscriptionsPageState
             ),
           const SizedBox(height: 12),
           _AdminSubNotice(
-            text:
-                'Configurando $zoneName. Planes, exigencia y conductores son propios de esta zona. VeriPagos y sus credenciales son globales.',
+            text: isBolivia
+                ? 'Configurando $zoneName. Esta zona usa QR Bolivia mediante VeriPagos. Las credenciales QR se administran únicamente para Bolivia.'
+                : isChile
+                    ? 'Configurando $zoneName. Chile usa Mercado Pago. QR Bolivia no se muestra ni se puede activar en esta zona.'
+                    : 'Configurando $zoneName. Planes, exigencia y conductores son propios de esta zona.',
           ),
           const SizedBox(height: 16),
           _SettingsCard(
@@ -845,19 +872,52 @@ class _AdminDriverSubscriptionsPageState
             providerEnabled: providerEnabled,
             providerConfigured: providerConfigured,
             qrValidity: qrValidity,
+            showQrProvider: isBolivia,
             saving: savingSettings,
             onSave: _saveSettings,
           ),
-          const SizedBox(height: 14),
-          _ProviderCard(
-            configured: providerConfigured,
-            credentialsConfigured: providerCredentialsConfigured,
-            enabled: providerEnabled,
-            saving: providerSaving,
-            verifying: providerVerifying,
-            onConfigure: _configureProvider,
-            onVerify: _verifyProvider,
-          ),
+          if (isBolivia) ...[
+            const SizedBox(height: 14),
+            _ProviderCard(
+              configured: providerConfigured,
+              credentialsConfigured: providerCredentialsConfigured,
+              enabled: providerEnabled,
+              saving: providerSaving,
+              verifying: providerVerifying,
+              onConfigure: _configureProvider,
+              onVerify: _verifyProvider,
+            ),
+          ] else if (isChile) ...[
+            const SizedBox(height: 14),
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(18),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      child: Icon(Icons.account_balance_wallet_rounded),
+                    ),
+                    SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Mercado Pago · Chile',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Proveedor asignado a esta zona. QR Bolivia/VeriPagos está bloqueado para Chile.',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
           Row(
             children: [
@@ -1077,6 +1137,7 @@ class _SettingsCard extends StatefulWidget {
   final bool providerEnabled;
   final bool providerConfigured;
   final String qrValidity;
+  final bool showQrProvider;
   final bool saving;
   final Future<void> Function({
     required bool enabled,
@@ -1091,6 +1152,7 @@ class _SettingsCard extends StatefulWidget {
     required this.providerEnabled,
     required this.providerConfigured,
     required this.qrValidity,
+    required this.showQrProvider,
     required this.saving,
     required this.onSave,
   });
@@ -1164,29 +1226,31 @@ class _SettingsCardState extends State<_SettingsCard> {
               value: enforce,
               onChanged: (v) => setState(() => enforce = v),
             ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Habilitar QR Bolivia'),
-              subtitle: Text(
-                widget.providerConfigured
-                    ? 'VeriPagos tiene configuración guardada.'
-                    : 'Primero completa la conexión con VeriPagos.',
+            if (widget.showQrProvider) ...[
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Habilitar QR Bolivia'),
+                subtitle: Text(
+                  widget.providerConfigured
+                      ? 'VeriPagos tiene configuración guardada.'
+                      : 'Primero completa la conexión con VeriPagos.',
+                ),
+                value: providerEnabled,
+                onChanged: widget.providerConfigured
+                    ? (v) => setState(() => providerEnabled = v)
+                    : null,
               ),
-              value: providerEnabled,
-              onChanged: widget.providerConfigured
-                  ? (v) => setState(() => providerEnabled = v)
-                  : null,
-            ),
-            SizedBox(
-              width: 220,
-              child: TextField(
-                controller: validity,
-                decoration: const InputDecoration(
-                  labelText: 'Vigencia QR',
-                  helperText: 'Ej.: 0/00:15',
+              SizedBox(
+                width: 220,
+                child: TextField(
+                  controller: validity,
+                  decoration: const InputDecoration(
+                    labelText: 'Vigencia QR',
+                    helperText: 'Ej.: 0/00:15',
+                  ),
                 ),
               ),
-            ),
+            ],
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: widget.saving
