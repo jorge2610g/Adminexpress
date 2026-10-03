@@ -7989,6 +7989,20 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  String _nextPatchVersion(String raw) {
+    final clean = raw.trim().split(RegExp(r'[-+]')).first;
+    final parts = clean.split('.');
+    if (parts.length != 3) return '1.5.79';
+    final major = int.tryParse(parts[0]) ?? 1;
+    final minor = int.tryParse(parts[1]) ?? 5;
+    final patch = int.tryParse(parts[2]) ?? 78;
+    return major.toString() +
+        '.' +
+        minor.toString() +
+        '.' +
+        (patch + 1).toString();
+  }
+
   Future<void> _create() async {
     List<Map<String, dynamic>> existing = const [];
     try {
@@ -7999,7 +8013,7 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
         .where((row) => row['platform']?.toString() == 'android')
         .toList();
     final latestBuild = android.fold<int>(
-      56,
+      119,
       (value, row) {
         final raw = row['build_number'];
         final n = raw is num ? raw.toInt() : int.tryParse(raw?.toString() ?? '');
@@ -8007,11 +8021,13 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
       },
     );
     final latestVersion = android.isNotEmpty
-        ? android.first['version_name']?.toString() ?? '1.5.19'
-        : '1.5.19';
+        ? android.first['version_name']?.toString() ?? '1.5.78'
+        : '1.5.78';
+    final suggestedVersion = _nextPatchVersion(latestVersion);
+    final suggestedBuild = latestBuild + 1;
 
-    final version = TextEditingController(text: latestVersion);
-    final build = TextEditingController(text: (latestBuild + 1).toString());
+    final version = TextEditingController(text: suggestedVersion);
+    final build = TextEditingController(text: suggestedBuild.toString());
     final changelog = TextEditingController();
 
     final save = await showDialog<bool>(
@@ -8027,18 +8043,23 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
               const SizedBox(height: 14),
               TextField(
                 controller: version,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Versión',
                   hintText: 'Ej. 1.6.0',
+                  helperText:
+                      'Sugerida automáticamente desde v' + latestVersion + '.',
                 ),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: build,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Build number',
                   hintText: 'Debe ser mayor al anterior',
+                  helperText: 'Siguiente build disponible: ' +
+                      suggestedBuild.toString() +
+                      '.',
                 ),
               ),
               const SizedBox(height: 10),
@@ -8057,7 +8078,7 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Se generarán automáticamente APK + AAB en GitHub Actions.',
+                      'Se generarán automáticamente APK + AAB firmados en GitHub Actions. La cola se toma en la siguiente ejecución del worker (normalmente dentro de 5 minutos).',
                       style: TextStyle(fontSize: 11, color: _muted),
                     ),
                   ),
@@ -8104,7 +8125,7 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
-                  'Build enviado. El compilador en la nube lo tomará automáticamente.',
+                  'Build en cola. El worker de GitHub lo tomará automáticamente y el panel irá actualizando el estado.',
                 ),
               ),
             );
@@ -8484,7 +8505,7 @@ class _BuildCloudNotice extends StatelessWidget {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Adminexpress crea el trabajo; GitHub Actions compila Express, lo firma y publica APK/AAB en GitHub Releases.',
+              'Adminexpress crea el trabajo; GitHub Actions lo toma automáticamente, compila Express, lo firma y publica APK/AAB en GitHub Releases. La cola se revisa cada pocos minutos y este panel actualiza el estado cada 7 segundos.',
               style: TextStyle(fontSize: 11, color: _dark, height: 1.35),
             ),
           ),
