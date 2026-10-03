@@ -4149,10 +4149,12 @@ class AdminPaymentsPage extends StatefulWidget {
 
 class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   int revision = 0;
+  final Set<String> savingZonePayments = <String>{};
 
   Future<({
     Map<String, dynamic> overview,
     List<Map<String, dynamic>> topups,
+    List<Map<String, dynamic>> zones,
   })> _load() async {
     final values = await Future.wait([
       supabase.rpc('admin_payment_overview'),
@@ -4160,11 +4162,73 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
         'admin_topup_requests',
         params: {'p_status': 'pending'},
       ),
+      supabase.rpc('admin_zone_list'),
     ]);
     return (
       overview: _map(values[0]),
       topups: _list(values[1]),
+      zones: _list(values[2]),
     );
+  }
+
+  String _zonePaymentProvider(Map<String, dynamic> zone) {
+    final configured = zone['payment_provider']?.toString();
+    if (configured != null && configured.isNotEmpty) return configured;
+    final country = (zone['country']?.toString() ?? '').toLowerCase();
+    if (country == 'bolivia') return 'veripagos_qr';
+    if (country == 'chile') return 'mercado_pago';
+    return '';
+  }
+
+  String _zonePaymentLabel(Map<String, dynamic> zone) {
+    switch (_zonePaymentProvider(zone)) {
+      case 'veripagos_qr':
+        return 'QR Bolivia · VeriPagos';
+      case 'mercado_pago':
+        return 'Mercado Pago';
+      default:
+        return 'Sin proveedor';
+    }
+  }
+
+  Future<void> _setZonePaymentEnabled(
+    Map<String, dynamic> zone,
+    bool enabled,
+  ) async {
+    final id = zone['id']?.toString();
+    if (id == null || id.isEmpty || savingZonePayments.contains(id)) return;
+    final provider = _zonePaymentProvider(zone);
+    if (provider.isEmpty) {
+      _snack(context, 'Esta zona no tiene proveedor asignado.');
+      return;
+    }
+
+    setState(() => savingZonePayments.add(id));
+    try {
+      await supabase.rpc(
+        'admin_set_zone_payment_provider',
+        params: {
+          'p_zone_id': id,
+          'p_provider': provider,
+          'p_enabled': enabled,
+        },
+      );
+      if (!mounted) return;
+      setState(() => revision++);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled
+                ? 'Método de pago habilitado para ${zone['name'] ?? 'la zona'}.'
+                : 'Método de pago deshabilitado para ${zone['name'] ?? 'la zona'}.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    } finally {
+      if (mounted) setState(() => savingZonePayments.remove(id));
+    }
   }
 
   Future<void> _resolveTopup(
@@ -4236,6 +4300,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
         ({
           Map<String, dynamic> overview,
           List<Map<String, dynamic>> topups,
+          List<Map<String, dynamic>> zones,
         })>(
       key: ValueKey(revision),
       future: _load(),
@@ -4255,10 +4320,12 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
             (
               overview: <String, dynamic>{},
               topups: <Map<String, dynamic>>[],
+              zones: <Map<String, dynamic>>[],
             );
         final summary = _map(data.overview['summary']);
         final recent = _list(data.overview['recent']);
         final topups = data.topups;
+        final zones = data.zones;
 
         return RefreshIndicator(
           onRefresh: () async => setState(() => revision++),
@@ -4271,6 +4338,122 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                     'Cobros, recargas pendientes, saldos y movimientos.',
               ),
               const SizedBox(height: 18),
+              const Text(
+                'Método de pago por zona',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Bolivia usa únicamente QR Bolivia (VeriPagos) y Chile únicamente Mercado Pago. Cada zona se administra de forma independiente.',
+                style: TextStyle(color: Color(0xFF667085)),
+              ),
+              const SizedBox(height: 12),
+              if (zones.isEmpty)
+                const _Empty(text: 'No hay zonas configuradas.')
+              else
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: zones.map((zone) {
+                    final id = zone['id']?.toString() ?? '';
+                    final busy = savingZonePayments.contains(id);
+                    final enabled = zone['payment_enabled'] != false;
+                    final currency =
+                        (zone['currency_code'] ?? '—').toString();
+                    final country = (zone['country'] ?? '—').toString();
+                    return SizedBox(
+                      width: 360,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: const Color(0xFFE7ECF3)),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    (zone['name'] ?? 'Zona').toString(),
+                                    style: const TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                                Switch(
+                                  value: enabled,
+                                  onChanged: busy
+                                      ? null
+                                      : (value) =>
+                                          _setZonePaymentEnabled(zone, value),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              '$country · $currency',
+                              style: const TextStyle(
+                                color: Color(0xFF667085),
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.payments_outlined,
+                                  color: _blue,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _zonePaymentLabel(zone),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                                _MiniStatus(
+                                  text: enabled ? 'Activo' : 'Inactivo',
+                                  positive: enabled,
+                                ),
+                              ],
+                            ),
+                            if (_zonePaymentProvider(zone) ==
+                                'veripagos_qr') ...[
+                              const SizedBox(height: 10),
+                              const Text(
+                                'Las credenciales VeriPagos se administran en Finanzas → Suscripciones. Este proveedor solo se aplica a zonas de Bolivia.',
+                                style: TextStyle(
+                                  color: Color(0xFF667085),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                            if (_zonePaymentProvider(zone) ==
+                                'mercado_pago') ...[
+                              const SizedBox(height: 10),
+                              const Text(
+                                'Mercado Pago queda reservado para Chile. Las credenciales se conectarán desde este módulo antes de habilitar cobros reales.',
+                                style: TextStyle(
+                                  color: Color(0xFF667085),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              const SizedBox(height: 22),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
