@@ -1,0 +1,24 @@
+name: Validate multizone admin v2
+
+on:
+  push:
+    branches:
+      - feature/multizone-admin-v2
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-warnings --no-fatal-infos
+      - run: flutter build web --release --base-href /Adminexpress/
