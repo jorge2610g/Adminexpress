@@ -7970,6 +7970,7 @@ class AdminBuildsPage extends StatefulWidget {
 class _AdminBuildsPageState extends State<AdminBuildsPage> {
   Timer? poller;
   List<Map<String, dynamic>> buildRows = const [];
+  Map<String, dynamic> releaseGate = const {};
   bool initialLoading = true;
   bool refreshing = false;
   Object? loadError;
@@ -7995,6 +7996,16 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
     return _list(value);
   }
 
+  Future<Map<String, dynamic>> _loadReleaseGate() async {
+    final value = await supabase.rpc(
+      'admin_release_gate_status',
+      params: {'p_platform': 'android'},
+    );
+    return value is Map
+        ? Map<String, dynamic>.from(value)
+        : <String, dynamic>{};
+  }
+
   Future<void> _refreshBuilds({
     bool initial = false,
     bool silent = false,
@@ -8008,10 +8019,16 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
       });
     }
     try {
-      final rows = await _load();
+      final values = await Future.wait<Object>([
+        _load(),
+        _loadReleaseGate(),
+      ]);
+      final rows = values[0] as List<Map<String, dynamic>>;
+      final gate = values[1] as Map<String, dynamic>;
       if (!mounted) return;
       setState(() {
         buildRows = rows;
+        releaseGate = gate;
         initialLoading = false;
         refreshing = false;
         loadError = null;
@@ -8048,15 +8065,27 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
         (patch + 1).toString();
   }
 
-  Future<void> _create() async {
+  Future<void> _create({required bool production}) async {
     List<Map<String, dynamic>> existing = const [];
     try {
       existing = await _load();
     } catch (_) {}
 
     final android = existing
-        .where((row) => row['platform']?.toString() == 'android')
-        .toList();
+        .where((row) =>
+            row['platform']?.toString() == 'android' &&
+            row['artifact_type']?.toString() == 'apk+aab')
+        .toList()
+      ..sort((a, b) {
+        final aBuild = a['build_number'] is num
+            ? (a['build_number'] as num).toInt()
+            : int.tryParse(a['build_number']?.toString() ?? '') ?? 0;
+        final bBuild = b['build_number'] is num
+            ? (b['build_number'] as num).toInt()
+            : int.tryParse(b['build_number']?.toString() ?? '') ?? 0;
+        return bBuild.compareTo(aBuild);
+      });
+
     final latestBuild = android.fold<int>(
       119,
       (value, row) {
@@ -8068,8 +8097,28 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
     final latestVersion = android.isNotEmpty
         ? android.first['version_name']?.toString() ?? '1.5.78'
         : '1.5.78';
-    final suggestedVersion = _nextPatchVersion(latestVersion);
-    final suggestedBuild = latestBuild + 1;
+
+    final previewApproved = releaseGate['preview_approved'] == true;
+    if (production && !previewApproved) {
+      _snack(
+        context,
+        'Producción bloqueada: primero compila y aprueba una Preview.',
+      );
+      return;
+    }
+
+    final previewVersion = releaseGate['preview_version_name']?.toString();
+    final previewBuildRaw = releaseGate['preview_build_number'];
+    final previewBuild = previewBuildRaw is num
+        ? previewBuildRaw.toInt()
+        : int.tryParse(previewBuildRaw?.toString() ?? '');
+
+    final suggestedVersion = production && previewVersion != null
+        ? previewVersion
+        : _nextPatchVersion(latestVersion);
+    final suggestedBuild = production && previewBuild != null
+        ? previewBuild
+        : latestBuild + 1;
 
     final version = TextEditingController(text: suggestedVersion);
     final build = TextEditingController(text: suggestedBuild.toString());
@@ -8078,33 +8127,62 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
     final save = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Compilar Express para Android'),
+        title: Text(
+          production
+              ? 'Compilar Producción aprobada'
+              : 'Compilar Express Preview',
+        ),
         content: SizedBox(
-          width: 480,
+          width: 500,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const _BuildCloudNotice(),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: production
+                      ? const Color(0xFFE8F8EF)
+                      : const Color(0xFFEAF2FF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  production
+                      ? 'Producción usará exactamente el SHA de la Preview que aprobaste.'
+                      : 'Preview usa el paquete separado com.express.usuario.preview y no reemplaza Producción.',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: _dark,
+                    height: 1.35,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
               const SizedBox(height: 14),
               TextField(
                 controller: version,
+                readOnly: production,
                 decoration: InputDecoration(
                   labelText: 'Versión',
-                  hintText: 'Ej. 1.6.0',
-                  helperText:
-                      'Sugerida automáticamente desde v' + latestVersion + '.',
+                  helperText: production
+                      ? 'La misma versión de la Preview aprobada.'
+                      : 'Sugerida desde la última producción v' +
+                          latestVersion +
+                          '.',
                 ),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: build,
+                readOnly: production,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Build number',
-                  hintText: 'Debe ser mayor al anterior',
-                  helperText: 'Siguiente build disponible: ' +
-                      suggestedBuild.toString() +
-                      '.',
+                  helperText: production
+                      ? 'El mismo build de la Preview aprobada.'
+                      : 'Siguiente build sugerido: ' +
+                          suggestedBuild.toString() +
+                          '.',
                 ),
               ),
               const SizedBox(height: 10),
@@ -8116,19 +8194,6 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
                   hintText: 'Describe los cambios de esta versión',
                 ),
               ),
-              const SizedBox(height: 12),
-              const Row(
-                children: [
-                  Icon(Icons.android_rounded, size: 18, color: Color(0xFF14804A)),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Se generarán automáticamente APK + AAB firmados en GitHub Actions. La cola se toma en la siguiente ejecución del worker (normalmente dentro de 5 minutos).',
-                      style: TextStyle(fontSize: 11, color: _muted),
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
@@ -8139,8 +8204,14 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
           ),
           FilledButton.icon(
             onPressed: () => Navigator.pop(dialogContext, true),
-            icon: const Icon(Icons.cloud_upload_outlined),
-            label: const Text('Enviar a compilar'),
+            icon: Icon(
+              production
+                  ? Icons.verified_user_rounded
+                  : Icons.science_rounded,
+            ),
+            label: Text(
+              production ? 'Compilar Producción' : 'Compilar Preview',
+            ),
           ),
         ],
       ),
@@ -8158,20 +8229,24 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
             'admin_create_build_job',
             params: {
               'p_platform': 'android',
-              'p_artifact_type': 'apk+aab',
+              'p_artifact_type':
+                  production ? 'apk+aab' : 'preview-apk+aab',
               'p_version_name': version.text.trim(),
               'p_build_number': buildNumber,
               'p_changelog': changelog.text.trim(),
-              'p_commit_sha': null,
+              'p_commit_sha':
+                  production ? releaseGate['approved_commit_sha'] : null,
             },
           );
           if (mounted) {
             await _refreshBuilds(silent: true);
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
+              SnackBar(
                 content: Text(
-                  'Build en cola. El estado se actualizará en segundo plano sin recargar la pantalla.',
+                  production
+                      ? 'Producción en cola con el SHA aprobado de Preview.'
+                      : 'Preview en cola. Pruébala antes de aprobar Producción.',
                 ),
               ),
             );
@@ -8185,6 +8260,68 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
     version.dispose();
     build.dispose();
     changelog.dispose();
+  }
+
+  Future<void> _approvePreview() async {
+    final buildId = releaseGate['preview_build_id']?.toString();
+    if (buildId == null || buildId.isEmpty) {
+      _snack(context, 'Todavía no hay una Preview terminada para aprobar.');
+      return;
+    }
+
+    final version = releaseGate['preview_version_name']?.toString() ?? '—';
+    final build = releaseGate['preview_build_number']?.toString() ?? '—';
+    final sha = releaseGate['preview_commit_sha']?.toString() ?? '—';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Aprobar Preview para Producción'),
+        content: SizedBox(
+          width: 480,
+          child: Text(
+            'Vas a aprobar Express Preview v' +
+                version +
+                ' · build ' +
+                build +
+                '.\n\nSHA: ' +
+                sha +
+                '\n\nProducción quedará fijada a este mismo código.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.verified_rounded),
+            label: const Text('Sí, aprobar Preview'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await supabase.rpc(
+        'admin_approve_preview_build',
+        params: {'p_build_id': buildId},
+      );
+      if (!mounted) return;
+      await _refreshBuilds(silent: true);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Preview aprobada. Producción ya puede usar ese mismo SHA.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    }
   }
 
   Future<void> _publish(Map<String, dynamic> row) async {
@@ -8536,6 +8673,13 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
             updated.minute.toString().padLeft(2, '0') +
             ':' +
             updated.second.toString().padLeft(2, '0');
+    final previewApproved = releaseGate['preview_approved'] == true;
+    final previewBuildId = releaseGate['preview_build_id']?.toString();
+    final previewVersion =
+        releaseGate['preview_version_name']?.toString() ?? '—';
+    final previewBuild =
+        releaseGate['preview_build_number']?.toString() ?? '—';
+    final previewSha = releaseGate['preview_commit_sha']?.toString() ?? '';
 
     Widget summaryCard({
       required IconData icon,
@@ -8623,11 +8767,24 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
         _Header(
           title: 'App Builder',
           subtitle:
-              'Compila APK + AAB de Express y sigue el progreso sin que la pantalla se recargue.',
-          action: FilledButton.icon(
-            onPressed: _create,
-            icon: const Icon(Icons.android_rounded),
-            label: const Text('Nuevo build Android'),
+              'Preview primero. Producción solo se habilita cuando apruebas exactamente ese código.',
+          action: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: () => _create(production: false),
+                icon: const Icon(Icons.science_rounded),
+                label: const Text('Compilar Preview'),
+              ),
+              OutlinedButton.icon(
+                onPressed: previewApproved
+                    ? () => _create(production: true)
+                    : null,
+                icon: const Icon(Icons.verified_user_rounded),
+                label: const Text('Compilar Producción'),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 14),
@@ -8777,18 +8934,96 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
                 SizedBox(
                   width: cardWidth,
                   child: summaryCard(
-                    icon: Icons.security_rounded,
-                    title: 'Salida Android',
-                    value: 'APK + AAB',
-                    subtitle:
-                        'Firma de producción, Release de GitHub y enlaces de descarga.',
-                    accent: const Color(0xFF6941C6),
-                    soft: const Color(0xFFF1EBFF),
+                    icon: previewApproved
+                        ? Icons.verified_rounded
+                        : Icons.science_rounded,
+                    title: 'Preview → Producción',
+                    value: previewBuildId == null
+                        ? 'Sin Preview lista'
+                        : previewApproved
+                            ? 'Preview aprobada'
+                            : 'Preview pendiente',
+                    subtitle: previewBuildId == null
+                        ? 'Compila una Preview antes de Producción.'
+                        : 'v' +
+                            previewVersion +
+                            ' · build ' +
+                            previewBuild +
+                            (previewSha.isEmpty
+                                ? ''
+                                : ' · SHA ' +
+                                    previewSha.substring(
+                                      0,
+                                      previewSha.length >= 8
+                                          ? 8
+                                          : previewSha.length,
+                                    )),
+                    accent: previewApproved
+                        ? const Color(0xFF14804A)
+                        : const Color(0xFF6941C6),
+                    soft: previewApproved
+                        ? const Color(0xFFE8F8EF)
+                        : const Color(0xFFF1EBFF),
+                    trailing: previewBuildId != null && !previewApproved
+                        ? IconButton(
+                            tooltip: 'Aprobar Preview',
+                            onPressed: _approvePreview,
+                            icon: const Icon(Icons.verified_outlined),
+                          )
+                        : null,
                   ),
                 ),
               ],
             );
           },
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: previewApproved
+                ? const Color(0xFFF0FDF4)
+                : const Color(0xFFF8FAFC),
+            border: Border.all(
+              color: previewApproved
+                  ? const Color(0xFFBBF7D0)
+                  : const Color(0xFFE2E8F0),
+            ),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                previewApproved
+                    ? Icons.lock_open_rounded
+                    : Icons.lock_outline_rounded,
+                color: previewApproved
+                    ? const Color(0xFF14804A)
+                    : const Color(0xFF667085),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  previewApproved
+                      ? 'Producción habilitada solo para el SHA de la Preview aprobada. Una nueva Preview invalida esta aprobación.'
+                      : 'Producción bloqueada. Prueba la Preview y apruébala cuando confirmes que está correcta.',
+                  style: const TextStyle(
+                    color: _dark,
+                    fontSize: 11,
+                    height: 1.4,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (previewBuildId != null && !previewApproved)
+                FilledButton.icon(
+                  onPressed: _approvePreview,
+                  icon: const Icon(Icons.verified_rounded, size: 17),
+                  label: const Text('Aprobar'),
+                ),
+            ],
+          ),
         ),
         if (activeBuild != null) ...[
           const SizedBox(height: 12),
