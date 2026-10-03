@@ -1010,8 +1010,8 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         'admin_partner_dashboard',
         params: {
           'p_partner_id': partner['id'],
-          'p_from': range.start.toIso8601String(),
-          'p_to': endExclusive.toIso8601String(),
+          'p_from': range.start.toUtc().toIso8601String(),
+          'p_to': endExclusive.toUtc().toIso8601String(),
         },
       );
       return _map(value);
@@ -1031,8 +1031,8 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           'admin_create_partner_settlement',
           params: {
             'p_partner_id': partner['id'],
-            'p_period_start': range.start.toIso8601String(),
-            'p_period_end': endExclusive.toIso8601String(),
+            'p_period_start': range.start.toUtc().toIso8601String(),
+            'p_period_end': endExclusive.toUtc().toIso8601String(),
             'p_notes': 'Liquidación creada desde Adminexpress',
           },
         );
@@ -4909,8 +4909,8 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
       supabase.rpc(
         'admin_payment_overview_v2',
         params: {
-          'p_from': range.from.toIso8601String(),
-          'p_to': range.to.toIso8601String(),
+          'p_from': range.from.toUtc().toIso8601String(),
+          'p_to': range.to.toUtc().toIso8601String(),
           'p_zone_id': selectedPaymentZoneId,
           'p_limit': 150,
           'p_offset': 0,
