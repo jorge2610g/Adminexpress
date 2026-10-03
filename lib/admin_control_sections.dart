@@ -557,7 +557,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
   int revision = 0;
 
   Future<List<Map<String, dynamic>>> _load() async {
-    final value = await supabase.rpc('admin_zone_list');
+    final value = await supabase.rpc('admin_zone_list_v2');
     return _list(value);
   }
 
@@ -992,6 +992,362 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     );
   }
 
+  Future<void> _showPartnerDashboard(Map<String, dynamic> partner) async {
+    var localRevision = 0;
+    final now = DateTime.now();
+    var range = DateTimeRange(
+      start: DateTime(now.year, now.month, 1),
+      end: DateTime(now.year, now.month, now.day),
+    );
+
+    Future<Map<String, dynamic>> load() async {
+      final endExclusive = DateTime(
+        range.end.year,
+        range.end.month,
+        range.end.day,
+      ).add(const Duration(days: 1));
+      final value = await supabase.rpc(
+        'admin_partner_dashboard',
+        params: {
+          'p_partner_id': partner['id'],
+          'p_from': range.start.toUtc().toIso8601String(),
+          'p_to': endExclusive.toUtc().toIso8601String(),
+        },
+      );
+      return _map(value);
+    }
+
+    Future<void> createSettlement(StateSetter setLocal) async {
+      try {
+        final endExclusive = DateTime(
+          range.end.year,
+          range.end.month,
+          range.end.day,
+          23,
+          59,
+          59,
+        );
+        await supabase.rpc(
+          'admin_create_partner_settlement',
+          params: {
+            'p_partner_id': partner['id'],
+            'p_period_start': range.start.toUtc().toIso8601String(),
+            'p_period_end': endExclusive.toUtc().toIso8601String(),
+            'p_notes': 'Liquidación creada desde Adminexpress',
+          },
+        );
+        setLocal(() => localRevision++);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Liquidación creada.')),
+          );
+        }
+      } catch (e) {
+        if (mounted) _snack(context, e);
+      }
+    }
+
+    Future<void> markPaid(
+      Map<String, dynamic> settlement,
+      StateSetter setLocal,
+    ) async {
+      final reference = TextEditingController();
+      final notes = TextEditingController();
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Marcar liquidación como pagada'),
+          content: SizedBox(
+            width: 460,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: reference,
+                  decoration: const InputDecoration(
+                    labelText: 'Referencia / comprobante',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: notes,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Nota opcional',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Confirmar pago'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) {
+        reference.dispose();
+        notes.dispose();
+        return;
+      }
+      try {
+        await supabase.rpc(
+          'admin_mark_partner_settlement_paid',
+          params: {
+            'p_settlement_id': settlement['id'],
+            'p_reference': reference.text.trim(),
+            'p_notes': notes.text.trim(),
+          },
+        );
+        setLocal(() => localRevision++);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Liquidación marcada como pagada.')),
+          );
+        }
+      } catch (e) {
+        if (mounted) _snack(context, e);
+      } finally {
+        reference.dispose();
+        notes.dispose();
+      }
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.dashboard_customize_outlined, color: _blue),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Dashboard · ' + (partner['name'] ?? 'Aliado').toString(),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final picked = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(now.year - 3),
+                    lastDate: DateTime(now.year + 1, 12, 31),
+                    initialDateRange: range,
+                  );
+                  if (picked != null) {
+                    setLocal(() {
+                      range = picked;
+                      localRevision++;
+                    });
+                  }
+                },
+                icon: const Icon(Icons.date_range_outlined, size: 17),
+                label: const Text('Período'),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: () => createSettlement(setLocal),
+                icon: const Icon(Icons.receipt_long_outlined, size: 17),
+                label: const Text('Crear liquidación'),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 1020,
+            height: 650,
+            child: FutureBuilder<Map<String, dynamic>>(
+              key: ValueKey(localRevision),
+              future: load(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
+                  return const _Loading(title: 'Cargando dashboard del aliado');
+                }
+                if (snapshot.hasError) {
+                  return _Error(
+                    error: snapshot.error,
+                    onRetry: () => setLocal(() => localRevision++),
+                  );
+                }
+                final data = snapshot.data ?? const <String, dynamic>{};
+                final info = _map(data['partner']);
+                final metrics = _map(data['metrics']);
+                final payments = _list(data['payments']);
+                final settlements = _list(data['settlements']);
+                final currency =
+                    (info['currency_code'] ?? '').toString();
+
+                Widget metric(String label, Object? value) {
+                  return Container(
+                    width: 180,
+                    padding: const EdgeInsets.all(13),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: const Color(0xFFE7ECF3)),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          value?.toString() ?? '0',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            color: _muted,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView(
+                  children: [
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        metric('Conductores', metrics['drivers_total']),
+                        metric('Conductores online', metrics['drivers_online']),
+                        metric('Pagos aprobados', metrics['payments_count']),
+                        metric(
+                          'Facturación ' + currency,
+                          metrics['gross_amount'],
+                        ),
+                        metric(
+                          'Comisión generada ' + currency,
+                          metrics['commission_generated'],
+                        ),
+                        metric(
+                          'Comisión pendiente ' + currency,
+                          metrics['commission_pending'],
+                        ),
+                        metric(
+                          'Comisión liquidada ' + currency,
+                          metrics['commission_paid'],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Liquidaciones',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (settlements.isEmpty)
+                      const _Empty(text: 'Todavía no hay liquidaciones.')
+                    else
+                      for (final settlement in settlements)
+                        Card(
+                          elevation: 0,
+                          child: ListTile(
+                            leading: const Icon(
+                              Icons.account_balance_outlined,
+                              color: _blue,
+                            ),
+                            title: Text(
+                              currency +
+                                  ' ' +
+                                  (settlement['commission_amount'] ?? 0)
+                                      .toString(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            subtitle: Text(
+                              'Bruto: ' +
+                                  currency +
+                                  ' ' +
+                                  (settlement['gross_amount'] ?? 0).toString() +
+                                  ' · ' +
+                                  _formatDate(settlement['created_at']),
+                            ),
+                            trailing: settlement['status'] == 'paid'
+                                ? _MiniStatus(
+                                    text: 'Pagada',
+                                    positive: true,
+                                  )
+                                : FilledButton(
+                                    onPressed: () =>
+                                        markPaid(settlement, setLocal),
+                                    child: const Text('Marcar pagada'),
+                                  ),
+                          ),
+                        ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Pagos de conductores',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (payments.isEmpty)
+                      const _Empty(text: 'No hay pagos en este período.')
+                    else
+                      for (final payment in payments.take(30))
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(
+                            Icons.receipt_long_rounded,
+                            color: _blue,
+                          ),
+                          title: Text(
+                            (payment['driver_name'] ?? 'Conductor').toString(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          subtitle: Text(
+                            (payment['provider'] ?? '—').toString() +
+                                ' · ' +
+                                _formatDate(
+                                  payment['paid_at'] ?? payment['created_at'],
+                                ),
+                          ),
+                          trailing: Text(
+                            (payment['currency_code'] ?? currency).toString() +
+                                ' ' +
+                                (payment['amount'] ?? 0).toString() +
+                                '\nComisión ' +
+                                (payment['partner_commission_amount'] ?? 0)
+                                    .toString(),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                  ],
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showPartners(Map<String, dynamic> zone) async {
     var localRevision = 0;
     await showDialog<void>(
@@ -1105,6 +1461,14 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                             ),
                             const SizedBox(width: 4),
                             IconButton(
+                              tooltip: 'Dashboard financiero',
+                              onPressed: () => _showPartnerDashboard(row),
+                              icon: const Icon(
+                                Icons.dashboard_customize_outlined,
+                                size: 19,
+                              ),
+                            ),
+                            IconButton(
                               tooltip: 'Usuarios del panel',
                               onPressed: () => _managePartnerAccess(row),
                               icon: const Icon(
@@ -1148,6 +1512,9 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         TextEditingController(text: row?['city']?.toString() ?? '');
     final country =
         TextEditingController(text: row?['country']?.toString() ?? '');
+    final regionDepartment = TextEditingController(
+      text: row?['region_department']?.toString() ?? '',
+    );
     final zoneKey =
         TextEditingController(text: row?['zone_key']?.toString() ?? '');
     final currency = TextEditingController(
@@ -1187,7 +1554,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                         SizedBox(width: 9),
                         Expanded(
                           child: Text(
-                            'Cada zona puede tener servicios, tarifas y planes de suscripción propios. Las integraciones como VeriPagos siguen siendo globales.',
+                            'Cada zona puede tener servicios, tarifas, suscripciones y varios métodos de pago propios. Las credenciales sensibles se administran de forma segura por integración.',
                             style: TextStyle(fontSize: 11, height: 1.35),
                           ),
                         ),
@@ -1219,6 +1586,14 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                   TextField(
                     controller: country,
                     decoration: const InputDecoration(labelText: 'País'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: regionDepartment,
+                    decoration: const InputDecoration(
+                      labelText: 'Región / departamento',
+                      hintText: 'Ej. Tarapacá / Beni',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -1391,12 +1766,13 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_upsert_zone',
+        final savedZoneId = await supabase.rpc(
+          'admin_upsert_zone_v2',
           params: {
             'p_id': row?['id'],
             'p_name': name.text.trim(),
             'p_city': city.text.trim(),
+            'p_region_department': regionDepartment.text.trim(),
             'p_country': country.text.trim(),
             'p_active': active,
             'p_center_latitude': _num(lat.text),
@@ -1411,10 +1787,21 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'Zona guardada. Sus servicios y suscripciones ya pueden configurarse por separado.',
+                'Zona guardada. Ahora puedes definir uno o varios métodos de pago.',
               ),
             ),
           );
+          final zoneForPayments = <String, dynamic>{
+            ...?row,
+            'id': savedZoneId?.toString(),
+            'name': name.text.trim(),
+            'city': city.text.trim(),
+            'region_department': regionDepartment.text.trim(),
+            'country': country.text.trim(),
+            'currency_code': currency.text.trim().toUpperCase(),
+          };
+          await showAdminZonePaymentMethodsEditor(context, zoneForPayments);
+          if (mounted) setState(() => revision++);
         }
       } catch (e) {
         if (mounted) _snack(context, e);
@@ -1424,6 +1811,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     name.dispose();
     city.dispose();
     country.dispose();
+    regionDepartment.dispose();
     zoneKey.dispose();
     currency.dispose();
     lat.dispose();
@@ -1518,6 +1906,23 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           tooltip: 'Aliados / sindicatos',
                           onPressed: () => _showPartners(row),
                           icon: const Icon(Icons.groups_2_outlined, size: 19),
+                        ),
+                        IconButton(
+                          tooltip: 'Métodos de pago',
+                          onPressed: () async {
+                            final changed =
+                                await showAdminZonePaymentMethodsEditor(
+                              context,
+                              row,
+                            );
+                            if (changed && mounted) {
+                              setState(() => revision++);
+                            }
+                          },
+                          icon: const Icon(
+                            Icons.account_balance_wallet_outlined,
+                            size: 18,
+                          ),
                         ),
                         IconButton(
                           tooltip: 'Editar zona',
@@ -4140,6 +4545,293 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
   }
 }
 
+
+Future<bool> showAdminZonePaymentMethodsEditor(
+  BuildContext context,
+  Map<String, dynamic> zone,
+) async {
+  final zoneId = zone['id']?.toString();
+  if (zoneId == null || zoneId.isEmpty) return false;
+
+  try {
+    final values = await Future.wait([
+      supabase.rpc('admin_payment_method_catalog_list'),
+      supabase.rpc(
+        'admin_zone_payment_methods',
+        params: {'p_zone_id': zoneId},
+      ),
+    ]);
+    final catalog = _list(values[0]);
+    final existing = _list(values[1]);
+    final state = <String, Map<String, dynamic>>{};
+
+    for (final provider in catalog) {
+      final key = provider['provider_key']?.toString() ?? '';
+      if (key.isEmpty) continue;
+      Map<String, dynamic> current = <String, dynamic>{};
+      for (final item in existing) {
+        if (item['provider_key']?.toString() == key) {
+          current = item;
+          break;
+        }
+      }
+      state[key] = <String, dynamic>{
+        'selected': current.isNotEmpty,
+        'enabled': current.isEmpty ? true : current['enabled'] != false,
+        'use_rides': current.isEmpty
+            ? provider['supports_rides'] == true
+            : current['use_rides'] == true,
+        'use_delivery': current.isEmpty
+            ? provider['supports_delivery'] == true
+            : current['use_delivery'] == true,
+        'use_subscriptions': current.isEmpty
+            ? provider['supports_subscriptions'] == true
+            : current['use_subscriptions'] == true,
+        'use_wallet': current.isEmpty
+            ? provider['supports_wallet'] == true
+            : current['use_wallet'] == true,
+        'is_primary': current['is_primary'] == true,
+        'sort_order': current['sort_order'] ?? 100,
+      };
+    }
+
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: Text(
+            'Métodos de pago · ' + (zone['name'] ?? 'Zona').toString(),
+          ),
+          content: SizedBox(
+            width: 720,
+            height: 590,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _AdminPaymentNotice(
+                  text:
+                      'Puedes habilitar varios métodos en una misma zona y decidir si cada uno se usa en Viajes, Delivery, Suscripciones y/o Billetera. “Principal” mantiene compatibilidad con la app móvil publicada.',
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: catalog.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final provider = catalog[index];
+                      final key = provider['provider_key']?.toString() ?? '';
+                      final row = state[key]!;
+                      final selected = row['selected'] == true;
+                      final supportedRides =
+                          provider['supports_rides'] == true;
+                      final supportedDelivery =
+                          provider['supports_delivery'] == true;
+                      final supportedSubscriptions =
+                          provider['supports_subscriptions'] == true;
+                      final supportedWallet =
+                          provider['supports_wallet'] == true;
+
+                      void setFlag(String name, bool value) {
+                        setLocal(() => row[name] = value);
+                      }
+
+                      return Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? const Color(0xFFF8FAFF)
+                              : Colors.white,
+                          border: Border.all(
+                            color: selected
+                                ? const Color(0xFFB8CDF8)
+                                : const Color(0xFFE7ECF3),
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            CheckboxListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              value: selected,
+                              onChanged: (value) {
+                                setLocal(() {
+                                  row['selected'] = value == true;
+                                  if (value != true) {
+                                    row['is_primary'] = false;
+                                  }
+                                });
+                              },
+                              title: Text(
+                                provider['display_name']?.toString() ?? key,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              subtitle: Text(
+                                (provider['provider_type'] ?? 'gateway')
+                                        .toString() +
+                                    ' · credenciales ' +
+                                    (provider['credential_scope'] ?? 'zone')
+                                        .toString(),
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                              secondary: Switch(
+                                value: row['enabled'] == true,
+                                onChanged: selected
+                                    ? (value) => setFlag('enabled', value)
+                                    : null,
+                              ),
+                            ),
+                            if (selected)
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Wrap(
+                                  spacing: 7,
+                                  runSpacing: 7,
+                                  children: [
+                                    FilterChip(
+                                      label: const Text('Viajes'),
+                                      selected: row['use_rides'] == true,
+                                      onSelected: supportedRides
+                                          ? (value) =>
+                                              setFlag('use_rides', value)
+                                          : null,
+                                    ),
+                                    FilterChip(
+                                      label: const Text('Delivery'),
+                                      selected: row['use_delivery'] == true,
+                                      onSelected: supportedDelivery
+                                          ? (value) =>
+                                              setFlag('use_delivery', value)
+                                          : null,
+                                    ),
+                                    FilterChip(
+                                      label: const Text('Suscripciones'),
+                                      selected:
+                                          row['use_subscriptions'] == true,
+                                      onSelected: supportedSubscriptions
+                                          ? (value) => setFlag(
+                                                'use_subscriptions',
+                                                value,
+                                              )
+                                          : null,
+                                    ),
+                                    FilterChip(
+                                      label: const Text('Billetera'),
+                                      selected: row['use_wallet'] == true,
+                                      onSelected: supportedWallet
+                                          ? (value) =>
+                                              setFlag('use_wallet', value)
+                                          : null,
+                                    ),
+                                    ChoiceChip(
+                                      avatar: const Icon(
+                                        Icons.star_outline_rounded,
+                                        size: 16,
+                                      ),
+                                      label: const Text('Principal'),
+                                      selected: row['is_primary'] == true,
+                                      onSelected: (value) {
+                                        setLocal(() {
+                                          for (final item in state.values) {
+                                            item['is_primary'] = false;
+                                          }
+                                          row['is_primary'] = value;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Guardar métodos'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (save != true) return false;
+
+    final selected = <MapEntry<String, Map<String, dynamic>>>[
+      for (final entry in state.entries)
+        if (entry.value['selected'] == true) entry,
+    ];
+    if (selected.isNotEmpty &&
+        !selected.any((entry) => entry.value['is_primary'] == true)) {
+      selected.first.value['is_primary'] = true;
+    }
+    selected.sort(
+      (a, b) => (b.value['is_primary'] == true ? 1 : 0)
+          .compareTo(a.value['is_primary'] == true ? 1 : 0),
+    );
+
+    final selectedKeys = selected.map((entry) => entry.key).toSet();
+    for (final entry in selected) {
+      final row = entry.value;
+      await supabase.rpc(
+        'admin_upsert_zone_payment_method',
+        params: {
+          'p_zone_id': zoneId,
+          'p_provider_key': entry.key,
+          'p_enabled': row['enabled'] == true,
+          'p_use_rides': row['use_rides'] == true,
+          'p_use_delivery': row['use_delivery'] == true,
+          'p_use_subscriptions': row['use_subscriptions'] == true,
+          'p_use_wallet': row['use_wallet'] == true,
+          'p_is_primary': row['is_primary'] == true,
+          'p_sort_order': row['sort_order'] ?? 100,
+        },
+      );
+    }
+
+    for (final row in existing) {
+      final key = row['provider_key']?.toString() ?? '';
+      if (key.isEmpty || selectedKeys.contains(key)) continue;
+      await supabase.rpc(
+        'admin_delete_zone_payment_method',
+        params: {
+          'p_zone_id': zoneId,
+          'p_provider_key': key,
+        },
+      );
+    }
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Métodos de pago actualizados para ' +
+                (zone['name'] ?? 'la zona').toString() +
+                '.',
+          ),
+        ),
+      );
+    }
+    return true;
+  } catch (e) {
+    if (context.mounted) _snack(context, e);
+    return false;
+  }
+}
+
 class AdminPaymentsPage extends StatefulWidget {
   const AdminPaymentsPage({super.key});
 
@@ -4149,8 +4841,62 @@ class AdminPaymentsPage extends StatefulWidget {
 
 class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   int revision = 0;
+  String paymentPeriod = 'today';
+  DateTimeRange? paymentCustomRange;
+  String? selectedPaymentZoneId;
   final Set<String> savingZonePayments = <String>{};
   final Set<String> savingMercadoPagoZones = <String>{};
+
+  ({DateTime from, DateTime to}) _paymentBounds() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    switch (paymentPeriod) {
+      case 'week':
+        final from = today.subtract(Duration(days: today.weekday - 1));
+        return (from: from, to: from.add(const Duration(days: 7)));
+      case 'month':
+        final from = DateTime(now.year, now.month, 1);
+        final to = now.month == 12
+            ? DateTime(now.year + 1, 1, 1)
+            : DateTime(now.year, now.month + 1, 1);
+        return (from: from, to: to);
+      case 'custom':
+        final range = paymentCustomRange;
+        if (range != null) {
+          final from = DateTime(
+            range.start.year,
+            range.start.month,
+            range.start.day,
+          );
+          final end = DateTime(
+            range.end.year,
+            range.end.month,
+            range.end.day,
+          );
+          return (from: from, to: end.add(const Duration(days: 1)));
+        }
+        return (from: today, to: today.add(const Duration(days: 1)));
+      default:
+        return (from: today, to: today.add(const Duration(days: 1)));
+    }
+  }
+
+  String _currencyTotals(Object? raw) {
+    final values = _map(raw);
+    if (values.isEmpty) return '0';
+    return values.entries
+        .map((entry) => entry.key.toString() + ' ' + entry.value.toString())
+        .join(' · ');
+  }
+
+  bool _zoneHasMethod(Map<String, dynamic> zone, String providerKey) {
+    final methods = _list(zone['payment_methods']);
+    return methods.any(
+      (row) =>
+          row['provider_key']?.toString() == providerKey &&
+          row['enabled'] != false,
+    );
+  }
 
   Future<({
     Map<String, dynamic> overview,
@@ -4158,18 +4904,29 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     List<Map<String, dynamic>> zones,
     Map<String, Map<String, dynamic>> mercadoPago,
   })> _load() async {
+    final range = _paymentBounds();
     final values = await Future.wait([
-      supabase.rpc('admin_payment_overview'),
+      supabase.rpc(
+        'admin_payment_overview_v2',
+        params: {
+          'p_from': range.from.toUtc().toIso8601String(),
+          'p_to': range.to.toUtc().toIso8601String(),
+          'p_zone_id': selectedPaymentZoneId,
+          'p_limit': 150,
+          'p_offset': 0,
+        },
+      ),
       supabase.rpc(
         'admin_topup_requests',
         params: {'p_status': 'pending'},
       ),
-      supabase.rpc('admin_zone_list'),
+      supabase.rpc('admin_zone_list_v2'),
     ]);
     final zoneRows = _list(values[2]);
     final mercadoPago = <String, Map<String, dynamic>>{};
     for (final zone in zoneRows) {
-      if ((zone['country']?.toString() ?? '').toLowerCase() != 'chile') {
+      if (!_zoneHasMethod(zone, 'mercado_pago') &&
+          zone['payment_provider']?.toString() != 'mercado_pago') {
         continue;
       }
       final zoneId = zone['id']?.toString();
@@ -4200,23 +4957,29 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   }
 
   String _zonePaymentProvider(Map<String, dynamic> zone) {
+    final methods = _list(zone['payment_methods']);
+    for (final method in methods) {
+      if (method['is_primary'] == true && method['enabled'] != false) {
+        return method['provider_key']?.toString() ?? '';
+      }
+    }
     final configured = zone['payment_provider']?.toString();
-    if (configured != null && configured.isNotEmpty) return configured;
-    final country = (zone['country']?.toString() ?? '').toLowerCase();
-    if (country == 'bolivia') return 'veripagos_qr';
-    if (country == 'chile') return 'mercado_pago';
-    return '';
+    return configured ?? '';
   }
 
   String _zonePaymentLabel(Map<String, dynamic> zone) {
-    switch (_zonePaymentProvider(zone)) {
-      case 'veripagos_qr':
-        return 'QR Bolivia · VeriPagos';
-      case 'mercado_pago':
-        return 'Mercado Pago';
-      default:
-        return 'Sin proveedor';
-    }
+    final methods = _list(zone['payment_methods'])
+        .where((row) => row['enabled'] != false)
+        .toList();
+    if (methods.isEmpty) return 'Sin métodos activos';
+    return methods
+        .map(
+          (row) =>
+              row['display_name']?.toString() ??
+              row['provider_key']?.toString() ??
+              'Método',
+        )
+        .join(' · ');
   }
 
   Future<void> _setZonePaymentEnabled(
@@ -4225,22 +4988,30 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   ) async {
     final id = zone['id']?.toString();
     if (id == null || id.isEmpty || savingZonePayments.contains(id)) return;
-    final provider = _zonePaymentProvider(zone);
-    if (provider.isEmpty) {
-      _snack(context, 'Esta zona no tiene proveedor asignado.');
+    final methods = _list(zone['payment_methods']);
+    if (methods.isEmpty) {
+      _snack(context, 'Esta zona todavía no tiene métodos configurados.');
       return;
     }
 
     setState(() => savingZonePayments.add(id));
     try {
-      await supabase.rpc(
-        'admin_set_zone_payment_provider',
-        params: {
-          'p_zone_id': id,
-          'p_provider': provider,
-          'p_enabled': enabled,
-        },
-      );
+      for (final method in methods) {
+        await supabase.rpc(
+          'admin_upsert_zone_payment_method',
+          params: {
+            'p_zone_id': id,
+            'p_provider_key': method['provider_key'],
+            'p_enabled': enabled,
+            'p_use_rides': method['use_rides'] == true,
+            'p_use_delivery': method['use_delivery'] == true,
+            'p_use_subscriptions': method['use_subscriptions'] == true,
+            'p_use_wallet': method['use_wallet'] == true,
+            'p_is_primary': method['is_primary'] == true,
+            'p_sort_order': method['sort_order'] ?? 100,
+          },
+        );
+      }
       if (!mounted) return;
       setState(() => revision++);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -4279,7 +5050,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(
-          'Mercado Pago · ${zone['name'] ?? 'Chile'}',
+          'Mercado Pago · ${zone['name'] ?? 'Zona'}',
         ),
         content: SizedBox(
           width: 540,
@@ -4360,7 +5131,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
       setState(() => revision++);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Mercado Pago Chile conectado y verificado.'),
+          content: Text('Mercado Pago conectado y verificado para esta zona.'),
         ),
       );
     } catch (e) {
@@ -4524,7 +5295,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Bolivia usa únicamente QR Bolivia (VeriPagos) y Chile únicamente Mercado Pago. Cada zona se administra de forma independiente.',
+                'Cada zona puede tener uno o varios métodos. Puedes activarlos, desactivarlos y decidir si sirven para Viajes, Delivery, Suscripciones y Billetera.',
                 style: TextStyle(color: Color(0xFF667085)),
               ),
               const SizedBox(height: 12),
@@ -4537,7 +5308,10 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                   children: zones.map((zone) {
                     final id = zone['id']?.toString() ?? '';
                     final busy = savingZonePayments.contains(id);
-                    final enabled = zone['payment_enabled'] != false;
+                    final zoneMethods = _list(zone['payment_methods']);
+                    final enabled = zoneMethods.isNotEmpty
+                        ? zoneMethods.any((method) => method['enabled'] != false)
+                        : zone['payment_enabled'] != false;
                     final currency =
                         (zone['currency_code'] ?? '—').toString();
                     final country = (zone['country'] ?? '—').toString();
@@ -4607,22 +5381,58 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                                   ),
                                 ),
                                 _MiniStatus(
-                                  text: enabled ? 'Activo' : 'Inactivo',
+                                  text: enabled ? 'Activos' : 'Pausados',
                                   positive: enabled,
                                 ),
                               ],
                             ),
-                            if (provider == 'veripagos_qr') ...[
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 7,
+                              runSpacing: 7,
+                              children: [
+                                for (final method
+                                    in _list(zone['payment_methods']))
+                                  _MiniStatus(
+                                    text:
+                                        (method['display_name'] ??
+                                                method['provider_key'] ??
+                                                'Método')
+                                            .toString(),
+                                    positive: method['enabled'] != false,
+                                  ),
+                                OutlinedButton.icon(
+                                  onPressed: () async {
+                                    final changed =
+                                        await showAdminZonePaymentMethodsEditor(
+                                      context,
+                                      zone,
+                                    );
+                                    if (changed && mounted) {
+                                      setState(() => revision++);
+                                    }
+                                  },
+                                  icon: const Icon(
+                                    Icons.tune_rounded,
+                                    size: 17,
+                                  ),
+                                  label: const Text('Configurar métodos'),
+                                ),
+                              ],
+                            ),
+                            if (_zoneHasMethod(zone, 'veripagos_qr') ||
+                                provider == 'veripagos_qr') ...[
                               const SizedBox(height: 10),
                               const Text(
-                                'Las credenciales VeriPagos se administran en Finanzas → Suscripciones. Este proveedor solo se aplica a zonas de Bolivia.',
+                                'VeriPagos está disponible en esta zona. Sus credenciales se administran de forma segura y el método puede convivir con otras pasarelas.',
                                 style: TextStyle(
                                   color: Color(0xFF667085),
                                   fontSize: 11,
                                 ),
                               ),
                             ],
-                            if (provider == 'mercado_pago') ...[
+                            if (_zoneHasMethod(zone, 'mercado_pago') ||
+                                provider == 'mercado_pago') ...[
                               const SizedBox(height: 10),
                               Row(
                                 children: [
@@ -4690,26 +5500,139 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                   }).toList(),
                 ),
               const SizedBox(height: 22),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: const Color(0xFFE7ECF3)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 210,
+                      child: DropdownButtonFormField<String?>(
+                        value: selectedPaymentZoneId,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          labelText: 'Zona de movimientos',
+                        ),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('Todas las zonas'),
+                          ),
+                          ...zones.map(
+                            (zone) => DropdownMenuItem<String?>(
+                              value: zone['id']?.toString(),
+                              child: Text(
+                                (zone['name'] ?? 'Zona').toString(),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            selectedPaymentZoneId = value;
+                            revision++;
+                          });
+                        },
+                      ),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Hoy'),
+                      selected: paymentPeriod == 'today',
+                      onSelected: (_) => setState(() {
+                        paymentPeriod = 'today';
+                        revision++;
+                      }),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Semana'),
+                      selected: paymentPeriod == 'week',
+                      onSelected: (_) => setState(() {
+                        paymentPeriod = 'week';
+                        revision++;
+                      }),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Mes'),
+                      selected: paymentPeriod == 'month',
+                      onSelected: (_) => setState(() {
+                        paymentPeriod = 'month';
+                        revision++;
+                      }),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final now = DateTime.now();
+                        final picked = await showDateRangePicker(
+                          context: context,
+                          firstDate: DateTime(now.year - 3),
+                          lastDate: DateTime(now.year + 1, 12, 31),
+                          initialDateRange: paymentCustomRange ??
+                              DateTimeRange(
+                                start: DateTime(
+                                  now.year,
+                                  now.month,
+                                  now.day,
+                                ),
+                                end: DateTime(
+                                  now.year,
+                                  now.month,
+                                  now.day,
+                                ),
+                              ),
+                        );
+                        if (picked == null || !mounted) return;
+                        setState(() {
+                          paymentCustomRange = picked;
+                          paymentPeriod = 'custom';
+                          revision++;
+                        });
+                      },
+                      icon: const Icon(Icons.date_range_outlined, size: 17),
+                      label: Text(
+                        paymentPeriod == 'custom' &&
+                                paymentCustomRange != null
+                            ? paymentCustomRange!.start.day.toString() +
+                                '/' +
+                                paymentCustomRange!.start.month.toString() +
+                                ' – ' +
+                                paymentCustomRange!.end.day.toString() +
+                                '/' +
+                                paymentCustomRange!.end.month.toString()
+                            : 'Fecha',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
                 children: [
                   _Kpi(
-                    'Cobrado hoy',
-                    'Bs ' + (summary['paid_today'] ?? 0).toString(),
+                    'Cobrado en período',
+                    _currencyTotals(summary['totals_by_currency']),
                   ),
                   _Kpi(
-                    'Pendiente',
-                    'Bs ' + (summary['pending_total'] ?? 0).toString(),
+                    'Pendiente en período',
+                    _currencyTotals(summary['pending_by_currency']),
                   ),
                   _Kpi(
-                    'Pagos hoy',
-                    (summary['paid_count_today'] ?? 0).toString(),
+                    'Pagos en período',
+                    (summary['paid_count'] ?? 0).toString(),
                   ),
                   _Kpi(
-                    'Saldo wallet',
-                    'Bs ' +
-                        (summary['wallet_balance_total'] ?? 0).toString(),
+                    'Pendientes',
+                    (summary['pending_count'] ?? 0).toString(),
                   ),
                 ],
               ),
@@ -4788,7 +5711,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                 ),
               const SizedBox(height: 24),
               const Text(
-                'Movimientos recientes',
+                'Movimientos del período',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
@@ -4907,7 +5830,7 @@ class _AdminCommunicationsPageState
   Future<void> _loadCampaignTargets() async {
     try {
       final values = await Future.wait([
-        supabase.rpc('admin_zone_list'),
+        supabase.rpc('admin_zone_list_v2'),
         supabase.rpc('admin_partner_list'),
       ]);
       if (!mounted) return;
@@ -4965,6 +5888,30 @@ class _AdminCommunicationsPageState
     }
   }
 
+  Future<Map<String, dynamic>> _estimateAnnouncementAudience() async {
+    final value = await supabase.rpc(
+      'admin_push_audience_estimate',
+      params: {
+        'p_audience': audience,
+        'p_zone_id': campaignZoneId,
+        'p_partner_id': campaignPartnerId,
+      },
+    );
+    return _map(value);
+  }
+
+  Future<List<Map<String, dynamic>>> _campaignHistory() async {
+    final value = await supabase.rpc(
+      'admin_notification_campaign_list',
+      params: {
+        'p_from': null,
+        'p_to': null,
+        'p_limit': 100,
+      },
+    );
+    return _list(value);
+  }
+
   Future<void> _sendAnnouncement() async {
     final title = announcementTitle.text.trim();
     final body = announcementBody.text.trim();
@@ -4995,12 +5942,28 @@ class _AdminCommunicationsPageState
             ? audienceLabel + ' de ' + (zone['name'] ?? 'la zona').toString()
             : audienceLabel;
 
+    Map<String, dynamic> estimate = const {};
+    try {
+      estimate = await _estimateAnnouncementAudience();
+    } catch (_) {}
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Enviar aviso'),
         content: Text(
-          'Se enviará “' + title + '” a ' + targetLabel + '.',
+          'Se enviará “' +
+              title +
+              '” a ' +
+              targetLabel +
+              '.\n\nDestinatarios: ' +
+              (estimate['recipients'] ?? '—').toString() +
+              '\nCon push activo: ' +
+              (estimate['push_enabled'] ?? '—').toString() +
+              '\nAndroid: ' +
+              (estimate['native_enabled'] ?? '—').toString() +
+              ' · Web: ' +
+              (estimate['web_enabled'] ?? '—').toString(),
         ),
         actions: [
           TextButton(
@@ -5019,7 +5982,7 @@ class _AdminCommunicationsPageState
     setState(() => sendingAnnouncement = true);
     try {
       final result = await supabase.rpc(
-        'admin_send_announcement_v2',
+        'admin_send_announcement_v3',
         params: {
           'p_title': title,
           'p_body': body,
@@ -5031,6 +5994,7 @@ class _AdminCommunicationsPageState
       announcementTitle.clear();
       announcementBody.clear();
       if (!mounted) return;
+      setState(() => revision++);
       final resultMap = _map(result);
       final recipients = resultMap['recipients'] ?? 0;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -5460,6 +6424,56 @@ class _AdminCommunicationsPageState
                 ),
               ],
               const SizedBox(height: 12),
+              FutureBuilder<Map<String, dynamic>>(
+                key: ValueKey(
+                  'push-estimate-' +
+                      audience +
+                      '-' +
+                      (campaignZoneId ?? 'all') +
+                      '-' +
+                      (campaignPartnerId ?? 'all'),
+                ),
+                future: _estimateAnnouncementAudience(),
+                builder: (context, snapshot) {
+                  final estimate = snapshot.data ?? const <String, dynamic>{};
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Wrap(
+                      spacing: 18,
+                      runSpacing: 8,
+                      children: [
+                        _MiniStatus(
+                          text: 'Destinatarios ' +
+                              (estimate['recipients'] ?? '…').toString(),
+                          positive: true,
+                        ),
+                        _MiniStatus(
+                          text: 'Push activo ' +
+                              (estimate['push_enabled'] ?? '…').toString(),
+                          positive: true,
+                        ),
+                        _MiniStatus(
+                          text: 'Android ' +
+                              (estimate['native_enabled'] ?? '…').toString(),
+                          positive: true,
+                        ),
+                        _MiniStatus(
+                          text: 'Web ' +
+                              (estimate['web_enabled'] ?? '…').toString(),
+                          positive: true,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
@@ -5520,6 +6534,135 @@ class _AdminCommunicationsPageState
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 22),
+        const Text(
+          'Historial y telemetría push',
+          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          '“Aceptados” son envíos aceptados por Web Push/FCM. “Abiertos” requiere que la app reporte el toque de la notificación.',
+          style: TextStyle(color: _muted, fontSize: 11),
+        ),
+        const SizedBox(height: 10),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          key: ValueKey('campaigns-' + revision.toString()),
+          future: _campaignHistory(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
+              return const LinearProgressIndicator();
+            }
+            if (snapshot.hasError) {
+              return _AdminPaymentNotice(
+                text: 'No se pudo cargar la telemetría: ' +
+                    snapshot.error.toString(),
+              );
+            }
+            final campaigns =
+                snapshot.data ?? const <Map<String, dynamic>>[];
+            if (campaigns.isEmpty) {
+              return const _Empty(
+                text: 'Todavía no hay campañas con telemetría.',
+              );
+            }
+            return Column(
+              children: [
+                for (final campaign in campaigns)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: const Color(0xFFE7ECF3)),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                campaign['title']?.toString() ?? 'Aviso',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _formatDate(campaign['created_at']),
+                              style: const TextStyle(
+                                color: _muted,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          (campaign['zone_name'] ??
+                                  campaign['partner_name'] ??
+                                  campaign['audience'] ??
+                                  'Todos')
+                              .toString(),
+                          style: const TextStyle(
+                            color: _muted,
+                            fontSize: 10,
+                          ),
+                        ),
+                        const SizedBox(height: 9),
+                        Wrap(
+                          spacing: 7,
+                          runSpacing: 7,
+                          children: [
+                            _MiniStatus(
+                              text: 'Destinatarios ' +
+                                  (campaign['recipients_targeted'] ?? 0)
+                                      .toString(),
+                              positive: true,
+                            ),
+                            _MiniStatus(
+                              text: 'Push activo ' +
+                                  (campaign['push_enabled_recipients'] ?? 0)
+                                      .toString(),
+                              positive: true,
+                            ),
+                            _MiniStatus(
+                              text: 'Aceptados ' +
+                                  (campaign['provider_accepted_users'] ?? 0)
+                                      .toString(),
+                              positive:
+                                  (campaign['provider_accepted_users'] ?? 0) !=
+                                      0,
+                            ),
+                            _MiniStatus(
+                              text: 'Abiertos ' +
+                                  (campaign['opened_users'] ?? 0).toString(),
+                              positive: (campaign['opened_users'] ?? 0) != 0,
+                            ),
+                            _MiniStatus(
+                              text: 'Leídos ' +
+                                  (campaign['read_users'] ?? 0).toString(),
+                              positive: (campaign['read_users'] ?? 0) != 0,
+                            ),
+                            if ((campaign['provider_invalid_attempts'] ?? 0) !=
+                                0)
+                              _MiniStatus(
+                                text: 'Tokens inválidos ' +
+                                    (campaign['provider_invalid_attempts'] ?? 0)
+                                        .toString(),
+                                positive: false,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );
@@ -6127,7 +7270,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: const Text('Pagos digitales'),
+          title: const Text('Compatibilidad de pagos · legado'),
           content: SizedBox(
             width: 520,
             child: Column(
@@ -6136,13 +7279,13 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                 const _InlineNotice(
                   icon: Icons.payments_outlined,
                   text:
-                      'Activa solo los medios que realmente quieras mostrar. Las credenciales de cada pasarela se gestionan aparte.',
+                      'Estos interruptores son solo respaldo para versiones antiguas de Express. Los métodos reales se administran por zona en Zonas y Pagos / Billetera. No uses esta pantalla para decidir qué método aparece en una ciudad.',
                 ),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   value: pagorut,
                   onChanged: (v) => setLocal(() => pagorut = v),
-                  title: const Text('PagoRUT'),
+                  title: const Text('QR Bolivia / PagoRUT · legado'),
                 ),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
@@ -6687,7 +7830,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
               subtitle:
                   'Cambios operativos centralizados para pasajero, conductor y administración.',
               stats: [
-                ('Pagos extra', paymentCount.toString()),
+                ('Respaldo pagos', paymentCount.toString()),
                 ('Ofertas', row['allow_counteroffers'] != false ? 'Activas' : 'Off'),
                 ('Mantenimiento', row['maintenance_mode'] == true ? 'Activo' : 'Normal'),
               ],
@@ -6704,10 +7847,14 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                 final cards = <Widget>[
                   _AdminModuleCard(
                     icon: Icons.account_balance_wallet_outlined,
-                    title: 'Pagos digitales',
-                    subtitle: 'PagoRUT, Mercado Pago, Santander, MACH y Tenpo.',
+                    title: 'Compatibilidad de pagos',
+                    subtitle:
+                        'Respaldo global para versiones antiguas. La configuración vigente está en Zonas y Pagos / Billetera.',
                     accent: const Color(0xFF6941C6),
-                    chips: ['$paymentCount activos', 'Credenciales separadas'],
+                    chips: [
+                      '$paymentCount respaldos activos',
+                      'No define la zona',
+                    ],
                     onTap: () => _payments(row),
                   ),
                   _AdminModuleCard(
