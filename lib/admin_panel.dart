@@ -252,8 +252,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Entornos de prueba', Icons.science_rounded),
     ('Carga QA', Icons.speed_rounded),
     ('Suscripciones', Icons.workspace_premium_rounded),
-    ('Express Market', Icons.storefront_rounded),
-    ('Delivery Fase 2 / Express Plus', Icons.delivery_dining_rounded),
+    ('Express Delivery · Catálogo', Icons.storefront_rounded),
+    ('Express Delivery · Operación / Plus', Icons.delivery_dining_rounded),
     ('Prioridad conductores', Icons.workspace_premium_outlined),
   ];
 

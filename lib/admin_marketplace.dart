@@ -51,19 +51,19 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     bool preview = settings['preview_enabled'] == true;
     bool production = settings['production_enabled'] == true;
     final module = TextEditingController(
-      text: settings['module_name']?.toString() ?? 'Express Market',
+      text: settings['module_name']?.toString() ?? 'Express Delivery',
     );
     final search = TextEditingController(
       text: settings['search_placeholder']?.toString() ??
-          'Locales, productos y promociones',
+          'Busca restaurantes, tiendas o productos',
     );
     final hero = TextEditingController(
       text: settings['hero_title']?.toString() ??
-          'Todo lo que necesitas, en Express',
+          'Pide lo que quieras con Express Delivery',
     );
     final subtitle = TextEditingController(
       text: settings['hero_subtitle']?.toString() ??
-          'Comida, mercados, tiendas y más.',
+          'Restaurantes, supermercados, farmacia y más.',
     );
 
     final save = await showDialog<bool>(
@@ -821,7 +821,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Express Market',
+                          'Express Delivery',
                           style: TextStyle(
                             color: _ink,
                             fontSize: 26,
@@ -830,7 +830,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          'Administra el módulo para Preview y Producción desde un solo lugar.',
+                          'Administra categorías, promociones, comercios y productos de Express Delivery.',
                           style: TextStyle(color: _muted),
                         ),
                       ],

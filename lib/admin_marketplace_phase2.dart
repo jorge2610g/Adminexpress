@@ -1261,7 +1261,7 @@ class _AdminMarketplacePhase2PageState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Express Delivery · Fase 2',
+                          'Express Delivery · Operación y Plus',
                           style: TextStyle(
                             color: _ink,
                             fontSize: 26,
@@ -1285,7 +1285,7 @@ class _AdminMarketplacePhase2PageState
               ),
               const SizedBox(height: 22),
               const Text(
-                'Tarifas Delivery por zona',
+                'Tarifas Express Delivery por zona',
                 style: TextStyle(
                   fontSize: 19,
                   fontWeight: FontWeight.w900,
