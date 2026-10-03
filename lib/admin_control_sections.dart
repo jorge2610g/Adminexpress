@@ -2118,26 +2118,30 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                     contentPadding: EdgeInsets.zero,
                     value: enabled,
                     onChanged: (value) => setLocal(() => enabled = value),
-                    title: Text('Servicio activo en $zoneName'),
+                    title: Text('Disponible en $zoneName'),
                     subtitle: const Text(
-                      'Al apagarlo desaparece solo de esta zona.',
+                      'Activa o bloquea solicitudes. La visibilidad se controla por separado.',
                     ),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: passengerVisible,
-                    onChanged: enabled
-                        ? (value) => setLocal(() => passengerVisible = value)
-                        : null,
+                    onChanged: (value) =>
+                        setLocal(() => passengerVisible = value),
                     title: const Text('Visible para pasajeros'),
+                    subtitle: const Text(
+                      'Si está visible pero no disponible, aparecerá como “No disponible”.',
+                    ),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: driverVisible,
-                    onChanged: enabled
-                        ? (value) => setLocal(() => driverVisible = value)
-                        : null,
+                    onChanged: (value) =>
+                        setLocal(() => driverVisible = value),
                     title: const Text('Visible para conductores'),
+                    subtitle: const Text(
+                      'Controla si el servicio aparece en la interfaz del conductor.',
+                    ),
                   ),
                   const Divider(),
                   SwitchListTile.adaptive(
@@ -2204,8 +2208,8 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
             'p_zone_id': zoneId,
             'p_service_key': key.text.trim(),
             'p_enabled': enabled,
-            'p_passenger_visible': enabled && passengerVisible,
-            'p_driver_visible': enabled && driverVisible,
+            'p_passenger_visible': passengerVisible,
+            'p_driver_visible': driverVisible,
             'p_allow_bidding': bidding,
             'p_allow_fixed_price': fixed,
             'p_scheduled_enabled': scheduled,
