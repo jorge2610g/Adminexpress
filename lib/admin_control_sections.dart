@@ -9311,18 +9311,42 @@ class _BuildStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ok = status == 'success';
-    final failed = status == 'failed';
-    final bg = ok
+    final normalized = status.toLowerCase();
+    final ready = normalized == 'ready' || normalized == 'success';
+    final failed = normalized == 'failed';
+    final cancelled = normalized == 'cancelled';
+    final building = normalized == 'building';
+
+    final bg = ready
         ? const Color(0xFFE8F8EF)
         : failed
             ? const Color(0xFFFFE8E8)
-            : const Color(0xFFFFF3E7);
-    final fg = ok
+            : cancelled
+                ? const Color(0xFFF2F4F7)
+                : building
+                    ? const Color(0xFFEAF2FF)
+                    : const Color(0xFFFFF3E7);
+    final fg = ready
         ? const Color(0xFF14804A)
         : failed
             ? const Color(0xFFD92D20)
-            : const Color(0xFFC76B16);
+            : cancelled
+                ? const Color(0xFF667085)
+                : building
+                    ? _blue
+                    : const Color(0xFFC76B16);
+    final label = ready
+        ? 'Listo'
+        : failed
+            ? 'Falló'
+            : cancelled
+                ? 'Cancelado'
+                : building
+                    ? 'Compilando'
+                    : normalized == 'queued'
+                        ? 'En cola'
+                        : status;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -9330,7 +9354,7 @@ class _BuildStatus extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        status,
+        label,
         style: TextStyle(
           color: fg,
           fontSize: 9,
