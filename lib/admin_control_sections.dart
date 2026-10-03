@@ -1145,6 +1145,14 @@ class _AdminAuditPageState extends State<AdminAuditPage> {
             updated.minute.toString().padLeft(2, '0') +
             ':' +
             updated.second.toString().padLeft(2, '0');
+    final previewApproved = releaseGate['preview_approved'] == true;
+    final previewBuildId = releaseGate['preview_build_id']?.toString();
+    final previewVersion =
+        releaseGate['preview_version_name']?.toString() ?? '—';
+    final previewBuild =
+        releaseGate['preview_build_number']?.toString() ?? '—';
+    final previewSha = releaseGate['preview_commit_sha']?.toString() ?? '';
+    final approvedSha = releaseGate['approved_commit_sha']?.toString() ?? '';
 
     Widget summaryCard({
       required IconData icon,
@@ -1232,11 +1240,24 @@ class _AdminAuditPageState extends State<AdminAuditPage> {
         _Header(
           title: 'App Builder',
           subtitle:
-              'Compila APK + AAB de Express y sigue el progreso sin que la pantalla se recargue.',
-          action: FilledButton.icon(
-            onPressed: _create,
-            icon: const Icon(Icons.android_rounded),
-            label: const Text('Nuevo build Android'),
+              'Preview primero. Producción solo se habilita con el mismo SHA que aprobaste.',
+          action: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: () => _create(production: false),
+                icon: const Icon(Icons.science_rounded),
+                label: const Text('Compilar Preview'),
+              ),
+              OutlinedButton.icon(
+                onPressed: previewApproved
+                    ? () => _create(production: true)
+                    : null,
+                icon: const Icon(Icons.verified_user_rounded),
+                label: const Text('Compilar Producción'),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 14),
@@ -1386,18 +1407,95 @@ class _AdminAuditPageState extends State<AdminAuditPage> {
                 SizedBox(
                   width: cardWidth,
                   child: summaryCard(
-                    icon: Icons.security_rounded,
-                    title: 'Salida Android',
-                    value: 'APK + AAB',
-                    subtitle:
-                        'Firma de producción, Release de GitHub y enlaces de descarga.',
-                    accent: const Color(0xFF6941C6),
-                    soft: const Color(0xFFF1EBFF),
+                    icon: previewApproved
+                        ? Icons.verified_rounded
+                        : Icons.science_rounded,
+                    title: 'Control Preview → Producción',
+                    value: previewBuildId == null
+                        ? 'Sin Preview lista'
+                        : previewApproved
+                            ? 'Preview aprobada'
+                            : 'Preview pendiente',
+                    subtitle: previewBuildId == null
+                        ? 'Compila una Preview antes de habilitar Producción.'
+                        : 'v$previewVersion · build $previewBuild' +
+                            (previewSha.isEmpty
+                                ? ''
+                                : ' · SHA ' +
+                                    previewSha.substring(
+                                      0,
+                                      previewSha.length >= 8
+                                          ? 8
+                                          : previewSha.length,
+                                    )),
+                    accent: previewApproved
+                        ? const Color(0xFF14804A)
+                        : const Color(0xFF6941C6),
+                    soft: previewApproved
+                        ? const Color(0xFFE8F8EF)
+                        : const Color(0xFFF1EBFF),
+                    trailing: previewBuildId != null && !previewApproved
+                        ? IconButton(
+                            tooltip: 'Aprobar Preview',
+                            onPressed: _approvePreview,
+                            icon: const Icon(Icons.verified_outlined),
+                          )
+                        : null,
                   ),
                 ),
               ],
             );
           },
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: previewApproved
+                ? const Color(0xFFF0FDF4)
+                : const Color(0xFFF8FAFC),
+            border: Border.all(
+              color: previewApproved
+                  ? const Color(0xFFBBF7D0)
+                  : const Color(0xFFE2E8F0),
+            ),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                previewApproved
+                    ? Icons.lock_open_rounded
+                    : Icons.lock_outline_rounded,
+                color: previewApproved
+                    ? const Color(0xFF14804A)
+                    : const Color(0xFF667085),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  previewApproved
+                      ? 'Producción habilitada únicamente para el SHA aprobado ' +
+                          (approvedSha.isEmpty ? '' : approvedSha) +
+                          '. Si compilas una Preview nueva, esta aprobación se invalida automáticamente.'
+                      : 'Producción bloqueada. Primero prueba la Preview y usa “Aprobar Preview” cuando confirmes que está correcta.',
+                  style: const TextStyle(
+                    color: _dark,
+                    fontSize: 11,
+                    height: 1.4,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (previewBuildId != null && !previewApproved)
+                FilledButton.icon(
+                  onPressed: _approvePreview,
+                  icon: const Icon(Icons.verified_rounded, size: 17),
+                  label: const Text('Aprobar'),
+                ),
+            ],
+          ),
         ),
         if (activeBuild != null) ...[
           const SizedBox(height: 12),
