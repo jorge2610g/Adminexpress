@@ -1,0 +1,46 @@
+name: Express Delivery Admin Feature Validation
+
+on:
+  push:
+    branches:
+      - feature/express-delivery-complete-flow
+    paths:
+      - 'lib/**'
+      - '.github/workflows/feature-express-delivery-admin-validate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v5
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze AdminExpress
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter analyze --no-fatal-warnings --no-fatal-infos \
+            lib/admin_marketplace.dart \
+            lib/admin_marketplace_phase2.dart \
+            lib/admin_panel.dart \
+            lib/main.dart
+
+      - name: Build AdminExpress web
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter build web --release
