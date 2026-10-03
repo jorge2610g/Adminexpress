@@ -870,6 +870,22 @@ class _AdminMarketplacePhase2PageState
             _refresh();
           }
 
+          Future<void> settle(
+            String balanceKey,
+            String label,
+          ) async {
+            detail = await supabase.rpc(
+              'marketplace_settle_balance',
+              params: {
+                'p_order_id': orderRow['id'],
+                'p_balance_key': balanceKey,
+                'p_note': 'Liquidación confirmada: ' + label + '.',
+              },
+            );
+            setLocal(() {});
+            _refresh();
+          }
+
           return AlertDialog(
             title: Text(
               'Pedido · ' +
@@ -939,10 +955,102 @@ class _AdminMarketplacePhase2PageState
                             financials['driver_owes_express'],
                             currency,
                           ),
+                          _financialRow(
+                            'Express debe al comercio',
+                            financials['express_owes_merchant'],
+                            currency,
+                          ),
+                          _financialRow(
+                            'Express debe al repartidor',
+                            financials['express_owes_driver'],
+                            currency,
+                          ),
+                          const Divider(),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Liquidación: ' +
+                                  (financials['settlement_status']?.toString() ??
+                                      'pending'),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ),
+                  if (_number(financials['merchant_owes_express']) > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: () => settle(
+                          'merchant_owes_express',
+                          'Comercio → Express',
+                        ),
+                        icon: const Icon(Icons.account_balance_rounded),
+                        label: const Text(
+                          'Cerrar saldo Comercio → Express',
+                        ),
+                      ),
+                    ),
+                  if (_number(financials['driver_owes_merchant']) > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: () => settle(
+                          'driver_owes_merchant',
+                          'Repartidor → comercio',
+                        ),
+                        icon: const Icon(Icons.storefront_rounded),
+                        label: const Text(
+                          'Cerrar saldo Repartidor → comercio',
+                        ),
+                      ),
+                    ),
+                  if (_number(financials['driver_owes_express']) > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: () => settle(
+                          'driver_owes_express',
+                          'Repartidor → Express',
+                        ),
+                        icon: const Icon(Icons.account_balance_wallet_rounded),
+                        label: const Text(
+                          'Cerrar saldo Repartidor → Express',
+                        ),
+                      ),
+                    ),
+                  if (_number(financials['express_owes_merchant']) > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: () => settle(
+                          'express_owes_merchant',
+                          'Express → comercio',
+                        ),
+                        icon: const Icon(Icons.store_mall_directory_rounded),
+                        label: const Text(
+                          'Cerrar saldo Express → comercio',
+                        ),
+                      ),
+                    ),
+                  if (_number(financials['express_owes_driver']) > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: () => settle(
+                          'express_owes_driver',
+                          'Express → repartidor',
+                        ),
+                        icon: const Icon(Icons.delivery_dining_rounded),
+                        label: const Text(
+                          'Cerrar saldo Express → repartidor',
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   const Text(
                     'Chat / comprobantes',
