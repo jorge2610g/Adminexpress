@@ -5461,7 +5461,7 @@ class _AdminCommunicationsPageState
   Future<void> _loadCampaignTargets() async {
     try {
       final values = await Future.wait([
-        supabase.rpc('admin_zone_list'),
+        supabase.rpc('admin_zone_list_v2'),
         supabase.rpc('admin_partner_list'),
       ]);
       if (!mounted) return;
@@ -5519,6 +5519,30 @@ class _AdminCommunicationsPageState
     }
   }
 
+  Future<Map<String, dynamic>> _estimateAnnouncementAudience() async {
+    final value = await supabase.rpc(
+      'admin_push_audience_estimate',
+      params: {
+        'p_audience': audience,
+        'p_zone_id': campaignZoneId,
+        'p_partner_id': campaignPartnerId,
+      },
+    );
+    return _map(value);
+  }
+
+  Future<List<Map<String, dynamic>>> _campaignHistory() async {
+    final value = await supabase.rpc(
+      'admin_notification_campaign_list',
+      params: {
+        'p_from': null,
+        'p_to': null,
+        'p_limit': 100,
+      },
+    );
+    return _list(value);
+  }
+
   Future<void> _sendAnnouncement() async {
     final title = announcementTitle.text.trim();
     final body = announcementBody.text.trim();
@@ -5549,12 +5573,28 @@ class _AdminCommunicationsPageState
             ? audienceLabel + ' de ' + (zone['name'] ?? 'la zona').toString()
             : audienceLabel;
 
+    Map<String, dynamic> estimate = const {};
+    try {
+      estimate = await _estimateAnnouncementAudience();
+    } catch (_) {}
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Enviar aviso'),
         content: Text(
-          'Se enviará “' + title + '” a ' + targetLabel + '.',
+          'Se enviará “' +
+              title +
+              '” a ' +
+              targetLabel +
+              '.\n\nDestinatarios: ' +
+              (estimate['recipients'] ?? '—').toString() +
+              '\nCon push activo: ' +
+              (estimate['push_enabled'] ?? '—').toString() +
+              '\nAndroid: ' +
+              (estimate['native_enabled'] ?? '—').toString() +
+              ' · Web: ' +
+              (estimate['web_enabled'] ?? '—').toString(),
         ),
         actions: [
           TextButton(
@@ -5573,7 +5613,7 @@ class _AdminCommunicationsPageState
     setState(() => sendingAnnouncement = true);
     try {
       final result = await supabase.rpc(
-        'admin_send_announcement_v2',
+        'admin_send_announcement_v3',
         params: {
           'p_title': title,
           'p_body': body,
@@ -5585,6 +5625,7 @@ class _AdminCommunicationsPageState
       announcementTitle.clear();
       announcementBody.clear();
       if (!mounted) return;
+      setState(() => revision++);
       final resultMap = _map(result);
       final recipients = resultMap['recipients'] ?? 0;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -6014,6 +6055,56 @@ class _AdminCommunicationsPageState
                 ),
               ],
               const SizedBox(height: 12),
+              FutureBuilder<Map<String, dynamic>>(
+                key: ValueKey(
+                  'push-estimate-' +
+                      audience +
+                      '-' +
+                      (campaignZoneId ?? 'all') +
+                      '-' +
+                      (campaignPartnerId ?? 'all'),
+                ),
+                future: _estimateAnnouncementAudience(),
+                builder: (context, snapshot) {
+                  final estimate = snapshot.data ?? const <String, dynamic>{};
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Wrap(
+                      spacing: 18,
+                      runSpacing: 8,
+                      children: [
+                        _MiniStatus(
+                          text: 'Destinatarios ' +
+                              (estimate['recipients'] ?? '…').toString(),
+                          positive: true,
+                        ),
+                        _MiniStatus(
+                          text: 'Push activo ' +
+                              (estimate['push_enabled'] ?? '…').toString(),
+                          positive: true,
+                        ),
+                        _MiniStatus(
+                          text: 'Android ' +
+                              (estimate['native_enabled'] ?? '…').toString(),
+                          positive: true,
+                        ),
+                        _MiniStatus(
+                          text: 'Web ' +
+                              (estimate['web_enabled'] ?? '…').toString(),
+                          positive: true,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
@@ -6074,6 +6165,135 @@ class _AdminCommunicationsPageState
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 22),
+        const Text(
+          'Historial y telemetría push',
+          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          '“Aceptados” son envíos aceptados por Web Push/FCM. “Abiertos” requiere que la app reporte el toque de la notificación.',
+          style: TextStyle(color: _muted, fontSize: 11),
+        ),
+        const SizedBox(height: 10),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          key: ValueKey('campaigns-' + revision.toString()),
+          future: _campaignHistory(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
+              return const LinearProgressIndicator();
+            }
+            if (snapshot.hasError) {
+              return _AdminPaymentNotice(
+                text: 'No se pudo cargar la telemetría: ' +
+                    snapshot.error.toString(),
+              );
+            }
+            final campaigns =
+                snapshot.data ?? const <Map<String, dynamic>>[];
+            if (campaigns.isEmpty) {
+              return const _Empty(
+                text: 'Todavía no hay campañas con telemetría.',
+              );
+            }
+            return Column(
+              children: [
+                for (final campaign in campaigns)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: const Color(0xFFE7ECF3)),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                campaign['title']?.toString() ?? 'Aviso',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _formatDate(campaign['created_at']),
+                              style: const TextStyle(
+                                color: _muted,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          (campaign['zone_name'] ??
+                                  campaign['partner_name'] ??
+                                  campaign['audience'] ??
+                                  'Todos')
+                              .toString(),
+                          style: const TextStyle(
+                            color: _muted,
+                            fontSize: 10,
+                          ),
+                        ),
+                        const SizedBox(height: 9),
+                        Wrap(
+                          spacing: 7,
+                          runSpacing: 7,
+                          children: [
+                            _MiniStatus(
+                              text: 'Destinatarios ' +
+                                  (campaign['recipients_targeted'] ?? 0)
+                                      .toString(),
+                              positive: true,
+                            ),
+                            _MiniStatus(
+                              text: 'Push activo ' +
+                                  (campaign['push_enabled_recipients'] ?? 0)
+                                      .toString(),
+                              positive: true,
+                            ),
+                            _MiniStatus(
+                              text: 'Aceptados ' +
+                                  (campaign['provider_accepted_users'] ?? 0)
+                                      .toString(),
+                              positive:
+                                  (campaign['provider_accepted_users'] ?? 0) !=
+                                      0,
+                            ),
+                            _MiniStatus(
+                              text: 'Abiertos ' +
+                                  (campaign['opened_users'] ?? 0).toString(),
+                              positive: (campaign['opened_users'] ?? 0) != 0,
+                            ),
+                            _MiniStatus(
+                              text: 'Leídos ' +
+                                  (campaign['read_users'] ?? 0).toString(),
+                              positive: (campaign['read_users'] ?? 0) != 0,
+                            ),
+                            if ((campaign['provider_invalid_attempts'] ?? 0) !=
+                                0)
+                              _MiniStatus(
+                                text: 'Tokens inválidos ' +
+                                    (campaign['provider_invalid_attempts'] ?? 0)
+                                        .toString(),
+                                positive: false,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );
