@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-10-03 — Multizona, filtros operativos y telemetría
+
+- Zonas admite varios métodos de pago por ciudad, con método principal compatible con la app publicada;
+- cada método puede habilitarse por separado para Viajes, Delivery, Suscripciones y Billetera;
+- se agregó Región / departamento a la configuración geográfica de zonas;
+- Pagos / Billetera administra métodos dinámicos por zona y filtra movimientos por Hoy, Semana, Mes o rango de fechas;
+- Viajes y Delivery consultan Hoy por defecto y filtran desde backend por período;
+- Usuarios puede consultarse por zona, ciudad y región/departamento sin cargar todo el historial;
+- Suscripciones muestra y configura los métodos habilitados por zona y filtra pagos por período;
+- Notificaciones / Avisos estima alcance antes del envío y muestra telemetría de campañas;
+- Aliados y sindicatos incorpora dashboard financiero, comisiones y liquidaciones;
+- Configuración avanzada deja explícito que sus interruptores de pagos son compatibilidad global para builds antiguos;
+- el backend conserva los campos legados de pago para no romper la app móvil actualmente publicada.
+
+---
+
 ## 2026-09-30 — Referencia Express Dual
 
 - Expressdelivery adopta la referencia visual Express Dual;
