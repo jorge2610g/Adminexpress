@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'admin_control_sections.dart';
 import 'core/supabase_client.dart';
 
 int _adminSubscriptionInt(Object? raw) {
@@ -29,6 +30,8 @@ class _AdminDriverSubscriptionsPageState
   List<Map<String, dynamic>> payments = const [];
   List<Map<String, dynamic>> zones = const [];
   String? selectedZoneKey;
+  String paymentPeriod = 'today';
+  DateTimeRange? paymentCustomRange;
   Map<String, dynamic> settings = const {};
   Map<String, dynamic> provider = const {};
   final search = TextEditingController();
@@ -85,7 +88,7 @@ class _AdminDriverSubscriptionsPageState
     String? zoneKey = selectedZoneKey;
 
     try {
-      final rawZones = await supabase.rpc('admin_zone_list');
+      final rawZones = await supabase.rpc('admin_zone_list_v2');
       zoneRows = _maps(rawZones);
       if (zoneRows.isNotEmpty &&
           (zoneKey == null ||
@@ -153,14 +156,18 @@ class _AdminDriverSubscriptionsPageState
       }
 
       try {
-        final paymentRows = await supabase
-            .from('driver_subscription_payments')
-            .select(
-              'id,driver_id,plan_id,amount,currency_code,provider,status,zone_key,created_at,paid_at,expires_at',
-            )
-            .eq('zone_key', zoneKey)
-            .order('created_at', ascending: false)
-            .limit(100);
+        final range = _paymentBounds();
+        final paymentRows = await supabase.rpc(
+          'admin_subscription_payment_list_v2',
+          params: {
+            'p_zone_key': zoneKey,
+            'p_from': range.from.toIso8601String(),
+            'p_to': range.to.toIso8601String(),
+            'p_status': null,
+            'p_limit': 100,
+            'p_offset': 0,
+          },
+        );
         if (mounted) {
           setState(() => payments = _maps(paymentRows));
         }
@@ -197,6 +204,40 @@ class _AdminDriverSubscriptionsPageState
       loading = false;
       error = loadError;
     });
+  }
+
+  ({DateTime from, DateTime to}) _paymentBounds() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    switch (paymentPeriod) {
+      case 'week':
+        final from = today.subtract(Duration(days: today.weekday - 1));
+        return (from: from, to: from.add(const Duration(days: 7)));
+      case 'month':
+        final from = DateTime(now.year, now.month, 1);
+        final to = now.month == 12
+            ? DateTime(now.year + 1, 1, 1)
+            : DateTime(now.year, now.month + 1, 1);
+        return (from: from, to: to);
+      case 'custom':
+        final range = paymentCustomRange;
+        if (range != null) {
+          final from = DateTime(
+            range.start.year,
+            range.start.month,
+            range.start.day,
+          );
+          final end = DateTime(
+            range.end.year,
+            range.end.month,
+            range.end.day,
+          );
+          return (from: from, to: end.add(const Duration(days: 1)));
+        }
+        return (from: today, to: today.add(const Duration(days: 1)));
+      default:
+        return (from: today, to: today.add(const Duration(days: 1)));
+    }
   }
 
   void _snack(String text) {
@@ -771,9 +812,20 @@ class _AdminDriverSubscriptionsPageState
         break;
       }
     }
-    final selectedCountry = selectedZone?['country']?.toString() ?? '';
-    final isBolivia = selectedCountry.toLowerCase() == 'bolivia';
-    final isChile = selectedCountry.toLowerCase() == 'chile';
+    final zoneMethods = _maps(selectedZone?['payment_methods']);
+    final subscriptionMethods = zoneMethods
+        .where(
+          (method) =>
+              method['enabled'] != false &&
+              method['use_subscriptions'] == true,
+        )
+        .toList();
+    final hasVeriPagosSubscription = subscriptionMethods.any(
+      (method) => method['provider_key']?.toString() == 'veripagos_qr',
+    );
+    final hasMercadoPagoSubscription = subscriptionMethods.any(
+      (method) => method['provider_key']?.toString() == 'mercado_pago',
+    );
     final realDrivers = drivers.where((driver) => !_isQaDriver(driver)).toList();
     final qaDrivers = drivers.where(_isQaDriver).toList();
 
@@ -869,11 +921,40 @@ class _AdminDriverSubscriptionsPageState
             ),
           const SizedBox(height: 12),
           _AdminSubNotice(
-            text: isBolivia
-                ? 'Configurando $zoneName. Esta zona usa QR Bolivia mediante VeriPagos. Las credenciales QR se administran únicamente para Bolivia.'
-                : isChile
-                    ? 'Configurando $zoneName. Chile usa Mercado Pago. QR Bolivia no se muestra ni se puede activar en esta zona.'
-                    : 'Configurando $zoneName. Planes, exigencia y conductores son propios de esta zona.',
+            text: subscriptionMethods.isEmpty
+                ? 'Configurando ' +
+                    zoneName +
+                    '. Todavía no hay métodos habilitados para pagar suscripciones.'
+                : 'Configurando ' +
+                    zoneName +
+                    '. Métodos de suscripción: ' +
+                    subscriptionMethods
+                        .map(
+                          (method) =>
+                              method['display_name']?.toString() ??
+                              method['provider_key']?.toString() ??
+                              'Método',
+                        )
+                        .join(', ') +
+                    '.',
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: selectedZone == null
+                  ? null
+                  : () async {
+                      final changed =
+                          await showAdminZonePaymentMethodsEditor(
+                        context,
+                        selectedZone!,
+                      );
+                      if (changed && mounted) await _load();
+                    },
+              icon: const Icon(Icons.tune_rounded),
+              label: const Text('Editar métodos de suscripción'),
+            ),
           ),
           const SizedBox(height: 16),
           _SettingsCard(
@@ -882,11 +963,11 @@ class _AdminDriverSubscriptionsPageState
             providerEnabled: providerEnabled,
             providerConfigured: providerConfigured,
             qrValidity: qrValidity,
-            showQrProvider: isBolivia,
+            showQrProvider: hasVeriPagosSubscription,
             saving: savingSettings,
             onSave: _saveSettings,
           ),
-          if (isBolivia) ...[
+          if (hasVeriPagosSubscription) ...[
             const SizedBox(height: 14),
             _ProviderCard(
               configured: providerConfigured,
@@ -897,7 +978,8 @@ class _AdminDriverSubscriptionsPageState
               onConfigure: _configureProvider,
               onVerify: _verifyProvider,
             ),
-          ] else if (isChile) ...[
+          ],
+          if (hasMercadoPagoSubscription) ...[
             const SizedBox(height: 14),
             const Card(
               child: Padding(
@@ -913,12 +995,12 @@ class _AdminDriverSubscriptionsPageState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Mercado Pago · Chile',
+                            'Mercado Pago · Suscripciones',
                             style: TextStyle(fontWeight: FontWeight.w900),
                           ),
                           SizedBox(height: 4),
                           Text(
-                            'Proveedor asignado a esta zona. QR Bolivia/VeriPagos está bloqueado para Chile.',
+                            'Método habilitado para esta zona. Las credenciales se administran en Pagos / Billetera y pueden convivir con otros métodos.',
                           ),
                         ],
                       ),
@@ -1104,9 +1186,71 @@ class _AdminDriverSubscriptionsPageState
             ),
           ],
           const SizedBox(height: 24),
-          const Text(
-            'Pagos recientes',
-            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Pagos de suscripciones',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Hoy'),
+                    selected: paymentPeriod == 'today',
+                    onSelected: (_) {
+                      setState(() => paymentPeriod = 'today');
+                      unawaited(_load());
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Semana'),
+                    selected: paymentPeriod == 'week',
+                    onSelected: (_) {
+                      setState(() => paymentPeriod = 'week');
+                      unawaited(_load());
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Mes'),
+                    selected: paymentPeriod == 'month',
+                    onSelected: (_) {
+                      setState(() => paymentPeriod = 'month');
+                      unawaited(_load());
+                    },
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final picked = await showDateRangePicker(
+                        context: context,
+                        firstDate: DateTime(now.year - 3),
+                        lastDate: DateTime(now.year + 1, 12, 31),
+                        initialDateRange: paymentCustomRange ??
+                            DateTimeRange(
+                              start: DateTime(now.year, now.month, now.day),
+                              end: DateTime(now.year, now.month, now.day),
+                            ),
+                      );
+                      if (picked == null || !mounted) return;
+                      setState(() {
+                        paymentCustomRange = picked;
+                        paymentPeriod = 'custom';
+                      });
+                      await _load();
+                    },
+                    icon: const Icon(Icons.date_range_outlined, size: 17),
+                    label: const Text('Fecha'),
+                  ),
+                ],
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           if (payments.isEmpty)
