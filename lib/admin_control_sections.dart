@@ -8379,151 +8379,446 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      key: ValueKey(revision),
-      future: _load(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading(title: 'Cargando builds');
-        }
-        if (snapshot.hasError) {
-          return _Error(
-            error: snapshot.error,
-            onRetry: () => setState(() => revision++),
-          );
-        }
+    if (initialLoading && buildRows.isEmpty) {
+      return const _Loading(title: 'Cargando compilaciones');
+    }
+    if (loadError != null && buildRows.isEmpty) {
+      return _Error(
+        error: loadError,
+        onRetry: () => _refreshBuilds(initial: true),
+      );
+    }
 
-        final rows = snapshot.data ?? const [];
-        return ListView(
-          padding: const EdgeInsets.all(22),
+    final rows = List<Map<String, dynamic>>.from(buildRows)
+      ..sort((a, b) {
+        final aBuild = a['build_number'] is num
+            ? (a['build_number'] as num).toInt()
+            : int.tryParse(a['build_number']?.toString() ?? '') ?? 0;
+        final bBuild = b['build_number'] is num
+            ? (b['build_number'] as num).toInt()
+            : int.tryParse(b['build_number']?.toString() ?? '') ?? 0;
+        return bBuild.compareTo(aBuild);
+      });
+
+    Map<String, dynamic>? currentProduction;
+    Map<String, dynamic>? activeBuild;
+    for (final row in rows) {
+      final status = row['status']?.toString();
+      if (activeBuild == null &&
+          (status == 'queued' || status == 'building')) {
+        activeBuild = row;
+      }
+      if (currentProduction == null &&
+          status == 'ready' &&
+          row['signing_mode']?.toString() == 'production') {
+        currentProduction = row;
+      }
+    }
+
+    final visibleRows =
+        showAllHistory ? rows : rows.take(12).toList(growable: false);
+    final updated = lastRefreshAt;
+    final updatedText = updated == null
+        ? '—'
+        : updated.hour.toString().padLeft(2, '0') +
+            ':' +
+            updated.minute.toString().padLeft(2, '0') +
+            ':' +
+            updated.second.toString().padLeft(2, '0');
+
+    Widget summaryCard({
+      required IconData icon,
+      required String title,
+      required String value,
+      required String subtitle,
+      required Color accent,
+      required Color soft,
+      Widget? trailing,
+    }) {
+      return Container(
+        constraints: const BoxConstraints(minWidth: 245),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0D101828),
+              blurRadius: 18,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Header(
-              title: 'App Builder',
-              subtitle:
-                  'Compila Express Android en la nube. No necesitas Visual Studio Code ni tener Flutter instalado en tu computador.',
-              action: FilledButton.icon(
-                onPressed: _create,
-                icon: const Icon(Icons.android_rounded),
-                label: const Text('Compilar Android'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final width = constraints.maxWidth;
-                final cardWidth = width < 680
-                    ? width
-                    : width < 1040
-                        ? (width - 14) / 2
-                        : (width - 28) / 3;
-                return Wrap(
-                  spacing: 14,
-                  runSpacing: 14,
-                  children: [
-                    _BuildProductCard(
-                      width: cardWidth,
-                      icon: Icons.android_rounded,
-                      title: 'Android',
-                      badge: 'Automático',
-                      description:
-                          'Genera APK instalable + AAB para Google Play usando GitHub Actions.',
-                      primaryLabel: 'Compilar APK + AAB',
-                      secondaryLabel: 'Publicación desde historial',
-                      accent: const Color(0xFF14804A),
-                      soft: const Color(0xFFE8F8EF),
-                      onPrimary: _create,
-                    ),
-                    _BuildProductCard(
-                      width: cardWidth,
-                      icon: Icons.cloud_done_outlined,
-                      title: 'Compilación Cloud',
-                      badge: 'Activa',
-                      description:
-                          'GitHub levanta un runner, instala Flutter, firma, compila y crea el Release automáticamente.',
-                      primaryLabel: 'Sin VS Code',
-                      secondaryLabel: 'Cola automática',
-                      accent: _blue,
-                      soft: const Color(0xFFEAF2FF),
-                    ),
-                    _BuildProductCard(
-                      width: cardWidth,
-                      icon: Icons.storefront_outlined,
-                      title: 'Google Play',
-                      badge: 'Siguiente etapa',
-                      description:
-                          'El AAB queda preparado. La publicación automática en Play Store se habilitará con sus credenciales.',
-                      primaryLabel: 'AAB listo para Play',
-                      secondaryLabel: 'Pendiente credenciales',
-                      accent: const Color(0xFF6941C6),
-                      soft: const Color(0xFFF1EBFF),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 18),
             Container(
-              padding: const EdgeInsets.all(14),
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF8E8),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFCE7B2)),
+                color: soft,
+                borderRadius: BorderRadius.circular(13),
               ),
-              child: const Row(
+              child: Icon(icon, color: accent, size: 23),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.lock_outline_rounded,
-                    size: 18,
-                    color: Color(0xFFA15C07),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: _muted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                  SizedBox(width: 9),
-                  Expanded(
-                    child: Text(
-                      'El código se compila en GitHub. Los APK/AAB terminados se publican en GitHub Releases. La firma de producción usa un keystore privado persistente y contraseñas cifradas en Supabase Vault.',
-                      style: TextStyle(
-                        color: Color(0xFF7A4A0B),
-                        fontSize: 11,
-                        height: 1.35,
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      color: _dark,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: _muted,
+                      fontSize: 10,
+                      height: 1.35,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 22),
-            const Text(
-              'Historial de Builds',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: _dark,
-              ),
-            ),
-            const SizedBox(height: 10),
-            if (rows.isEmpty)
-              const _Empty(text: 'Todavía no hay builds registrados.')
-            else
+            if (trailing != null) ...[
+              const SizedBox(width: 8),
+              trailing,
+            ],
+          ],
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(22),
+      children: [
+        _Header(
+          title: 'App Builder',
+          subtitle:
+              'Compila APK + AAB de Express y sigue el progreso sin que la pantalla se recargue.',
+          action: FilledButton.icon(
+            onPressed: _create,
+            icon: const Icon(Icons.android_rounded),
+            label: const Text('Nuevo build Android'),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
               Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE7ECF3)),
+                  color: const Color(0xFFE8F8EF),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Column(
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    for (var i = 0; i < rows.length; i++) ...[
-                      _buildRow(rows[i]),
-                      if (i != rows.length - 1)
-                        const Divider(height: 1, indent: 60),
-                    ],
+                    Icon(
+                      Icons.sync_rounded,
+                      size: 14,
+                      color: Color(0xFF14804A),
+                    ),
+                    SizedBox(width: 5),
+                    Text(
+                      'Actualización silenciosa cada 20 s',
+                      style: TextStyle(
+                        color: Color(0xFF14804A),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ],
                 ),
               ),
+              if (refreshing)
+                const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox.square(
+                      dimension: 13,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Actualizando',
+                      style: TextStyle(fontSize: 10, color: _muted),
+                    ),
+                  ],
+                )
+              else
+                Text(
+                  'Última actualización: ' + updatedText,
+                  style: const TextStyle(fontSize: 10, color: _muted),
+                ),
+              OutlinedButton.icon(
+                onPressed: refreshing
+                    ? null
+                    : () => _refreshBuilds(silent: true),
+                icon: const Icon(Icons.refresh_rounded, size: 17),
+                label: const Text('Actualizar ahora'),
+              ),
+              if (loadError != null)
+                const Text(
+                  'La última actualización falló; se mantienen los datos anteriores.',
+                  style: TextStyle(
+                    color: Color(0xFFD92D20),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final cardWidth = width < 720
+                ? width
+                : width < 1080
+                    ? (width - 12) / 2
+                    : (width - 24) / 3;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                SizedBox(
+                  width: cardWidth,
+                  child: summaryCard(
+                    icon: Icons.verified_rounded,
+                    title: 'Versión de producción',
+                    value: currentProduction == null
+                        ? 'Sin versión lista'
+                        : 'v' +
+                            (currentProduction!['version_name'] ?? '—')
+                                .toString() +
+                            ' · build ' +
+                            (currentProduction!['build_number'] ?? '—')
+                                .toString(),
+                    subtitle: currentProduction == null
+                        ? 'Todavía no hay un build firmado en producción.'
+                        : 'APK + AAB listos y firmados para producción.',
+                    accent: const Color(0xFF14804A),
+                    soft: const Color(0xFFE8F8EF),
+                  ),
+                ),
+                SizedBox(
+                  width: cardWidth,
+                  child: summaryCard(
+                    icon: activeBuild == null
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.engineering_rounded,
+                    title: 'Compilación activa',
+                    value: activeBuild == null
+                        ? 'Sin trabajos pendientes'
+                        : 'v' +
+                            (activeBuild!['version_name'] ?? '—').toString() +
+                            ' · build ' +
+                            (activeBuild!['build_number'] ?? '—').toString(),
+                    subtitle: activeBuild == null
+                        ? 'La cola está libre.'
+                        : activeBuild!['status']?.toString() == 'building'
+                            ? 'GitHub Actions está compilando APK + AAB.'
+                            : 'El build está en cola esperando al worker.',
+                    accent: activeBuild == null
+                        ? _blue
+                        : const Color(0xFFC76B16),
+                    soft: activeBuild == null
+                        ? const Color(0xFFEAF2FF)
+                        : const Color(0xFFFFF3E7),
+                    trailing: activeBuild == null
+                        ? null
+                        : _BuildStatus(
+                            status:
+                                activeBuild!['status']?.toString() ?? 'queued',
+                          ),
+                  ),
+                ),
+                SizedBox(
+                  width: cardWidth,
+                  child: summaryCard(
+                    icon: Icons.security_rounded,
+                    title: 'Salida Android',
+                    value: 'APK + AAB',
+                    subtitle:
+                        'Firma de producción, Release de GitHub y enlaces de descarga.',
+                    accent: const Color(0xFF6941C6),
+                    soft: const Color(0xFFF1EBFF),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        if (activeBuild != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFAEB),
+              border: Border.all(color: const Color(0xFFFDE68A)),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.android_rounded,
+                      color: Color(0xFFC76B16),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        activeBuild!['status']?.toString() == 'building'
+                            ? 'Compilando Express ' +
+                                (activeBuild!['version_name'] ?? '').toString()
+                            : 'Build ' +
+                                (activeBuild!['build_number'] ?? '').toString() +
+                                ' en cola',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: _dark,
+                        ),
+                      ),
+                    ),
+                    _BuildStatus(
+                      status: activeBuild!['status']?.toString() ?? 'queued',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                LinearProgressIndicator(
+                  value: activeBuild!['status']?.toString() == 'building'
+                      ? null
+                      : .12,
+                  minHeight: 6,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Puedes salir de esta sección y volver después. El estado se mantiene y se actualiza sin recargar toda la pantalla.',
+                  style: TextStyle(
+                    color: _muted,
+                    fontSize: 10,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Historial de compilaciones',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      color: _dark,
+                    ),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'Los builds más recientes aparecen primero.',
+                    style: TextStyle(fontSize: 10, color: _muted),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              rows.length.toString() + ' builds',
+              style: const TextStyle(
+                color: _muted,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
-        );
-      },
+        ),
+        const SizedBox(height: 10),
+        if (rows.isEmpty)
+          const _Empty(text: 'Todavía no hay builds registrados.')
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < visibleRows.length; i++) ...[
+                  _buildRow(visibleRows[i]),
+                  if (i != visibleRows.length - 1)
+                    const Divider(
+                      height: 1,
+                      indent: 60,
+                      color: Color(0xFFEEF2F6),
+                    ),
+                ],
+              ],
+            ),
+          ),
+        if (rows.length > 12) ...[
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.center,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                setState(() => showAllHistory = !showAllHistory);
+              },
+              icon: Icon(
+                showAllHistory
+                    ? Icons.expand_less_rounded
+                    : Icons.expand_more_rounded,
+              ),
+              label: Text(
+                showAllHistory
+                    ? 'Mostrar solo los recientes'
+                    : 'Ver historial completo',
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 10),
+        const _BuildCloudNotice(),
+      ],
     );
   }
 }
@@ -8545,7 +8840,7 @@ class _BuildCloudNotice extends StatelessWidget {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Adminexpress crea el trabajo; GitHub Actions lo toma automáticamente, compila Express, lo firma y publica APK/AAB en GitHub Releases. La cola se revisa cada pocos minutos y este panel actualiza el estado cada 7 segundos.',
+              'Adminexpress crea el trabajo y GitHub Actions compila, firma y publica APK/AAB. Esta pantalla conserva el contenido visible y actualiza los estados silenciosamente cada 20 segundos.',
               style: TextStyle(fontSize: 11, color: _dark, height: 1.35),
             ),
           ),
