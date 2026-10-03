@@ -1529,6 +1529,33 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     final radius = TextEditingController(
       text: row?['radius_km']?.toString() ?? '25',
     );
+    final landingTitle = TextEditingController(
+      text: row?['passenger_landing_title']?.toString() ??
+          '¿Qué necesitas hoy?',
+    );
+    final landingSubtitle = TextEditingController(
+      text: row?['passenger_landing_subtitle']?.toString() ??
+          'Elige un servicio de Express',
+    );
+    final rawLandingOrder = row?['passenger_landing_order'];
+    final landingOrder = rawLandingOrder is List
+        ? rawLandingOrder.map((item) => item.toString()).toList()
+        : <String>['ride', 'delivery', 'market'];
+    int landingPosition(String key) {
+      final index = landingOrder.indexOf(key);
+      return index < 0 ? 99 : index + 1;
+    }
+
+    final rideLandingOrder =
+        TextEditingController(text: landingPosition('ride').toString());
+    final deliveryLandingOrder =
+        TextEditingController(text: landingPosition('delivery').toString());
+    final marketLandingOrder =
+        TextEditingController(text: landingPosition('market').toString());
+    var landingMode = row?['passenger_landing_mode']?.toString() ??
+        (row == null ? 'auto' : 'direct');
+    var landingDefault =
+        row?['passenger_default_module']?.toString() ?? 'ride';
     var active = row?['active'] != false;
 
     final save = await showDialog<bool>(
@@ -1736,6 +1763,166 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     decoration:
                         const InputDecoration(labelText: 'Radio de cobertura km'),
                   ),
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.dashboard_customize_outlined,
+                                color: _blue),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Pantalla inicial del pasajero',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Decide si esta zona entra directo a un servicio o muestra un panel para elegir entre Viajes, Envíos y Express Market.',
+                          style: TextStyle(
+                            color: _muted,
+                            fontSize: 11,
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: landingMode,
+                          decoration: const InputDecoration(
+                            labelText: 'Comportamiento de inicio',
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'auto',
+                              child: Text('Automático'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'always',
+                              child: Text('Mostrar siempre el panel'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'direct',
+                              child: Text('Entrada directa'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setLocal(() => landingMode = value);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<String>(
+                          initialValue: landingDefault,
+                          decoration: const InputDecoration(
+                            labelText: 'Servicio predeterminado',
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'ride',
+                              child: Text('Viajes'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'delivery',
+                              child: Text('Envíos / Delivery'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'market',
+                              child: Text('Express Market'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setLocal(() => landingDefault = value);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: landingTitle,
+                          decoration: const InputDecoration(
+                            labelText: 'Título del panel',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: landingSubtitle,
+                          decoration: const InputDecoration(
+                            labelText: 'Subtítulo del panel',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Orden de tarjetas',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: rideLandingOrder,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: 'Viajes',
+                                  hintText: '1',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: deliveryLandingOrder,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: 'Envíos',
+                                  hintText: '2',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: marketLandingOrder,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: 'Market',
+                                  hintText: '3',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          landingMode == 'auto'
+                              ? 'Automático: con varios módulos visibles muestra el panel; con uno solo entra directo.'
+                              : landingMode == 'always'
+                                  ? 'Siempre: muestra el panel aunque haya un solo módulo visible.'
+                                  : 'Directo: abre el servicio predeterminado sin mostrar el panel.',
+                          style: const TextStyle(
+                            color: _muted,
+                            fontSize: 11,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -1782,12 +1969,44 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
             'p_currency_code': currency.text.trim().toUpperCase(),
           },
         );
+        final landingModules = <Map<String, Object>>[
+          <String, Object>{
+            'key': 'ride',
+            'order': int.tryParse(rideLandingOrder.text.trim()) ?? 1,
+          },
+          <String, Object>{
+            'key': 'delivery',
+            'order': int.tryParse(deliveryLandingOrder.text.trim()) ?? 2,
+          },
+          <String, Object>{
+            'key': 'market',
+            'order': int.tryParse(marketLandingOrder.text.trim()) ?? 3,
+          },
+        ]..sort(
+            (a, b) =>
+                (a['order'] as int).compareTo(b['order'] as int),
+          );
+
+        await supabase.rpc(
+          'admin_update_zone_landing',
+          params: {
+            'p_zone_id': savedZoneId,
+            'p_mode': landingMode,
+            'p_default_module': landingDefault,
+            'p_title': landingTitle.text.trim(),
+            'p_subtitle': landingSubtitle.text.trim(),
+            'p_order': landingModules
+                .map((item) => item['key'].toString())
+                .toList(),
+          },
+        );
+
         if (mounted) {
           setState(() => revision++);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'Zona guardada. Ahora puedes definir uno o varios métodos de pago.',
+                'Zona y pantalla inicial guardadas. Ahora puedes definir métodos de pago.',
               ),
             ),
           );
@@ -1817,6 +2036,11 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     lat.dispose();
     lng.dispose();
     radius.dispose();
+    landingTitle.dispose();
+    landingSubtitle.dispose();
+    rideLandingOrder.dispose();
+    deliveryLandingOrder.dispose();
+    marketLandingOrder.dispose();
   }
 
   @override
@@ -1891,7 +2115,17 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           ' · radio ' +
                           (row['radius_km'] ?? '—').toString() +
                           ' km\nClave: ' +
-                          (row['zone_key'] ?? '—').toString(),
+                          (row['zone_key'] ?? '—').toString() +
+                          ' · Inicio: ' +
+                          ((row['passenger_landing_mode'] ?? 'direct')
+                                      .toString() ==
+                                  'auto'
+                              ? 'Automático'
+                              : (row['passenger_landing_mode'] ?? 'direct')
+                                          .toString() ==
+                                      'always'
+                                  ? 'Panel'
+                                  : 'Directo'),
                     ),
                     isThreeLine: true,
                     trailing: Row(
