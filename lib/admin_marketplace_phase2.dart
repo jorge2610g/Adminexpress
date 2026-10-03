@@ -678,6 +678,131 @@ class _AdminMarketplacePhase2PageState
     transfer.dispose();
   }
 
+  Future<void> _manageMerchantUsers(
+    Map<String, dynamic> merchant,
+  ) async {
+    final email = TextEditingController();
+
+    Future<List<Map<String, dynamic>>> loadUsers() async {
+      final value = await supabase.rpc(
+        'admin_marketplace_merchant_users',
+        params: {'p_merchant_id': merchant['id']},
+      );
+      return _rows(value);
+    }
+
+    var users = await loadUsers();
+    if (!mounted) {
+      email.dispose();
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) {
+          Future<void> assign() async {
+            final value = email.text.trim();
+            if (value.isEmpty) return;
+            await supabase.rpc(
+              'admin_marketplace_assign_merchant_user',
+              params: {
+                'p_merchant_id': merchant['id'],
+                'p_email': value,
+                'p_role': 'manager',
+              },
+            );
+            email.clear();
+            users = await loadUsers();
+            setLocal(() {});
+          }
+
+          Future<void> toggle(
+            Map<String, dynamic> row,
+            bool active,
+          ) async {
+            await supabase.rpc(
+              'admin_marketplace_set_merchant_user_active',
+              params: {
+                'p_merchant_id': merchant['id'],
+                'p_user_id': row['user_id'],
+                'p_active': active,
+              },
+            );
+            users = await loadUsers();
+            setLocal(() {});
+          }
+
+          return AlertDialog(
+            title: Text(
+              'Accesos · ' +
+                  (merchant['name']?.toString() ?? 'Comercio'),
+            ),
+            content: SizedBox(
+              width: 620,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: email,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        labelText:
+                            'Correo de la cuenta Express del comercio',
+                        suffixIcon: IconButton(
+                          tooltip: 'Vincular',
+                          onPressed: assign,
+                          icon: const Icon(Icons.person_add_alt_1_rounded),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (users.isEmpty)
+                      const ListTile(
+                        leading: Icon(Icons.info_outline_rounded),
+                        title: Text(
+                          'Todavía no hay cuentas vinculadas.',
+                        ),
+                        subtitle: Text(
+                          'La persona debe tener una cuenta Express con ese correo.',
+                        ),
+                      )
+                    else
+                      ...users.map(
+                        (row) => SwitchListTile.adaptive(
+                          value: row['active'] == true,
+                          onChanged: (value) => toggle(row, value),
+                          title: Text(
+                            row['full_name']?.toString().trim().isNotEmpty ==
+                                    true
+                                ? row['full_name'].toString()
+                                : row['email']?.toString() ?? 'Usuario',
+                          ),
+                          subtitle: Text(
+                            (row['email']?.toString() ?? '') +
+                                ' · ' +
+                                (row['role']?.toString() ?? 'manager'),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cerrar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    email.dispose();
+  }
+
   Future<void> _openOrder(Map<String, dynamic> order) async {
     var detail = await supabase.rpc(
       'marketplace_order_detail',
@@ -1146,6 +1271,8 @@ class _AdminMarketplacePhase2PageState
                         onSelected: (value) {
                           if (value == 'plus') {
                             _editBenefit(merchant, benefit);
+                          } else if (value == 'access') {
+                            _manageMerchantUsers(merchant);
                           } else {
                             _editMerchantLogistics(merchant);
                           }
@@ -1158,6 +1285,10 @@ class _AdminMarketplacePhase2PageState
                           PopupMenuItem(
                             value: 'logistics',
                             child: Text('Ubicación / transferencia'),
+                          ),
+                          PopupMenuItem(
+                            value: 'access',
+                            child: Text('Cuentas del comercio'),
                           ),
                         ],
                       ),
