@@ -5050,7 +5050,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(
-          'Mercado Pago · ${zone['name'] ?? 'Chile'}',
+          'Mercado Pago · ${zone['name'] ?? 'Zona'}',
         ),
         content: SizedBox(
           width: 540,
@@ -5131,7 +5131,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
       setState(() => revision++);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Mercado Pago Chile conectado y verificado.'),
+          content: Text('Mercado Pago conectado y verificado para esta zona.'),
         ),
       );
     } catch (e) {
@@ -5308,7 +5308,10 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                   children: zones.map((zone) {
                     final id = zone['id']?.toString() ?? '';
                     final busy = savingZonePayments.contains(id);
-                    final enabled = zone['payment_enabled'] != false;
+                    final zoneMethods = _list(zone['payment_methods']);
+                    final enabled = zoneMethods.isNotEmpty
+                        ? zoneMethods.any((method) => method['enabled'] != false)
+                        : zone['payment_enabled'] != false;
                     final currency =
                         (zone['currency_code'] ?? '—').toString();
                     final country = (zone['country'] ?? '—').toString();
@@ -5417,17 +5420,19 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                                 ),
                               ],
                             ),
-                            if (provider == 'veripagos_qr') ...[
+                            if (_zoneHasMethod(zone, 'veripagos_qr') ||
+                                provider == 'veripagos_qr') ...[
                               const SizedBox(height: 10),
                               const Text(
-                                'Las credenciales VeriPagos se administran en Finanzas → Suscripciones. Este proveedor solo se aplica a zonas de Bolivia.',
+                                'VeriPagos está disponible en esta zona. Sus credenciales se administran de forma segura y el método puede convivir con otras pasarelas.',
                                 style: TextStyle(
                                   color: Color(0xFF667085),
                                   fontSize: 11,
                                 ),
                               ),
                             ],
-                            if (provider == 'mercado_pago') ...[
+                            if (_zoneHasMethod(zone, 'mercado_pago') ||
+                                provider == 'mercado_pago') ...[
                               const SizedBox(height: 10),
                               Row(
                                 children: [
@@ -7265,7 +7270,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: const Text('Pagos digitales'),
+          title: const Text('Compatibilidad de pagos · legado'),
           content: SizedBox(
             width: 520,
             child: Column(
@@ -7274,13 +7279,13 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                 const _InlineNotice(
                   icon: Icons.payments_outlined,
                   text:
-                      'Activa solo los medios que realmente quieras mostrar. Las credenciales de cada pasarela se gestionan aparte.',
+                      'Estos interruptores son solo respaldo para versiones antiguas de Express. Los métodos reales se administran por zona en Zonas y Pagos / Billetera. No uses esta pantalla para decidir qué método aparece en una ciudad.',
                 ),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   value: pagorut,
                   onChanged: (v) => setLocal(() => pagorut = v),
-                  title: const Text('PagoRUT'),
+                  title: const Text('QR Bolivia / PagoRUT · legado'),
                 ),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
@@ -7825,7 +7830,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
               subtitle:
                   'Cambios operativos centralizados para pasajero, conductor y administración.',
               stats: [
-                ('Pagos extra', paymentCount.toString()),
+                ('Respaldo pagos', paymentCount.toString()),
                 ('Ofertas', row['allow_counteroffers'] != false ? 'Activas' : 'Off'),
                 ('Mantenimiento', row['maintenance_mode'] == true ? 'Activo' : 'Normal'),
               ],
@@ -7842,10 +7847,14 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                 final cards = <Widget>[
                   _AdminModuleCard(
                     icon: Icons.account_balance_wallet_outlined,
-                    title: 'Pagos digitales',
-                    subtitle: 'PagoRUT, Mercado Pago, Santander, MACH y Tenpo.',
+                    title: 'Compatibilidad de pagos',
+                    subtitle:
+                        'Respaldo global para versiones antiguas. La configuración vigente está en Zonas y Pagos / Billetera.',
                     accent: const Color(0xFF6941C6),
-                    chips: ['$paymentCount activos', 'Credenciales separadas'],
+                    chips: [
+                      '$paymentCount respaldos activos',
+                      'No define la zona',
+                    ],
                     onTap: () => _payments(row),
                   ),
                   _AdminModuleCard(
