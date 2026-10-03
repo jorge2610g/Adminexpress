@@ -4477,8 +4477,62 @@ class AdminPaymentsPage extends StatefulWidget {
 
 class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   int revision = 0;
+  String paymentPeriod = 'today';
+  DateTimeRange? paymentCustomRange;
+  String? selectedPaymentZoneId;
   final Set<String> savingZonePayments = <String>{};
   final Set<String> savingMercadoPagoZones = <String>{};
+
+  ({DateTime from, DateTime to}) _paymentBounds() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    switch (paymentPeriod) {
+      case 'week':
+        final from = today.subtract(Duration(days: today.weekday - 1));
+        return (from: from, to: from.add(const Duration(days: 7)));
+      case 'month':
+        final from = DateTime(now.year, now.month, 1);
+        final to = now.month == 12
+            ? DateTime(now.year + 1, 1, 1)
+            : DateTime(now.year, now.month + 1, 1);
+        return (from: from, to: to);
+      case 'custom':
+        final range = paymentCustomRange;
+        if (range != null) {
+          final from = DateTime(
+            range.start.year,
+            range.start.month,
+            range.start.day,
+          );
+          final end = DateTime(
+            range.end.year,
+            range.end.month,
+            range.end.day,
+          );
+          return (from: from, to: end.add(const Duration(days: 1)));
+        }
+        return (from: today, to: today.add(const Duration(days: 1)));
+      default:
+        return (from: today, to: today.add(const Duration(days: 1)));
+    }
+  }
+
+  String _currencyTotals(Object? raw) {
+    final values = _map(raw);
+    if (values.isEmpty) return '0';
+    return values.entries
+        .map((entry) => entry.key.toString() + ' ' + entry.value.toString())
+        .join(' · ');
+  }
+
+  bool _zoneHasMethod(Map<String, dynamic> zone, String providerKey) {
+    final methods = _list(zone['payment_methods']);
+    return methods.any(
+      (row) =>
+          row['provider_key']?.toString() == providerKey &&
+          row['enabled'] != false,
+    );
+  }
 
   Future<({
     Map<String, dynamic> overview,
@@ -4486,18 +4540,29 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     List<Map<String, dynamic>> zones,
     Map<String, Map<String, dynamic>> mercadoPago,
   })> _load() async {
+    final range = _paymentBounds();
     final values = await Future.wait([
-      supabase.rpc('admin_payment_overview'),
+      supabase.rpc(
+        'admin_payment_overview_v2',
+        params: {
+          'p_from': range.from.toIso8601String(),
+          'p_to': range.to.toIso8601String(),
+          'p_zone_id': selectedPaymentZoneId,
+          'p_limit': 150,
+          'p_offset': 0,
+        },
+      ),
       supabase.rpc(
         'admin_topup_requests',
         params: {'p_status': 'pending'},
       ),
-      supabase.rpc('admin_zone_list'),
+      supabase.rpc('admin_zone_list_v2'),
     ]);
     final zoneRows = _list(values[2]);
     final mercadoPago = <String, Map<String, dynamic>>{};
     for (final zone in zoneRows) {
-      if ((zone['country']?.toString() ?? '').toLowerCase() != 'chile') {
+      if (!_zoneHasMethod(zone, 'mercado_pago') &&
+          zone['payment_provider']?.toString() != 'mercado_pago') {
         continue;
       }
       final zoneId = zone['id']?.toString();
@@ -4528,23 +4593,29 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   }
 
   String _zonePaymentProvider(Map<String, dynamic> zone) {
+    final methods = _list(zone['payment_methods']);
+    for (final method in methods) {
+      if (method['is_primary'] == true && method['enabled'] != false) {
+        return method['provider_key']?.toString() ?? '';
+      }
+    }
     final configured = zone['payment_provider']?.toString();
-    if (configured != null && configured.isNotEmpty) return configured;
-    final country = (zone['country']?.toString() ?? '').toLowerCase();
-    if (country == 'bolivia') return 'veripagos_qr';
-    if (country == 'chile') return 'mercado_pago';
-    return '';
+    return configured ?? '';
   }
 
   String _zonePaymentLabel(Map<String, dynamic> zone) {
-    switch (_zonePaymentProvider(zone)) {
-      case 'veripagos_qr':
-        return 'QR Bolivia · VeriPagos';
-      case 'mercado_pago':
-        return 'Mercado Pago';
-      default:
-        return 'Sin proveedor';
-    }
+    final methods = _list(zone['payment_methods'])
+        .where((row) => row['enabled'] != false)
+        .toList();
+    if (methods.isEmpty) return 'Sin métodos activos';
+    return methods
+        .map(
+          (row) =>
+              row['display_name']?.toString() ??
+              row['provider_key']?.toString() ??
+              'Método',
+        )
+        .join(' · ');
   }
 
   Future<void> _setZonePaymentEnabled(
@@ -4553,22 +4624,30 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   ) async {
     final id = zone['id']?.toString();
     if (id == null || id.isEmpty || savingZonePayments.contains(id)) return;
-    final provider = _zonePaymentProvider(zone);
-    if (provider.isEmpty) {
-      _snack(context, 'Esta zona no tiene proveedor asignado.');
+    final methods = _list(zone['payment_methods']);
+    if (methods.isEmpty) {
+      _snack(context, 'Esta zona todavía no tiene métodos configurados.');
       return;
     }
 
     setState(() => savingZonePayments.add(id));
     try {
-      await supabase.rpc(
-        'admin_set_zone_payment_provider',
-        params: {
-          'p_zone_id': id,
-          'p_provider': provider,
-          'p_enabled': enabled,
-        },
-      );
+      for (final method in methods) {
+        await supabase.rpc(
+          'admin_upsert_zone_payment_method',
+          params: {
+            'p_zone_id': id,
+            'p_provider_key': method['provider_key'],
+            'p_enabled': enabled,
+            'p_use_rides': method['use_rides'] == true,
+            'p_use_delivery': method['use_delivery'] == true,
+            'p_use_subscriptions': method['use_subscriptions'] == true,
+            'p_use_wallet': method['use_wallet'] == true,
+            'p_is_primary': method['is_primary'] == true,
+            'p_sort_order': method['sort_order'] ?? 100,
+          },
+        );
+      }
       if (!mounted) return;
       setState(() => revision++);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -4852,7 +4931,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Bolivia usa únicamente QR Bolivia (VeriPagos) y Chile únicamente Mercado Pago. Cada zona se administra de forma independiente.',
+                'Cada zona puede tener uno o varios métodos. Puedes activarlos, desactivarlos y decidir si sirven para Viajes, Delivery, Suscripciones y Billetera.',
                 style: TextStyle(color: Color(0xFF667085)),
               ),
               const SizedBox(height: 12),
@@ -4935,8 +5014,42 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                                   ),
                                 ),
                                 _MiniStatus(
-                                  text: enabled ? 'Activo' : 'Inactivo',
+                                  text: enabled ? 'Activos' : 'Pausados',
                                   positive: enabled,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 7,
+                              runSpacing: 7,
+                              children: [
+                                for (final method
+                                    in _list(zone['payment_methods']))
+                                  _MiniStatus(
+                                    text:
+                                        (method['display_name'] ??
+                                                method['provider_key'] ??
+                                                'Método')
+                                            .toString(),
+                                    positive: method['enabled'] != false,
+                                  ),
+                                OutlinedButton.icon(
+                                  onPressed: () async {
+                                    final changed =
+                                        await showAdminZonePaymentMethodsEditor(
+                                      context,
+                                      zone,
+                                    );
+                                    if (changed && mounted) {
+                                      setState(() => revision++);
+                                    }
+                                  },
+                                  icon: const Icon(
+                                    Icons.tune_rounded,
+                                    size: 17,
+                                  ),
+                                  label: const Text('Configurar métodos'),
                                 ),
                               ],
                             ),
@@ -5018,26 +5131,139 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                   }).toList(),
                 ),
               const SizedBox(height: 22),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: const Color(0xFFE7ECF3)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 210,
+                      child: DropdownButtonFormField<String?>(
+                        value: selectedPaymentZoneId,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          labelText: 'Zona de movimientos',
+                        ),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('Todas las zonas'),
+                          ),
+                          ...zones.map(
+                            (zone) => DropdownMenuItem<String?>(
+                              value: zone['id']?.toString(),
+                              child: Text(
+                                (zone['name'] ?? 'Zona').toString(),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            selectedPaymentZoneId = value;
+                            revision++;
+                          });
+                        },
+                      ),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Hoy'),
+                      selected: paymentPeriod == 'today',
+                      onSelected: (_) => setState(() {
+                        paymentPeriod = 'today';
+                        revision++;
+                      }),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Semana'),
+                      selected: paymentPeriod == 'week',
+                      onSelected: (_) => setState(() {
+                        paymentPeriod = 'week';
+                        revision++;
+                      }),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Mes'),
+                      selected: paymentPeriod == 'month',
+                      onSelected: (_) => setState(() {
+                        paymentPeriod = 'month';
+                        revision++;
+                      }),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final now = DateTime.now();
+                        final picked = await showDateRangePicker(
+                          context: context,
+                          firstDate: DateTime(now.year - 3),
+                          lastDate: DateTime(now.year + 1, 12, 31),
+                          initialDateRange: paymentCustomRange ??
+                              DateTimeRange(
+                                start: DateTime(
+                                  now.year,
+                                  now.month,
+                                  now.day,
+                                ),
+                                end: DateTime(
+                                  now.year,
+                                  now.month,
+                                  now.day,
+                                ),
+                              ),
+                        );
+                        if (picked == null || !mounted) return;
+                        setState(() {
+                          paymentCustomRange = picked;
+                          paymentPeriod = 'custom';
+                          revision++;
+                        });
+                      },
+                      icon: const Icon(Icons.date_range_outlined, size: 17),
+                      label: Text(
+                        paymentPeriod == 'custom' &&
+                                paymentCustomRange != null
+                            ? paymentCustomRange!.start.day.toString() +
+                                '/' +
+                                paymentCustomRange!.start.month.toString() +
+                                ' – ' +
+                                paymentCustomRange!.end.day.toString() +
+                                '/' +
+                                paymentCustomRange!.end.month.toString()
+                            : 'Fecha',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
                 children: [
                   _Kpi(
-                    'Cobrado hoy',
-                    'Bs ' + (summary['paid_today'] ?? 0).toString(),
+                    'Cobrado en período',
+                    _currencyTotals(summary['totals_by_currency']),
                   ),
                   _Kpi(
-                    'Pendiente',
-                    'Bs ' + (summary['pending_total'] ?? 0).toString(),
+                    'Pendiente en período',
+                    _currencyTotals(summary['pending_by_currency']),
                   ),
                   _Kpi(
-                    'Pagos hoy',
-                    (summary['paid_count_today'] ?? 0).toString(),
+                    'Pagos en período',
+                    (summary['paid_count'] ?? 0).toString(),
                   ),
                   _Kpi(
-                    'Saldo wallet',
-                    'Bs ' +
-                        (summary['wallet_balance_total'] ?? 0).toString(),
+                    'Pendientes',
+                    (summary['pending_count'] ?? 0).toString(),
                   ),
                 ],
               ),
@@ -5116,7 +5342,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                 ),
               const SizedBox(height: 24),
               const Text(
-                'Movimientos recientes',
+                'Movimientos del período',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
