@@ -432,13 +432,32 @@ class _AdminMarketplacePhase2PageState
     );
 
     if (save == true) {
+      final monthlyPrice = double.tryParse(price.text.trim()) ?? 0;
+      if (active && monthlyPrice <= 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Define un precio mensual mayor a 0 antes de activar Express Plus.',
+              ),
+            ),
+          );
+        }
+        name.dispose();
+        price.dispose();
+        discount.dispose();
+        priority.dispose();
+        description.dispose();
+        return;
+      }
+
       await supabase.rpc(
         'admin_marketplace_upsert_plus_plan',
         params: {
           'p_id': row['id'],
           'p_zone_id': row['zone_id'],
           'p_name': name.text.trim(),
-          'p_monthly_price': double.tryParse(price.text.trim()) ?? 0,
+          'p_monthly_price': monthlyPrice,
           'p_active': active,
           'p_preview_visible': preview,
           'p_production_visible': production,
