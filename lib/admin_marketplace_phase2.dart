@@ -720,6 +720,31 @@ class _AdminMarketplacePhase2PageState
             _refresh();
           }
 
+          Future<void> setOrderStatus(String status) async {
+            detail = await supabase.rpc(
+              'marketplace_order_set_status',
+              params: {
+                'p_order_id': orderRow['id'],
+                'p_status': status,
+              },
+            );
+            setLocal(() {});
+            _refresh();
+          }
+
+          Future<void> markDriverPaid() async {
+            detail = await supabase.rpc(
+              'marketplace_mark_driver_paid',
+              params: {
+                'p_order_id': orderRow['id'],
+                'p_note':
+                    'Comercio confirmó que entregó la tarifa y propina al repartidor.',
+              },
+            );
+            setLocal(() {});
+            _refresh();
+          }
+
           return AlertDialog(
             title: Text(
               'Pedido · ' +
@@ -834,6 +859,56 @@ class _AdminMarketplacePhase2PageState
                           ),
                         ),
                       ],
+                    ),
+                  ],
+                  if (orderRow['status'] == 'pending' &&
+                      orderRow['payment_method'] == 'cash') ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () => setOrderStatus('confirmed'),
+                        icon: const Icon(Icons.check_circle_outline_rounded),
+                        label: const Text('Confirmar pedido en efectivo'),
+                      ),
+                    ),
+                  ],
+                  if (orderRow['status'] == 'confirmed') ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () => setOrderStatus('preparing'),
+                        icon: const Icon(Icons.soup_kitchen_outlined),
+                        label: const Text('Pasar a preparación'),
+                      ),
+                    ),
+                  ],
+                  if (orderRow['status'] == 'preparing') ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () => setOrderStatus('ready'),
+                        icon: const Icon(Icons.delivery_dining_rounded),
+                        label: const Text(
+                          'Listo · buscar repartidor',
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (_number(financials['merchant_owes_driver']) > 0 &&
+                      orderRow['assigned_driver_id'] != null) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: markDriverPaid,
+                        icon: const Icon(Icons.payments_outlined),
+                        label: const Text(
+                          'Confirmar pago al repartidor',
+                        ),
+                      ),
                     ),
                   ],
                 ],
