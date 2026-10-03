@@ -7964,7 +7964,6 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
   List<Map<String, dynamic>> buildRows = const [];
   bool initialLoading = true;
   bool refreshing = false;
-  bool showAllHistory = false;
   Object? loadError;
   DateTime? lastRefreshAt;
 
@@ -8249,33 +8248,67 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
     }
   }
 
-  Widget _buildRow(Map<String, dynamic> row) {
+  Widget _buildHistoryCard(Map<String, dynamic> row) {
     final status = (row['status'] ?? 'queued').toString();
     final apkUrl = row['apk_url']?.toString();
     final aabUrl = row['aab_url']?.toString();
     final runUrl = row['run_url']?.toString();
     final signing = row['signing_mode']?.toString() ?? 'test';
     final error = row['error_message']?.toString();
+    final ready = status == 'ready';
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    Widget actionButton({
+      required String label,
+      required IconData icon,
+      required VoidCallback? onPressed,
+      bool primary = false,
+    }) {
+      final button = primary
+          ? FilledButton.icon(
+              onPressed: onPressed,
+              icon: Icon(icon, size: 16),
+              label: Text(label),
+            )
+          : OutlinedButton.icon(
+              onPressed: onPressed,
+              icon: Icon(icon, size: 16),
+              label: Text(label),
+            );
+      return Expanded(child: button);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D101828),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 42,
+                height: 42,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: const Color(0xFFE8F8EF),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.android_rounded,
                   color: Color(0xFF14804A),
-                  size: 21,
+                  size: 22,
                 ),
               ),
               const SizedBox(width: 10),
@@ -8284,48 +8317,27 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'APK + AAB · v' +
+                      'v' +
                           (row['version_name'] ?? '—').toString() +
-                          ' (' +
-                          (row['build_number'] ?? '—').toString() +
-                          ')',
+                          ' · build ' +
+                          (row['build_number'] ?? '—').toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 12,
+                        color: _dark,
+                        fontSize: 14,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      _formatDate(row['created_at']),
-                      style: const TextStyle(fontSize: 10, color: _muted),
+                    const Text(
+                      'APK + AAB',
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    if (status == 'ready') ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        signing == 'production'
-                            ? 'Firmado con certificado de producción'
-                            : 'Firma de prueba · configura el keystore antes de publicar en Play Store',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: signing == 'production'
-                              ? const Color(0xFF14804A)
-                              : const Color(0xFFA15C07),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                    if (error != null && error.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        error,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Color(0xFFD92D20),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -8333,43 +8345,136 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
               _BuildStatus(status: status),
             ],
           ),
-          if (status == 'ready' || runUrl?.isNotEmpty == true) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(
+                Icons.schedule_rounded,
+                size: 15,
+                color: _muted,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                _formatDate(row['created_at']),
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: _muted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          if (ready) ...[
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                Icon(
+                  signing == 'production'
+                      ? Icons.verified_user_rounded
+                      : Icons.key_off_outlined,
+                  size: 15,
+                  color: signing == 'production'
+                      ? const Color(0xFF14804A)
+                      : const Color(0xFFA15C07),
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    signing == 'production'
+                        ? 'Firmado para producción'
+                        : 'Firma de prueba',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: signing == 'production'
+                          ? const Color(0xFF14804A)
+                          : const Color(0xFFA15C07),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (error != null && error.isNotEmpty) ...[
+            const SizedBox(height: 9),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF2F1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                error,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFFD92D20),
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+          const Spacer(),
+          if (ready && (apkUrl?.isNotEmpty == true || aabUrl?.isNotEmpty == true)) ...[
+            Row(
               children: [
                 if (apkUrl?.isNotEmpty == true)
-                  FilledButton.icon(
+                  actionButton(
+                    label: 'APK',
+                    icon: Icons.download_rounded,
                     onPressed: () => _openUrl(apkUrl),
-                    icon: const Icon(Icons.download_rounded, size: 17),
-                    label: const Text('Descargar APK'),
+                    primary: true,
                   ),
+                if (apkUrl?.isNotEmpty == true && aabUrl?.isNotEmpty == true)
+                  const SizedBox(width: 8),
                 if (aabUrl?.isNotEmpty == true)
-                  OutlinedButton.icon(
+                  actionButton(
+                    label: 'AAB',
+                    icon: Icons.inventory_2_outlined,
                     onPressed: () => _openUrl(aabUrl),
-                    icon: const Icon(Icons.inventory_2_outlined, size: 17),
-                    label: const Text('Descargar AAB'),
-                  ),
-                if (runUrl?.isNotEmpty == true)
-                  OutlinedButton.icon(
-                    onPressed: () => _openUrl(runUrl),
-                    icon: const Icon(Icons.terminal_rounded, size: 17),
-                    label: const Text('Ver compilación'),
-                  ),
-                if (status == 'ready' && signing == 'production')
-                  FilledButton.icon(
-                    onPressed: () => _publish(row),
-                    icon: const Icon(Icons.publish_rounded, size: 17),
-                    label: const Text('Publicar actualización'),
-                  ),
-                if (status == 'ready' && signing != 'production')
-                  OutlinedButton.icon(
-                    onPressed: null,
-                    icon: const Icon(Icons.key_off_outlined, size: 17),
-                    label: const Text('Falta firma de producción'),
                   ),
               ],
+            ),
+            const SizedBox(height: 8),
+          ],
+          if (runUrl?.isNotEmpty == true ||
+              (ready && signing == 'production')) ...[
+            Row(
+              children: [
+                if (runUrl?.isNotEmpty == true)
+                  actionButton(
+                    label: 'Compilación',
+                    icon: Icons.terminal_rounded,
+                    onPressed: () => _openUrl(runUrl),
+                  ),
+                if (runUrl?.isNotEmpty == true &&
+                    ready &&
+                    signing == 'production')
+                  const SizedBox(width: 8),
+                if (ready && signing == 'production')
+                  actionButton(
+                    label: 'Publicar',
+                    icon: Icons.publish_rounded,
+                    onPressed: () => _publish(row),
+                    primary: true,
+                  ),
+              ],
+            ),
+          ],
+          if (ready &&
+              signing != 'production' &&
+              runUrl?.isNotEmpty != true) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: null,
+                icon: const Icon(Icons.key_off_outlined, size: 16),
+                label: const Text('Falta firma de producción'),
+              ),
             ),
           ],
         ],
@@ -8415,8 +8520,6 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
       }
     }
 
-    final visibleRows =
-        showAllHistory ? rows : rows.take(12).toList(growable: false);
     final updated = lastRefreshAt;
     final updatedText = updated == null
         ? '—'
@@ -8740,6 +8843,7 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
         ],
         const SizedBox(height: 18),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             const Expanded(
               child: Column(
@@ -8754,13 +8858,26 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
                     ),
                   ),
                   SizedBox(height: 3),
-                  Text(
-                    'Los builds más recientes aparecen primero.',
-                    style: TextStyle(fontSize: 10, color: _muted),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.swipe_rounded,
+                        size: 15,
+                        color: _muted,
+                      ),
+                      SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          'Desliza horizontalmente · los más recientes aparecen primero.',
+                          style: TextStyle(fontSize: 10, color: _muted),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 10),
             Text(
               rows.length.toString() + ' builds',
               style: const TextStyle(
@@ -8775,47 +8892,27 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
         if (rows.isEmpty)
           const _Empty(text: 'Todavía no hay builds registrados.')
         else
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              children: [
-                for (var i = 0; i < visibleRows.length; i++) ...[
-                  _buildRow(visibleRows[i]),
-                  if (i != visibleRows.length - 1)
-                    const Divider(
-                      height: 1,
-                      indent: 60,
-                      color: Color(0xFFEEF2F6),
-                    ),
-                ],
-              ],
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cardWidth = constraints.maxWidth < 520
+                  ? constraints.maxWidth * .86
+                  : 340.0;
+              return SizedBox(
+                height: 310,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 8),
+                  itemCount: rows.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) => SizedBox(
+                    width: cardWidth,
+                    child: _buildHistoryCard(rows[index]),
+                  ),
+                ),
+              );
+            },
           ),
-        if (rows.length > 12) ...[
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.center,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                setState(() => showAllHistory = !showAllHistory);
-              },
-              icon: Icon(
-                showAllHistory
-                    ? Icons.expand_less_rounded
-                    : Icons.expand_more_rounded,
-              ),
-              label: Text(
-                showAllHistory
-                    ? 'Mostrar solo los recientes'
-                    : 'Ver historial completo',
-              ),
-            ),
-          ),
-        ],
         const SizedBox(height: 10),
         const _BuildCloudNotice(),
       ],
