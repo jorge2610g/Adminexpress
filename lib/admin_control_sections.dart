@@ -4150,11 +4150,13 @@ class AdminPaymentsPage extends StatefulWidget {
 class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   int revision = 0;
   final Set<String> savingZonePayments = <String>{};
+  final Set<String> savingMercadoPagoZones = <String>{};
 
   Future<({
     Map<String, dynamic> overview,
     List<Map<String, dynamic>> topups,
     List<Map<String, dynamic>> zones,
+    Map<String, Map<String, dynamic>> mercadoPago,
   })> _load() async {
     final values = await Future.wait([
       supabase.rpc('admin_payment_overview'),
@@ -4164,10 +4166,36 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
       ),
       supabase.rpc('admin_zone_list'),
     ]);
+    final zoneRows = _list(values[2]);
+    final mercadoPago = <String, Map<String, dynamic>>{};
+    for (final zone in zoneRows) {
+      if ((zone['country']?.toString() ?? '').toLowerCase() != 'chile') {
+        continue;
+      }
+      final zoneId = zone['id']?.toString();
+      if (zoneId == null || zoneId.isEmpty) continue;
+      try {
+        final response = await supabase.functions.invoke(
+          'zone-payment-admin',
+          body: {'action': 'get', 'zone_id': zoneId},
+        );
+        if (response.data is Map) {
+          mercadoPago[zoneId] =
+              Map<String, dynamic>.from(response.data as Map);
+        }
+      } catch (e) {
+        mercadoPago[zoneId] = {
+          'ok': false,
+          'configured': false,
+          'error': e.toString(),
+        };
+      }
+    }
     return (
       overview: _map(values[0]),
       topups: _list(values[1]),
-      zones: _list(values[2]),
+      zones: zoneRows,
+      mercadoPago: mercadoPago,
     );
   }
 
@@ -4228,6 +4256,152 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
       if (mounted) _snack(context, e);
     } finally {
       if (mounted) setState(() => savingZonePayments.remove(id));
+    }
+  }
+
+  Future<void> _configureMercadoPago(
+    Map<String, dynamic> zone,
+    Map<String, dynamic> state,
+  ) async {
+    final zoneId = zone['id']?.toString();
+    if (zoneId == null || zoneId.isEmpty) return;
+
+    final settings = state['settings'] is Map
+        ? Map<String, dynamic>.from(state['settings'] as Map)
+        : <String, dynamic>{};
+    final publicKey = TextEditingController(
+      text: settings['public_key']?.toString() ?? '',
+    );
+    final accessToken = TextEditingController();
+    final hasToken = settings['has_access_token'] == true;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Mercado Pago · ${zone['name'] ?? 'Chile'}',
+        ),
+        content: SizedBox(
+          width: 540,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Las credenciales se verifican desde el backend y el Access Token no se expone en la aplicación.',
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: publicKey,
+                  decoration: const InputDecoration(
+                    labelText: 'Public Key',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: accessToken,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: hasToken
+                        ? 'Access Token · dejar vacío para conservar'
+                        : 'Access Token',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const _AdminPaymentNotice(
+                  text:
+                      'Usa las credenciales de producción de Mercado Pago Chile. Al guardar, Express verificará la cuenta antes de marcarlas como conectadas.',
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.verified_rounded),
+            label: const Text('Guardar y verificar'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true || !mounted) {
+      publicKey.dispose();
+      accessToken.dispose();
+      return;
+    }
+
+    setState(() => savingMercadoPagoZones.add(zoneId));
+    try {
+      final response = await supabase.functions.invoke(
+        'zone-payment-admin',
+        body: {
+          'action': 'save_and_verify',
+          'zone_id': zoneId,
+          'public_key': publicKey.text.trim(),
+          'access_token': accessToken.text.trim(),
+        },
+      );
+      final data = response.data is Map
+          ? Map<String, dynamic>.from(response.data as Map)
+          : <String, dynamic>{};
+      if (data['ok'] != true) {
+        throw StateError(
+          data['error']?.toString() ??
+              'Mercado Pago no pudo verificar las credenciales.',
+        );
+      }
+      if (!mounted) return;
+      setState(() => revision++);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mercado Pago Chile conectado y verificado.'),
+        ),
+      );
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    } finally {
+      publicKey.dispose();
+      accessToken.dispose();
+      if (mounted) setState(() => savingMercadoPagoZones.remove(zoneId));
+    }
+  }
+
+  Future<void> _verifyMercadoPago(Map<String, dynamic> zone) async {
+    final zoneId = zone['id']?.toString();
+    if (zoneId == null ||
+        zoneId.isEmpty ||
+        savingMercadoPagoZones.contains(zoneId)) {
+      return;
+    }
+    setState(() => savingMercadoPagoZones.add(zoneId));
+    try {
+      final response = await supabase.functions.invoke(
+        'zone-payment-admin',
+        body: {'action': 'verify', 'zone_id': zoneId},
+      );
+      final data = response.data is Map
+          ? Map<String, dynamic>.from(response.data as Map)
+          : <String, dynamic>{};
+      if (data['ok'] != true) {
+        throw StateError(
+          data['error']?.toString() ?? 'No se pudo verificar Mercado Pago.',
+        );
+      }
+      if (!mounted) return;
+      setState(() => revision++);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Conexión Mercado Pago verificada.')),
+      );
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    } finally {
+      if (mounted) setState(() => savingMercadoPagoZones.remove(zoneId));
     }
   }
 
@@ -4301,6 +4475,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
           Map<String, dynamic> overview,
           List<Map<String, dynamic>> topups,
           List<Map<String, dynamic>> zones,
+          Map<String, Map<String, dynamic>> mercadoPago,
         })>(
       key: ValueKey(revision),
       future: _load(),
@@ -4321,11 +4496,13 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
               overview: <String, dynamic>{},
               topups: <Map<String, dynamic>>[],
               zones: <Map<String, dynamic>>[],
+              mercadoPago: <String, Map<String, dynamic>>{},
             );
         final summary = _map(data.overview['summary']);
         final recent = _list(data.overview['recent']);
         final topups = data.topups;
         final zones = data.zones;
+        final mercadoPago = data.mercadoPago;
 
         return RefreshIndicator(
           onRefresh: () async => setState(() => revision++),
@@ -4364,6 +4541,16 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                     final currency =
                         (zone['currency_code'] ?? '—').toString();
                     final country = (zone['country'] ?? '—').toString();
+                    final provider = _zonePaymentProvider(zone);
+                    final mpState =
+                        mercadoPago[id] ?? const <String, dynamic>{};
+                    final mpConfigured = mpState['configured'] == true;
+                    final mpSettings = mpState['settings'] is Map
+                        ? Map<String, dynamic>.from(
+                            mpState['settings'] as Map,
+                          )
+                        : <String, dynamic>{};
+                    final mpBusy = savingMercadoPagoZones.contains(id);
                     return SizedBox(
                       width: 360,
                       child: Container(
@@ -4425,8 +4612,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                                 ),
                               ],
                             ),
-                            if (_zonePaymentProvider(zone) ==
-                                'veripagos_qr') ...[
+                            if (provider == 'veripagos_qr') ...[
                               const SizedBox(height: 10),
                               const Text(
                                 'Las credenciales VeriPagos se administran en Finanzas → Suscripciones. Este proveedor solo se aplica a zonas de Bolivia.',
@@ -4436,15 +4622,65 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                                 ),
                               ),
                             ],
-                            if (_zonePaymentProvider(zone) ==
-                                'mercado_pago') ...[
+                            if (provider == 'mercado_pago') ...[
                               const SizedBox(height: 10),
-                              const Text(
-                                'Mercado Pago queda reservado para Chile. Las credenciales se conectarán desde este módulo antes de habilitar cobros reales.',
-                                style: TextStyle(
-                                  color: Color(0xFF667085),
-                                  fontSize: 11,
-                                ),
+                              Row(
+                                children: [
+                                  _MiniStatus(
+                                    text: mpConfigured
+                                        ? 'Credenciales verificadas'
+                                        : 'Falta conectar',
+                                    positive: mpConfigured,
+                                  ),
+                                  const Spacer(),
+                                  if (mpConfigured)
+                                    Text(
+                                      (mpSettings['nickname'] ??
+                                              mpSettings['account_email'] ??
+                                              '')
+                                          .toString(),
+                                      style: const TextStyle(
+                                        color: Color(0xFF667085),
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  FilledButton.icon(
+                                    onPressed: mpBusy
+                                        ? null
+                                        : () => _configureMercadoPago(
+                                              zone,
+                                              mpState,
+                                            ),
+                                    icon: const Icon(
+                                      Icons.manage_accounts_rounded,
+                                      size: 18,
+                                    ),
+                                    label: Text(
+                                      mpConfigured
+                                          ? 'Editar credenciales'
+                                          : 'Conectar Mercado Pago',
+                                    ),
+                                  ),
+                                  if (mpState['credentials_configured'] ==
+                                      true)
+                                    OutlinedButton.icon(
+                                      onPressed: mpBusy
+                                          ? null
+                                          : () => _verifyMercadoPago(zone),
+                                      icon: const Icon(
+                                        Icons.verified_outlined,
+                                        size: 18,
+                                      ),
+                                      label: const Text('Verificar'),
+                                    ),
+                                ],
                               ),
                             ],
                           ],
@@ -4610,6 +4846,32 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   }
 }
 
+
+class _AdminPaymentNotice extends StatelessWidget {
+  final String text;
+  const _AdminPaymentNotice({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Color(0xFF475467),
+          fontSize: 12,
+          height: 1.4,
+        ),
+      ),
+    );
+  }
+}
 
 class AdminCommunicationsPage extends StatefulWidget {
   const AdminCommunicationsPage({super.key});
