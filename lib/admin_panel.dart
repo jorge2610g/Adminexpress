@@ -8,6 +8,7 @@ import 'admin_audit_sandbox.dart';
 import 'admin_load_lab.dart';
 import 'admin_driver_subscriptions.dart';
 import 'admin_marketplace.dart';
+import 'admin_marketplace_phase2.dart';
 import 'admin_driver_priority.dart';
 import 'admin_detail_dialogs.dart';
 
@@ -252,6 +253,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Carga QA', Icons.speed_rounded),
     ('Suscripciones', Icons.workspace_premium_rounded),
     ('Express Market', Icons.storefront_rounded),
+    ('Delivery Fase 2 / Express Plus', Icons.delivery_dining_rounded),
     ('Prioridad conductores', Icons.workspace_premium_outlined),
   ];
 
@@ -805,6 +807,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 23:
         return const AdminMarketplacePage();
       case 24:
+        return const AdminMarketplacePhase2Page();
+      case 25:
         return const AdminDriverPriorityPage();
       default:
         return const SizedBox.shrink();
