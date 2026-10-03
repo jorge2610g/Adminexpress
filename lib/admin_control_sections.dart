@@ -339,8 +339,24 @@ class AdminAuditPage extends StatefulWidget {
 class _AdminAuditPageState extends State<AdminAuditPage> {
   int revision = 0;
 
-  String _actionLabel(Object? raw) {
-    return switch (raw?.toString()) {
+  String _actionLabel(Object? raw, [Object? entityType]) {
+    final action = raw?.toString();
+    final entity = entityType?.toString();
+
+    if (action == 'upsert' && entity == 'service_zone_polygon') {
+      return 'Polígono de cobertura actualizado';
+    }
+    if (action == 'resolve' && entity == 'emergency') {
+      return 'Emergencia resuelta';
+    }
+    if (action == 'create' && entity == 'build_job') {
+      return 'Compilación solicitada';
+    }
+    if (action == 'update' && entity == 'app_settings') {
+      return 'Configuración actualizada';
+    }
+
+    return switch (action) {
       'update_user_profile' => 'Perfil de usuario actualizado',
       'update_driver_profile' => 'Perfil de conductor actualizado',
       'upsert_driver_document' => 'Documento de conductor actualizado',
@@ -402,7 +418,7 @@ class _AdminAuditPageState extends State<AdminAuditPage> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(_actionLabel(row['action'])),
+        title: Text(_actionLabel(row['action'], row['entity_type'])),
         content: SizedBox(
           width: 620,
           child: SingleChildScrollView(
@@ -505,7 +521,7 @@ class _AdminAuditPageState extends State<AdminAuditPage> {
                     leading:
                         const Icon(Icons.history_rounded, color: _blue),
                     title: Text(
-                      _actionLabel(row['action']),
+                      _actionLabel(row['action'], row['entity_type']),
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                     subtitle: Text(
