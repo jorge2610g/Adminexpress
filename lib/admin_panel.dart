@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'core/supabase_client.dart';
+import 'admin_environment_store.dart';
 import 'admin_control_sections.dart';
 import 'admin_audit_sandbox.dart';
 import 'admin_load_lab.dart';
@@ -324,8 +325,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<({Map<String, dynamic> state, List<Map<String, dynamic>> zones})>
       _liveState() async {
     final state = await _dashboardState();
-    final zoneValue = await supabase.rpc('admin_zone_list');
-    return (state: state, zones: _list(zoneValue));
+    final environment = AdminEnvironmentStore(adminChannel);
+    final zones = environment.isPreview
+        ? await environment.previewList('service_zones')
+        : _list(await supabase.rpc('admin_zone_list'));
+    return (state: state, zones: zones);
   }
 
   Future<List<Map<String, dynamic>>> _drivers() async {
@@ -338,6 +342,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Future<List<Map<String, dynamic>>> _filterZones() async {
+    final environment = AdminEnvironmentStore(adminChannel);
+    if (environment.isPreview) {
+      return environment.previewList('service_zones');
+    }
     final value = await supabase.rpc('admin_zone_list_v2');
     return _list(value);
   }
