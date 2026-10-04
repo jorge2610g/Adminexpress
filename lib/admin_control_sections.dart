@@ -7769,6 +7769,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
   bool cash = true;
   bool card = false;
   bool wallet = false;
+  bool smsPassengerEnabled = false;
+  bool smsDriverEnabled = false;
   bool rideEnabled = true;
   bool deliveryEnabled = true;
   String dispatchMode = 'broadcast';
@@ -7814,6 +7816,10 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       cash = row['allow_cash'] != false;
       card = row['allow_card'] == true;
       wallet = row['allow_wallet'] == true;
+      smsPassengerEnabled =
+          row['sms_verification_passenger_enabled'] == true;
+      smsDriverEnabled =
+          row['sms_verification_driver_enabled'] == true;
       rideEnabled = row['ride_enabled'] != false;
       deliveryEnabled = row['delivery_enabled'] != false;
       dispatchMode = (row['dispatch_mode'] ?? 'broadcast').toString();
@@ -7837,6 +7843,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
         'allow_cash': cash,
         'allow_card': card,
         'allow_wallet': wallet,
+        'sms_verification_passenger_enabled': smsPassengerEnabled,
+        'sms_verification_driver_enabled': smsDriverEnabled,
         'ride_enabled': rideEnabled,
         'delivery_enabled': deliveryEnabled,
         'dispatch_mode': dispatchMode,
@@ -7853,7 +7861,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
         await _environment.previewUpsert('app_settings', 'default', next);
         settings = next;
       } else {
-        final value = await supabase.rpc(
+        await supabase.rpc(
           'admin_settings_update',
           params: {
             'p_currency': next['currency'],
@@ -7876,7 +7884,16 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
             'p_support_whatsapp': next['support_whatsapp'],
           },
         );
-        settings = _map(value);
+        final phoneSettings = await supabase.rpc(
+          'admin_phone_verification_settings_update',
+          params: {
+            'p_passenger_enabled':
+                next['sms_verification_passenger_enabled'],
+            'p_driver_enabled':
+                next['sms_verification_driver_enabled'],
+          },
+        );
+        settings = _map(phoneSettings);
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -7922,6 +7939,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       'Operación',
       'Tarifas',
       'Soporte',
+      'Seguridad',
     ];
 
     Widget content;
@@ -8055,6 +8073,42 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
             TextField(
               controller: supportWhatsapp,
               decoration: const InputDecoration(labelText: 'WhatsApp de soporte'),
+            ),
+          ],
+        );
+        break;
+      case 6:
+        content = _SettingsCard(
+          title: 'Verificación de teléfono por SMS',
+          subtitle:
+              'Control independiente para pasajeros y conductores. Déjalo apagado hasta configurar Twilio/SMS.',
+          children: [
+            const _InlineNotice(
+              icon: Icons.sms_outlined,
+              text:
+                  'Con el switch apagado Express no enviará SMS ni bloqueará el uso de la app por teléfono sin verificar. Al activarlo, las cuentas nuevas y existentes de ese rol deberán verificar o cambiar su número.',
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: smsPassengerEnabled,
+              onChanged: (value) =>
+                  setState(() => smsPassengerEnabled = value),
+              title: const Text('Verificación SMS · Pasajeros'),
+              subtitle: const Text(
+                'Exige teléfono verificado antes de solicitar viajes.',
+              ),
+            ),
+            const Divider(height: 1),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: smsDriverEnabled,
+              onChanged: (value) =>
+                  setState(() => smsDriverEnabled = value),
+              title: const Text('Verificación SMS · Conductores'),
+              subtitle: const Text(
+                'Exige teléfono verificado para conectarse y enviar ofertas.',
+              ),
             ),
           ],
         );
