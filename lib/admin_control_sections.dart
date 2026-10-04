@@ -2194,7 +2194,12 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
 
 
 class AdminServicesPage extends StatefulWidget {
-  const AdminServicesPage({super.key});
+  final String channel;
+
+  const AdminServicesPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminServicesPage> createState() => _AdminServicesPageState();
@@ -2202,6 +2207,9 @@ class AdminServicesPage extends StatefulWidget {
 
 class _AdminServicesPageState extends State<AdminServicesPage> {
   int revision = 0;
+
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
   String? selectedZoneId;
 
   Future<({
@@ -2209,7 +2217,9 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
     List<Map<String, dynamic>> services,
     Map<String, dynamic>? zone,
   })> _load() async {
-    final zoneRows = _list(await supabase.rpc('admin_zone_list'));
+    final zoneRows = _environment.isPreview
+        ? await _environment.previewList('service_zones')
+        : _list(await supabase.rpc('admin_zone_list'));
     if (zoneRows.isEmpty) {
       return (
         zones: zoneRows,
@@ -2233,12 +2243,37 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
     final zone = zoneRows.firstWhere(
       (row) => row['id']?.toString() == zoneId,
     );
-    final serviceRows = _list(
-      await supabase.rpc(
-        'admin_zone_service_list',
-        params: {'p_zone_id': zoneId},
-      ),
-    );
+    List<Map<String, dynamic>> serviceRows;
+    if (_environment.isPreview) {
+      final catalog = await _environment.previewList('service_catalog');
+      final overrides = (await _environment.previewList('zone_services'))
+          .where((row) => row['zone_id']?.toString() == zoneId)
+          .toList();
+      final byKey = <String, Map<String, dynamic>>{
+        for (final row in catalog)
+          if (row['service_key'] != null)
+            row['service_key'].toString(): Map<String, dynamic>.from(row),
+      };
+      for (final override in overrides) {
+        final key = override['service_key']?.toString();
+        if (key == null || key.isEmpty) continue;
+        byKey[key] = <String, dynamic>{
+          ...?byKey[key],
+          ...override,
+        };
+      }
+      serviceRows = byKey.values.toList()
+        ..sort((a, b) =>
+            ((a['sort_order'] as num?)?.toInt() ?? 100)
+                .compareTo((b['sort_order'] as num?)?.toInt() ?? 100));
+    } else {
+      serviceRows = _list(
+        await supabase.rpc(
+          'admin_zone_service_list',
+          params: {'p_zone_id': zoneId},
+        ),
+      );
+    }
 
     return (zones: zoneRows, services: serviceRows, zone: zone);
   }
@@ -2434,39 +2469,79 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_upsert_service',
-          params: {
-            'p_id': row?['id'],
-            'p_service_key': key.text.trim(),
-            'p_name': name.text.trim(),
-            'p_description': description.text.trim(),
-            'p_icon_key': 'local_taxi',
-            'p_vehicle_type': vehicle,
-            'p_enabled': true,
-            'p_allow_bidding': bidding,
-            'p_allow_fixed_price': fixed,
-            'p_passenger_visible': true,
-            'p_driver_visible': true,
-            'p_scheduled_enabled': scheduled,
-            'p_sort_order': int.tryParse(order.text.trim()) ?? 100,
-          },
-        );
+        final serviceKey = key.text.trim();
+        final sortOrder = int.tryParse(order.text.trim()) ?? 100;
+        if (_environment.isPreview) {
+          final base = <String, dynamic>{
+            ...?row,
+            'service_key': serviceKey,
+            'name': name.text.trim(),
+            'description': description.text.trim(),
+            'icon_key': row?['icon_key'] ?? 'local_taxi',
+            'vehicle_type': vehicle,
+            'enabled': true,
+            'allow_bidding': bidding,
+            'allow_fixed_price': fixed,
+            'passenger_visible': true,
+            'driver_visible': true,
+            'scheduled_enabled': scheduled,
+            'sort_order': sortOrder,
+          };
+          await _environment.previewUpsert(
+            'service_catalog',
+            serviceKey,
+            base,
+          );
+          await _environment.previewUpsert(
+            'zone_services',
+            zoneId + ':' + serviceKey,
+            <String, dynamic>{
+              'zone_id': zoneId,
+              'service_key': serviceKey,
+              'enabled': enabled,
+              'passenger_visible': passengerVisible,
+              'driver_visible': driverVisible,
+              'allow_bidding': bidding,
+              'allow_fixed_price': fixed,
+              'scheduled_enabled': scheduled,
+              'sort_order': sortOrder,
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_upsert_service',
+            params: {
+              'p_id': row?['id'],
+              'p_service_key': serviceKey,
+              'p_name': name.text.trim(),
+              'p_description': description.text.trim(),
+              'p_icon_key': 'local_taxi',
+              'p_vehicle_type': vehicle,
+              'p_enabled': true,
+              'p_allow_bidding': bidding,
+              'p_allow_fixed_price': fixed,
+              'p_passenger_visible': true,
+              'p_driver_visible': true,
+              'p_scheduled_enabled': scheduled,
+              'p_sort_order': sortOrder,
+            },
+          );
 
-        await supabase.rpc(
-          'admin_set_zone_service',
-          params: {
-            'p_zone_id': zoneId,
-            'p_service_key': key.text.trim(),
-            'p_enabled': enabled,
-            'p_passenger_visible': passengerVisible,
-            'p_driver_visible': driverVisible,
-            'p_allow_bidding': bidding,
-            'p_allow_fixed_price': fixed,
-            'p_scheduled_enabled': scheduled,
-            'p_sort_order': int.tryParse(order.text.trim()) ?? 100,
-          },
-        );
+          await supabase.rpc(
+            'admin_set_zone_service',
+            params: {
+              'p_zone_id': zoneId,
+              'p_service_key': serviceKey,
+              'p_enabled': enabled,
+              'p_passenger_visible': passengerVisible,
+              'p_driver_visible': driverVisible,
+              'p_allow_bidding': bidding,
+              'p_allow_fixed_price': fixed,
+              'p_scheduled_enabled': scheduled,
+              'p_sort_order': sortOrder,
+            },
+          );
+        }
 
         if (mounted) {
           setState(() => revision++);
