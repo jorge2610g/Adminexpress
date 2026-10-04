@@ -951,7 +951,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 20:
         return const AdminAuditSandboxPage();
       case 21:
-        return const AdminLoadLabPage();
+        return AdminLoadLabPage(channel: adminChannel);
       case 22:
         return AdminDriverSubscriptionsPage(channel: adminChannel);
       case 23:
