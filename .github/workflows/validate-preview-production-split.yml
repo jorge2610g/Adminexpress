@@ -1,0 +1,30 @@
+name: Validate Admin Preview Production Split
+
+on:
+  push:
+    branches:
+      - feature/delivery-modules-merchant-dashboard
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze changed admin modules
+        run: |
+          flutter analyze --no-fatal-warnings --no-fatal-infos \
+            lib/admin_panel.dart \
+            lib/admin_control_sections.dart \
+            lib/admin_marketplace_phase2.dart
+      - name: Build admin web smoke test
+        run: flutter build web --release
