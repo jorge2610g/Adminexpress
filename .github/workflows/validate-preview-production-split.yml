@@ -6,7 +6,6 @@ on:
       - main
       - feature/delivery-modules-merchant-dashboard
       - refactor/unified-preview-production-panel
-      - fix/admin-qa-environment-snapshot
   workflow_dispatch:
 
 permissions:
