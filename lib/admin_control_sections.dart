@@ -5576,7 +5576,12 @@ Future<bool> showAdminZonePaymentMethodsEditor(
 }
 
 class AdminPaymentsPage extends StatefulWidget {
-  const AdminPaymentsPage({super.key});
+  final String channel;
+
+  const AdminPaymentsPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminPaymentsPage> createState() => _AdminPaymentsPageState();
@@ -5584,6 +5589,9 @@ class AdminPaymentsPage extends StatefulWidget {
 
 class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   int revision = 0;
+
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
   String paymentPeriod = 'today';
   DateTimeRange? paymentCustomRange;
   String? selectedPaymentZoneId;
@@ -5648,6 +5656,100 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     Map<String, Map<String, dynamic>> mercadoPago,
   })> _load() async {
     final range = _paymentBounds();
+
+    if (_environment.isPreview) {
+      final zoneBase = await _environment.previewList('service_zones');
+      final methods = await _environment.previewList('zone_payment_methods');
+      final zoneRows = zoneBase.map((zone) {
+        final zoneId = zone['id']?.toString();
+        return <String, dynamic>{
+          ...zone,
+          'payment_methods': methods
+              .where((row) => row['zone_id']?.toString() == zoneId)
+              .toList(),
+        };
+      }).toList();
+
+      final allTopups = await _environment.previewList('wallet_topups');
+      final topups = allTopups
+          .where((row) => (row['status'] ?? 'pending') == 'pending')
+          .toList();
+
+      final allRecent =
+          await _environment.previewList('payment_transactions');
+      final recent = allRecent.where((row) {
+        final created = DateTime.tryParse(row['created_at']?.toString() ?? '');
+        if (created == null) return true;
+        final local = created.toLocal();
+        return !local.isBefore(range.from) && local.isBefore(range.to);
+      }).where((row) {
+        if (selectedPaymentZoneId == null) return true;
+        return row['zone_id']?.toString() == selectedPaymentZoneId;
+      }).toList();
+
+      final totals = <String, num>{};
+      final pendingTotals = <String, num>{};
+      var paidCount = 0;
+      var pendingCount = 0;
+      for (final row in recent) {
+        final currency = (row['currency'] ?? row['currency_code'] ?? 'BOB')
+            .toString();
+        final amount = (row['amount'] as num?) ?? 0;
+        totals[currency] = (totals[currency] ?? 0) + amount;
+        if (row['status'] == 'paid' || row['status'] == 'approved') {
+          paidCount++;
+        } else {
+          pendingCount++;
+          pendingTotals[currency] = (pendingTotals[currency] ?? 0) + amount;
+        }
+      }
+
+      final credentials =
+          await _environment.previewList('zone_payment_credentials');
+      final mercadoPago = <String, Map<String, dynamic>>{};
+      for (final zone in zoneRows) {
+        final zoneId = zone['id']?.toString();
+        if (zoneId == null || zoneId.isEmpty) continue;
+        Map<String, dynamic>? stored;
+        for (final row in credentials) {
+          if (row['zone_id']?.toString() == zoneId &&
+              row['provider_key']?.toString() == 'mercado_pago') {
+            stored = row;
+            break;
+          }
+        }
+        if (stored != null) {
+          mercadoPago[zoneId] = <String, dynamic>{
+            'ok': true,
+            'configured': stored['configured'] == true,
+            'credentials_configured':
+                stored['credentials_configured'] == true,
+            'settings': <String, dynamic>{
+              'public_key': stored['public_key'] ?? '',
+              'has_access_token': stored['has_access_token'] == true,
+              'nickname': stored['nickname'] ?? 'Preview',
+              'account_email': stored['account_email'] ?? '',
+            },
+          };
+        }
+      }
+
+      return (
+        overview: <String, dynamic>{
+          'summary': <String, dynamic>{
+            'totals_by_currency': totals,
+            'pending_by_currency': pendingTotals,
+            'paid_count': paidCount,
+            'pending_count': pendingCount,
+          },
+          'recent': recent,
+        },
+        topups: topups,
+        zones: zoneRows,
+        mercadoPago: mercadoPago,
+      );
+    }
+
     final values = await Future.wait([
       supabase.rpc(
         'admin_payment_overview_v2',
@@ -5740,20 +5842,35 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     setState(() => savingZonePayments.add(id));
     try {
       for (final method in methods) {
-        await supabase.rpc(
-          'admin_upsert_zone_payment_method',
-          params: {
-            'p_zone_id': id,
-            'p_provider_key': method['provider_key'],
-            'p_enabled': enabled,
-            'p_use_rides': method['use_rides'] == true,
-            'p_use_delivery': method['use_delivery'] == true,
-            'p_use_subscriptions': method['use_subscriptions'] == true,
-            'p_use_wallet': method['use_wallet'] == true,
-            'p_is_primary': method['is_primary'] == true,
-            'p_sort_order': method['sort_order'] ?? 100,
-          },
-        );
+        if (_environment.isPreview) {
+          await _environment.previewUpsert(
+            'zone_payment_methods',
+            AdminEnvironmentStore.recordKey(
+              method,
+              fallback: id + ':' + (method['provider_key'] ?? '').toString(),
+            ),
+            <String, dynamic>{
+              ...method,
+              'zone_id': id,
+              'enabled': enabled,
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_upsert_zone_payment_method',
+            params: {
+              'p_zone_id': id,
+              'p_provider_key': method['provider_key'],
+              'p_enabled': enabled,
+              'p_use_rides': method['use_rides'] == true,
+              'p_use_delivery': method['use_delivery'] == true,
+              'p_use_subscriptions': method['use_subscriptions'] == true,
+              'p_use_wallet': method['use_wallet'] == true,
+              'p_is_primary': method['is_primary'] == true,
+              'p_sort_order': method['sort_order'] ?? 100,
+            },
+          );
+        }
       }
       if (!mounted) return;
       setState(() => revision++);
@@ -5852,23 +5969,41 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
 
     setState(() => savingMercadoPagoZones.add(zoneId));
     try {
-      final response = await supabase.functions.invoke(
-        'zone-payment-admin',
-        body: {
-          'action': 'save_and_verify',
-          'zone_id': zoneId,
-          'public_key': publicKey.text.trim(),
-          'access_token': accessToken.text.trim(),
-        },
-      );
-      final data = response.data is Map
-          ? Map<String, dynamic>.from(response.data as Map)
-          : <String, dynamic>{};
-      if (data['ok'] != true) {
-        throw StateError(
-          data['error']?.toString() ??
-              'Mercado Pago no pudo verificar las credenciales.',
+      if (_environment.isPreview) {
+        await _environment.previewUpsert(
+          'zone_payment_credentials',
+          zoneId + ':mercado_pago',
+          <String, dynamic>{
+            'zone_id': zoneId,
+            'provider_key': 'mercado_pago',
+            'configured': true,
+            'credentials_configured': true,
+            'public_key': publicKey.text.trim(),
+            'has_access_token':
+                accessToken.text.trim().isNotEmpty || hasToken,
+            'verified': true,
+            'nickname': 'Mercado Pago Preview',
+          },
         );
+      } else {
+        final response = await supabase.functions.invoke(
+          'zone-payment-admin',
+          body: {
+            'action': 'save_and_verify',
+            'zone_id': zoneId,
+            'public_key': publicKey.text.trim(),
+            'access_token': accessToken.text.trim(),
+          },
+        );
+        final data = response.data is Map
+            ? Map<String, dynamic>.from(response.data as Map)
+            : <String, dynamic>{};
+        if (data['ok'] != true) {
+          throw StateError(
+            data['error']?.toString() ??
+                'Mercado Pago no pudo verificar las credenciales.',
+          );
+        }
       }
       if (!mounted) return;
       setState(() => revision++);
@@ -5895,17 +6030,36 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     }
     setState(() => savingMercadoPagoZones.add(zoneId));
     try {
-      final response = await supabase.functions.invoke(
-        'zone-payment-admin',
-        body: {'action': 'verify', 'zone_id': zoneId},
-      );
-      final data = response.data is Map
-          ? Map<String, dynamic>.from(response.data as Map)
-          : <String, dynamic>{};
-      if (data['ok'] != true) {
-        throw StateError(
-          data['error']?.toString() ?? 'No se pudo verificar Mercado Pago.',
+      if (_environment.isPreview) {
+        final current = await _environment.previewGet(
+          'zone_payment_credentials',
+          recordKey: zoneId + ':mercado_pago',
         );
+        await _environment.previewUpsert(
+          'zone_payment_credentials',
+          zoneId + ':mercado_pago',
+          <String, dynamic>{
+            ...current,
+            'zone_id': zoneId,
+            'provider_key': 'mercado_pago',
+            'configured': true,
+            'credentials_configured': true,
+            'verified': true,
+          },
+        );
+      } else {
+        final response = await supabase.functions.invoke(
+          'zone-payment-admin',
+          body: {'action': 'verify', 'zone_id': zoneId},
+        );
+        final data = response.data is Map
+            ? Map<String, dynamic>.from(response.data as Map)
+            : <String, dynamic>{};
+        if (data['ok'] != true) {
+          throw StateError(
+            data['error']?.toString() ?? 'No se pudo verificar Mercado Pago.',
+          );
+        }
       }
       if (!mounted) return;
       setState(() => revision++);
@@ -5958,13 +6112,25 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     if (confirmed != true || !mounted) return;
 
     try {
-      await supabase.rpc(
-        'admin_resolve_wallet_topup',
-        params: {
-          'p_request_id': row['id'],
-          'p_status': status,
-        },
-      );
+      if (_environment.isPreview) {
+        await _environment.previewUpsert(
+          'wallet_topups',
+          AdminEnvironmentStore.recordKey(row),
+          <String, dynamic>{
+            ...row,
+            'status': status,
+            'resolved_at': DateTime.now().toUtc().toIso8601String(),
+          },
+        );
+      } else {
+        await supabase.rpc(
+          'admin_resolve_wallet_topup',
+          params: {
+            'p_request_id': row['id'],
+            'p_status': status,
+          },
+        );
+      }
       if (!mounted) return;
       setState(() => revision++);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -6150,6 +6316,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                                         await showAdminZonePaymentMethodsEditor(
                                       context,
                                       zone,
+                                      channel: widget.channel,
                                     );
                                     if (changed && mounted) {
                                       setState(() => revision++);
