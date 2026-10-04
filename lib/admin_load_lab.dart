@@ -7,7 +7,12 @@ import 'package:latlong2/latlong.dart';
 import 'core/supabase_client.dart';
 
 class AdminLoadLabPage extends StatefulWidget {
-  const AdminLoadLabPage({super.key});
+  final String channel;
+
+  const AdminLoadLabPage({
+    super.key,
+    required this.channel,
+  });
 
   @override
   State<AdminLoadLabPage> createState() => _AdminLoadLabPageState();
@@ -37,9 +42,28 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
   Map<String, dynamic> snapshot = const {};
   Map<String, dynamic>? result;
 
+  String _scopeFromChannel(String channel) =>
+      channel == 'production' ? 'production' : 'sandbox';
+
   @override
   void initState() {
     super.initState();
+    targetScope = _scopeFromChannel(widget.channel);
+    unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(covariant AdminLoadLabPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.channel == widget.channel) return;
+
+    final nextScope = _scopeFromChannel(widget.channel);
+    setState(() {
+      targetScope = nextScope;
+      snapshot = const <String, dynamic>{};
+      result = null;
+      error = null;
+    });
     unawaited(_load());
   }
 
@@ -84,10 +108,22 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
   }
 
   Future<void> _load() async {
+    final requestedScope = targetScope;
+    final requestedCity = selectedCity;
     try {
-      final value = await supabase.rpc('admin_audit_load_snapshot');
+      final value = await supabase.rpc(
+        'admin_audit_load_snapshot_v2',
+        params: {
+          'p_scope': requestedScope,
+          'p_city_key': requestedCity,
+        },
+      );
       final demandRaw = await supabase.rpc('admin_dynamic_pricing_qa_state');
-      if (!mounted) return;
+      if (!mounted ||
+          requestedScope != targetScope ||
+          requestedCity != selectedCity) {
+        return;
+      }
       final demandMap = demandRaw is Map
           ? Map<String, dynamic>.from(demandRaw)
           : <String, dynamic>{};
@@ -99,7 +135,12 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
         error = null;
       });
     } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+      if (!mounted ||
+          requestedScope != targetScope ||
+          requestedCity != selectedCity) {
+        return;
+      }
+      setState(() => error = _friendlyError(e));
     }
   }
 
@@ -277,24 +318,29 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
               children: [
                 SizedBox(
                   width: 220,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: targetScope,
-                    decoration: const InputDecoration(labelText: 'Entorno'),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'sandbox',
-                        child: Text('Prueba (aislado)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'production',
-                        child: Text('Producción (real)'),
-                      ),
-                    ],
-                    onChanged: busy
-                        ? null
-                        : (v) {
-                            if (v != null) setState(() => targetScope = v);
-                          },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Entorno',
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          targetScope == 'production'
+                              ? Icons.verified_outlined
+                              : Icons.science_outlined,
+                          size: 19,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            targetScope == 'production'
+                                ? 'Producción (real)'
+                                : 'Prueba (aislado)',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 SizedBox(
@@ -315,8 +361,14 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                     onChanged: busy
                         ? null
                         : (v) {
-                            if (v != null) {
-                              setState(() => selectedCity = v);
+                            if (v != null && v != selectedCity) {
+                              setState(() {
+                                selectedCity = v;
+                                snapshot = const <String, dynamic>{};
+                                result = null;
+                                error = null;
+                              });
+                              unawaited(_load());
                             }
                           },
                   ),
