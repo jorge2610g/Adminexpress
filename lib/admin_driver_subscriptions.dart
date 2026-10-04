@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'admin_control_sections.dart';
+import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
 
 int _adminSubscriptionInt(Object? raw) {
@@ -11,7 +12,12 @@ int _adminSubscriptionInt(Object? raw) {
 }
 
 class AdminDriverSubscriptionsPage extends StatefulWidget {
-  const AdminDriverSubscriptionsPage({super.key});
+  final String channel;
+
+  const AdminDriverSubscriptionsPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminDriverSubscriptionsPage> createState() =>
@@ -20,6 +26,8 @@ class AdminDriverSubscriptionsPage extends StatefulWidget {
 
 class _AdminDriverSubscriptionsPageState
     extends State<AdminDriverSubscriptionsPage> {
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
   bool loading = true;
   bool savingSettings = false;
   bool providerSaving = false;
@@ -86,6 +94,121 @@ class _AdminDriverSubscriptionsPageState
     String? loadError;
     List<Map<String, dynamic>> zoneRows = zones;
     String? zoneKey = selectedZoneKey;
+
+    if (_environment.isPreview) {
+      try {
+        zoneRows = await _environment.previewList('service_zones');
+        if (zoneRows.isNotEmpty &&
+            (zoneKey == null ||
+                !zoneRows.any(
+                  (row) => row['zone_key']?.toString() == zoneKey,
+                ))) {
+          final trinidad = zoneRows.where(
+            (row) => row['zone_key']?.toString() == 'trinidad',
+          );
+          zoneKey = trinidad.isNotEmpty
+              ? 'trinidad'
+              : zoneRows.first['zone_key']?.toString();
+        }
+
+        final allPlans =
+            await _environment.previewList('driver_subscription_plans');
+        final zonePlans = allPlans
+            .where((row) => row['zone_key']?.toString() == zoneKey)
+            .toList()
+          ..sort((a, b) =>
+              ((a['sort_order'] as num?)?.toInt() ?? 100)
+                  .compareTo((b['sort_order'] as num?)?.toInt() ?? 100));
+
+        Map<String, dynamic> zoneSettings = {};
+        if (zoneKey != null && zoneKey.isNotEmpty) {
+          zoneSettings = await _environment.previewGet(
+            'driver_subscription_settings',
+            recordKey: zoneKey,
+          );
+          if (zoneSettings.isEmpty) {
+            zoneSettings = await _environment.previewGet(
+              'driver_subscription_settings',
+            );
+          }
+        }
+
+        final rawDrivers = await supabase.rpc(
+          'admin_driver_subscriptions',
+          params: {
+            'p_search': search.text.trim(),
+            'p_zone_key': zoneKey,
+          },
+        );
+        final qaDrivers = _maps(rawDrivers)
+            .where(
+              (row) => row['is_qa'] == true || _isQaDriver(row),
+            )
+            .toList();
+        final assignments =
+            await _environment.previewList('driver_subscriptions');
+        final mergedDrivers = qaDrivers.map((driver) {
+          final driverId =
+              (driver['driver_id'] ?? driver['user_id'])?.toString();
+          Map<String, dynamic>? assignment;
+          for (final row in assignments) {
+            if (row['driver_id']?.toString() == driverId) {
+              assignment = row;
+              break;
+            }
+          }
+          return <String, dynamic>{
+            ...driver,
+            if (assignment != null) ...assignment,
+          };
+        }).toList();
+
+        final range = _paymentBounds();
+        final allPayments =
+            await _environment.previewList('subscription_payments');
+        final zonePayments = allPayments.where((row) {
+          if (zoneKey != null &&
+              row['zone_key']?.toString() != zoneKey) {
+            return false;
+          }
+          final created =
+              DateTime.tryParse(row['created_at']?.toString() ?? '');
+          if (created == null) return true;
+          final local = created.toLocal();
+          return !local.isBefore(range.from) && local.isBefore(range.to);
+        }).toList();
+
+        final providerSettings =
+            await _environment.previewGet('driver_subscription_provider');
+
+        if (mounted) {
+          setState(() {
+            zones = zoneRows;
+            selectedZoneKey = zoneKey;
+            plans = zonePlans;
+            settings = zoneSettings;
+            drivers = mergedDrivers;
+            payments = zonePayments;
+            provider = providerSettings.isEmpty
+                ? <String, dynamic>{
+                    'connected': false,
+                    'settings': <String, dynamic>{},
+                  }
+                : providerSettings;
+            loading = false;
+            error = null;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            loading = false;
+            error = 'Preview: ' + e.toString();
+          });
+        }
+      }
+      return;
+    }
 
     try {
       final rawZones = await supabase.rpc('admin_zone_list_v2');
