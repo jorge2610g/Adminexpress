@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-10-04 — Handoff IA, SMS y laboratorio QA Auto/Moto
+
+- agregado `AGENTS.md` y `docs/AI_HANDOFF_2026-10-04.md` para continuidad con otra IA;
+- Configuración > Seguridad incorpora switches independientes de verificación SMS para Pasajeros y Conductores, OFF por defecto;
+- se mantiene una sola UI para Preview/Producción y se documenta el release gate exact SHA;
+- laboratorio QA corrige `channel` Preview/Producción y moneda CLP/BOB por ciudad;
+- laboratorio QA agrega selector `Mixto · Auto + Moto`, `Solo Auto` y `Solo Moto`;
+- limpieza QA queda aislada por entorno;
+- mensajes de error del laboratorio dejan de mostrar `[object Object]`;
+- se corrigió una duplicación de `_friendlyError` que bloqueaba el build web;
+- validación Preview/Producción y deploy web quedaron en SUCCESS;
+- Producción Android vigente documentada como Express 1.5.87+131, SHA `45c2aff26cd27229e445461d2f129023bf6f60df`.
+
+---
+
 ## 2026-10-03 — Multizona, filtros operativos y telemetría
 
 - Zonas admite varios métodos de pago por ciudad, con método principal compatible con la app publicada;
