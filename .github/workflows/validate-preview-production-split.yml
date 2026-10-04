@@ -6,6 +6,7 @@ on:
       - main
       - feature/delivery-modules-merchant-dashboard
       - refactor/unified-preview-production-panel
+      - feature/sms-verification-switches
   workflow_dispatch:
 
 permissions:
