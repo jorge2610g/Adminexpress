@@ -966,7 +966,40 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               )
             : const AdminServicesPage();
       case 17:
-        return const AdminGeoSafetyPage();
+        return adminChannel == 'preview'
+            ? DefaultTabController(
+                length: 2,
+                child: Column(
+                  children: const [
+                    Material(
+                      color: Colors.white,
+                      child: TabBar(
+                        tabs: [
+                          Tab(text: 'Cobertura'),
+                          Tab(text: 'Seguridad'),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          AdminPreviewModulePage(
+                            module: 'service_zone_polygons',
+                            title: 'Cobertura',
+                            subtitle: 'Polígonos exclusivos del entorno Preview.',
+                          ),
+                          AdminPreviewModulePage(
+                            module: 'security_zones',
+                            title: 'Zonas de seguridad',
+                            subtitle: 'Reglas de seguridad exclusivas del entorno Preview.',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : const AdminGeoSafetyPage();
       case 18:
         return adminChannel == 'preview'
             ? const AdminPreviewModulePage(
@@ -996,11 +1029,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               )
             : const AdminDriverSubscriptionsPage();
       case 23:
-        return const AdminMarketplacePage();
+        return AdminMarketplacePage(channel: adminChannel);
       case 24:
-        return const AdminMarketplacePhase2Page();
+        return AdminMarketplacePhase2Page(channel: adminChannel);
       case 25:
-        return const AdminDriverPriorityPage();
+        return AdminDriverPriorityPage(channel: adminChannel);
       case 26:
         return AdminMarketplacePhase2Page(ordersOnly: true, channel: adminChannel);
       default:
