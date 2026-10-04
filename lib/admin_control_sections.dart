@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
+import 'admin_environment_store.dart';
 
 const Color _blue = Color(0xFF2563EB);
 const Color _dark = Color(0xFF0F172A);
@@ -7082,13 +7083,20 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
 }
 
 class AdminSettingsPage extends StatefulWidget {
-  const AdminSettingsPage({super.key});
+  final String channel;
+
+  const AdminSettingsPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminSettingsPage> createState() => _AdminSettingsPageState();
 }
 
 class _AdminSettingsPageState extends State<AdminSettingsPage> {
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
   Map<String, dynamic>? settings;
   bool loading = true;
   bool saving = false;
@@ -7134,8 +7142,9 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
   Future<void> _load() async {
     try {
-      final value = await supabase.rpc('admin_settings_get');
-      final row = _map(value);
+      final row = _environment.isPreview
+          ? await _environment.previewGet('app_settings')
+          : _map(await supabase.rpc('admin_settings_get'));
       settings = row;
       currency.text = (row['currency'] ?? 'BOB').toString();
       rideMin.text = (row['min_ride_fare'] ?? 5).toString();
@@ -7167,30 +7176,57 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
   Future<void> _save() async {
     setState(() => saving = true);
     try {
-      final value = await supabase.rpc(
-        'admin_settings_update',
-        params: {
-          'p_currency': currency.text.trim(),
-          'p_min_ride_fare': _num(rideMin.text) ?? 0,
-          'p_min_delivery_fare': _num(deliveryMin.text) ?? 0,
-          'p_commission_percent': _num(commission.text) ?? 0,
-          'p_service_radius_km': _num(radius.text) ?? 30,
-          'p_allow_cash': cash,
-          'p_allow_card': card,
-          'p_allow_wallet': wallet,
-          'p_ride_enabled': rideEnabled,
-          'p_delivery_enabled': deliveryEnabled,
-          'p_dispatch_mode': dispatchMode,
-          'p_dispatch_radius_km': _num(dispatchRadius.text) ?? 5,
-          'p_offer_timeout_seconds': int.tryParse(timeout.text) ?? 45,
-          'p_progressive_radius_step_km': _num(radiusStep.text) ?? 2,
-          'p_timezone': timezone.text.trim(),
-          'p_default_country': country.text.trim(),
-          'p_support_phone': supportPhone.text.trim(),
-          'p_support_whatsapp': supportWhatsapp.text.trim(),
-        },
-      );
-      settings = _map(value);
+      final next = <String, dynamic>{
+        ...?settings,
+        'currency': currency.text.trim(),
+        'min_ride_fare': _num(rideMin.text) ?? 0,
+        'min_delivery_fare': _num(deliveryMin.text) ?? 0,
+        'commission_percent': _num(commission.text) ?? 0,
+        'service_radius_km': _num(radius.text) ?? 30,
+        'allow_cash': cash,
+        'allow_card': card,
+        'allow_wallet': wallet,
+        'ride_enabled': rideEnabled,
+        'delivery_enabled': deliveryEnabled,
+        'dispatch_mode': dispatchMode,
+        'dispatch_radius_km': _num(dispatchRadius.text) ?? 5,
+        'offer_timeout_seconds': int.tryParse(timeout.text) ?? 45,
+        'progressive_radius_step_km': _num(radiusStep.text) ?? 2,
+        'timezone': timezone.text.trim(),
+        'default_country': country.text.trim(),
+        'support_phone': supportPhone.text.trim(),
+        'support_whatsapp': supportWhatsapp.text.trim(),
+      };
+
+      if (_environment.isPreview) {
+        await _environment.previewUpsert('app_settings', 'default', next);
+        settings = next;
+      } else {
+        final value = await supabase.rpc(
+          'admin_settings_update',
+          params: {
+            'p_currency': next['currency'],
+            'p_min_ride_fare': next['min_ride_fare'],
+            'p_min_delivery_fare': next['min_delivery_fare'],
+            'p_commission_percent': next['commission_percent'],
+            'p_service_radius_km': next['service_radius_km'],
+            'p_allow_cash': next['allow_cash'],
+            'p_allow_card': next['allow_card'],
+            'p_allow_wallet': next['allow_wallet'],
+            'p_ride_enabled': next['ride_enabled'],
+            'p_delivery_enabled': next['delivery_enabled'],
+            'p_dispatch_mode': next['dispatch_mode'],
+            'p_dispatch_radius_km': next['dispatch_radius_km'],
+            'p_offer_timeout_seconds': next['offer_timeout_seconds'],
+            'p_progressive_radius_step_km': next['progressive_radius_step_km'],
+            'p_timezone': next['timezone'],
+            'p_default_country': next['default_country'],
+            'p_support_phone': next['support_phone'],
+            'p_support_whatsapp': next['support_whatsapp'],
+          },
+        );
+        settings = _map(value);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Configuración guardada.')),
@@ -7479,7 +7515,12 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
 
 class AdminAdvancedSettingsPage extends StatefulWidget {
-  const AdminAdvancedSettingsPage({super.key});
+  final String channel;
+
+  const AdminAdvancedSettingsPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminAdvancedSettingsPage> createState() => _AdminAdvancedSettingsPageState();
@@ -7488,16 +7529,25 @@ class AdminAdvancedSettingsPage extends StatefulWidget {
 class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
   int revision = 0;
 
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
+
   Future<Map<String, dynamic>> _load() async {
+    if (_environment.isPreview) {
+      return _environment.previewGet('app_settings');
+    }
     final value = await supabase.rpc('admin_settings_get');
     return _map(value);
   }
 
   Future<void> _save(Map<String, dynamic> current, Map<String, dynamic> patch) async {
     final next = <String, dynamic>{...current, ...patch};
-    await supabase.rpc(
-      'admin_advanced_settings_update',
-      params: {
+    if (_environment.isPreview) {
+      await _environment.previewUpsert('app_settings', 'default', next);
+    } else {
+      await supabase.rpc(
+        'admin_advanced_settings_update',
+        params: {
         'p_allow_pagorut': next['allow_pagorut'] == true,
         'p_allow_mercadopago': next['allow_mercadopago'] == true,
         'p_allow_santander': next['allow_santander'] == true,
@@ -7525,9 +7575,10 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
         'p_rating_max': (next['rating_max'] as num?)?.toInt() ?? 5,
         'p_maintenance_mode': next['maintenance_mode'] == true,
         'p_maintenance_message': next['maintenance_message']?.toString(),
-        'p_minimum_app_version': next['minimum_app_version']?.toString(),
-      },
-    );
+          'p_minimum_app_version': next['minimum_app_version']?.toString(),
+        },
+      );
+    }
     if (mounted) {
       setState(() => revision++);
       ScaffoldMessenger.of(context).showSnackBar(
