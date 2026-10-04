@@ -8,7 +8,12 @@ const _muted = Color(0xFF64748B);
 const _bg = Color(0xFFF1F5F9);
 
 class AdminMarketplacePhase2Page extends StatefulWidget {
-  const AdminMarketplacePhase2Page({super.key});
+  final bool ordersOnly;
+
+  const AdminMarketplacePhase2Page({
+    super.key,
+    this.ordersOnly = false,
+  });
 
   @override
   State<AdminMarketplacePhase2Page> createState() =>
@@ -1217,6 +1222,336 @@ class _AdminMarketplacePhase2PageState
     );
   }
 
+  Widget _moduleCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String countLabel,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: const Color(0xFFEAF2FF),
+                child: Icon(icon, color: _blue),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: _ink,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: _muted,
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    countLabel,
+                    style: const TextStyle(
+                      color: _blue,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Icon(Icons.open_in_new_rounded, size: 18, color: _muted),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showZonesModule(
+    List<Map<String, dynamic>> zones,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Tarifas Delivery por zona'),
+        content: SizedBox(
+          width: 820,
+          height: 560,
+          child: zones.isEmpty
+              ? const Center(child: Text('Todavía no hay zonas configuradas.'))
+              : ListView.separated(
+                  itemCount: zones.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final row = zones[index];
+                    return Card(
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.delivery_dining_rounded),
+                        ),
+                        title: Text(
+                          row['zone_name']?.toString() ?? 'Zona',
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        subtitle: Text(
+                          'Cliente: ' +
+                              _money(
+                                row['customer_base_fee'],
+                                row['currency_code']?.toString() ?? '',
+                              ) +
+                              ' base · Repartidor: ' +
+                              _money(
+                                row['driver_base_payout'],
+                                row['currency_code']?.toString() ?? '',
+                              ) +
+                              ' base',
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => _editZone(row),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showPlansModule(
+    List<Map<String, dynamic>> plans,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Express Plus · planes'),
+        content: SizedBox(
+          width: 760,
+          height: 520,
+          child: plans.isEmpty
+              ? const Center(child: Text('Todavía no hay planes configurados.'))
+              : ListView.separated(
+                  itemCount: plans.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final row = plans[index];
+                    return Card(
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.bolt_rounded),
+                        ),
+                        title: Text(
+                          (row['name']?.toString() ?? 'Express Plus') +
+                              ' · ' +
+                              (row['zone_name']?.toString() ?? ''),
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        subtitle: Text(
+                          _money(
+                                row['monthly_price'],
+                                row['currency_code']?.toString() ?? '',
+                              ) +
+                              ' / mes',
+                        ),
+                        trailing: _badge('Activo', row['active'] == true),
+                        onTap: () => _editPlan(row),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showMerchantsModule(
+    List<Map<String, dynamic>> merchants,
+    Map<String, Map<String, dynamic>> benefitsByMerchant,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Locales · beneficios y logística'),
+        content: SizedBox(
+          width: 840,
+          height: 560,
+          child: merchants.isEmpty
+              ? const Center(child: Text('Todavía no hay locales configurados.'))
+              : ListView.separated(
+                  itemCount: merchants.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final merchant = merchants[index];
+                    final benefit =
+                        benefitsByMerchant[merchant['id'].toString()];
+                    return Card(
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.storefront_rounded),
+                        ),
+                        title: Text(
+                          merchant['name']?.toString() ?? 'Comercio',
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        subtitle: Text(
+                          merchant['zone_key']?.toString() ?? '',
+                        ),
+                        trailing: PopupMenuButton<String>(
+                          tooltip: 'Administrar local',
+                          onSelected: (value) {
+                            if (value == 'plus') {
+                              _editBenefit(merchant, benefit);
+                            } else if (value == 'access') {
+                              _manageMerchantUsers(merchant);
+                            } else {
+                              _editMerchantLogistics(merchant);
+                            }
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'plus',
+                              child: Text('Beneficios Express Plus'),
+                            ),
+                            PopupMenuItem(
+                              value: 'logistics',
+                              child: Text('Ubicación / transferencia'),
+                            ),
+                            PopupMenuItem(
+                              value: 'access',
+                              child: Text('Usuarios del local'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ordersView(List<Map<String, dynamic>> orders) {
+    return ListView(
+      padding: const EdgeInsets.all(22),
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pedidos Delivery',
+                    style: TextStyle(
+                      color: _ink,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Pedidos recientes, estados, pagos, comisiones y liquidaciones.',
+                    style: TextStyle(color: _muted),
+                  ),
+                ],
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: _refresh,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Actualizar'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        if (orders.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(18),
+              child: Text('Todavía no hay pedidos Delivery.'),
+            ),
+          )
+        else
+          ...orders.map(
+            (row) => Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: Icon(
+                  row['payment_method'] == 'transfer'
+                      ? Icons.account_balance_rounded
+                      : row['payment_method'] == 'cash'
+                          ? Icons.payments_outlined
+                          : Icons.credit_card_rounded,
+                ),
+                title: Text(
+                  row['merchant_name']?.toString() ?? 'Pedido',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                subtitle: Text(
+                  (row['zone_key']?.toString() ?? '') +
+                      ' · ' +
+                      (row['status']?.toString() ?? '') +
+                      ' · ' +
+                      (row['payment_status']?.toString() ?? ''),
+                ),
+                trailing: Text(
+                  _money(
+                    row['total_amount'],
+                    row['currency_code']?.toString() ?? '',
+                  ),
+                  style: const TextStyle(
+                    color: _blue,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                onTap: () => _openOrder(row),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1251,6 +1586,10 @@ class _AdminMarketplacePhase2PageState
               row['merchant_id'].toString(): row,
           };
 
+          if (widget.ordersOnly) {
+            return _ordersView(orders);
+          }
+
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
@@ -1261,7 +1600,7 @@ class _AdminMarketplacePhase2PageState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Express Delivery · Fase 2',
+                          'Delivery · Configuración',
                           style: TextStyle(
                             color: _ink,
                             fontSize: 26,
@@ -1270,7 +1609,7 @@ class _AdminMarketplacePhase2PageState
                         ),
                         SizedBox(height: 4),
                         Text(
-                          'Tarifas separadas, Transferencia, Envío Plus, propinas y suscripción Express Plus.',
+                          'Cada bloque abre su propia administración para mantener el panel compacto.',
                           style: TextStyle(color: _muted),
                         ),
                       ],
@@ -1284,200 +1623,96 @@ class _AdminMarketplacePhase2PageState
                 ],
               ),
               const SizedBox(height: 22),
-              const Text(
-                'Tarifas Delivery por zona',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 10),
-              ...zones.map(
-                (row) => Card(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.delivery_dining_rounded),
-                    ),
-                    title: Text(
-                      row['zone_name']?.toString() ?? 'Zona',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.maxWidth >= 1050
+                      ? 3
+                      : constraints.maxWidth >= 680
+                          ? 2
+                          : 1;
+                  final gap = 12.0;
+                  final width =
+                      (constraints.maxWidth - gap * (columns - 1)) / columns;
+
+                  final cards = [
+                    SizedBox(
+                      width: width,
+                      child: _moduleCard(
+                        icon: Icons.delivery_dining_rounded,
+                        title: 'Tarifas por zona',
+                        subtitle:
+                            'Tarifa cliente, pago repartidor, métodos y activación por ciudad.',
+                        countLabel: zones.length.toString() + ' zonas',
+                        onTap: () => _showZonesModule(zones),
                       ),
                     ),
-                    subtitle: Text(
-                      'Cliente: ' +
-                          _money(
-                            row['customer_base_fee'],
-                            row['currency_code']?.toString() ?? '',
-                          ) +
-                          ' base · Repartidor: ' +
-                          _money(
-                            row['driver_base_payout'],
-                            row['currency_code']?.toString() ?? '',
-                          ) +
-                          ' base',
-                    ),
-                    trailing: Wrap(
-                      spacing: 5,
-                      children: [
-                        _badge('Preview', row['preview_enabled'] == true),
-                        _badge(
-                          'Transferencia',
-                          row['transfer_enabled'] == true,
-                        ),
-                        _badge('Plus', row['plus_enabled'] == true),
-                      ],
-                    ),
-                    onTap: () => _editZone(row),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 22),
-              const Text(
-                'Express Plus · planes mensuales',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 10),
-              ...plans.map(
-                (row) => Card(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.bolt_rounded),
-                    ),
-                    title: Text(
-                      (row['name']?.toString() ?? 'Express Plus') +
-                          ' · ' +
-                          (row['zone_name']?.toString() ?? ''),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
+                    SizedBox(
+                      width: width,
+                      child: _moduleCard(
+                        icon: Icons.bolt_rounded,
+                        title: 'Express Plus',
+                        subtitle:
+                            'Planes mensuales, precio, descuentos y beneficios incluidos.',
+                        countLabel: plans.length.toString() + ' planes',
+                        onTap: () => _showPlansModule(plans),
                       ),
                     ),
-                    subtitle: Text(
-                      _money(
-                            row['monthly_price'],
-                            row['currency_code']?.toString() ?? '',
-                          ) +
-                          ' / mes',
-                    ),
-                    trailing: _badge('Activo', row['active'] == true),
-                    onTap: () => _editPlan(row),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 22),
-              const Text(
-                'Locales · beneficios Plus y logística',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 10),
-              ...merchants.map(
-                (merchant) {
-                  final benefit =
-                      benefitsByMerchant[merchant['id'].toString()];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    child: ListTile(
-                      title: Text(
-                        merchant['name']?.toString() ?? 'Comercio',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      subtitle: Text(
-                        merchant['zone_key']?.toString() ?? '',
-                      ),
-                      trailing: PopupMenuButton<String>(
-                        onSelected: (value) {
-                          if (value == 'plus') {
-                            _editBenefit(merchant, benefit);
-                          } else if (value == 'access') {
-                            _manageMerchantUsers(merchant);
-                          } else {
-                            _editMerchantLogistics(merchant);
-                          }
-                        },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(
-                            value: 'plus',
-                            child: Text('Beneficios Express Plus'),
-                          ),
-                          PopupMenuItem(
-                            value: 'logistics',
-                            child: Text('Ubicación / transferencia'),
-                          ),
-                          PopupMenuItem(
-                            value: 'access',
-                            child: Text('Cuentas del comercio'),
-                          ),
-                        ],
+                    SizedBox(
+                      width: width,
+                      child: _moduleCard(
+                        icon: Icons.storefront_rounded,
+                        title: 'Locales y beneficios',
+                        subtitle:
+                            'Logística, beneficios Plus y usuarios autorizados por comercio.',
+                        countLabel: merchants.length.toString() + ' locales',
+                        onTap: () =>
+                            _showMerchantsModule(merchants, benefitsByMerchant),
                       ),
                     ),
+                  ];
+
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: cards,
                   );
                 },
               ),
-              const SizedBox(height: 22),
-              const Text(
-                'Pedidos recientes',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w900,
+              const SizedBox(height: 18),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        backgroundColor: Color(0xFFEAF2FF),
+                        child: Icon(Icons.receipt_long_rounded, color: _blue),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Pedidos fuera de esta pantalla',
+                              style: TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                            SizedBox(height: 3),
+                            Text(
+                              'Los pedidos ahora tienen acceso propio debajo de Delivery en el menú lateral.',
+                              style: TextStyle(color: _muted, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _badge(
+                        orders.length.toString() + ' recientes',
+                        orders.isNotEmpty,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 10),
-              if (orders.isEmpty)
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(18),
-                    child: Text('Todavía no hay pedidos Fase 2.'),
-                  ),
-                )
-              else
-                ...orders.map(
-                  (row) => Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: Icon(
-                        row['payment_method'] == 'transfer'
-                            ? Icons.account_balance_rounded
-                            : row['payment_method'] == 'cash'
-                                ? Icons.payments_outlined
-                                : Icons.credit_card_rounded,
-                      ),
-                      title: Text(
-                        row['merchant_name']?.toString() ?? 'Pedido',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      subtitle: Text(
-                        (row['zone_key']?.toString() ?? '') +
-                            ' · ' +
-                            (row['status']?.toString() ?? '') +
-                            ' · ' +
-                            (row['payment_status']?.toString() ?? ''),
-                      ),
-                      trailing: Text(
-                        _money(
-                          row['total_amount'],
-                          row['currency_code']?.toString() ?? '',
-                        ),
-                        style: const TextStyle(
-                          color: _blue,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      onTap: () => _openOrder(row),
-                    ),
-                  ),
-                ),
             ],
           );
         },
