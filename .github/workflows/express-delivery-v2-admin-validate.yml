@@ -1,0 +1,36 @@
+name: Express Delivery V2 Admin Validation
+
+on:
+  push:
+    branches:
+      - feature/express-delivery-v2-complete
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze AdminExpress V2
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter analyze --no-fatal-warnings --no-fatal-infos \
+            lib/admin_delivery_v2.dart \
+            lib/admin_panel.dart \
+            lib/main.dart
+      - name: Build AdminExpress web
+        run: flutter build web --release
