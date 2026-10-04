@@ -466,7 +466,7 @@ class _AdminExpressDeliveryV2PageState
                 if (row['is_featured'] == true) 'Destacado',
                 if (row['is_sponsored'] == true) 'Anuncio',
               ],
-              onEdit: () => _editProduct(row, sections),
+              onEdit: () => _editProduct(row, sections, products),
             ),
           ),
       ],
@@ -1340,6 +1340,7 @@ class _AdminExpressDeliveryV2PageState
   Future<void> _editProduct(
     Map<String, dynamic> row,
     List<Map<String, dynamic>> menuSections,
+    List<Map<String, dynamic>> allProducts,
   ) async {
     String? sectionId = row['menu_section_id']?.toString();
     final compare = TextEditingController(
@@ -1358,6 +1359,19 @@ class _AdminExpressDeliveryV2PageState
     );
     bool sponsored = row['is_sponsored'] == true;
     bool featured = row['is_featured'] == true;
+    final crossSellRaw = await supabase.rpc(
+      'admin_marketplace_product_cross_sells',
+      params: {'p_product_id': row['id']},
+    );
+    final selectedCrossSells = _v2Rows(crossSellRaw)
+        .map((e) => e['recommended_product_id']?.toString())
+        .whereType<String>()
+        .toSet();
+    final recommendations = allProducts
+        .where((p) =>
+            p['merchant_id']?.toString() == row['merchant_id']?.toString() &&
+            p['id']?.toString() != row['id']?.toString())
+        .toList();
     final validSections = menuSections
         .where((s) => s['merchant_id']?.toString() == row['merchant_id']?.toString())
         .toList();
@@ -1442,6 +1456,37 @@ class _AdminExpressDeliveryV2PageState
                     onChanged: (v) => setLocal(() => sponsored = v),
                     title: const Text('Anuncio / patrocinado'),
                   ),
+                  if (recommendations.isNotEmpty) ...[
+                    const Divider(),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Venta cruzada / productos recomendados',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    ...recommendations.map(
+                      (product) => CheckboxListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        value: selectedCrossSells
+                            .contains(product['id']?.toString()),
+                        title: Text(
+                          product['name']?.toString() ?? 'Producto',
+                        ),
+                        onChanged: (checked) => setLocal(() {
+                          final id = product['id']?.toString();
+                          if (id == null) return;
+                          if (checked == true) {
+                            selectedCrossSells.add(id);
+                          } else {
+                            selectedCrossSells.remove(id);
+                          }
+                        }),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1478,6 +1523,13 @@ class _AdminExpressDeliveryV2PageState
                 .map((e) => e.trim())
                 .where((e) => e.isNotEmpty)
                 .toList(),
+          },
+        );
+        await supabase.rpc(
+          'admin_marketplace_set_cross_sells',
+          params: {
+            'p_product_id': row['id'],
+            'p_recommended_ids': selectedCrossSells.toList(),
           },
         );
       });
