@@ -275,7 +275,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
 
   Future<List<Map<String, dynamic>>> _drivers() async {
     final value = await supabase.rpc('admin_driver_list_v2');
-    return _list(value);
+    final rows = _list(value);
+    final preview = adminChannel == 'preview';
+    return rows
+        .where((row) => (row['is_qa'] == true) == preview)
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> _filterZones() async {
@@ -334,7 +338,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         'p_offset': 0,
       },
     );
-    return _list(value);
+    final rows = _list(value);
+    final preview = adminChannel == 'preview';
+    return rows
+        .where((row) => (row['is_qa'] == true) == preview)
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> _trips() async {
@@ -1283,7 +1291,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               'Aprobación, estado, licencia, vehículo y control de conductores.',
           empty: 'Todavía no hay conductores registrados.',
           rows: snapshot.data ?? const [],
-          showQaFilter: true,
+          showQaFilter: false,
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
             final online = (row['online_status'] ?? 'offline').toString();
