@@ -930,7 +930,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               )
             : const AdminFaresPage();
       case 9:
-        return const AdminPaymentsPage();
+        return adminChannel == 'preview'
+            ? const AdminPreviewModulePage(
+                module: 'zone_payment_methods',
+                title: 'Pagos / Billetera',
+                subtitle: 'Métodos de pago de prueba. No muestra ni modifica transacciones reales.',
+              )
+            : const AdminPaymentsPage();
       case 10:
         return const AdminReportsPage();
       case 11:
@@ -960,15 +966,33 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 17:
         return const AdminGeoSafetyPage();
       case 18:
-        return const AdminIdentitySecurityPage();
+        return adminChannel == 'preview'
+            ? const AdminPreviewModulePage(
+                module: 'identity_verification_settings',
+                title: 'Verificación de identidad',
+                subtitle: 'Política de identidad exclusiva de Preview. No usa verificaciones reales.',
+              )
+            : const AdminIdentitySecurityPage();
       case 19:
-        return const AdminAdvancedSettingsPage();
+        return adminChannel == 'preview'
+            ? const AdminPreviewModulePage(
+                module: 'app_settings',
+                title: 'Configuración avanzada',
+                subtitle: 'Parámetros avanzados exclusivos del entorno Preview.',
+              )
+            : const AdminAdvancedSettingsPage();
       case 20:
         return const AdminAuditSandboxPage();
       case 21:
         return const AdminLoadLabPage();
       case 22:
-        return const AdminDriverSubscriptionsPage();
+        return adminChannel == 'preview'
+            ? const AdminPreviewModulePage(
+                module: 'driver_subscription_settings',
+                title: 'Suscripciones',
+                subtitle: 'Configuración de suscripciones de prueba. No usa pagos ni conductores reales.',
+              )
+            : const AdminDriverSubscriptionsPage();
       case 23:
         return const AdminMarketplacePage();
       case 24:
