@@ -50,6 +50,38 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
         .toList();
   }
 
+
+  String _friendlyError(Object value) {
+    try {
+      final dynamic dynamicValue = value;
+      final details = dynamicValue.details;
+      if (details is Map) {
+        final rawError = details['error'];
+        if (rawError is String && rawError.trim().isNotEmpty) {
+          return rawError;
+        }
+        if (rawError is Map) {
+          final nestedMessage = rawError['message']?.toString();
+          if (nestedMessage != null && nestedMessage.trim().isNotEmpty) {
+            return nestedMessage;
+          }
+        }
+        final message = details['message']?.toString();
+        if (message != null && message.trim().isNotEmpty) {
+          return message;
+        }
+      }
+    } catch (_) {
+      // Algunas implementaciones web minificadas no exponen details.
+    }
+
+    final text = value.toString();
+    const badStatePrefix = 'Bad state: ';
+    return text.startsWith(badStatePrefix)
+        ? text.substring(badStatePrefix.length)
+        : text;
+  }
+
   Future<void> _load() async {
     try {
       final value = await supabase.rpc('admin_audit_load_snapshot');
@@ -123,7 +155,10 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                 'radius_km': radiusKm,
                 'scope': targetScope,
               }
-            : {'action': 'cleanup'},
+            : {
+                'action': 'cleanup',
+                'scope': targetScope,
+              },
       );
       final data = response.data;
       if (data is Map && data['ok'] != true) {
@@ -145,7 +180,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
       }
       await _load();
     } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+      if (mounted) setState(() => error = _friendlyError(e));
     } finally {
       if (mounted) setState(() => busy = false);
     }
