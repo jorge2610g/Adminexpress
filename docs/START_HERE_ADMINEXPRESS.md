@@ -2,7 +2,9 @@
 
 > Handoff operativo del panel administrativo de Express.
 >
-> Última actualización: 2026-09-30.
+> **ACTUALIZACIÓN 2026-10-04:** leer primero `AGENTS.md` y `docs/AI_HANDOFF_2026-10-04.md`. Ese handoff contiene el estado vigente de SMS por rol, release gate, Producción 1.5.87+131, QA Auto/Moto/Mixto, aislamiento Preview/Producción y correcciones del laboratorio.
+>
+> Última actualización: 2026-10-04.
 
 ## 1. Rol del repositorio
 
