@@ -555,20 +555,42 @@ class _AdminDriverSubscriptionsPageState
     }
 
     try {
-      await supabase.rpc(
-        'admin_upsert_driver_subscription_plan',
-        params: {
-          'p_id': plan?['id'],
-          'p_zone_key': zoneKey,
-          'p_code': code.text.trim(),
-          'p_name': name.text.trim(),
-          'p_amount': parsedAmount,
-          'p_days': parsedDays,
-          'p_benefits': benefitList,
-          'p_active': active,
-          'p_sort_order': plan?['sort_order'] ?? (plans.length + 1) * 10,
-        },
-      );
+      if (_environment.isPreview) {
+        final planId = plan?['id'] is num
+            ? (plan!['id'] as num).toInt()
+            : DateTime.now().millisecondsSinceEpoch;
+        await _environment.previewUpsert(
+          'driver_subscription_plans',
+          planId.toString(),
+          <String, dynamic>{
+            ...?plan,
+            'id': planId,
+            'zone_key': zoneKey,
+            'code': code.text.trim(),
+            'name': name.text.trim(),
+            'amount': parsedAmount,
+            'days': parsedDays,
+            'benefits': benefitList,
+            'active': active,
+            'sort_order': plan?['sort_order'] ?? (plans.length + 1) * 10,
+          },
+        );
+      } else {
+        await supabase.rpc(
+          'admin_upsert_driver_subscription_plan',
+          params: {
+            'p_id': plan?['id'],
+            'p_zone_key': zoneKey,
+            'p_code': code.text.trim(),
+            'p_name': name.text.trim(),
+            'p_amount': parsedAmount,
+            'p_days': parsedDays,
+            'p_benefits': benefitList,
+            'p_active': active,
+            'p_sort_order': plan?['sort_order'] ?? (plans.length + 1) * 10,
+          },
+        );
+      }
       _snack(plan == null ? 'Plan creado.' : 'Plan actualizado.');
       await _load();
     } catch (e) {
@@ -644,22 +666,37 @@ class _AdminDriverSubscriptionsPageState
 
     setState(() => savingSettings = true);
     try {
-      await supabase.rpc(
-        'admin_set_driver_subscription_zone_settings',
-        params: {
-          'p_zone_key': zoneKey,
-          'p_enabled': enabled,
-          'p_enforce_access': enforce,
-        },
-      );
-      if (isBolivia) {
-        await supabase.rpc(
-          'admin_set_driver_subscription_provider_settings',
-          params: {
-            'p_provider_enabled': providerEnabled,
-            'p_qr_validity': qrValidity,
+      if (_environment.isPreview) {
+        await _environment.previewUpsert(
+          'driver_subscription_settings',
+          zoneKey,
+          <String, dynamic>{
+            ...settings,
+            'zone_key': zoneKey,
+            'enabled': enabled,
+            'enforce_access': enforce,
+            if (isBolivia) 'provider_enabled': providerEnabled,
+            if (isBolivia) 'qr_validity': qrValidity,
           },
         );
+      } else {
+        await supabase.rpc(
+          'admin_set_driver_subscription_zone_settings',
+          params: {
+            'p_zone_key': zoneKey,
+            'p_enabled': enabled,
+            'p_enforce_access': enforce,
+          },
+        );
+        if (isBolivia) {
+          await supabase.rpc(
+            'admin_set_driver_subscription_provider_settings',
+            params: {
+              'p_provider_enabled': providerEnabled,
+              'p_qr_validity': qrValidity,
+            },
+          );
+        }
       }
       _snack('Configuración de la zona guardada.');
       await _load();
@@ -749,15 +786,31 @@ class _AdminDriverSubscriptionsPageState
       expiry = DateTime.now().toUtc().add(Duration(days: customDays));
     }
     try {
-      await supabase.rpc(
-        'admin_set_driver_subscription',
-        params: {
-          'p_driver_id': driver['driver_id'],
-          'p_plan_id': selected,
-          'p_expires_at': expiry?.toIso8601String(),
-          'p_notes': 'Asignado desde Adminexpress',
-        },
-      );
+      if (_environment.isPreview) {
+        final driverId =
+            (driver['driver_id'] ?? driver['user_id']).toString();
+        await _environment.previewUpsert(
+          'driver_subscriptions',
+          driverId,
+          <String, dynamic>{
+            'driver_id': driverId,
+            'plan_id': selected,
+            'expires_at': expiry?.toIso8601String(),
+            'notes': 'Asignado desde Adminexpress Preview',
+            'status': 'active',
+          },
+        );
+      } else {
+        await supabase.rpc(
+          'admin_set_driver_subscription',
+          params: {
+            'p_driver_id': driver['driver_id'],
+            'p_plan_id': selected,
+            'p_expires_at': expiry?.toIso8601String(),
+            'p_notes': 'Asignado desde Adminexpress',
+          },
+        );
+      }
       _snack('Suscripción activada.');
       await _load();
     } catch (e) {
@@ -850,25 +903,45 @@ class _AdminDriverSubscriptionsPageState
 
     setState(() => providerSaving = true);
     try {
-      final response = await supabase.functions.invoke(
-        'driver-subscription-admin',
-        body: {
-          'action': 'save_and_verify',
-          'username': user.text.trim(),
-          'password': password.text,
-          'secret_key': secret.text,
-        },
-      );
-      final responseData = response.data is Map
-          ? Map<String, dynamic>.from(response.data as Map)
-          : <String, dynamic>{};
-
-      if (responseData['ok'] != true ||
-          responseData['connected'] != true) {
-        throw StateError(
-          responseData['error']?.toString() ??
-              'No se pudo verificar la conexión',
+      if (_environment.isPreview) {
+        await _environment.previewUpsert(
+          'driver_subscription_provider',
+          'default',
+          <String, dynamic>{
+            'ok': true,
+            'connected': true,
+            'settings': <String, dynamic>{
+              'username': user.text.trim(),
+              'has_password': password.text.isNotEmpty ||
+                  provider['settings'] is Map &&
+                      (provider['settings'] as Map)['has_password'] == true,
+              'has_secret_key': secret.text.isNotEmpty ||
+                  provider['settings'] is Map &&
+                      (provider['settings'] as Map)['has_secret_key'] == true,
+            },
+          },
         );
+      } else {
+        final response = await supabase.functions.invoke(
+          'driver-subscription-admin',
+          body: {
+            'action': 'save_and_verify',
+            'username': user.text.trim(),
+            'password': password.text,
+            'secret_key': secret.text,
+          },
+        );
+        final responseData = response.data is Map
+            ? Map<String, dynamic>.from(response.data as Map)
+            : <String, dynamic>{};
+
+        if (responseData['ok'] != true ||
+            responseData['connected'] != true) {
+          throw StateError(
+            responseData['error']?.toString() ??
+                'No se pudo verificar la conexión',
+          );
+        }
       }
 
       _snack(
@@ -888,20 +961,35 @@ class _AdminDriverSubscriptionsPageState
   Future<void> _verifyProvider() async {
     setState(() => providerVerifying = true);
     try {
-      final response = await supabase.functions.invoke(
-        'driver-subscription-admin',
-        body: const {'action': 'verify'},
-      );
-      final responseData = response.data is Map
-          ? Map<String, dynamic>.from(response.data as Map)
-          : <String, dynamic>{};
-
-      if (responseData['ok'] != true ||
-          responseData['connected'] != true) {
-        throw StateError(
-          responseData['error']?.toString() ??
-              'No se pudo verificar la conexión',
+      if (_environment.isPreview) {
+        final current =
+            await _environment.previewGet('driver_subscription_provider');
+        await _environment.previewUpsert(
+          'driver_subscription_provider',
+          'default',
+          <String, dynamic>{
+            ...current,
+            'ok': true,
+            'connected': true,
+            'verified_at': DateTime.now().toUtc().toIso8601String(),
+          },
         );
+      } else {
+        final response = await supabase.functions.invoke(
+          'driver-subscription-admin',
+          body: const {'action': 'verify'},
+        );
+        final responseData = response.data is Map
+            ? Map<String, dynamic>.from(response.data as Map)
+            : <String, dynamic>{};
+
+        if (responseData['ok'] != true ||
+            responseData['connected'] != true) {
+          throw StateError(
+            responseData['error']?.toString() ??
+                'No se pudo verificar la conexión',
+          );
+        }
       }
 
       _snack('Conexión VeriPagos verificada correctamente.');
