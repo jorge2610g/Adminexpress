@@ -11,7 +11,12 @@ const _muted = Color(0xFF64748B);
 const _bg = Color(0xFFF1F5F9);
 
 class AdminDriverPriorityPage extends StatefulWidget {
-  const AdminDriverPriorityPage({super.key});
+  final String channel;
+
+  const AdminDriverPriorityPage({
+    super.key,
+    this.channel = 'preview',
+  });
 
   @override
   State<AdminDriverPriorityPage> createState() =>
@@ -28,7 +33,10 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
   }
 
   Future<Map<String, dynamic>> _load() async {
-    final value = await supabase.rpc('admin_driver_priority_state');
+    final value = await supabase.rpc(
+      'admin_driver_priority_state_v2',
+      params: {'p_channel': widget.channel},
+    );
     return value is Map
         ? Map<String, dynamic>.from(value)
         : <String, dynamic>{};
@@ -132,14 +140,15 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: previewEnabled,
-                    onChanged: (value) =>
-                        setLocal(() => previewEnabled = value),
+                    onChanged: widget.channel == 'preview'
+                        ? (value) => setLocal(() => previewEnabled = value)
+                        : null,
                     title: const Text('Mostrar prioridad en Preview'),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: previewEnforcement,
-                    onChanged: previewEnabled
+                    onChanged: widget.channel == 'preview' && previewEnabled
                         ? (value) =>
                             setLocal(() => previewEnforcement = value)
                         : null,
@@ -152,8 +161,9 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: productionEnabled,
-                    onChanged: (value) =>
-                        setLocal(() => productionEnabled = value),
+                    onChanged: widget.channel == 'production'
+                        ? (value) => setLocal(() => productionEnabled = value)
+                        : null,
                     title: const Text('Mostrar prioridad en Producción'),
                     subtitle: const Text(
                       'Déjalo apagado hasta aprobar la prueba en Preview.',
@@ -162,10 +172,11 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: productionEnforcement,
-                    onChanged: productionEnabled
-                        ? (value) =>
-                            setLocal(() => productionEnforcement = value)
-                        : null,
+                    onChanged:
+                        widget.channel == 'production' && productionEnabled
+                            ? (value) =>
+                                setLocal(() => productionEnforcement = value)
+                            : null,
                     title: const Text('Aplicar ranking al despacho Producción'),
                   ),
                   const SizedBox(height: 12),
@@ -312,12 +323,15 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
     if (save == true) {
       try {
         await supabase.rpc(
-          'admin_update_driver_priority_settings',
+          'admin_update_driver_priority_settings_v2',
           params: {
-            'p_preview_enabled': previewEnabled,
-            'p_production_enabled': productionEnabled,
-            'p_preview_enforcement_enabled': previewEnforcement,
-            'p_production_enforcement_enabled': productionEnforcement,
+            'p_channel': widget.channel,
+            'p_enabled': widget.channel == 'preview'
+                ? previewEnabled
+                : productionEnabled,
+            'p_enforcement_enabled': widget.channel == 'preview'
+                ? previewEnforcement
+                : productionEnforcement,
             'p_high_min_score': double.tryParse(high.text.trim()) ?? 80,
             'p_medium_min_score':
                 double.tryParse(medium.text.trim()) ?? 55,
