@@ -788,6 +788,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                       child: SafeArea(
                         child: _Navigation(
                           selected: section,
+                          channel: adminChannel,
                           onSelected: (value) {
                             Navigator.pop(context);
                             _goTo(value);
