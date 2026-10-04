@@ -13,6 +13,7 @@ import 'admin_driver_priority.dart';
 import 'admin_detail_dialogs.dart';
 import 'admin_preview_config_sections.dart';
 import 'admin_environment_reports.dart';
+import 'admin_environment_audit.dart';
 
 const Color adminBlue = Color(0xFF2563EB);
 const Color adminDark = Color(0xFF0F172A);
@@ -953,7 +954,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 13:
         return AdminDispatchPage(channel: adminChannel);
       case 14:
-        return const AdminAuditPage();
+        return AdminEnvironmentAuditPage(channel: adminChannel);
       case 15:
         return const AdminCommunicationsPage();
       case 16:
