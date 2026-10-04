@@ -531,6 +531,14 @@ class _AdminExpressDeliveryV2PageState
       text: row?['ends_at']?.toString() ?? '',
     );
     String? localZone = row?['zone_id']?.toString() ?? zoneId;
+    String? localCountry = row?['country_code']?.toString();
+    if (localZone != null) {
+      final selected = zones.firstWhere(
+        (z) => z['id']?.toString() == localZone,
+        orElse: () => <String, dynamic>{},
+      );
+      localCountry = selected['country_code']?.toString() ?? localCountry;
+    }
     String sectionType = row?['section_type']?.toString() ?? 'merchants';
     String sourceRule = row?['source_rule']?.toString() ?? 'popular';
     bool active = row?['active'] != false;
@@ -553,7 +561,7 @@ class _AdminExpressDeliveryV2PageState
                     items: [
                       const DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('Global'),
+                        child: Text('Todas las zonas de un país'),
                       ),
                       ...zones.map(
                         (z) => DropdownMenuItem<String?>(
@@ -566,8 +574,48 @@ class _AdminExpressDeliveryV2PageState
                         ),
                       ),
                     ],
-                    onChanged: (v) => setLocal(() => localZone = v),
+                    onChanged: (v) => setLocal(() {
+                      localZone = v;
+                      if (v != null) {
+                        final selected = zones.firstWhere(
+                          (z) => z['id']?.toString() == v,
+                          orElse: () => <String, dynamic>{},
+                        );
+                        localCountry = selected['country_code']?.toString();
+                      }
+                    }),
                   ),
+                  if (localZone == null) ...[
+                    const SizedBox(height: 9),
+                    DropdownButtonFormField<String>(
+                      value: localCountry,
+                      decoration: const InputDecoration(
+                        labelText: 'País obligatorio',
+                      ),
+                      items: zones
+                          .map((z) => z['country_code']?.toString())
+                          .whereType<String>()
+                          .toSet()
+                          .map(
+                            (code) => DropdownMenuItem<String>(
+                              value: code,
+                              child: Text(
+                                zones
+                                        .firstWhere(
+                                          (z) =>
+                                              z['country_code']?.toString() ==
+                                              code,
+                                        )['country']
+                                        ?.toString() ??
+                                    code,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) =>
+                          setLocal(() => localCountry = v),
+                    ),
+                  ],
                   const SizedBox(height: 9),
                   TextField(
                     controller: key,
@@ -727,7 +775,7 @@ class _AdminExpressDeliveryV2PageState
           params: {
             'p_id': row?['id'],
             'p_zone_id': localZone,
-            'p_country_code': null,
+            'p_country_code': localCountry,
             'p_section_key': key.text.trim(),
             'p_title': title.text.trim(),
             'p_subtitle': subtitle.text.trim(),
@@ -784,6 +832,14 @@ class _AdminExpressDeliveryV2PageState
       text: row?['ends_at']?.toString() ?? '',
     );
     String? localZone = row?['zone_id']?.toString() ?? zoneId;
+    String? localCountry = row?['country_code']?.toString();
+    if (localZone != null) {
+      final selected = zones.firstWhere(
+        (z) => z['id']?.toString() == localZone,
+        orElse: () => <String, dynamic>{},
+      );
+      localCountry = selected['country_code']?.toString() ?? localCountry;
+    }
     String type = row?['discount_type']?.toString() ?? 'percent';
     String funded = row?['funded_by']?.toString() ?? 'express';
     bool active = row?['active'] != false;
@@ -819,8 +875,48 @@ class _AdminExpressDeliveryV2PageState
                         ),
                       ),
                     ],
-                    onChanged: (v) => setLocal(() => localZone = v),
+                    onChanged: (v) => setLocal(() {
+                      localZone = v;
+                      if (v != null) {
+                        final selected = zones.firstWhere(
+                          (z) => z['id']?.toString() == v,
+                          orElse: () => <String, dynamic>{},
+                        );
+                        localCountry = selected['country_code']?.toString();
+                      }
+                    }),
                   ),
+                  if (localZone == null) ...[
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: localCountry,
+                      decoration: const InputDecoration(
+                        labelText: 'País obligatorio',
+                      ),
+                      items: zones
+                          .map((z) => z['country_code']?.toString())
+                          .whereType<String>()
+                          .toSet()
+                          .map(
+                            (code) => DropdownMenuItem<String>(
+                              value: code,
+                              child: Text(
+                                zones
+                                        .firstWhere(
+                                          (z) =>
+                                              z['country_code']?.toString() ==
+                                              code,
+                                        )['country']
+                                        ?.toString() ??
+                                    code,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) =>
+                          setLocal(() => localCountry = v),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   TextField(
                     controller: code,
@@ -992,7 +1088,7 @@ class _AdminExpressDeliveryV2PageState
           params: {
             'p_id': row?['id'],
             'p_zone_id': localZone,
-            'p_country_code': row?['country_code'],
+            'p_country_code': localCountry,
             'p_code': code.text.trim(),
             'p_title': title.text.trim(),
             'p_description': description.text.trim(),
