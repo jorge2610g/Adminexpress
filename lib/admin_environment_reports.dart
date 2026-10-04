@@ -163,7 +163,7 @@ class _AdminEnvironmentReportsPageState
                   OutlinedButton.icon(
                     onPressed: _pickTo,
                     icon: const Icon(Icons.event_outlined, size: 16),
-                    label: Text('Hasta ${_date(to.subtract(const Duration(days: 1))))}'),
+                    label: Text('Hasta ${_date(to.subtract(const Duration(days: 1)))}'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => setState(() => revision++),
