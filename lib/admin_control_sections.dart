@@ -4354,7 +4354,12 @@ double? _double(Object? value) {
 
 
 class AdminFaresPage extends StatefulWidget {
-  const AdminFaresPage({super.key});
+  final String channel;
+
+  const AdminFaresPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminFaresPage> createState() => _AdminFaresPageState();
@@ -4362,6 +4367,9 @@ class AdminFaresPage extends StatefulWidget {
 
 class _AdminFaresPageState extends State<AdminFaresPage> {
   int revision = 0;
+
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
   String? selectedZoneId;
 
   Future<({
@@ -4370,18 +4378,29 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     List<Map<String, dynamic>> services,
     Map<String, dynamic>? zone,
   })> _load() async {
-    final values = await Future.wait([
-      supabase.rpc('admin_fare_list'),
-      supabase.rpc('admin_zone_list'),
-      supabase.rpc('admin_service_list'),
-    ]);
-    final zones = _list(values[1]);
+    final List<Map<String, dynamic>> fares;
+    final List<Map<String, dynamic>> zones;
+    final List<Map<String, dynamic>> services;
+    if (_environment.isPreview) {
+      fares = await _environment.previewList('fare_rules');
+      zones = await _environment.previewList('service_zones');
+      services = await _environment.previewList('service_catalog');
+    } else {
+      final values = await Future.wait([
+        supabase.rpc('admin_fare_list'),
+        supabase.rpc('admin_zone_list'),
+        supabase.rpc('admin_service_list'),
+      ]);
+      fares = _list(values[0]);
+      zones = _list(values[1]);
+      services = _list(values[2]);
+    }
 
     if (zones.isEmpty) {
       return (
-        fares: _list(values[0]),
+        fares: fares,
         zones: zones,
-        services: _list(values[2]),
+        services: services,
         zone: null,
       );
     }
@@ -4398,9 +4417,9 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     }
 
     return (
-      fares: _list(values[0]),
+      fares: fares,
       zones: zones,
-      services: _list(values[2]),
+      services: services,
       zone: zones.firstWhere((row) => row['id']?.toString() == zoneId),
     );
   }
@@ -4568,22 +4587,46 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_upsert_fare_rule',
-          params: {
-            'p_id': row?['id'],
-            'p_scope_type': scope,
-            'p_service_key': scope == 'global' ? null : service,
-            'p_zone_id': scope == 'zone_service' ? zoneId : null,
-            'p_base_fare': _num(base.text) ?? 0,
-            'p_per_km': _num(km.text) ?? 0,
-            'p_per_minute': _num(minute.text) ?? 0,
-            'p_minimum_fare': _num(minimum.text) ?? 0,
-            'p_surge_multiplier': _num(surge.text) ?? 1,
-            'p_commission_percent': _num(commission.text) ?? 0,
-            'p_active': active,
-          },
-        );
+        if (_environment.isPreview) {
+          final key = row == null
+              ? _environment.createRecordKey('fare')
+              : AdminEnvironmentStore.recordKey(row);
+          await _environment.previewUpsert(
+            'fare_rules',
+            key,
+            <String, dynamic>{
+              ...?row,
+              'id': row?['id'] ?? key,
+              'scope_type': scope,
+              'service_key': scope == 'global' ? null : service,
+              'zone_id': scope == 'zone_service' ? zoneId : null,
+              'base_fare': _num(base.text) ?? 0,
+              'per_km': _num(km.text) ?? 0,
+              'per_minute': _num(minute.text) ?? 0,
+              'minimum_fare': _num(minimum.text) ?? 0,
+              'surge_multiplier': _num(surge.text) ?? 1,
+              'commission_percent': _num(commission.text) ?? 0,
+              'active': active,
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_upsert_fare_rule',
+            params: {
+              'p_id': row?['id'],
+              'p_scope_type': scope,
+              'p_service_key': scope == 'global' ? null : service,
+              'p_zone_id': scope == 'zone_service' ? zoneId : null,
+              'p_base_fare': _num(base.text) ?? 0,
+              'p_per_km': _num(km.text) ?? 0,
+              'p_per_minute': _num(minute.text) ?? 0,
+              'p_minimum_fare': _num(minimum.text) ?? 0,
+              'p_surge_multiplier': _num(surge.text) ?? 1,
+              'p_commission_percent': _num(commission.text) ?? 0,
+              'p_active': active,
+            },
+          );
+        }
         if (mounted) {
           setState(() => revision++);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -4830,20 +4873,42 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     var saved = false;
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_upsert_special_fare_zone',
-          params: {
-            'p_id': row?['id'],
-            'p_zone_id': zone['id'],
-            'p_name': name.text.trim(),
-            'p_zone_type': type,
-            'p_service_key': service,
-            'p_polygon': _specialJsonPoints(points),
-            'p_fixed_fare': _num(fare.text),
-            'p_priority': int.tryParse(priority.text.trim()) ?? 100,
-            'p_active': active,
-          },
-        );
+        if (_environment.isPreview) {
+          final key = row == null
+              ? _environment.createRecordKey('special-fare')
+              : AdminEnvironmentStore.recordKey(row);
+          await _environment.previewUpsert(
+            'special_fare_zones',
+            key,
+            <String, dynamic>{
+              ...?row,
+              'id': row?['id'] ?? key,
+              'zone_id': zone['id'],
+              'name': name.text.trim(),
+              'zone_type': type,
+              'service_key': service,
+              'polygon': _specialJsonPoints(points),
+              'fixed_fare': _num(fare.text),
+              'priority': int.tryParse(priority.text.trim()) ?? 100,
+              'active': active,
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_upsert_special_fare_zone',
+            params: {
+              'p_id': row?['id'],
+              'p_zone_id': zone['id'],
+              'p_name': name.text.trim(),
+              'p_zone_type': type,
+              'p_service_key': service,
+              'p_polygon': _specialJsonPoints(points),
+              'p_fixed_fare': _num(fare.text),
+              'p_priority': int.tryParse(priority.text.trim()) ?? 100,
+              'p_active': active,
+            },
+          );
+        }
         saved = true;
       } catch (e) {
         if (mounted) _snack(context, e);
@@ -4891,6 +4956,15 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
             child: FutureBuilder<List<Map<String, dynamic>>>(
               key: ValueKey(localRevision),
               future: () async {
+                if (_environment.isPreview) {
+                  return (await _environment.previewList('special_fare_zones'))
+                      .where(
+                        (row) =>
+                            row['zone_id']?.toString() ==
+                            zone['id']?.toString(),
+                      )
+                      .toList();
+                }
                 final value = await supabase.rpc(
                   'admin_special_fare_list',
                   params: {'p_zone_id': zone['id']},
