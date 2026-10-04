@@ -123,7 +123,10 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                 'radius_km': radiusKm,
                 'scope': targetScope,
               }
-            : {'action': 'cleanup'},
+            : {
+                'action': 'cleanup',
+                'scope': targetScope,
+              },
       );
       final data = response.data;
       if (data is Map && data['ok'] != true) {
@@ -145,10 +148,22 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
       }
       await _load();
     } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+      if (mounted) setState(() => error = _friendlyError(e));
     } finally {
       if (mounted) setState(() => busy = false);
     }
+  }
+
+  String _friendlyError(Object e) {
+    final text = e.toString();
+    final objectMessage = RegExp(r'message:\s*([^,}]+)').firstMatch(text)?.group(1);
+    if (objectMessage != null && objectMessage.trim().isNotEmpty) {
+      return objectMessage.trim();
+    }
+    if (text.contains('[object Object]')) {
+      return 'No se pudo completar la operación QA. Revisa el detalle del servidor.';
+    }
+    return text.replaceFirst('Exception: ', '').replaceFirst('Bad state: ', '');
   }
 
   LatLng get selectedCenter =>
