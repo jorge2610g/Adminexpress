@@ -252,9 +252,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Entornos de prueba', Icons.science_rounded),
     ('Carga QA', Icons.speed_rounded),
     ('Suscripciones', Icons.workspace_premium_rounded),
-    ('Express Market', Icons.storefront_rounded),
-    ('Delivery · Configuración', Icons.delivery_dining_rounded),
-    ('Prioridad conductores', Icons.workspace_premium_outlined),
+    ('Express Delivery', Icons.storefront_rounded),
+    ('Express Delivery · Pruebas', Icons.delivery_dining_rounded),
+    ('Prioridad conductores · Pruebas', Icons.workspace_premium_outlined),
     ('Pedidos Delivery', Icons.receipt_long_rounded),
   ];
 
@@ -1564,12 +1564,13 @@ class _Navigation extends StatelessWidget {
 
   static const groups = <(String, List<int>)>[
     ('GENERAL', [0]),
-    ('OPERACIONES', [1, 2, 13, 3, 26, 23, 4, 24, 5, 6]),
+    ('OPERACIONES', [1, 2, 13, 3, 4, 5, 6]),
+    ('MÓDULOS DE PRODUCCIÓN', [23, 26]),
+    ('MÓDULOS DE PRUEBA', [24, 25, 20, 21]),
     ('FINANZAS', [9, 8, 22]),
     ('ANÁLISIS', [10, 14]),
     ('COMUNICACIÓN', [15]),
     ('SEGURIDAD', [17, 18]),
-    ('PRUEBAS', [20, 21]),
     ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
   ];
 
