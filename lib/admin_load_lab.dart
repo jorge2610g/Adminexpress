@@ -29,6 +29,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
   double radiusKm = 3;
   String selectedCity = 'trinidad';
   String targetScope = 'sandbox';
+  String serviceMode = 'mixed';
   String demandLevel = 'automatic';
   Map<String, dynamic> demandState = const <String, dynamic>{};
   bool busy = false;
@@ -154,6 +155,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                 'center_longitude': selectedCenter.longitude,
                 'radius_km': radiusKm,
                 'scope': targetScope,
+                'service_mode': serviceMode,
               }
             : {
                 'action': 'cleanup',
@@ -316,6 +318,34 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                             if (v != null) {
                               setState(() => selectedCity = v);
                             }
+                          },
+                  ),
+                ),
+                SizedBox(
+                  width: 220,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: serviceMode,
+                    decoration: const InputDecoration(
+                      labelText: 'Servicio QA',
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'mixed',
+                        child: Text('Mixto · Auto + Moto'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'car',
+                        child: Text('Solo Auto'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'motorcycle',
+                        child: Text('Solo Moto'),
+                      ),
+                    ],
+                    onChanged: busy
+                        ? null
+                        : (v) {
+                            if (v != null) setState(() => serviceMode = v);
                           },
                   ),
                 ),
