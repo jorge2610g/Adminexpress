@@ -120,7 +120,12 @@ class _AdminPreviewModulePageState extends State<AdminPreviewModulePage> {
     }.contains(key)) {
       return false;
     }
-    return value == null || value is String || value is num || value is bool;
+    return value == null ||
+        value is String ||
+        value is num ||
+        value is bool ||
+        value is List ||
+        value is Map;
   }
 
   Future<void> _edit(Map<String, dynamic> row) async {
@@ -135,8 +140,12 @@ class _AdminPreviewModulePageState extends State<AdminPreviewModulePage> {
 
     for (final entry in payload.entries) {
       if (!_editableKey(entry.key, entry.value) || entry.value is bool) continue;
-      controllers[entry.key] =
-          TextEditingController(text: entry.value?.toString() ?? '');
+      final value = entry.value;
+      controllers[entry.key] = TextEditingController(
+        text: value is List || value is Map
+            ? const JsonEncoder.withIndent('  ').convert(value)
+            : value?.toString() ?? '',
+      );
     }
 
     final saved = await showDialog<bool>(
@@ -163,14 +172,21 @@ class _AdminPreviewModulePageState extends State<AdminPreviewModulePage> {
                   }
                   final controller = controllers[key]!;
                   final numeric = value is num;
+                  final structured = value is List || value is Map;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: TextField(
                       controller: controller,
+                      minLines: structured ? 4 : 1,
+                      maxLines: structured ? 10 : 1,
                       keyboardType: numeric
                           ? const TextInputType.numberWithOptions(decimal: true)
                           : TextInputType.text,
-                      decoration: InputDecoration(labelText: _label(key)),
+                      decoration: InputDecoration(
+                        labelText: _label(key),
+                        helperText:
+                            structured ? 'JSON exclusivo de Preview' : null,
+                      ),
                     ),
                   );
                 }).toList(),
@@ -200,6 +216,13 @@ class _AdminPreviewModulePageState extends State<AdminPreviewModulePage> {
           values[entry.key] = int.tryParse(text) ?? original;
         } else if (original is double || original is num) {
           values[entry.key] = double.tryParse(text) ?? original;
+        } else if (original is List || original is Map) {
+          try {
+            values[entry.key] = jsonDecode(text);
+          } catch (_) {
+            _snack('JSON inválido en ' + _label(entry.key));
+            return;
+          }
         } else {
           values[entry.key] = text;
         }
