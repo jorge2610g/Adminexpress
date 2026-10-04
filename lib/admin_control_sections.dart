@@ -2722,7 +2722,12 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
 
 
 class AdminGeoSafetyPage extends StatefulWidget {
-  const AdminGeoSafetyPage({super.key});
+  final String channel;
+
+  const AdminGeoSafetyPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminGeoSafetyPage> createState() => _AdminGeoSafetyPageState();
@@ -2731,11 +2736,27 @@ class AdminGeoSafetyPage extends StatefulWidget {
 class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
   int revision = 0;
 
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
+
   Future<({
     List<Map<String, dynamic>> zones,
     List<Map<String, dynamic>> coverage,
     List<Map<String, dynamic>> safety,
   })> _load() async {
+    if (_environment.isPreview) {
+      final values = await Future.wait([
+        _environment.previewList('service_zones'),
+        _environment.previewList('service_zone_polygons'),
+        _environment.previewList('security_zones'),
+      ]);
+      return (
+        zones: values[0],
+        coverage: values[1],
+        safety: values[2],
+      );
+    }
+
     final values = await Future.wait([
       supabase.rpc('admin_zone_list'),
       supabase.rpc('admin_zone_polygon_list'),
@@ -2861,16 +2882,33 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_upsert_zone_polygon',
-          params: {
-            'p_id': row?['id'],
-            'p_zone_id': zoneId,
-            'p_name': name.text.trim(),
-            'p_polygon': _jsonPoints(points),
-            'p_active': active,
-          },
-        );
+        if (_environment.isPreview) {
+          final key = row == null
+              ? _environment.createRecordKey('coverage')
+              : AdminEnvironmentStore.recordKey(row);
+          await _environment.previewUpsert(
+            'service_zone_polygons',
+            key,
+            <String, dynamic>{
+              ...?row,
+              'zone_id': zoneId,
+              'name': name.text.trim(),
+              'polygon': _jsonPoints(points),
+              'active': active,
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_upsert_zone_polygon',
+            params: {
+              'p_id': row?['id'],
+              'p_zone_id': zoneId,
+              'p_name': name.text.trim(),
+              'p_polygon': _jsonPoints(points),
+              'p_active': active,
+            },
+          );
+        }
         if (mounted) setState(() => revision++);
       } catch (e) {
         if (mounted) _snack(context, e);
@@ -3036,21 +3074,43 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_upsert_security_zone',
-          params: {
-            'p_id': row?['id'],
-            'p_name': name.text.trim(),
-            'p_zone_type': type,
-            'p_applies_to': applies,
-            'p_severity': severity,
-            'p_polygon': _jsonPoints(points),
-            'p_message': message.text.trim(),
-            'p_active': active,
-            'p_city': city.text.trim(),
-            'p_country': country.text.trim(),
-          },
-        );
+        if (_environment.isPreview) {
+          final key = row == null
+              ? _environment.createRecordKey('safety')
+              : AdminEnvironmentStore.recordKey(row);
+          await _environment.previewUpsert(
+            'security_zones',
+            key,
+            <String, dynamic>{
+              ...?row,
+              'name': name.text.trim(),
+              'zone_type': type,
+              'applies_to': applies,
+              'severity': severity,
+              'polygon': _jsonPoints(points),
+              'message': message.text.trim(),
+              'active': active,
+              'city': city.text.trim(),
+              'country': country.text.trim(),
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_upsert_security_zone',
+            params: {
+              'p_id': row?['id'],
+              'p_name': name.text.trim(),
+              'p_zone_type': type,
+              'p_applies_to': applies,
+              'p_severity': severity,
+              'p_polygon': _jsonPoints(points),
+              'p_message': message.text.trim(),
+              'p_active': active,
+              'p_city': city.text.trim(),
+              'p_country': country.text.trim(),
+            },
+          );
+        }
         if (mounted) setState(() => revision++);
       } catch (e) {
         if (mounted) _snack(context, e);
@@ -3197,7 +3257,12 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
 }
 
 class AdminIdentitySecurityPage extends StatefulWidget {
-  const AdminIdentitySecurityPage({super.key});
+  final String channel;
+
+  const AdminIdentitySecurityPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminIdentitySecurityPage> createState() => _AdminIdentitySecurityPageState();
@@ -3206,10 +3271,24 @@ class AdminIdentitySecurityPage extends StatefulWidget {
 class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
   int revision = 0;
 
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
+
   Future<({
     Map<String, dynamic> settings,
     List<Map<String, dynamic>> verifications,
   })> _load() async {
+    if (_environment.isPreview) {
+      final values = await Future.wait([
+        _environment.previewGet('identity_verification_settings'),
+        _environment.previewList('identity_verifications'),
+      ]);
+      return (
+        settings: values[0] as Map<String, dynamic>,
+        verifications: values[1] as List<Map<String, dynamic>>,
+      );
+    }
+
     final values = await Future.wait([
       supabase.rpc('admin_identity_settings_get'),
       supabase.rpc('admin_identity_verification_list', params: {'p_limit': 200}),
@@ -3356,21 +3435,41 @@ class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_identity_settings_update',
-          params: {
-            'p_provider': provider,
-            'p_document_enabled': document,
-            'p_face_enabled': face,
-            'p_face_match_enabled': match,
-            'p_liveness_enabled': liveness,
-            'p_require_driver': driver,
-            'p_require_passenger': passenger,
-            'p_min_face_score': faceScore,
-            'p_min_liveness_score': liveScore,
-            'p_manual_review_on_fail': review,
-          },
-        );
+        if (_environment.isPreview) {
+          await _environment.previewUpsert(
+            'identity_verification_settings',
+            'default',
+            <String, dynamic>{
+              ...row,
+              'provider': provider,
+              'document_enabled': document,
+              'face_enabled': face,
+              'face_match_enabled': match,
+              'liveness_enabled': liveness,
+              'require_driver': driver,
+              'require_passenger': passenger,
+              'min_face_score': faceScore,
+              'min_liveness_score': liveScore,
+              'manual_review_on_fail': review,
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_identity_settings_update',
+            params: {
+              'p_provider': provider,
+              'p_document_enabled': document,
+              'p_face_enabled': face,
+              'p_face_match_enabled': match,
+              'p_liveness_enabled': liveness,
+              'p_require_driver': driver,
+              'p_require_passenger': passenger,
+              'p_min_face_score': faceScore,
+              'p_min_liveness_score': liveScore,
+              'p_manual_review_on_fail': review,
+            },
+          );
+        }
         if (mounted) setState(() => revision++);
       } catch (e) {
         if (mounted) _snack(context, e);
@@ -3446,14 +3545,26 @@ class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_identity_resolve',
-          params: {
-            'p_verification_id': row['id'],
-            'p_status': status,
-            'p_review_note': note.text.trim(),
-          },
-        );
+        if (_environment.isPreview) {
+          await _environment.previewUpsert(
+            'identity_verifications',
+            AdminEnvironmentStore.recordKey(row),
+            <String, dynamic>{
+              ...row,
+              'status': status,
+              'review_note': note.text.trim(),
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_identity_resolve',
+            params: {
+              'p_verification_id': row['id'],
+              'p_status': status,
+              'p_review_note': note.text.trim(),
+            },
+          );
+        }
         if (mounted) {
           setState(() => revision++);
           ScaffoldMessenger.of(context).showSnackBar(
