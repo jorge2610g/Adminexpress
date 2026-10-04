@@ -6055,7 +6055,12 @@ class _AdminPaymentNotice extends StatelessWidget {
 }
 
 class AdminCommunicationsPage extends StatefulWidget {
-  const AdminCommunicationsPage({super.key});
+  final String channel;
+
+  const AdminCommunicationsPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminCommunicationsPage> createState() =>
@@ -6111,14 +6116,20 @@ class _AdminCommunicationsPageState
   }
 
   Future<List<Map<String, dynamic>>> _threads() async {
-    final value = await supabase.rpc('admin_support_threads');
+    final value = await supabase.rpc(
+      'admin_support_threads_v2',
+      params: {'p_channel': widget.channel},
+    );
     return _list(value);
   }
 
   Future<List<Map<String, dynamic>>> _messages(String userId) async {
     final value = await supabase.rpc(
-      'admin_support_messages',
-      params: {'p_user_id': userId},
+      'admin_support_messages_v2',
+      params: {
+        'p_channel': widget.channel,
+        'p_user_id': userId,
+      },
     );
     return _list(value);
   }
@@ -6131,8 +6142,9 @@ class _AdminCommunicationsPageState
     setState(() => sendingReply = true);
     try {
       await supabase.rpc(
-        'admin_support_reply',
+        'admin_support_reply_v2',
         params: {
+          'p_channel': widget.channel,
           'p_user_id': userId,
           'p_body': text,
         },
@@ -6148,8 +6160,9 @@ class _AdminCommunicationsPageState
 
   Future<Map<String, dynamic>> _estimateAnnouncementAudience() async {
     final value = await supabase.rpc(
-      'admin_push_audience_estimate',
+      'admin_push_audience_estimate_v2',
       params: {
+        'p_channel': widget.channel,
         'p_audience': audience,
         'p_zone_id': campaignZoneId,
         'p_partner_id': campaignPartnerId,
@@ -6160,8 +6173,9 @@ class _AdminCommunicationsPageState
 
   Future<List<Map<String, dynamic>>> _campaignHistory() async {
     final value = await supabase.rpc(
-      'admin_notification_campaign_list',
+      'admin_notification_campaign_list_v2',
       params: {
+        'p_channel': widget.channel,
         'p_from': null,
         'p_to': null,
         'p_limit': 100,
@@ -6208,7 +6222,11 @@ class _AdminCommunicationsPageState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Enviar aviso'),
+        title: Text(
+          widget.channel == 'preview'
+              ? 'Enviar aviso · Prueba'
+              : 'Enviar aviso · Producción',
+        ),
         content: Text(
           'Se enviará “' +
               title +
@@ -6240,8 +6258,9 @@ class _AdminCommunicationsPageState
     setState(() => sendingAnnouncement = true);
     try {
       final result = await supabase.rpc(
-        'admin_send_announcement_v3',
+        'admin_send_announcement_v4',
         params: {
+          'p_channel': widget.channel,
           'p_title': title,
           'p_body': body,
           'p_audience': audience,
