@@ -253,8 +253,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Carga QA', Icons.speed_rounded),
     ('Suscripciones', Icons.workspace_premium_rounded),
     ('Express Market', Icons.storefront_rounded),
-    ('Delivery Fase 2 / Express Plus', Icons.delivery_dining_rounded),
+    ('Delivery · Configuración', Icons.delivery_dining_rounded),
     ('Prioridad conductores', Icons.workspace_premium_outlined),
+    ('Pedidos Delivery', Icons.receipt_long_rounded),
   ];
 
   Future<bool> _authorized() async => await supabase.rpc('is_admin') == true;
@@ -810,6 +811,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         return const AdminMarketplacePhase2Page();
       case 25:
         return const AdminDriverPriorityPage();
+      case 26:
+        return const AdminMarketplacePhase2Page(ordersOnly: true);
       default:
         return const SizedBox.shrink();
     }
@@ -1561,7 +1564,7 @@ class _Navigation extends StatelessWidget {
 
   static const groups = <(String, List<int>)>[
     ('GENERAL', [0]),
-    ('OPERACIONES', [1, 2, 13, 3, 23, 4, 24, 5, 6]),
+    ('OPERACIONES', [1, 2, 13, 3, 26, 23, 4, 24, 5, 6]),
     ('FINANZAS', [9, 8, 22]),
     ('ANÁLISIS', [10, 14]),
     ('COMUNICACIÓN', [15]),
