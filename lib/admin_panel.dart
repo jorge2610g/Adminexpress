@@ -263,7 +263,60 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
 
   Future<Map<String, dynamic>> _dashboardState() async {
     final value = await supabase.rpc('admin_dashboard_state');
-    return Map<String, dynamic>.from(value as Map);
+    final state = Map<String, dynamic>.from(value as Map);
+    final preview = adminChannel == 'preview';
+
+    bool belongsToEnvironment(Map<String, dynamic> row) {
+      if (row.containsKey('is_qa')) {
+        return (row['is_qa'] == true) == preview;
+      }
+      final channel = row['channel']?.toString().toLowerCase();
+      if (channel != null && channel.isNotEmpty) {
+        return preview ? channel == 'preview' : channel == 'production';
+      }
+      return !preview;
+    }
+
+    List<Map<String, dynamic>> scoped(String key) =>
+        _list(state[key]).where(belongsToEnvironment).toList();
+
+    final drivers = await _drivers();
+    final users = await _users();
+    final tripsToday = await _trips();
+    final deliveriesToday = await _deliveries();
+
+    final activeTrips = scoped('active_trips');
+    final activeDeliveries = scoped('active_deliveries');
+    final emergencies = scoped('emergencies');
+    final activity = scoped('activity');
+
+    final metrics = _map(state['metrics']);
+    metrics['users_total'] = users.length;
+    metrics['drivers_total'] = drivers.length;
+    metrics['drivers_online'] = drivers
+        .where((row) => row['online_status']?.toString() == 'online')
+        .length;
+    metrics['drivers_pending'] = drivers
+        .where((row) => row['approval_status']?.toString() == 'pending')
+        .length;
+    metrics['trips_today'] = tripsToday.length;
+    metrics['deliveries_today'] = deliveriesToday.length;
+    metrics['active_trips'] = activeTrips.length;
+    metrics['active_deliveries'] = activeDeliveries.length;
+    metrics['completed_today'] = tripsToday
+        .where((row) => row['status']?.toString() == 'completed')
+        .length;
+    metrics['completed_deliveries_today'] = deliveriesToday
+        .where((row) => row['status']?.toString() == 'completed')
+        .length;
+
+    state['metrics'] = metrics;
+    state['drivers'] = drivers;
+    state['active_trips'] = activeTrips;
+    state['active_deliveries'] = activeDeliveries;
+    state['emergencies'] = emergencies;
+    state['activity'] = activity;
+    return state;
   }
 
   Future<({Map<String, dynamic> state, List<Map<String, dynamic>> zones})>
