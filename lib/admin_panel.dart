@@ -12,6 +12,7 @@ import 'admin_marketplace_phase2.dart';
 import 'admin_driver_priority.dart';
 import 'admin_detail_dialogs.dart';
 import 'admin_preview_config_sections.dart';
+import 'admin_environment_reports.dart';
 
 const Color adminBlue = Color(0xFF2563EB);
 const Color adminDark = Color(0xFF0F172A);
@@ -938,7 +939,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               )
             : const AdminPaymentsPage();
       case 10:
-        return const AdminReportsPage();
+        return AdminEnvironmentReportsPage(channel: adminChannel);
       case 11:
         return adminChannel == 'preview'
             ? const AdminPreviewModulePage(
