@@ -186,18 +186,6 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
     }
   }
 
-  String _friendlyError(Object e) {
-    final text = e.toString();
-    final objectMessage = RegExp(r'message:\s*([^,}]+)').firstMatch(text)?.group(1);
-    if (objectMessage != null && objectMessage.trim().isNotEmpty) {
-      return objectMessage.trim();
-    }
-    if (text.contains('[object Object]')) {
-      return 'No se pudo completar la operación QA. Revisa el detalle del servidor.';
-    }
-    return text.replaceFirst('Exception: ', '').replaceFirst('Bad state: ', '');
-  }
-
   LatLng get selectedCenter =>
       cityCenters[selectedCity] ?? cityCenters['trinidad']!;
 
