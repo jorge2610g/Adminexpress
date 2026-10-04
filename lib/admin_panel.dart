@@ -11,6 +11,7 @@ import 'admin_marketplace.dart';
 import 'admin_marketplace_phase2.dart';
 import 'admin_driver_priority.dart';
 import 'admin_detail_dialogs.dart';
+import 'admin_preview_config_sections.dart';
 
 const Color adminBlue = Color(0xFF2563EB);
 const Color adminDark = Color(0xFF0F172A);
@@ -913,15 +914,33 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 6:
         return _security();
       case 7:
-        return const AdminZonesPage();
+        return adminChannel == 'preview'
+            ? const AdminPreviewModulePage(
+                module: 'service_zones',
+                title: 'Zonas',
+                subtitle: 'Configuración de zonas exclusiva del entorno Preview.',
+              )
+            : const AdminZonesPage();
       case 8:
-        return const AdminFaresPage();
+        return adminChannel == 'preview'
+            ? const AdminPreviewModulePage(
+                module: 'fare_rules',
+                title: 'Tarifas',
+                subtitle: 'Tarifas de prueba aisladas de Producción.',
+              )
+            : const AdminFaresPage();
       case 9:
         return const AdminPaymentsPage();
       case 10:
         return const AdminReportsPage();
       case 11:
-        return const AdminSettingsPage();
+        return adminChannel == 'preview'
+            ? const AdminPreviewModulePage(
+                module: 'app_settings',
+                title: 'Configuración',
+                subtitle: 'Parámetros generales usados únicamente por Preview.',
+              )
+            : const AdminSettingsPage();
       case 12:
         return const AdminBuildsPage();
       case 13:
@@ -931,7 +950,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 15:
         return const AdminCommunicationsPage();
       case 16:
-        return const AdminServicesPage();
+        return adminChannel == 'preview'
+            ? const AdminPreviewModulePage(
+                module: 'service_catalog',
+                title: 'Servicios',
+                subtitle: 'Catálogo de servicios exclusivo del entorno Preview.',
+              )
+            : const AdminServicesPage();
       case 17:
         return const AdminGeoSafetyPage();
       case 18:
