@@ -8,7 +8,12 @@ const _muted = Color(0xFF64748B);
 const _bg = Color(0xFFF1F5F9);
 
 class AdminMarketplacePage extends StatefulWidget {
-  const AdminMarketplacePage({super.key});
+  final String channel;
+
+  const AdminMarketplacePage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminMarketplacePage> createState() => _AdminMarketplacePageState();
@@ -25,9 +30,18 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
 
   Future<Map<String, dynamic>> _load() async {
     final value = await supabase.rpc('admin_marketplace_state');
-    return value is Map
+    final state = value is Map
         ? Map<String, dynamic>.from(value)
         : <String, dynamic>{};
+    final visibilityKey = widget.channel == 'preview'
+        ? 'preview_visible'
+        : 'production_visible';
+    for (final key in const ['categories', 'banners', 'merchants']) {
+      state[key] = _rows(state[key])
+          .where((row) => row[visibilityKey] == true)
+          .toList();
+    }
+    return state;
   }
 
   List<Map<String, dynamic>> _rows(Object? value) {
@@ -79,7 +93,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: preview,
-                    onChanged: (value) => setLocal(() => preview = value),
+                    onChanged: widget.channel == 'preview'
+                        ? (value) => setLocal(() => preview = value)
+                        : null,
                     title: const Text('Activo en Preview'),
                     subtitle: const Text(
                       'Permite probar el módulo sin activarlo en producción.',
@@ -88,7 +104,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: production,
-                    onChanged: (value) => setLocal(() => production = value),
+                    onChanged: widget.channel == 'production'
+                        ? (value) => setLocal(() => production = value)
+                        : null,
                     title: const Text('Activo en Producción'),
                     subtitle: const Text(
                       'Actívalo solo después de aprobar la Preview.',
@@ -173,8 +191,21 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       text: row?['sort_order']?.toString() ?? '100',
     );
     bool active = row?['active'] != false;
-    bool preview = row?['preview_visible'] != false;
-    bool production = row?['production_visible'] == true;
+    if (row != null &&
+        row['preview_visible'] == true &&
+        row['production_visible'] == true) {
+      _snack(
+        'Este registro está compartido entre Prueba y Producción. '
+        'Debe separarse antes de editarlo.',
+      );
+      return;
+    }
+    bool preview = row == null
+        ? widget.channel == 'preview'
+        : row['preview_visible'] == true;
+    bool production = row == null
+        ? widget.channel == 'production'
+        : row['production_visible'] == true;
 
     final save = await showDialog<bool>(
       context: context,
@@ -220,13 +251,17 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: preview,
-                    onChanged: (value) => setLocal(() => preview = value),
+                    onChanged: widget.channel == 'preview'
+                        ? (value) => setLocal(() => preview = value)
+                        : null,
                     title: const Text('Visible en Preview'),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: production,
-                    onChanged: (value) => setLocal(() => production = value),
+                    onChanged: widget.channel == 'production'
+                        ? (value) => setLocal(() => production = value)
+                        : null,
                     title: const Text('Visible en Producción'),
                   ),
                 ],
@@ -288,8 +323,21 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       text: row?['sort_order']?.toString() ?? '100',
     );
     bool active = row?['active'] != false;
-    bool preview = row?['preview_visible'] != false;
-    bool production = row?['production_visible'] == true;
+    if (row != null &&
+        row['preview_visible'] == true &&
+        row['production_visible'] == true) {
+      _snack(
+        'Este registro está compartido entre Prueba y Producción. '
+        'Debe separarse antes de editarlo.',
+      );
+      return;
+    }
+    bool preview = row == null
+        ? widget.channel == 'preview'
+        : row['preview_visible'] == true;
+    bool production = row == null
+        ? widget.channel == 'production'
+        : row['production_visible'] == true;
 
     final save = await showDialog<bool>(
       context: context,
@@ -339,13 +387,17 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: preview,
-                    onChanged: (value) => setLocal(() => preview = value),
+                    onChanged: widget.channel == 'preview'
+                        ? (value) => setLocal(() => preview = value)
+                        : null,
                     title: const Text('Visible en Preview'),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: production,
-                    onChanged: (value) => setLocal(() => production = value),
+                    onChanged: widget.channel == 'production'
+                        ? (value) => setLocal(() => production = value)
+                        : null,
                     title: const Text('Visible en Producción'),
                   ),
                 ],
@@ -433,8 +485,21 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       text: row?['sort_order']?.toString() ?? '100',
     );
     bool active = row?['active'] != false;
-    bool preview = row?['preview_visible'] != false;
-    bool production = row?['production_visible'] == true;
+    if (row != null &&
+        row['preview_visible'] == true &&
+        row['production_visible'] == true) {
+      _snack(
+        'Este registro está compartido entre Prueba y Producción. '
+        'Debe separarse antes de editarlo.',
+      );
+      return;
+    }
+    bool preview = row == null
+        ? widget.channel == 'preview'
+        : row['preview_visible'] == true;
+    bool production = row == null
+        ? widget.channel == 'production'
+        : row['production_visible'] == true;
 
     final save = await showDialog<bool>(
       context: context,
@@ -562,13 +627,17 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: preview,
-                    onChanged: (value) => setLocal(() => preview = value),
+                    onChanged: widget.channel == 'preview'
+                        ? (value) => setLocal(() => preview = value)
+                        : null,
                     title: const Text('Visible en Preview'),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: production,
-                    onChanged: (value) => setLocal(() => production = value),
+                    onChanged: widget.channel == 'production'
+                        ? (value) => setLocal(() => production = value)
+                        : null,
                     title: const Text('Visible en Producción'),
                   ),
                 ],
