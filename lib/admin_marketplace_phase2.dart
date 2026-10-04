@@ -257,12 +257,16 @@ class _AdminMarketplacePhase2PageState
                   const Divider(),
                   SwitchListTile.adaptive(
                     value: preview,
-                    onChanged: (v) => setLocal(() => preview = v),
+                    onChanged: widget.channel == 'preview'
+                        ? (v) => setLocal(() => preview = v)
+                        : null,
                     title: const Text('Delivery Fase 2 en Preview'),
                   ),
                   SwitchListTile.adaptive(
                     value: production,
-                    onChanged: (v) => setLocal(() => production = v),
+                    onChanged: widget.channel == 'production'
+                        ? (v) => setLocal(() => production = v)
+                        : null,
                     title: const Text('Delivery Fase 2 en Producción'),
                     subtitle: const Text(
                       'Mantener apagado hasta aprobación final.',
@@ -412,12 +416,16 @@ class _AdminMarketplacePhase2PageState
                   ),
                   SwitchListTile.adaptive(
                     value: preview,
-                    onChanged: (v) => setLocal(() => preview = v),
+                    onChanged: widget.channel == 'preview'
+                        ? (v) => setLocal(() => preview = v)
+                        : null,
                     title: const Text('Visible Preview'),
                   ),
                   SwitchListTile.adaptive(
                     value: production,
-                    onChanged: (v) => setLocal(() => production = v),
+                    onChanged: widget.channel == 'production'
+                        ? (v) => setLocal(() => production = v)
+                        : null,
                     title: const Text('Visible Producción'),
                   ),
                 ],
