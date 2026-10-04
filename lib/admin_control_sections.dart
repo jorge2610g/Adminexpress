@@ -1106,6 +1106,38 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         range.end.month,
         range.end.day,
       ).add(const Duration(days: 1));
+      if (_environment.isPreview) {
+        final partnerId = partner['id']?.toString();
+        final payments = (await _environment.previewList('partner_payments'))
+            .where((row) => row['partner_id']?.toString() == partnerId)
+            .toList();
+        final settlements =
+            (await _environment.previewList('partner_settlements'))
+                .where((row) => row['partner_id']?.toString() == partnerId)
+                .toList();
+        num sum(String key, Iterable<Map<String, dynamic>> rows) =>
+            rows.fold<num>(
+              0,
+              (total, row) => total + ((row[key] as num?) ?? 0),
+            );
+        final paid = settlements.where((row) => row['status'] == 'paid');
+        final pending = settlements.where((row) => row['status'] != 'paid');
+        return <String, dynamic>{
+          'partner': partner,
+          'metrics': <String, dynamic>{
+            'drivers_total': 0,
+            'drivers_online': 0,
+            'payments_count': payments.length,
+            'gross_amount': sum('amount', payments),
+            'commission_generated':
+                sum('partner_commission_amount', payments),
+            'commission_pending': sum('commission_amount', pending),
+            'commission_paid': sum('commission_amount', paid),
+          },
+          'payments': payments,
+          'settlements': settlements,
+        };
+      }
       final value = await supabase.rpc(
         'admin_partner_dashboard',
         params: {
@@ -1127,15 +1159,34 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           59,
           59,
         );
-        await supabase.rpc(
-          'admin_create_partner_settlement',
-          params: {
-            'p_partner_id': partner['id'],
-            'p_period_start': range.start.toUtc().toIso8601String(),
-            'p_period_end': endExclusive.toUtc().toIso8601String(),
-            'p_notes': 'Liquidación creada desde Adminexpress',
-          },
-        );
+        if (_environment.isPreview) {
+          final key = _environment.createRecordKey('settlement');
+          await _environment.previewUpsert(
+            'partner_settlements',
+            key,
+            <String, dynamic>{
+              'id': key,
+              'partner_id': partner['id'],
+              'period_start': range.start.toUtc().toIso8601String(),
+              'period_end': endExclusive.toUtc().toIso8601String(),
+              'gross_amount': 0,
+              'commission_amount': 0,
+              'status': 'pending',
+              'notes': 'Liquidación creada desde Adminexpress Preview',
+              'created_at': DateTime.now().toUtc().toIso8601String(),
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_create_partner_settlement',
+            params: {
+              'p_partner_id': partner['id'],
+              'p_period_start': range.start.toUtc().toIso8601String(),
+              'p_period_end': endExclusive.toUtc().toIso8601String(),
+              'p_notes': 'Liquidación creada desde Adminexpress',
+            },
+          );
+        }
         setLocal(() => localRevision++);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1197,14 +1248,28 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         return;
       }
       try {
-        await supabase.rpc(
-          'admin_mark_partner_settlement_paid',
-          params: {
-            'p_settlement_id': settlement['id'],
-            'p_reference': reference.text.trim(),
-            'p_notes': notes.text.trim(),
-          },
-        );
+        if (_environment.isPreview) {
+          await _environment.previewUpsert(
+            'partner_settlements',
+            AdminEnvironmentStore.recordKey(settlement),
+            <String, dynamic>{
+              ...settlement,
+              'status': 'paid',
+              'reference': reference.text.trim(),
+              'notes': notes.text.trim(),
+              'paid_at': DateTime.now().toUtc().toIso8601String(),
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_mark_partner_settlement_paid',
+            params: {
+              'p_settlement_id': settlement['id'],
+              'p_reference': reference.text.trim(),
+              'p_notes': notes.text.trim(),
+            },
+          );
+        }
         setLocal(() => localRevision++);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
