@@ -5252,21 +5252,26 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
 
 Future<bool> showAdminZonePaymentMethodsEditor(
   BuildContext context,
-  Map<String, dynamic> zone,
-) async {
+  Map<String, dynamic> zone, {
+  String channel = 'production',
+}) async {
+  final environment = AdminEnvironmentStore(channel);
   final zoneId = zone['id']?.toString();
   if (zoneId == null || zoneId.isEmpty) return false;
 
   try {
-    final values = await Future.wait([
-      supabase.rpc('admin_payment_method_catalog_list'),
-      supabase.rpc(
-        'admin_zone_payment_methods',
-        params: {'p_zone_id': zoneId},
-      ),
-    ]);
-    final catalog = _list(values[0]);
-    final existing = _list(values[1]);
+    final catalog =
+        _list(await supabase.rpc('admin_payment_method_catalog_list'));
+    final existing = environment.isPreview
+        ? (await environment.previewList('zone_payment_methods'))
+            .where((row) => row['zone_id']?.toString() == zoneId)
+            .toList()
+        : _list(
+            await supabase.rpc(
+              'admin_zone_payment_methods',
+              params: {'p_zone_id': zoneId},
+            ),
+          );
     final state = <String, Map<String, dynamic>>{};
 
     for (final provider in catalog) {
@@ -5490,32 +5495,66 @@ Future<bool> showAdminZonePaymentMethodsEditor(
     final selectedKeys = selected.map((entry) => entry.key).toSet();
     for (final entry in selected) {
       final row = entry.value;
-      await supabase.rpc(
-        'admin_upsert_zone_payment_method',
-        params: {
-          'p_zone_id': zoneId,
-          'p_provider_key': entry.key,
-          'p_enabled': row['enabled'] == true,
-          'p_use_rides': row['use_rides'] == true,
-          'p_use_delivery': row['use_delivery'] == true,
-          'p_use_subscriptions': row['use_subscriptions'] == true,
-          'p_use_wallet': row['use_wallet'] == true,
-          'p_is_primary': row['is_primary'] == true,
-          'p_sort_order': row['sort_order'] ?? 100,
-        },
-      );
+      if (environment.isPreview) {
+        Map<String, dynamic>? previous;
+        for (final item in existing) {
+          if (item['provider_key']?.toString() == entry.key) {
+            previous = item;
+            break;
+          }
+        }
+        final recordKey = previous == null
+            ? zoneId + ':' + entry.key
+            : AdminEnvironmentStore.recordKey(previous);
+        await environment.previewUpsert(
+          'zone_payment_methods',
+          recordKey,
+          <String, dynamic>{
+            ...?previous,
+            'id': previous?['id'] ?? recordKey,
+            'zone_id': zoneId,
+            'provider_key': entry.key,
+            'enabled': row['enabled'] == true,
+            'use_rides': row['use_rides'] == true,
+            'use_delivery': row['use_delivery'] == true,
+            'use_subscriptions': row['use_subscriptions'] == true,
+            'use_wallet': row['use_wallet'] == true,
+            'is_primary': row['is_primary'] == true,
+            'sort_order': row['sort_order'] ?? 100,
+          },
+        );
+      } else {
+        await supabase.rpc(
+          'admin_upsert_zone_payment_method',
+          params: {
+            'p_zone_id': zoneId,
+            'p_provider_key': entry.key,
+            'p_enabled': row['enabled'] == true,
+            'p_use_rides': row['use_rides'] == true,
+            'p_use_delivery': row['use_delivery'] == true,
+            'p_use_subscriptions': row['use_subscriptions'] == true,
+            'p_use_wallet': row['use_wallet'] == true,
+            'p_is_primary': row['is_primary'] == true,
+            'p_sort_order': row['sort_order'] ?? 100,
+          },
+        );
+      }
     }
 
     for (final row in existing) {
       final key = row['provider_key']?.toString() ?? '';
       if (key.isEmpty || selectedKeys.contains(key)) continue;
-      await supabase.rpc(
-        'admin_delete_zone_payment_method',
-        params: {
-          'p_zone_id': zoneId,
-          'p_provider_key': key,
-        },
-      );
+      if (environment.isPreview) {
+        await environment.previewSoftDelete('zone_payment_methods', row);
+      } else {
+        await supabase.rpc(
+          'admin_delete_zone_payment_method',
+          params: {
+            'p_zone_id': zoneId,
+            'p_provider_key': key,
+          },
+        );
+      }
     }
 
     if (context.mounted) {
