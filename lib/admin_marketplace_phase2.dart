@@ -1478,7 +1478,7 @@ class _AdminMarketplacePhase2PageState
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
