@@ -11,7 +11,6 @@ import 'admin_marketplace.dart';
 import 'admin_marketplace_phase2.dart';
 import 'admin_driver_priority.dart';
 import 'admin_detail_dialogs.dart';
-import 'admin_preview_config_sections.dart';
 import 'admin_environment_reports.dart';
 import 'admin_environment_audit.dart';
 
@@ -256,9 +255,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Entornos de prueba', Icons.science_rounded),
     ('Carga QA', Icons.speed_rounded),
     ('Suscripciones', Icons.workspace_premium_rounded),
-    ('Express Delivery', Icons.storefront_rounded),
-    ('Express Delivery · Pruebas', Icons.delivery_dining_rounded),
-    ('Prioridad conductores · Pruebas', Icons.workspace_premium_outlined),
+    ('Express Market', Icons.storefront_rounded),
+    ('Delivery Fase 2 / Express Plus', Icons.delivery_dining_rounded),
+    ('Prioridad conductores', Icons.workspace_premium_outlined),
     ('Pedidos Delivery', Icons.receipt_long_rounded),
   ];
 
@@ -916,39 +915,15 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 6:
         return _security();
       case 7:
-        return adminChannel == 'preview'
-            ? const AdminPreviewModulePage(
-                module: 'service_zones',
-                title: 'Zonas',
-                subtitle: 'Configuración de zonas exclusiva del entorno Preview.',
-              )
-            : const AdminZonesPage();
+        return AdminZonesPage(channel: adminChannel);
       case 8:
-        return adminChannel == 'preview'
-            ? const AdminPreviewModulePage(
-                module: 'fare_rules',
-                title: 'Tarifas',
-                subtitle: 'Tarifas de prueba aisladas de Producción.',
-              )
-            : const AdminFaresPage();
+        return AdminFaresPage(channel: adminChannel);
       case 9:
-        return adminChannel == 'preview'
-            ? const AdminPreviewModulePage(
-                module: 'zone_payment_methods',
-                title: 'Pagos / Billetera',
-                subtitle: 'Métodos de pago de prueba. No muestra ni modifica transacciones reales.',
-              )
-            : const AdminPaymentsPage();
+        return AdminPaymentsPage(channel: adminChannel);
       case 10:
         return AdminEnvironmentReportsPage(channel: adminChannel);
       case 11:
-        return adminChannel == 'preview'
-            ? const AdminPreviewModulePage(
-                module: 'app_settings',
-                title: 'Configuración',
-                subtitle: 'Parámetros generales usados únicamente por Preview.',
-              )
-            : const AdminSettingsPage();
+        return AdminSettingsPage(channel: adminChannel);
       case 12:
         return const AdminBuildsPage();
       case 13:
@@ -958,76 +933,19 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 15:
         return AdminCommunicationsPage(channel: adminChannel);
       case 16:
-        return adminChannel == 'preview'
-            ? const AdminPreviewModulePage(
-                module: 'service_catalog',
-                title: 'Servicios',
-                subtitle: 'Catálogo de servicios exclusivo del entorno Preview.',
-              )
-            : const AdminServicesPage();
+        return AdminServicesPage(channel: adminChannel);
       case 17:
-        return adminChannel == 'preview'
-            ? DefaultTabController(
-                length: 2,
-                child: Column(
-                  children: const [
-                    Material(
-                      color: Colors.white,
-                      child: TabBar(
-                        tabs: [
-                          Tab(text: 'Cobertura'),
-                          Tab(text: 'Seguridad'),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: TabBarView(
-                        children: [
-                          AdminPreviewModulePage(
-                            module: 'service_zone_polygons',
-                            title: 'Cobertura',
-                            subtitle: 'Polígonos exclusivos del entorno Preview.',
-                          ),
-                          AdminPreviewModulePage(
-                            module: 'security_zones',
-                            title: 'Zonas de seguridad',
-                            subtitle: 'Reglas de seguridad exclusivas del entorno Preview.',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : const AdminGeoSafetyPage();
+        return AdminGeoSafetyPage(channel: adminChannel);
       case 18:
-        return adminChannel == 'preview'
-            ? const AdminPreviewModulePage(
-                module: 'identity_verification_settings',
-                title: 'Verificación de identidad',
-                subtitle: 'Política de identidad exclusiva de Preview. No usa verificaciones reales.',
-              )
-            : const AdminIdentitySecurityPage();
+        return AdminIdentitySecurityPage(channel: adminChannel);
       case 19:
-        return adminChannel == 'preview'
-            ? const AdminPreviewModulePage(
-                module: 'app_settings',
-                title: 'Configuración avanzada',
-                subtitle: 'Parámetros avanzados exclusivos del entorno Preview.',
-              )
-            : const AdminAdvancedSettingsPage();
+        return AdminAdvancedSettingsPage(channel: adminChannel);
       case 20:
         return const AdminAuditSandboxPage();
       case 21:
         return const AdminLoadLabPage();
       case 22:
-        return adminChannel == 'preview'
-            ? const AdminPreviewModulePage(
-                module: 'driver_subscription_settings',
-                title: 'Suscripciones',
-                subtitle: 'Configuración de suscripciones de prueba. No usa pagos ni conductores reales.',
-              )
-            : const AdminDriverSubscriptionsPage();
+        return AdminDriverSubscriptionsPage(channel: adminChannel);
       case 23:
         return AdminMarketplacePage(channel: adminChannel);
       case 24:
@@ -1787,27 +1705,17 @@ class _Navigation extends StatelessWidget {
     required this.onExit,
   });
 
-  List<(String, List<int>)> get groups => channel == 'preview'
-      ? const [
-          ('GENERAL', [0]),
-          ('OPERACIONES · PRUEBA', [1, 2, 13, 3, 26, 4, 5, 6]),
-          ('MÓDULOS DE PRUEBA', [23, 24, 25, 20, 21]),
-          ('FINANZAS', [9, 8, 22]),
-          ('ANÁLISIS', [10, 14]),
-          ('COMUNICACIÓN', [15]),
-          ('SEGURIDAD', [17, 18]),
-          ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
-        ]
-      : const [
-          ('GENERAL', [0]),
-          ('OPERACIONES · PRODUCCIÓN', [1, 2, 13, 3, 26, 4, 5, 6]),
-          ('MÓDULOS DE PRODUCCIÓN', [23]),
-          ('FINANZAS', [9, 8, 22]),
-          ('ANÁLISIS', [10, 14]),
-          ('COMUNICACIÓN', [15]),
-          ('SEGURIDAD', [17, 18]),
-          ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
-        ];
+  List<(String, List<int>)> get groups => const [
+        ('GENERAL', [0]),
+        ('OPERACIONES', [1, 2, 13, 3, 26, 4, 5, 6]),
+        ('MÓDULOS', [23, 24, 25]),
+        ('FINANZAS', [9, 8, 22]),
+        ('ANÁLISIS', [10, 14]),
+        ('COMUNICACIÓN', [15]),
+        ('SEGURIDAD', [17, 18]),
+        ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
+        ('HERRAMIENTAS QA', [20, 21]),
+      ];
 
   @override
   Widget build(BuildContext context) {
