@@ -1,6 +1,8 @@
 # Adminexpress
 
-Panel administrativo web independiente de Express Delivery.
+Panel administrativo web independiente de **Express**.
+
+> Para cualquier IA/agente de código: leer primero `AGENTS.md` y `docs/AI_HANDOFF_2026-10-04.md`.
 
 ## Responsabilidad
 
@@ -58,6 +60,15 @@ La firma Android de producción usa:
 - GitHub OIDC para autorizar al worker;
 - ningún secreto dentro del frontend.
 
+## Estado operativo actual
+
+- panel principal usado: `admin.expressviajes.online`
+- backend: `zgpijrznvaskgcmauwxx`
+- Preview/Producción usan una sola UI y distinta capa de datos
+- switches SMS Pasajeros/Conductores disponibles y OFF por defecto
+- laboratorio QA soporta Mixto / Auto / Moto
+- última validación y deploy conocidos del estado documentado: SUCCESS
+
 ## Deploy
 
 GitHub Pages:
@@ -72,6 +83,8 @@ Workflow:
 
 Leer antes de modificar arquitectura o releases:
 
+- `AGENTS.md`
+- `docs/AI_HANDOFF_2026-10-04.md`
 - `docs/START_HERE_ADMINEXPRESS.md`
 - `docs/CHANGELOG_ACTIVE.md`
 

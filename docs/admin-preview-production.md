@@ -51,3 +51,23 @@ El workflow `.github/workflows/validate-preview-production-split.yml` bloquea:
 - pérdida de los parámetros `channel` en los módulos principales.
 
 Además ejecuta `flutter analyze` y un build web de humo antes de aceptar el cambio.
+
+
+## Estado operativo 2026-10-04
+
+Además de la regla anterior:
+
+- verificación SMS de Pasajeros y Conductores usa switches independientes y datos separados por entorno;
+- el laboratorio QA usa `scope` + `channel` y no puede reutilizar el default de Producción cuando está en Prueba;
+- el laboratorio admite `service_mode=mixed|car|motorcycle`;
+- Iquique genera CLP; Trinidad genera BOB;
+- cleanup de Prueba y Producción debe permanecer aislado;
+- un error de aislamiento backend NO se corrige eliminando la guarda: se corrige el caller que envió el entorno incorrecto.
+
+### Release Android
+
+Preview/Producción también están separados por gate, no por UI:
+
+`Preview build -> aprobación -> mismo SHA -> Producción`
+
+La tabla `app_release_gate` es autoritativa. No crear un job Producción desde un SHA distinto al Preview aprobado.
