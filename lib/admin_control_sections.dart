@@ -12,7 +12,12 @@ const Color _dark = Color(0xFF0F172A);
 const Color _muted = Color(0xFF64748B);
 
 class AdminDispatchPage extends StatefulWidget {
-  const AdminDispatchPage({super.key});
+  final String channel;
+
+  const AdminDispatchPage({
+    super.key,
+    this.channel = 'preview',
+  });
 
   @override
   State<AdminDispatchPage> createState() => _AdminDispatchPageState();
@@ -27,8 +32,14 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
     List<Map<String, dynamic>> drivers,
   })> _load() async {
     final values = await Future.wait([
-      supabase.rpc('admin_open_service_requests'),
-      supabase.rpc('admin_available_drivers'),
+      supabase.rpc(
+        'admin_open_service_requests_v2',
+        params: {'p_channel': widget.channel},
+      ),
+      supabase.rpc(
+        'admin_available_drivers_v2',
+        params: {'p_channel': widget.channel},
+      ),
     ]);
     final requests = _map(values[0]);
     return (
@@ -115,11 +126,12 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
     if (confirmed == true && driverId != null) {
       try {
         await supabase.rpc(
-          'admin_assign_ride',
+          'admin_assign_ride_v2',
           params: {
             'p_ride_request_id': ride['id'],
             'p_driver_id': driverId,
             'p_final_fare': _num(fare.text),
+            'p_channel': widget.channel,
           },
         );
         if (mounted) {
@@ -205,10 +217,11 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
     if (confirmed == true && driverId != null) {
       try {
         await supabase.rpc(
-          'admin_assign_delivery',
+          'admin_assign_delivery_v2',
           params: {
             'p_delivery_id': delivery['id'],
             'p_driver_id': driverId,
+            'p_channel': widget.channel,
           },
         );
         if (mounted) {
@@ -255,10 +268,13 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
         return ListView(
           padding: const EdgeInsets.all(22),
           children: [
-            const _Header(
-              title: 'Despacho manual',
-              subtitle:
-                  'Asigna un conductor disponible cuando el despacho automático no resuelva el servicio.',
+            _Header(
+              title: widget.channel == 'preview'
+                  ? 'Despacho manual · Prueba'
+                  : 'Despacho manual · Producción',
+              subtitle: widget.channel == 'preview'
+                  ? 'Solo solicitudes y conductores del entorno Preview / QA.'
+                  : 'Solo servicios reales de clientes en Producción.',
             ),
             const SizedBox(height: 14),
             Card(
