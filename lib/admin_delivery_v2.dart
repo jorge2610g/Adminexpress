@@ -678,20 +678,6 @@ class _AdminExpressDeliveryV2PageState
                       labelText: 'Fin opcional (ISO 8601)',
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: starts,
-                    decoration: const InputDecoration(
-                      labelText: 'Inicio opcional (ISO 8601)',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: ends,
-                    decoration: const InputDecoration(
-                      labelText: 'Fin opcional (ISO 8601)',
-                    ),
-                  ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: active,
@@ -947,6 +933,21 @@ class _AdminExpressDeliveryV2PageState
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: starts,
+                    decoration: const InputDecoration(
+                      labelText: 'Inicio opcional (ISO 8601)',
+                      hintText: '2026-10-10T00:00:00-03:00',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: ends,
+                    decoration: const InputDecoration(
+                      labelText: 'Fin opcional (ISO 8601)',
+                    ),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
