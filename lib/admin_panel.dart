@@ -956,7 +956,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 14:
         return AdminEnvironmentAuditPage(channel: adminChannel);
       case 15:
-        return const AdminCommunicationsPage();
+        return AdminCommunicationsPage(channel: adminChannel);
       case 16:
         return adminChannel == 'preview'
             ? const AdminPreviewModulePage(
@@ -1791,8 +1791,10 @@ class _Navigation extends StatelessWidget {
       ? const [
           ('GENERAL', [0]),
           ('OPERACIONES · PRUEBA', [1, 2, 13, 3, 26, 4, 5, 6]),
-          ('MÓDULOS DE PRUEBA', [24, 25, 20, 21]),
+          ('MÓDULOS DE PRUEBA', [23, 24, 25, 20, 21]),
+          ('FINANZAS', [9, 8, 22]),
           ('ANÁLISIS', [10, 14]),
+          ('COMUNICACIÓN', [15]),
           ('SEGURIDAD', [17, 18]),
           ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
         ]
