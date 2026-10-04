@@ -9,10 +9,12 @@ const _bg = Color(0xFFF1F5F9);
 
 class AdminMarketplacePhase2Page extends StatefulWidget {
   final bool ordersOnly;
+  final String channel;
 
   const AdminMarketplacePhase2Page({
     super.key,
     this.ordersOnly = false,
+    this.channel = 'preview',
   });
 
   @override
@@ -1481,8 +1483,10 @@ class _AdminMarketplacePhase2PageState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Pedidos Delivery',
-                    style: TextStyle(
+                    widget.channel == 'preview'
+                        ? 'Pedidos Delivery · Prueba'
+                        : 'Pedidos Delivery · Producción',
+                    style: const TextStyle(
                       color: _ink,
                       fontSize: 26,
                       fontWeight: FontWeight.w900,
@@ -1579,7 +1583,13 @@ class _AdminMarketplacePhase2PageState
           final plans = _rows(data['plus_plans']);
           final benefits = _rows(data['benefits']);
           final merchants = _rows(data['merchants']);
-          final orders = _rows(data['recent_orders']);
+          final orders = _rows(data['recent_orders'])
+              .where(
+                (row) =>
+                    (row['channel']?.toString() ?? 'production') ==
+                    widget.channel,
+              )
+              .toList();
 
           final benefitsByMerchant = <String, Map<String, dynamic>>{
             for (final row in benefits)
