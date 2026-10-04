@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
+import 'admin_environment_store.dart';
 
 const Color _blue = Color(0xFF2563EB);
 const Color _dark = Color(0xFF0F172A);
@@ -563,7 +564,12 @@ class _AdminAuditPageState extends State<AdminAuditPage> {
 }
 
 class AdminZonesPage extends StatefulWidget {
-  const AdminZonesPage({super.key});
+  final String channel;
+
+  const AdminZonesPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminZonesPage> createState() => _AdminZonesPageState();
@@ -572,12 +578,33 @@ class AdminZonesPage extends StatefulWidget {
 class _AdminZonesPageState extends State<AdminZonesPage> {
   int revision = 0;
 
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
+
   Future<List<Map<String, dynamic>>> _load() async {
+    if (_environment.isPreview) {
+      final zones = await _environment.previewList('service_zones');
+      final methods = await _environment.previewList('zone_payment_methods');
+      return zones.map((zone) {
+        final id = zone['id']?.toString();
+        return <String, dynamic>{
+          ...zone,
+          'payment_methods': methods
+              .where((method) => method['zone_id']?.toString() == id)
+              .toList(),
+        };
+      }).toList();
+    }
     final value = await supabase.rpc('admin_zone_list_v2');
     return _list(value);
   }
 
   Future<List<Map<String, dynamic>>> _loadPartners(String zoneId) async {
+    if (_environment.isPreview) {
+      return (await _environment.previewList('partners'))
+          .where((row) => row['zone_id']?.toString() == zoneId)
+          .toList();
+    }
     final value = await supabase.rpc(
       'admin_partner_list',
       params: {'p_zone_id': zoneId},
@@ -731,23 +758,48 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     var saved = false;
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_upsert_partner',
-          params: {
-            'p_id': row?['id'],
-            'p_zone_id': zone['id'],
-            'p_partner_code': code.text.trim(),
-            'p_name': name.text.trim(),
-            'p_organization_type': type,
-            'p_status': status,
-            'p_commission_percent':
-                double.tryParse(commission.text.trim()) ?? 0,
-            'p_contact_name': contactName.text.trim(),
-            'p_contact_phone': contactPhone.text.trim(),
-            'p_contact_email': contactEmail.text.trim(),
-            'p_notes': notes.text.trim(),
-          },
-        );
+        if (_environment.isPreview) {
+          final key = row == null
+              ? _environment.createRecordKey('partner')
+              : AdminEnvironmentStore.recordKey(row);
+          await _environment.previewUpsert(
+            'partners',
+            key,
+            <String, dynamic>{
+              ...?row,
+              'id': row?['id'] ?? key,
+              'zone_id': zone['id'],
+              'partner_code': code.text.trim().isEmpty ? key : code.text.trim(),
+              'name': name.text.trim(),
+              'organization_type': type,
+              'status': status,
+              'commission_percent':
+                  double.tryParse(commission.text.trim()) ?? 0,
+              'contact_name': contactName.text.trim(),
+              'contact_phone': contactPhone.text.trim(),
+              'contact_email': contactEmail.text.trim(),
+              'notes': notes.text.trim(),
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_upsert_partner',
+            params: {
+              'p_id': row?['id'],
+              'p_zone_id': zone['id'],
+              'p_partner_code': code.text.trim(),
+              'p_name': name.text.trim(),
+              'p_organization_type': type,
+              'p_status': status,
+              'p_commission_percent':
+                  double.tryParse(commission.text.trim()) ?? 0,
+              'p_contact_name': contactName.text.trim(),
+              'p_contact_phone': contactPhone.text.trim(),
+              'p_contact_email': contactEmail.text.trim(),
+              'p_notes': notes.text.trim(),
+            },
+          );
+        }
         saved = true;
       } catch (e) {
         if (mounted) _snack(context, e);
@@ -767,6 +819,11 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
   Future<List<Map<String, dynamic>>> _loadPartnerMembers(
     String partnerId,
   ) async {
+    if (_environment.isPreview) {
+      return (await _environment.previewList('partner_members'))
+          .where((row) => row['partner_id']?.toString() == partnerId)
+          .toList();
+    }
     final value = await supabase.rpc(
       'admin_partner_member_list',
       params: {'p_partner_id': partnerId},
@@ -860,15 +917,31 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
 
       if (save == true && email.text.trim().isNotEmpty) {
         try {
-          await supabase.rpc(
-            'admin_assign_partner_member_by_email',
-            params: {
-              'p_partner_id': partner['id'],
-              'p_email': email.text.trim(),
-              'p_role': role,
-              'p_active': true,
-            },
-          );
+          if (_environment.isPreview) {
+            final key = _environment.createRecordKey('partner-member');
+            await _environment.previewUpsert(
+              'partner_members',
+              key,
+              <String, dynamic>{
+                'id': key,
+                'partner_id': partner['id'],
+                'email': email.text.trim(),
+                'full_name': email.text.trim(),
+                'role': role,
+                'active': true,
+              },
+            );
+          } else {
+            await supabase.rpc(
+              'admin_assign_partner_member_by_email',
+              params: {
+                'p_partner_id': partner['id'],
+                'p_email': email.text.trim(),
+                'p_role': role,
+                'p_active': true,
+              },
+            );
+          }
           setLocal(() => localRevision++);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -976,14 +1049,25 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           value: active,
                           onChanged: (value) async {
                             try {
-                              await supabase.rpc(
-                                'admin_set_partner_member_active',
-                                params: {
-                                  'p_partner_id': partner['id'],
-                                  'p_user_id': row['user_id'],
-                                  'p_active': value,
-                                },
-                              );
+                              if (_environment.isPreview) {
+                                await _environment.previewUpsert(
+                                  'partner_members',
+                                  AdminEnvironmentStore.recordKey(row),
+                                  <String, dynamic>{
+                                    ...row,
+                                    'active': value,
+                                  },
+                                );
+                              } else {
+                                await supabase.rpc(
+                                  'admin_set_partner_member_active',
+                                  params: {
+                                    'p_partner_id': partner['id'],
+                                    'p_user_id': row['user_id'],
+                                    'p_active': value,
+                                  },
+                                );
+                              }
                               setLocal(() => localRevision++);
                             } catch (e) {
                               if (mounted) _snack(context, e);
@@ -1022,6 +1106,38 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         range.end.month,
         range.end.day,
       ).add(const Duration(days: 1));
+      if (_environment.isPreview) {
+        final partnerId = partner['id']?.toString();
+        final payments = (await _environment.previewList('partner_payments'))
+            .where((row) => row['partner_id']?.toString() == partnerId)
+            .toList();
+        final settlements =
+            (await _environment.previewList('partner_settlements'))
+                .where((row) => row['partner_id']?.toString() == partnerId)
+                .toList();
+        num sum(String key, Iterable<Map<String, dynamic>> rows) =>
+            rows.fold<num>(
+              0,
+              (total, row) => total + ((row[key] as num?) ?? 0),
+            );
+        final paid = settlements.where((row) => row['status'] == 'paid');
+        final pending = settlements.where((row) => row['status'] != 'paid');
+        return <String, dynamic>{
+          'partner': partner,
+          'metrics': <String, dynamic>{
+            'drivers_total': 0,
+            'drivers_online': 0,
+            'payments_count': payments.length,
+            'gross_amount': sum('amount', payments),
+            'commission_generated':
+                sum('partner_commission_amount', payments),
+            'commission_pending': sum('commission_amount', pending),
+            'commission_paid': sum('commission_amount', paid),
+          },
+          'payments': payments,
+          'settlements': settlements,
+        };
+      }
       final value = await supabase.rpc(
         'admin_partner_dashboard',
         params: {
@@ -1043,15 +1159,34 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           59,
           59,
         );
-        await supabase.rpc(
-          'admin_create_partner_settlement',
-          params: {
-            'p_partner_id': partner['id'],
-            'p_period_start': range.start.toUtc().toIso8601String(),
-            'p_period_end': endExclusive.toUtc().toIso8601String(),
-            'p_notes': 'Liquidación creada desde Adminexpress',
-          },
-        );
+        if (_environment.isPreview) {
+          final key = _environment.createRecordKey('settlement');
+          await _environment.previewUpsert(
+            'partner_settlements',
+            key,
+            <String, dynamic>{
+              'id': key,
+              'partner_id': partner['id'],
+              'period_start': range.start.toUtc().toIso8601String(),
+              'period_end': endExclusive.toUtc().toIso8601String(),
+              'gross_amount': 0,
+              'commission_amount': 0,
+              'status': 'pending',
+              'notes': 'Liquidación creada desde Adminexpress Preview',
+              'created_at': DateTime.now().toUtc().toIso8601String(),
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_create_partner_settlement',
+            params: {
+              'p_partner_id': partner['id'],
+              'p_period_start': range.start.toUtc().toIso8601String(),
+              'p_period_end': endExclusive.toUtc().toIso8601String(),
+              'p_notes': 'Liquidación creada desde Adminexpress',
+            },
+          );
+        }
         setLocal(() => localRevision++);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1113,14 +1248,28 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         return;
       }
       try {
-        await supabase.rpc(
-          'admin_mark_partner_settlement_paid',
-          params: {
-            'p_settlement_id': settlement['id'],
-            'p_reference': reference.text.trim(),
-            'p_notes': notes.text.trim(),
-          },
-        );
+        if (_environment.isPreview) {
+          await _environment.previewUpsert(
+            'partner_settlements',
+            AdminEnvironmentStore.recordKey(settlement),
+            <String, dynamic>{
+              ...settlement,
+              'status': 'paid',
+              'reference': reference.text.trim(),
+              'notes': notes.text.trim(),
+              'paid_at': DateTime.now().toUtc().toIso8601String(),
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_mark_partner_settlement_paid',
+            params: {
+              'p_settlement_id': settlement['id'],
+              'p_reference': reference.text.trim(),
+              'p_notes': notes.text.trim(),
+            },
+          );
+        }
         setLocal(() => localRevision++);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1969,22 +2118,30 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
 
     if (save == true) {
       try {
-        final savedZoneId = await supabase.rpc(
-          'admin_upsert_zone_v2',
-          params: {
-            'p_id': row?['id'],
-            'p_name': name.text.trim(),
-            'p_city': city.text.trim(),
-            'p_region_department': regionDepartment.text.trim(),
-            'p_country': country.text.trim(),
-            'p_active': active,
-            'p_center_latitude': _num(lat.text),
-            'p_center_longitude': _num(lng.text),
-            'p_radius_km': _num(radius.text) ?? 25,
-            'p_zone_key': row?['zone_key']?.toString() ?? zoneKey.text.trim(),
-            'p_currency_code': currency.text.trim().toUpperCase(),
-          },
-        );
+        Object? savedZoneId;
+        final zoneRecordKey = row == null
+            ? _environment.createRecordKey('zone')
+            : AdminEnvironmentStore.recordKey(row);
+        if (_environment.isPreview) {
+          savedZoneId = row?['id'] ?? zoneRecordKey;
+        } else {
+          savedZoneId = await supabase.rpc(
+            'admin_upsert_zone_v2',
+            params: {
+              'p_id': row?['id'],
+              'p_name': name.text.trim(),
+              'p_city': city.text.trim(),
+              'p_region_department': regionDepartment.text.trim(),
+              'p_country': country.text.trim(),
+              'p_active': active,
+              'p_center_latitude': _num(lat.text),
+              'p_center_longitude': _num(lng.text),
+              'p_radius_km': _num(radius.text) ?? 25,
+              'p_zone_key': row?['zone_key']?.toString() ?? zoneKey.text.trim(),
+              'p_currency_code': currency.text.trim().toUpperCase(),
+            },
+          );
+        }
         final landingModules = <Map<String, Object>>[
           <String, Object>{
             'key': 'ride',
@@ -2003,19 +2160,47 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                 (a['order'] as int).compareTo(b['order'] as int),
           );
 
-        await supabase.rpc(
-          'admin_update_zone_landing',
-          params: {
-            'p_zone_id': savedZoneId,
-            'p_mode': landingMode,
-            'p_default_module': landingDefault,
-            'p_title': landingTitle.text.trim(),
-            'p_subtitle': landingSubtitle.text.trim(),
-            'p_order': landingModules
-                .map((item) => item['key'].toString())
-                .toList(),
-          },
-        );
+        if (_environment.isPreview) {
+          await _environment.previewUpsert(
+            'service_zones',
+            zoneRecordKey,
+            <String, dynamic>{
+              ...?row,
+              'id': savedZoneId?.toString(),
+              'name': name.text.trim(),
+              'city': city.text.trim(),
+              'region_department': regionDepartment.text.trim(),
+              'country': country.text.trim(),
+              'active': active,
+              'center_latitude': _num(lat.text),
+              'center_longitude': _num(lng.text),
+              'radius_km': _num(radius.text) ?? 25,
+              'zone_key': row?['zone_key']?.toString() ?? zoneKey.text.trim(),
+              'currency_code': currency.text.trim().toUpperCase(),
+              'passenger_landing_mode': landingMode,
+              'passenger_default_module': landingDefault,
+              'passenger_landing_title': landingTitle.text.trim(),
+              'passenger_landing_subtitle': landingSubtitle.text.trim(),
+              'passenger_landing_order': landingModules
+                  .map((item) => item['key'].toString())
+                  .toList(),
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_update_zone_landing',
+            params: {
+              'p_zone_id': savedZoneId,
+              'p_mode': landingMode,
+              'p_default_module': landingDefault,
+              'p_title': landingTitle.text.trim(),
+              'p_subtitle': landingSubtitle.text.trim(),
+              'p_order': landingModules
+                  .map((item) => item['key'].toString())
+                  .toList(),
+            },
+          );
+        }
 
         if (mounted) {
           setState(() => revision++);
@@ -2035,7 +2220,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
             'country': country.text.trim(),
             'currency_code': currency.text.trim().toUpperCase(),
           };
-          await showAdminZonePaymentMethodsEditor(context, zoneForPayments);
+          await showAdminZonePaymentMethodsEditor(context, zoneForPayments, channel: widget.channel);
           if (mounted) setState(() => revision++);
         }
       } catch (e) {
@@ -2164,6 +2349,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                                 await showAdminZonePaymentMethodsEditor(
                               context,
                               row,
+                              channel: widget.channel,
                             );
                             if (changed && mounted) {
                               setState(() => revision++);
@@ -2193,7 +2379,12 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
 
 
 class AdminServicesPage extends StatefulWidget {
-  const AdminServicesPage({super.key});
+  final String channel;
+
+  const AdminServicesPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminServicesPage> createState() => _AdminServicesPageState();
@@ -2201,6 +2392,9 @@ class AdminServicesPage extends StatefulWidget {
 
 class _AdminServicesPageState extends State<AdminServicesPage> {
   int revision = 0;
+
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
   String? selectedZoneId;
 
   Future<({
@@ -2208,7 +2402,9 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
     List<Map<String, dynamic>> services,
     Map<String, dynamic>? zone,
   })> _load() async {
-    final zoneRows = _list(await supabase.rpc('admin_zone_list'));
+    final zoneRows = _environment.isPreview
+        ? await _environment.previewList('service_zones')
+        : _list(await supabase.rpc('admin_zone_list'));
     if (zoneRows.isEmpty) {
       return (
         zones: zoneRows,
@@ -2232,12 +2428,37 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
     final zone = zoneRows.firstWhere(
       (row) => row['id']?.toString() == zoneId,
     );
-    final serviceRows = _list(
-      await supabase.rpc(
-        'admin_zone_service_list',
-        params: {'p_zone_id': zoneId},
-      ),
-    );
+    List<Map<String, dynamic>> serviceRows;
+    if (_environment.isPreview) {
+      final catalog = await _environment.previewList('service_catalog');
+      final overrides = (await _environment.previewList('zone_services'))
+          .where((row) => row['zone_id']?.toString() == zoneId)
+          .toList();
+      final byKey = <String, Map<String, dynamic>>{
+        for (final row in catalog)
+          if (row['service_key'] != null)
+            row['service_key'].toString(): Map<String, dynamic>.from(row),
+      };
+      for (final override in overrides) {
+        final key = override['service_key']?.toString();
+        if (key == null || key.isEmpty) continue;
+        byKey[key] = <String, dynamic>{
+          ...?byKey[key],
+          ...override,
+        };
+      }
+      serviceRows = byKey.values.toList()
+        ..sort((a, b) =>
+            ((a['sort_order'] as num?)?.toInt() ?? 100)
+                .compareTo((b['sort_order'] as num?)?.toInt() ?? 100));
+    } else {
+      serviceRows = _list(
+        await supabase.rpc(
+          'admin_zone_service_list',
+          params: {'p_zone_id': zoneId},
+        ),
+      );
+    }
 
     return (zones: zoneRows, services: serviceRows, zone: zone);
   }
@@ -2433,39 +2654,79 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_upsert_service',
-          params: {
-            'p_id': row?['id'],
-            'p_service_key': key.text.trim(),
-            'p_name': name.text.trim(),
-            'p_description': description.text.trim(),
-            'p_icon_key': 'local_taxi',
-            'p_vehicle_type': vehicle,
-            'p_enabled': true,
-            'p_allow_bidding': bidding,
-            'p_allow_fixed_price': fixed,
-            'p_passenger_visible': true,
-            'p_driver_visible': true,
-            'p_scheduled_enabled': scheduled,
-            'p_sort_order': int.tryParse(order.text.trim()) ?? 100,
-          },
-        );
+        final serviceKey = key.text.trim();
+        final sortOrder = int.tryParse(order.text.trim()) ?? 100;
+        if (_environment.isPreview) {
+          final base = <String, dynamic>{
+            ...?row,
+            'service_key': serviceKey,
+            'name': name.text.trim(),
+            'description': description.text.trim(),
+            'icon_key': row?['icon_key'] ?? 'local_taxi',
+            'vehicle_type': vehicle,
+            'enabled': true,
+            'allow_bidding': bidding,
+            'allow_fixed_price': fixed,
+            'passenger_visible': true,
+            'driver_visible': true,
+            'scheduled_enabled': scheduled,
+            'sort_order': sortOrder,
+          };
+          await _environment.previewUpsert(
+            'service_catalog',
+            serviceKey,
+            base,
+          );
+          await _environment.previewUpsert(
+            'zone_services',
+            zoneId + ':' + serviceKey,
+            <String, dynamic>{
+              'zone_id': zoneId,
+              'service_key': serviceKey,
+              'enabled': enabled,
+              'passenger_visible': passengerVisible,
+              'driver_visible': driverVisible,
+              'allow_bidding': bidding,
+              'allow_fixed_price': fixed,
+              'scheduled_enabled': scheduled,
+              'sort_order': sortOrder,
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_upsert_service',
+            params: {
+              'p_id': row?['id'],
+              'p_service_key': serviceKey,
+              'p_name': name.text.trim(),
+              'p_description': description.text.trim(),
+              'p_icon_key': 'local_taxi',
+              'p_vehicle_type': vehicle,
+              'p_enabled': true,
+              'p_allow_bidding': bidding,
+              'p_allow_fixed_price': fixed,
+              'p_passenger_visible': true,
+              'p_driver_visible': true,
+              'p_scheduled_enabled': scheduled,
+              'p_sort_order': sortOrder,
+            },
+          );
 
-        await supabase.rpc(
-          'admin_set_zone_service',
-          params: {
-            'p_zone_id': zoneId,
-            'p_service_key': key.text.trim(),
-            'p_enabled': enabled,
-            'p_passenger_visible': passengerVisible,
-            'p_driver_visible': driverVisible,
-            'p_allow_bidding': bidding,
-            'p_allow_fixed_price': fixed,
-            'p_scheduled_enabled': scheduled,
-            'p_sort_order': int.tryParse(order.text.trim()) ?? 100,
-          },
-        );
+          await supabase.rpc(
+            'admin_set_zone_service',
+            params: {
+              'p_zone_id': zoneId,
+              'p_service_key': serviceKey,
+              'p_enabled': enabled,
+              'p_passenger_visible': passengerVisible,
+              'p_driver_visible': driverVisible,
+              'p_allow_bidding': bidding,
+              'p_allow_fixed_price': fixed,
+              'p_scheduled_enabled': scheduled,
+              'p_sort_order': sortOrder,
+            },
+          );
+        }
 
         if (mounted) {
           setState(() => revision++);
@@ -2646,7 +2907,12 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
 
 
 class AdminGeoSafetyPage extends StatefulWidget {
-  const AdminGeoSafetyPage({super.key});
+  final String channel;
+
+  const AdminGeoSafetyPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminGeoSafetyPage> createState() => _AdminGeoSafetyPageState();
@@ -2655,11 +2921,27 @@ class AdminGeoSafetyPage extends StatefulWidget {
 class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
   int revision = 0;
 
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
+
   Future<({
     List<Map<String, dynamic>> zones,
     List<Map<String, dynamic>> coverage,
     List<Map<String, dynamic>> safety,
   })> _load() async {
+    if (_environment.isPreview) {
+      final values = await Future.wait([
+        _environment.previewList('service_zones'),
+        _environment.previewList('service_zone_polygons'),
+        _environment.previewList('security_zones'),
+      ]);
+      return (
+        zones: values[0],
+        coverage: values[1],
+        safety: values[2],
+      );
+    }
+
     final values = await Future.wait([
       supabase.rpc('admin_zone_list'),
       supabase.rpc('admin_zone_polygon_list'),
@@ -2785,16 +3067,33 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_upsert_zone_polygon',
-          params: {
-            'p_id': row?['id'],
-            'p_zone_id': zoneId,
-            'p_name': name.text.trim(),
-            'p_polygon': _jsonPoints(points),
-            'p_active': active,
-          },
-        );
+        if (_environment.isPreview) {
+          final key = row == null
+              ? _environment.createRecordKey('coverage')
+              : AdminEnvironmentStore.recordKey(row);
+          await _environment.previewUpsert(
+            'service_zone_polygons',
+            key,
+            <String, dynamic>{
+              ...?row,
+              'zone_id': zoneId,
+              'name': name.text.trim(),
+              'polygon': _jsonPoints(points),
+              'active': active,
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_upsert_zone_polygon',
+            params: {
+              'p_id': row?['id'],
+              'p_zone_id': zoneId,
+              'p_name': name.text.trim(),
+              'p_polygon': _jsonPoints(points),
+              'p_active': active,
+            },
+          );
+        }
         if (mounted) setState(() => revision++);
       } catch (e) {
         if (mounted) _snack(context, e);
@@ -2960,21 +3259,43 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_upsert_security_zone',
-          params: {
-            'p_id': row?['id'],
-            'p_name': name.text.trim(),
-            'p_zone_type': type,
-            'p_applies_to': applies,
-            'p_severity': severity,
-            'p_polygon': _jsonPoints(points),
-            'p_message': message.text.trim(),
-            'p_active': active,
-            'p_city': city.text.trim(),
-            'p_country': country.text.trim(),
-          },
-        );
+        if (_environment.isPreview) {
+          final key = row == null
+              ? _environment.createRecordKey('safety')
+              : AdminEnvironmentStore.recordKey(row);
+          await _environment.previewUpsert(
+            'security_zones',
+            key,
+            <String, dynamic>{
+              ...?row,
+              'name': name.text.trim(),
+              'zone_type': type,
+              'applies_to': applies,
+              'severity': severity,
+              'polygon': _jsonPoints(points),
+              'message': message.text.trim(),
+              'active': active,
+              'city': city.text.trim(),
+              'country': country.text.trim(),
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_upsert_security_zone',
+            params: {
+              'p_id': row?['id'],
+              'p_name': name.text.trim(),
+              'p_zone_type': type,
+              'p_applies_to': applies,
+              'p_severity': severity,
+              'p_polygon': _jsonPoints(points),
+              'p_message': message.text.trim(),
+              'p_active': active,
+              'p_city': city.text.trim(),
+              'p_country': country.text.trim(),
+            },
+          );
+        }
         if (mounted) setState(() => revision++);
       } catch (e) {
         if (mounted) _snack(context, e);
@@ -3121,7 +3442,12 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
 }
 
 class AdminIdentitySecurityPage extends StatefulWidget {
-  const AdminIdentitySecurityPage({super.key});
+  final String channel;
+
+  const AdminIdentitySecurityPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminIdentitySecurityPage> createState() => _AdminIdentitySecurityPageState();
@@ -3130,10 +3456,24 @@ class AdminIdentitySecurityPage extends StatefulWidget {
 class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
   int revision = 0;
 
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
+
   Future<({
     Map<String, dynamic> settings,
     List<Map<String, dynamic>> verifications,
   })> _load() async {
+    if (_environment.isPreview) {
+      final values = await Future.wait([
+        _environment.previewGet('identity_verification_settings'),
+        _environment.previewList('identity_verifications'),
+      ]);
+      return (
+        settings: values[0] as Map<String, dynamic>,
+        verifications: values[1] as List<Map<String, dynamic>>,
+      );
+    }
+
     final values = await Future.wait([
       supabase.rpc('admin_identity_settings_get'),
       supabase.rpc('admin_identity_verification_list', params: {'p_limit': 200}),
@@ -3280,21 +3620,41 @@ class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_identity_settings_update',
-          params: {
-            'p_provider': provider,
-            'p_document_enabled': document,
-            'p_face_enabled': face,
-            'p_face_match_enabled': match,
-            'p_liveness_enabled': liveness,
-            'p_require_driver': driver,
-            'p_require_passenger': passenger,
-            'p_min_face_score': faceScore,
-            'p_min_liveness_score': liveScore,
-            'p_manual_review_on_fail': review,
-          },
-        );
+        if (_environment.isPreview) {
+          await _environment.previewUpsert(
+            'identity_verification_settings',
+            'default',
+            <String, dynamic>{
+              ...row,
+              'provider': provider,
+              'document_enabled': document,
+              'face_enabled': face,
+              'face_match_enabled': match,
+              'liveness_enabled': liveness,
+              'require_driver': driver,
+              'require_passenger': passenger,
+              'min_face_score': faceScore,
+              'min_liveness_score': liveScore,
+              'manual_review_on_fail': review,
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_identity_settings_update',
+            params: {
+              'p_provider': provider,
+              'p_document_enabled': document,
+              'p_face_enabled': face,
+              'p_face_match_enabled': match,
+              'p_liveness_enabled': liveness,
+              'p_require_driver': driver,
+              'p_require_passenger': passenger,
+              'p_min_face_score': faceScore,
+              'p_min_liveness_score': liveScore,
+              'p_manual_review_on_fail': review,
+            },
+          );
+        }
         if (mounted) setState(() => revision++);
       } catch (e) {
         if (mounted) _snack(context, e);
@@ -3370,14 +3730,26 @@ class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_identity_resolve',
-          params: {
-            'p_verification_id': row['id'],
-            'p_status': status,
-            'p_review_note': note.text.trim(),
-          },
-        );
+        if (_environment.isPreview) {
+          await _environment.previewUpsert(
+            'identity_verifications',
+            AdminEnvironmentStore.recordKey(row),
+            <String, dynamic>{
+              ...row,
+              'status': status,
+              'review_note': note.text.trim(),
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_identity_resolve',
+            params: {
+              'p_verification_id': row['id'],
+              'p_status': status,
+              'p_review_note': note.text.trim(),
+            },
+          );
+        }
         if (mounted) {
           setState(() => revision++);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -3982,7 +4354,12 @@ double? _double(Object? value) {
 
 
 class AdminFaresPage extends StatefulWidget {
-  const AdminFaresPage({super.key});
+  final String channel;
+
+  const AdminFaresPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminFaresPage> createState() => _AdminFaresPageState();
@@ -3990,6 +4367,9 @@ class AdminFaresPage extends StatefulWidget {
 
 class _AdminFaresPageState extends State<AdminFaresPage> {
   int revision = 0;
+
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
   String? selectedZoneId;
 
   Future<({
@@ -3998,18 +4378,29 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     List<Map<String, dynamic>> services,
     Map<String, dynamic>? zone,
   })> _load() async {
-    final values = await Future.wait([
-      supabase.rpc('admin_fare_list'),
-      supabase.rpc('admin_zone_list'),
-      supabase.rpc('admin_service_list'),
-    ]);
-    final zones = _list(values[1]);
+    final List<Map<String, dynamic>> fares;
+    final List<Map<String, dynamic>> zones;
+    final List<Map<String, dynamic>> services;
+    if (_environment.isPreview) {
+      fares = await _environment.previewList('fare_rules');
+      zones = await _environment.previewList('service_zones');
+      services = await _environment.previewList('service_catalog');
+    } else {
+      final values = await Future.wait([
+        supabase.rpc('admin_fare_list'),
+        supabase.rpc('admin_zone_list'),
+        supabase.rpc('admin_service_list'),
+      ]);
+      fares = _list(values[0]);
+      zones = _list(values[1]);
+      services = _list(values[2]);
+    }
 
     if (zones.isEmpty) {
       return (
-        fares: _list(values[0]),
+        fares: fares,
         zones: zones,
-        services: _list(values[2]),
+        services: services,
         zone: null,
       );
     }
@@ -4026,9 +4417,9 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     }
 
     return (
-      fares: _list(values[0]),
+      fares: fares,
       zones: zones,
-      services: _list(values[2]),
+      services: services,
       zone: zones.firstWhere((row) => row['id']?.toString() == zoneId),
     );
   }
@@ -4196,22 +4587,46 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
 
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_upsert_fare_rule',
-          params: {
-            'p_id': row?['id'],
-            'p_scope_type': scope,
-            'p_service_key': scope == 'global' ? null : service,
-            'p_zone_id': scope == 'zone_service' ? zoneId : null,
-            'p_base_fare': _num(base.text) ?? 0,
-            'p_per_km': _num(km.text) ?? 0,
-            'p_per_minute': _num(minute.text) ?? 0,
-            'p_minimum_fare': _num(minimum.text) ?? 0,
-            'p_surge_multiplier': _num(surge.text) ?? 1,
-            'p_commission_percent': _num(commission.text) ?? 0,
-            'p_active': active,
-          },
-        );
+        if (_environment.isPreview) {
+          final key = row == null
+              ? _environment.createRecordKey('fare')
+              : AdminEnvironmentStore.recordKey(row);
+          await _environment.previewUpsert(
+            'fare_rules',
+            key,
+            <String, dynamic>{
+              ...?row,
+              'id': row?['id'] ?? key,
+              'scope_type': scope,
+              'service_key': scope == 'global' ? null : service,
+              'zone_id': scope == 'zone_service' ? zoneId : null,
+              'base_fare': _num(base.text) ?? 0,
+              'per_km': _num(km.text) ?? 0,
+              'per_minute': _num(minute.text) ?? 0,
+              'minimum_fare': _num(minimum.text) ?? 0,
+              'surge_multiplier': _num(surge.text) ?? 1,
+              'commission_percent': _num(commission.text) ?? 0,
+              'active': active,
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_upsert_fare_rule',
+            params: {
+              'p_id': row?['id'],
+              'p_scope_type': scope,
+              'p_service_key': scope == 'global' ? null : service,
+              'p_zone_id': scope == 'zone_service' ? zoneId : null,
+              'p_base_fare': _num(base.text) ?? 0,
+              'p_per_km': _num(km.text) ?? 0,
+              'p_per_minute': _num(minute.text) ?? 0,
+              'p_minimum_fare': _num(minimum.text) ?? 0,
+              'p_surge_multiplier': _num(surge.text) ?? 1,
+              'p_commission_percent': _num(commission.text) ?? 0,
+              'p_active': active,
+            },
+          );
+        }
         if (mounted) {
           setState(() => revision++);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -4458,20 +4873,42 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     var saved = false;
     if (save == true) {
       try {
-        await supabase.rpc(
-          'admin_upsert_special_fare_zone',
-          params: {
-            'p_id': row?['id'],
-            'p_zone_id': zone['id'],
-            'p_name': name.text.trim(),
-            'p_zone_type': type,
-            'p_service_key': service,
-            'p_polygon': _specialJsonPoints(points),
-            'p_fixed_fare': _num(fare.text),
-            'p_priority': int.tryParse(priority.text.trim()) ?? 100,
-            'p_active': active,
-          },
-        );
+        if (_environment.isPreview) {
+          final key = row == null
+              ? _environment.createRecordKey('special-fare')
+              : AdminEnvironmentStore.recordKey(row);
+          await _environment.previewUpsert(
+            'special_fare_zones',
+            key,
+            <String, dynamic>{
+              ...?row,
+              'id': row?['id'] ?? key,
+              'zone_id': zone['id'],
+              'name': name.text.trim(),
+              'zone_type': type,
+              'service_key': service,
+              'polygon': _specialJsonPoints(points),
+              'fixed_fare': _num(fare.text),
+              'priority': int.tryParse(priority.text.trim()) ?? 100,
+              'active': active,
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_upsert_special_fare_zone',
+            params: {
+              'p_id': row?['id'],
+              'p_zone_id': zone['id'],
+              'p_name': name.text.trim(),
+              'p_zone_type': type,
+              'p_service_key': service,
+              'p_polygon': _specialJsonPoints(points),
+              'p_fixed_fare': _num(fare.text),
+              'p_priority': int.tryParse(priority.text.trim()) ?? 100,
+              'p_active': active,
+            },
+          );
+        }
         saved = true;
       } catch (e) {
         if (mounted) _snack(context, e);
@@ -4519,6 +4956,15 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
             child: FutureBuilder<List<Map<String, dynamic>>>(
               key: ValueKey(localRevision),
               future: () async {
+                if (_environment.isPreview) {
+                  return (await _environment.previewList('special_fare_zones'))
+                      .where(
+                        (row) =>
+                            row['zone_id']?.toString() ==
+                            zone['id']?.toString(),
+                      )
+                      .toList();
+                }
                 final value = await supabase.rpc(
                   'admin_special_fare_list',
                   params: {'p_zone_id': zone['id']},
@@ -4806,21 +5252,26 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
 
 Future<bool> showAdminZonePaymentMethodsEditor(
   BuildContext context,
-  Map<String, dynamic> zone,
-) async {
+  Map<String, dynamic> zone, {
+  String channel = 'production',
+}) async {
+  final environment = AdminEnvironmentStore(channel);
   final zoneId = zone['id']?.toString();
   if (zoneId == null || zoneId.isEmpty) return false;
 
   try {
-    final values = await Future.wait([
-      supabase.rpc('admin_payment_method_catalog_list'),
-      supabase.rpc(
-        'admin_zone_payment_methods',
-        params: {'p_zone_id': zoneId},
-      ),
-    ]);
-    final catalog = _list(values[0]);
-    final existing = _list(values[1]);
+    final catalog =
+        _list(await supabase.rpc('admin_payment_method_catalog_list'));
+    final existing = environment.isPreview
+        ? (await environment.previewList('zone_payment_methods'))
+            .where((row) => row['zone_id']?.toString() == zoneId)
+            .toList()
+        : _list(
+            await supabase.rpc(
+              'admin_zone_payment_methods',
+              params: {'p_zone_id': zoneId},
+            ),
+          );
     final state = <String, Map<String, dynamic>>{};
 
     for (final provider in catalog) {
@@ -5044,32 +5495,66 @@ Future<bool> showAdminZonePaymentMethodsEditor(
     final selectedKeys = selected.map((entry) => entry.key).toSet();
     for (final entry in selected) {
       final row = entry.value;
-      await supabase.rpc(
-        'admin_upsert_zone_payment_method',
-        params: {
-          'p_zone_id': zoneId,
-          'p_provider_key': entry.key,
-          'p_enabled': row['enabled'] == true,
-          'p_use_rides': row['use_rides'] == true,
-          'p_use_delivery': row['use_delivery'] == true,
-          'p_use_subscriptions': row['use_subscriptions'] == true,
-          'p_use_wallet': row['use_wallet'] == true,
-          'p_is_primary': row['is_primary'] == true,
-          'p_sort_order': row['sort_order'] ?? 100,
-        },
-      );
+      if (environment.isPreview) {
+        Map<String, dynamic>? previous;
+        for (final item in existing) {
+          if (item['provider_key']?.toString() == entry.key) {
+            previous = item;
+            break;
+          }
+        }
+        final recordKey = previous == null
+            ? zoneId + ':' + entry.key
+            : AdminEnvironmentStore.recordKey(previous);
+        await environment.previewUpsert(
+          'zone_payment_methods',
+          recordKey,
+          <String, dynamic>{
+            ...?previous,
+            'id': previous?['id'] ?? recordKey,
+            'zone_id': zoneId,
+            'provider_key': entry.key,
+            'enabled': row['enabled'] == true,
+            'use_rides': row['use_rides'] == true,
+            'use_delivery': row['use_delivery'] == true,
+            'use_subscriptions': row['use_subscriptions'] == true,
+            'use_wallet': row['use_wallet'] == true,
+            'is_primary': row['is_primary'] == true,
+            'sort_order': row['sort_order'] ?? 100,
+          },
+        );
+      } else {
+        await supabase.rpc(
+          'admin_upsert_zone_payment_method',
+          params: {
+            'p_zone_id': zoneId,
+            'p_provider_key': entry.key,
+            'p_enabled': row['enabled'] == true,
+            'p_use_rides': row['use_rides'] == true,
+            'p_use_delivery': row['use_delivery'] == true,
+            'p_use_subscriptions': row['use_subscriptions'] == true,
+            'p_use_wallet': row['use_wallet'] == true,
+            'p_is_primary': row['is_primary'] == true,
+            'p_sort_order': row['sort_order'] ?? 100,
+          },
+        );
+      }
     }
 
     for (final row in existing) {
       final key = row['provider_key']?.toString() ?? '';
       if (key.isEmpty || selectedKeys.contains(key)) continue;
-      await supabase.rpc(
-        'admin_delete_zone_payment_method',
-        params: {
-          'p_zone_id': zoneId,
-          'p_provider_key': key,
-        },
-      );
+      if (environment.isPreview) {
+        await environment.previewSoftDelete('zone_payment_methods', row);
+      } else {
+        await supabase.rpc(
+          'admin_delete_zone_payment_method',
+          params: {
+            'p_zone_id': zoneId,
+            'p_provider_key': key,
+          },
+        );
+      }
     }
 
     if (context.mounted) {
@@ -5091,7 +5576,12 @@ Future<bool> showAdminZonePaymentMethodsEditor(
 }
 
 class AdminPaymentsPage extends StatefulWidget {
-  const AdminPaymentsPage({super.key});
+  final String channel;
+
+  const AdminPaymentsPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminPaymentsPage> createState() => _AdminPaymentsPageState();
@@ -5099,6 +5589,9 @@ class AdminPaymentsPage extends StatefulWidget {
 
 class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   int revision = 0;
+
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
   String paymentPeriod = 'today';
   DateTimeRange? paymentCustomRange;
   String? selectedPaymentZoneId;
@@ -5163,6 +5656,100 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     Map<String, Map<String, dynamic>> mercadoPago,
   })> _load() async {
     final range = _paymentBounds();
+
+    if (_environment.isPreview) {
+      final zoneBase = await _environment.previewList('service_zones');
+      final methods = await _environment.previewList('zone_payment_methods');
+      final zoneRows = zoneBase.map((zone) {
+        final zoneId = zone['id']?.toString();
+        return <String, dynamic>{
+          ...zone,
+          'payment_methods': methods
+              .where((row) => row['zone_id']?.toString() == zoneId)
+              .toList(),
+        };
+      }).toList();
+
+      final allTopups = await _environment.previewList('wallet_topups');
+      final topups = allTopups
+          .where((row) => (row['status'] ?? 'pending') == 'pending')
+          .toList();
+
+      final allRecent =
+          await _environment.previewList('payment_transactions');
+      final recent = allRecent.where((row) {
+        final created = DateTime.tryParse(row['created_at']?.toString() ?? '');
+        if (created == null) return true;
+        final local = created.toLocal();
+        return !local.isBefore(range.from) && local.isBefore(range.to);
+      }).where((row) {
+        if (selectedPaymentZoneId == null) return true;
+        return row['zone_id']?.toString() == selectedPaymentZoneId;
+      }).toList();
+
+      final totals = <String, num>{};
+      final pendingTotals = <String, num>{};
+      var paidCount = 0;
+      var pendingCount = 0;
+      for (final row in recent) {
+        final currency = (row['currency'] ?? row['currency_code'] ?? 'BOB')
+            .toString();
+        final amount = (row['amount'] as num?) ?? 0;
+        totals[currency] = (totals[currency] ?? 0) + amount;
+        if (row['status'] == 'paid' || row['status'] == 'approved') {
+          paidCount++;
+        } else {
+          pendingCount++;
+          pendingTotals[currency] = (pendingTotals[currency] ?? 0) + amount;
+        }
+      }
+
+      final credentials =
+          await _environment.previewList('zone_payment_credentials');
+      final mercadoPago = <String, Map<String, dynamic>>{};
+      for (final zone in zoneRows) {
+        final zoneId = zone['id']?.toString();
+        if (zoneId == null || zoneId.isEmpty) continue;
+        Map<String, dynamic>? stored;
+        for (final row in credentials) {
+          if (row['zone_id']?.toString() == zoneId &&
+              row['provider_key']?.toString() == 'mercado_pago') {
+            stored = row;
+            break;
+          }
+        }
+        if (stored != null) {
+          mercadoPago[zoneId] = <String, dynamic>{
+            'ok': true,
+            'configured': stored['configured'] == true,
+            'credentials_configured':
+                stored['credentials_configured'] == true,
+            'settings': <String, dynamic>{
+              'public_key': stored['public_key'] ?? '',
+              'has_access_token': stored['has_access_token'] == true,
+              'nickname': stored['nickname'] ?? 'Preview',
+              'account_email': stored['account_email'] ?? '',
+            },
+          };
+        }
+      }
+
+      return (
+        overview: <String, dynamic>{
+          'summary': <String, dynamic>{
+            'totals_by_currency': totals,
+            'pending_by_currency': pendingTotals,
+            'paid_count': paidCount,
+            'pending_count': pendingCount,
+          },
+          'recent': recent,
+        },
+        topups: topups,
+        zones: zoneRows,
+        mercadoPago: mercadoPago,
+      );
+    }
+
     final values = await Future.wait([
       supabase.rpc(
         'admin_payment_overview_v2',
@@ -5255,20 +5842,35 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     setState(() => savingZonePayments.add(id));
     try {
       for (final method in methods) {
-        await supabase.rpc(
-          'admin_upsert_zone_payment_method',
-          params: {
-            'p_zone_id': id,
-            'p_provider_key': method['provider_key'],
-            'p_enabled': enabled,
-            'p_use_rides': method['use_rides'] == true,
-            'p_use_delivery': method['use_delivery'] == true,
-            'p_use_subscriptions': method['use_subscriptions'] == true,
-            'p_use_wallet': method['use_wallet'] == true,
-            'p_is_primary': method['is_primary'] == true,
-            'p_sort_order': method['sort_order'] ?? 100,
-          },
-        );
+        if (_environment.isPreview) {
+          await _environment.previewUpsert(
+            'zone_payment_methods',
+            AdminEnvironmentStore.recordKey(
+              method,
+              fallback: id + ':' + (method['provider_key'] ?? '').toString(),
+            ),
+            <String, dynamic>{
+              ...method,
+              'zone_id': id,
+              'enabled': enabled,
+            },
+          );
+        } else {
+          await supabase.rpc(
+            'admin_upsert_zone_payment_method',
+            params: {
+              'p_zone_id': id,
+              'p_provider_key': method['provider_key'],
+              'p_enabled': enabled,
+              'p_use_rides': method['use_rides'] == true,
+              'p_use_delivery': method['use_delivery'] == true,
+              'p_use_subscriptions': method['use_subscriptions'] == true,
+              'p_use_wallet': method['use_wallet'] == true,
+              'p_is_primary': method['is_primary'] == true,
+              'p_sort_order': method['sort_order'] ?? 100,
+            },
+          );
+        }
       }
       if (!mounted) return;
       setState(() => revision++);
@@ -5367,23 +5969,41 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
 
     setState(() => savingMercadoPagoZones.add(zoneId));
     try {
-      final response = await supabase.functions.invoke(
-        'zone-payment-admin',
-        body: {
-          'action': 'save_and_verify',
-          'zone_id': zoneId,
-          'public_key': publicKey.text.trim(),
-          'access_token': accessToken.text.trim(),
-        },
-      );
-      final data = response.data is Map
-          ? Map<String, dynamic>.from(response.data as Map)
-          : <String, dynamic>{};
-      if (data['ok'] != true) {
-        throw StateError(
-          data['error']?.toString() ??
-              'Mercado Pago no pudo verificar las credenciales.',
+      if (_environment.isPreview) {
+        await _environment.previewUpsert(
+          'zone_payment_credentials',
+          zoneId + ':mercado_pago',
+          <String, dynamic>{
+            'zone_id': zoneId,
+            'provider_key': 'mercado_pago',
+            'configured': true,
+            'credentials_configured': true,
+            'public_key': publicKey.text.trim(),
+            'has_access_token':
+                accessToken.text.trim().isNotEmpty || hasToken,
+            'verified': true,
+            'nickname': 'Mercado Pago Preview',
+          },
         );
+      } else {
+        final response = await supabase.functions.invoke(
+          'zone-payment-admin',
+          body: {
+            'action': 'save_and_verify',
+            'zone_id': zoneId,
+            'public_key': publicKey.text.trim(),
+            'access_token': accessToken.text.trim(),
+          },
+        );
+        final data = response.data is Map
+            ? Map<String, dynamic>.from(response.data as Map)
+            : <String, dynamic>{};
+        if (data['ok'] != true) {
+          throw StateError(
+            data['error']?.toString() ??
+                'Mercado Pago no pudo verificar las credenciales.',
+          );
+        }
       }
       if (!mounted) return;
       setState(() => revision++);
@@ -5410,17 +6030,36 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     }
     setState(() => savingMercadoPagoZones.add(zoneId));
     try {
-      final response = await supabase.functions.invoke(
-        'zone-payment-admin',
-        body: {'action': 'verify', 'zone_id': zoneId},
-      );
-      final data = response.data is Map
-          ? Map<String, dynamic>.from(response.data as Map)
-          : <String, dynamic>{};
-      if (data['ok'] != true) {
-        throw StateError(
-          data['error']?.toString() ?? 'No se pudo verificar Mercado Pago.',
+      if (_environment.isPreview) {
+        final current = await _environment.previewGet(
+          'zone_payment_credentials',
+          recordKey: zoneId + ':mercado_pago',
         );
+        await _environment.previewUpsert(
+          'zone_payment_credentials',
+          zoneId + ':mercado_pago',
+          <String, dynamic>{
+            ...current,
+            'zone_id': zoneId,
+            'provider_key': 'mercado_pago',
+            'configured': true,
+            'credentials_configured': true,
+            'verified': true,
+          },
+        );
+      } else {
+        final response = await supabase.functions.invoke(
+          'zone-payment-admin',
+          body: {'action': 'verify', 'zone_id': zoneId},
+        );
+        final data = response.data is Map
+            ? Map<String, dynamic>.from(response.data as Map)
+            : <String, dynamic>{};
+        if (data['ok'] != true) {
+          throw StateError(
+            data['error']?.toString() ?? 'No se pudo verificar Mercado Pago.',
+          );
+        }
       }
       if (!mounted) return;
       setState(() => revision++);
@@ -5473,13 +6112,25 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     if (confirmed != true || !mounted) return;
 
     try {
-      await supabase.rpc(
-        'admin_resolve_wallet_topup',
-        params: {
-          'p_request_id': row['id'],
-          'p_status': status,
-        },
-      );
+      if (_environment.isPreview) {
+        await _environment.previewUpsert(
+          'wallet_topups',
+          AdminEnvironmentStore.recordKey(row),
+          <String, dynamic>{
+            ...row,
+            'status': status,
+            'resolved_at': DateTime.now().toUtc().toIso8601String(),
+          },
+        );
+      } else {
+        await supabase.rpc(
+          'admin_resolve_wallet_topup',
+          params: {
+            'p_request_id': row['id'],
+            'p_status': status,
+          },
+        );
+      }
       if (!mounted) return;
       setState(() => revision++);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -5665,6 +6316,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                                         await showAdminZonePaymentMethodsEditor(
                                       context,
                                       zone,
+                                      channel: widget.channel,
                                     );
                                     if (changed && mounted) {
                                       setState(() => revision++);
@@ -7082,13 +7734,20 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
 }
 
 class AdminSettingsPage extends StatefulWidget {
-  const AdminSettingsPage({super.key});
+  final String channel;
+
+  const AdminSettingsPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminSettingsPage> createState() => _AdminSettingsPageState();
 }
 
 class _AdminSettingsPageState extends State<AdminSettingsPage> {
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
   Map<String, dynamic>? settings;
   bool loading = true;
   bool saving = false;
@@ -7134,8 +7793,9 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
   Future<void> _load() async {
     try {
-      final value = await supabase.rpc('admin_settings_get');
-      final row = _map(value);
+      final row = _environment.isPreview
+          ? await _environment.previewGet('app_settings')
+          : _map(await supabase.rpc('admin_settings_get'));
       settings = row;
       currency.text = (row['currency'] ?? 'BOB').toString();
       rideMin.text = (row['min_ride_fare'] ?? 5).toString();
@@ -7167,30 +7827,57 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
   Future<void> _save() async {
     setState(() => saving = true);
     try {
-      final value = await supabase.rpc(
-        'admin_settings_update',
-        params: {
-          'p_currency': currency.text.trim(),
-          'p_min_ride_fare': _num(rideMin.text) ?? 0,
-          'p_min_delivery_fare': _num(deliveryMin.text) ?? 0,
-          'p_commission_percent': _num(commission.text) ?? 0,
-          'p_service_radius_km': _num(radius.text) ?? 30,
-          'p_allow_cash': cash,
-          'p_allow_card': card,
-          'p_allow_wallet': wallet,
-          'p_ride_enabled': rideEnabled,
-          'p_delivery_enabled': deliveryEnabled,
-          'p_dispatch_mode': dispatchMode,
-          'p_dispatch_radius_km': _num(dispatchRadius.text) ?? 5,
-          'p_offer_timeout_seconds': int.tryParse(timeout.text) ?? 45,
-          'p_progressive_radius_step_km': _num(radiusStep.text) ?? 2,
-          'p_timezone': timezone.text.trim(),
-          'p_default_country': country.text.trim(),
-          'p_support_phone': supportPhone.text.trim(),
-          'p_support_whatsapp': supportWhatsapp.text.trim(),
-        },
-      );
-      settings = _map(value);
+      final next = <String, dynamic>{
+        ...?settings,
+        'currency': currency.text.trim(),
+        'min_ride_fare': _num(rideMin.text) ?? 0,
+        'min_delivery_fare': _num(deliveryMin.text) ?? 0,
+        'commission_percent': _num(commission.text) ?? 0,
+        'service_radius_km': _num(radius.text) ?? 30,
+        'allow_cash': cash,
+        'allow_card': card,
+        'allow_wallet': wallet,
+        'ride_enabled': rideEnabled,
+        'delivery_enabled': deliveryEnabled,
+        'dispatch_mode': dispatchMode,
+        'dispatch_radius_km': _num(dispatchRadius.text) ?? 5,
+        'offer_timeout_seconds': int.tryParse(timeout.text) ?? 45,
+        'progressive_radius_step_km': _num(radiusStep.text) ?? 2,
+        'timezone': timezone.text.trim(),
+        'default_country': country.text.trim(),
+        'support_phone': supportPhone.text.trim(),
+        'support_whatsapp': supportWhatsapp.text.trim(),
+      };
+
+      if (_environment.isPreview) {
+        await _environment.previewUpsert('app_settings', 'default', next);
+        settings = next;
+      } else {
+        final value = await supabase.rpc(
+          'admin_settings_update',
+          params: {
+            'p_currency': next['currency'],
+            'p_min_ride_fare': next['min_ride_fare'],
+            'p_min_delivery_fare': next['min_delivery_fare'],
+            'p_commission_percent': next['commission_percent'],
+            'p_service_radius_km': next['service_radius_km'],
+            'p_allow_cash': next['allow_cash'],
+            'p_allow_card': next['allow_card'],
+            'p_allow_wallet': next['allow_wallet'],
+            'p_ride_enabled': next['ride_enabled'],
+            'p_delivery_enabled': next['delivery_enabled'],
+            'p_dispatch_mode': next['dispatch_mode'],
+            'p_dispatch_radius_km': next['dispatch_radius_km'],
+            'p_offer_timeout_seconds': next['offer_timeout_seconds'],
+            'p_progressive_radius_step_km': next['progressive_radius_step_km'],
+            'p_timezone': next['timezone'],
+            'p_default_country': next['default_country'],
+            'p_support_phone': next['support_phone'],
+            'p_support_whatsapp': next['support_whatsapp'],
+          },
+        );
+        settings = _map(value);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Configuración guardada.')),
@@ -7479,7 +8166,12 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
 
 class AdminAdvancedSettingsPage extends StatefulWidget {
-  const AdminAdvancedSettingsPage({super.key});
+  final String channel;
+
+  const AdminAdvancedSettingsPage({
+    super.key,
+    this.channel = 'production',
+  });
 
   @override
   State<AdminAdvancedSettingsPage> createState() => _AdminAdvancedSettingsPageState();
@@ -7488,16 +8180,25 @@ class AdminAdvancedSettingsPage extends StatefulWidget {
 class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
   int revision = 0;
 
+  AdminEnvironmentStore get _environment =>
+      AdminEnvironmentStore(widget.channel);
+
   Future<Map<String, dynamic>> _load() async {
+    if (_environment.isPreview) {
+      return _environment.previewGet('app_settings');
+    }
     final value = await supabase.rpc('admin_settings_get');
     return _map(value);
   }
 
   Future<void> _save(Map<String, dynamic> current, Map<String, dynamic> patch) async {
     final next = <String, dynamic>{...current, ...patch};
-    await supabase.rpc(
-      'admin_advanced_settings_update',
-      params: {
+    if (_environment.isPreview) {
+      await _environment.previewUpsert('app_settings', 'default', next);
+    } else {
+      await supabase.rpc(
+        'admin_advanced_settings_update',
+        params: {
         'p_allow_pagorut': next['allow_pagorut'] == true,
         'p_allow_mercadopago': next['allow_mercadopago'] == true,
         'p_allow_santander': next['allow_santander'] == true,
@@ -7525,9 +8226,10 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
         'p_rating_max': (next['rating_max'] as num?)?.toInt() ?? 5,
         'p_maintenance_mode': next['maintenance_mode'] == true,
         'p_maintenance_message': next['maintenance_message']?.toString(),
-        'p_minimum_app_version': next['minimum_app_version']?.toString(),
-      },
-    );
+          'p_minimum_app_version': next['minimum_app_version']?.toString(),
+        },
+      );
+    }
     if (mounted) {
       setState(() => revision++);
       ScaffoldMessenger.of(context).showSnackBar(
