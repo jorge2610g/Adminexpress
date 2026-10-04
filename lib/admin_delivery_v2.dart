@@ -524,6 +524,12 @@ class _AdminExpressDeliveryV2PageState
         row?['config'] is Map ? row!['config'] : <String, dynamic>{},
       ),
     );
+    final starts = TextEditingController(
+      text: row?['starts_at']?.toString() ?? '',
+    );
+    final ends = TextEditingController(
+      text: row?['ends_at']?.toString() ?? '',
+    );
     String? localZone = row?['zone_id']?.toString() ?? zoneId;
     String sectionType = row?['section_type']?.toString() ?? 'merchants';
     String sourceRule = row?['source_rule']?.toString() ?? 'popular';
@@ -657,6 +663,35 @@ class _AdminExpressDeliveryV2PageState
                       labelText: 'Configuración JSON',
                     ),
                   ),
+                  const SizedBox(height: 9),
+                  TextField(
+                    controller: starts,
+                    decoration: const InputDecoration(
+                      labelText: 'Inicio opcional (ISO 8601)',
+                      hintText: '2026-10-10T18:00:00-03:00',
+                    ),
+                  ),
+                  const SizedBox(height: 9),
+                  TextField(
+                    controller: ends,
+                    decoration: const InputDecoration(
+                      labelText: 'Fin opcional (ISO 8601)',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: starts,
+                    decoration: const InputDecoration(
+                      labelText: 'Inicio opcional (ISO 8601)',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: ends,
+                    decoration: const InputDecoration(
+                      labelText: 'Fin opcional (ISO 8601)',
+                    ),
+                  ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: active,
@@ -717,8 +752,12 @@ class _AdminExpressDeliveryV2PageState
             'p_active': active,
             'p_preview_visible': preview,
             'p_production_visible': production,
-            'p_starts_at': row?['starts_at'],
-            'p_ends_at': row?['ends_at'],
+            'p_starts_at': starts.text.trim().isEmpty
+                ? null
+                : DateTime.tryParse(starts.text.trim())?.toIso8601String(),
+            'p_ends_at': ends.text.trim().isEmpty
+                ? null
+                : DateTime.tryParse(ends.text.trim())?.toIso8601String(),
           },
         );
       });
@@ -728,6 +767,8 @@ class _AdminExpressDeliveryV2PageState
     subtitle.dispose();
     order.dispose();
     config.dispose();
+    starts.dispose();
+    ends.dispose();
   }
 
   Future<void> _editCoupon(
@@ -749,6 +790,12 @@ class _AdminExpressDeliveryV2PageState
         TextEditingController(text: row?['usage_limit']?.toString() ?? '');
     final perUser = TextEditingController(
       text: row?['per_user_limit']?.toString() ?? '1',
+    );
+    final starts = TextEditingController(
+      text: row?['starts_at']?.toString() ?? '',
+    );
+    final ends = TextEditingController(
+      text: row?['ends_at']?.toString() ?? '',
     );
     String? localZone = row?['zone_id']?.toString() ?? zoneId;
     String type = row?['discount_type']?.toString() ?? 'percent';
@@ -957,8 +1004,12 @@ class _AdminExpressDeliveryV2PageState
             'p_usage_limit': int.tryParse(usage.text.trim()),
             'p_per_user_limit':
                 int.tryParse(perUser.text.trim()) ?? 1,
-            'p_starts_at': row?['starts_at'],
-            'p_ends_at': row?['ends_at'],
+            'p_starts_at': starts.text.trim().isEmpty
+                ? null
+                : DateTime.tryParse(starts.text.trim())?.toIso8601String(),
+            'p_ends_at': ends.text.trim().isEmpty
+                ? null
+                : DateTime.tryParse(ends.text.trim())?.toIso8601String(),
             'p_active': active,
             'p_preview_visible': preview,
             'p_production_visible': production,
@@ -974,6 +1025,8 @@ class _AdminExpressDeliveryV2PageState
     maximum.dispose();
     usage.dispose();
     perUser.dispose();
+    starts.dispose();
+    ends.dispose();
   }
 
   Future<void> _editMenuSection(
@@ -1352,6 +1405,12 @@ class _AdminExpressDeliveryV2PageState
     final label = TextEditingController(
       text: row['promo_label']?.toString() ?? '',
     );
+    final promoStarts = TextEditingController(
+      text: row['promo_start_at']?.toString() ?? '',
+    );
+    final promoEnds = TextEditingController(
+      text: row['promo_end_at']?.toString() ?? '',
+    );
     final tags = TextEditingController(
       text: row['tags'] is List
           ? (row['tags'] as List).join(', ')
@@ -1437,6 +1496,28 @@ class _AdminExpressDeliveryV2PageState
                     ),
                   ),
                   const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: promoStarts,
+                          decoration: const InputDecoration(
+                            labelText: 'Inicio promo (ISO 8601)',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: promoEnds,
+                          decoration: const InputDecoration(
+                            labelText: 'Fin promo (ISO 8601)',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   TextField(
                     controller: tags,
                     decoration: const InputDecoration(
@@ -1514,8 +1595,12 @@ class _AdminExpressDeliveryV2PageState
             'p_compare_at_price': double.tryParse(compare.text.trim()),
             'p_promo_price': double.tryParse(promo.text.trim()),
             'p_promo_label': label.text.trim(),
-            'p_promo_start_at': row['promo_start_at'],
-            'p_promo_end_at': row['promo_end_at'],
+            'p_promo_start_at': promoStarts.text.trim().isEmpty
+                ? null
+                : DateTime.tryParse(promoStarts.text.trim())?.toIso8601String(),
+            'p_promo_end_at': promoEnds.text.trim().isEmpty
+                ? null
+                : DateTime.tryParse(promoEnds.text.trim())?.toIso8601String(),
             'p_is_sponsored': sponsored,
             'p_is_featured': featured,
             'p_tags': tags.text
@@ -1537,6 +1622,8 @@ class _AdminExpressDeliveryV2PageState
     compare.dispose();
     promo.dispose();
     label.dispose();
+    promoStarts.dispose();
+    promoEnds.dispose();
     tags.dispose();
   }
 
