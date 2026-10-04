@@ -1586,8 +1586,7 @@ class _AdminMarketplacePhase2PageState
           final orders = _rows(data['recent_orders'])
               .where(
                 (row) =>
-                    (row['channel']?.toString() ?? 'production') ==
-                    widget.channel,
+                    row['channel']?.toString() == widget.channel,
               )
               .toList();
 
