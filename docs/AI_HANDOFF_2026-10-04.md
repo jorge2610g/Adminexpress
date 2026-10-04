@@ -554,3 +554,25 @@ En Expressdelivery:
 - `docs/AI_HANDOFF_2026-10-04.md`
 - `docs/QA_AUTOMATION.md`
 - `docs/SAFE_IMPLEMENTATION_ROADMAP.md`
+
+
+## 21. Selector global y snapshot QA por entorno (2026-10-04)
+
+El Laboratorio QA debe obedecer directamente el selector superior **Producción / Prueba**.
+
+Implementación actual:
+- `AdminLoadLabPage(channel: adminChannel)`;
+- `preview` se traduce a `scope=sandbox`;
+- `production` se traduce a `scope=production`;
+- el selector interno de entorno deja de ser editable para evitar dos fuentes de verdad;
+- al cambiar el selector superior, la pantalla borra de inmediato el snapshot visual anterior y carga el nuevo;
+- al cambiar ciudad ocurre la misma limpieza visual;
+- la lectura usa `admin_audit_load_snapshot_v2(p_scope,p_city_key)`.
+
+No borrar automáticamente el escenario del otro entorno al alternar pestañas. La separación correcta es:
+- datos de Prueba permanecen en Prueba;
+- datos de Producción permanecen en Producción;
+- cada vista consulta únicamente su scope;
+- si no existe escenario activo para esa vista, debe mostrar LIMPIO / 0, no reutilizar el snapshot anterior.
+
+El RPC legado `admin_audit_load_snapshot()` no debe volver a usarse en esta pantalla porque no filtra por entorno.
