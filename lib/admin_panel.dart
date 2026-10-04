@@ -206,6 +206,7 @@ class ExpressAdminPanel extends StatefulWidget {
 class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   int section = 0;
   int revision = 0;
+  String adminChannel = 'preview';
   String? liveZoneId;
 
   String tripPeriod = 'today';
@@ -339,8 +340,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<List<Map<String, dynamic>>> _trips() async {
     final range = _periodBounds(tripPeriod, tripCustomRange);
     final value = await supabase.rpc(
-      'admin_trip_list_v2',
+      'admin_trip_list_v3',
       params: {
+        'p_channel': adminChannel,
         'p_from': range.from.toUtc().toIso8601String(),
         'p_to': range.to.toUtc().toIso8601String(),
         'p_zone_id': null,
@@ -355,8 +357,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<List<Map<String, dynamic>>> _deliveries() async {
     final range = _periodBounds(deliveryPeriod, deliveryCustomRange);
     final value = await supabase.rpc(
-      'admin_delivery_list_v2',
+      'admin_delivery_list_v3',
       params: {
+        'p_channel': adminChannel,
         'p_from': range.from.toUtc().toIso8601String(),
         'p_to': range.to.toUtc().toIso8601String(),
         'p_status': null,
@@ -589,6 +592,78 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     });
   }
 
+  void _setAdminChannel(String value) {
+    if (value == adminChannel) return;
+    setState(() {
+      adminChannel = value;
+      revision++;
+      _liveFuture = _liveState();
+    });
+  }
+
+  Widget _environmentSwitcher() {
+    final preview = adminChannel == 'preview';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      decoration: BoxDecoration(
+        color: preview
+            ? const Color(0xFFFFF7E6)
+            : const Color(0xFFE8F8EF),
+        border: Border(
+          bottom: BorderSide(
+            color: preview
+                ? const Color(0xFFF5C36A)
+                : const Color(0xFF9AD8B3),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            preview ? Icons.science_rounded : Icons.verified_rounded,
+            size: 19,
+            color: preview
+                ? const Color(0xFFB54708)
+                : const Color(0xFF14804A),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              preview
+                  ? 'MODO PRUEBA · Solo datos Preview / QA'
+                  : 'MODO PRODUCCIÓN · Datos reales de clientes',
+              style: TextStyle(
+                color: preview
+                    ? const Color(0xFF7A2E0E)
+                    : const Color(0xFF0F6848),
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'production',
+                label: Text('Producción'),
+                icon: Icon(Icons.verified_outlined, size: 17),
+              ),
+              ButtonSegment(
+                value: 'preview',
+                label: Text('Prueba'),
+                icon: Icon(Icons.science_outlined, size: 17),
+              ),
+            ],
+            selected: {adminChannel},
+            onSelectionChanged: (value) => _setAdminChannel(value.first),
+            showSelectedIcon: false,
+          ),
+        ],
+      ),
+    );
+  }
+
   void _goTo(int value) {
     setState(() {
       if (value == 1 && section != 1) {
@@ -729,6 +804,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                       width: 248,
                       child: _Navigation(
                         selected: section,
+                        channel: adminChannel,
                         onSelected: _goTo,
                         onExit: widget.onExit,
                       ),
@@ -743,6 +819,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                             onNewTrip: () => _goTo(13),
                             onExit: widget.onExit,
                           ),
+                        _environmentSwitcher(),
                         Expanded(child: _body(section)),
                       ],
                     ),
@@ -786,7 +863,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 12:
         return const AdminBuildsPage();
       case 13:
-        return const AdminDispatchPage();
+        return AdminDispatchPage(channel: adminChannel);
       case 14:
         return const AdminAuditPage();
       case 15:
@@ -812,7 +889,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 25:
         return const AdminDriverPriorityPage();
       case 26:
-        return const AdminMarketplacePhase2Page(ordersOnly: true);
+        return AdminMarketplacePhase2Page(ordersOnly: true, channel: adminChannel);
       default:
         return const SizedBox.shrink();
     }
@@ -1553,26 +1630,36 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
 
 class _Navigation extends StatelessWidget {
   final int selected;
+  final String channel;
   final ValueChanged<int> onSelected;
   final VoidCallback onExit;
 
   const _Navigation({
     required this.selected,
+    required this.channel,
     required this.onSelected,
     required this.onExit,
   });
 
-  static const groups = <(String, List<int>)>[
-    ('GENERAL', [0]),
-    ('OPERACIONES', [1, 2, 13, 3, 4, 5, 6]),
-    ('MÓDULOS DE PRODUCCIÓN', [23, 26]),
-    ('MÓDULOS DE PRUEBA', [24, 25, 20, 21]),
-    ('FINANZAS', [9, 8, 22]),
-    ('ANÁLISIS', [10, 14]),
-    ('COMUNICACIÓN', [15]),
-    ('SEGURIDAD', [17, 18]),
-    ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
-  ];
+  List<(String, List<int>)> get groups => channel == 'preview'
+      ? const [
+          ('GENERAL', [0]),
+          ('OPERACIONES · PRUEBA', [1, 2, 13, 3, 26, 4, 5, 6]),
+          ('MÓDULOS DE PRUEBA', [24, 25, 20, 21]),
+          ('ANÁLISIS', [10, 14]),
+          ('SEGURIDAD', [17, 18]),
+          ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
+        ]
+      : const [
+          ('GENERAL', [0]),
+          ('OPERACIONES · PRODUCCIÓN', [1, 2, 13, 3, 26, 4, 5, 6]),
+          ('MÓDULOS DE PRODUCCIÓN', [23]),
+          ('FINANZAS', [9, 8, 22]),
+          ('ANÁLISIS', [10, 14]),
+          ('COMUNICACIÓN', [15]),
+          ('SEGURIDAD', [17, 18]),
+          ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
+        ];
 
   @override
   Widget build(BuildContext context) {
