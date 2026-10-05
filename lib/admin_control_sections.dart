@@ -9008,7 +9008,7 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
   void initState() {
     super.initState();
     _refreshBuilds(initial: true);
-    poller = Timer.periodic(const Duration(seconds: 20), (_) {
+    poller = Timer.periodic(const Duration(minutes: 1), (_) {
       _refreshBuilds(silent: true);
     });
   }
