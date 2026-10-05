@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
 import 'admin_driver_document_requirements.dart';
+import 'admin_country_coverage.dart';
 
 const Color _blue = Color(0xFF2563EB);
 const Color _dark = Color(0xFF0F172A);
@@ -597,6 +598,14 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
       }).toList();
     }
     final value = await supabase.rpc('admin_zone_list_v2');
+    return _list(value);
+  }
+
+  Future<List<Map<String, dynamic>>> _loadCountries() async {
+    if (_environment.isPreview) {
+      return _environment.previewList('service_countries');
+    }
+    final value = await supabase.rpc('admin_country_list');
     return _list(value);
   }
 
@@ -1673,11 +1682,26 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
   }
 
   Future<void> _edit([Map<String, dynamic>? row]) async {
+    var countries = await _loadCountries();
+    if (!mounted) return;
+    if (countries.isEmpty) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AdminCountryCoveragePage(channel: widget.channel),
+        ),
+      );
+      if (!mounted) return;
+      countries = await _loadCountries();
+      if (countries.isEmpty) {
+        _snack(context, 'Primero crea un país antes de crear una ciudad.');
+        return;
+      }
+    }
+
     final name = TextEditingController(text: row?['name']?.toString() ?? '');
     final city =
         TextEditingController(text: row?['city']?.toString() ?? '');
-    final country =
-        TextEditingController(text: row?['country']?.toString() ?? '');
     final regionDepartment = TextEditingController(
       text: row?['region_department']?.toString() ?? '',
     );
@@ -1723,6 +1747,38 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     var landingDefault =
         row?['passenger_default_module']?.toString() ?? 'ride';
     var active = row?['active'] != false;
+    var driverRegistrationEnabled =
+        row?['driver_registration_enabled'] != false;
+    var selectedCountryCode = row?['country_code']?.toString().toUpperCase();
+    if (selectedCountryCode == null ||
+        !countries.any(
+          (countryRow) =>
+              countryRow['country_code']?.toString().toUpperCase() ==
+              selectedCountryCode,
+        )) {
+      final activeCountries =
+          countries.where((countryRow) => countryRow['active'] == true);
+      final selected = activeCountries.isNotEmpty
+          ? activeCountries.first
+          : countries.first;
+      selectedCountryCode =
+          selected['country_code']?.toString().toUpperCase();
+    }
+
+    Map<String, dynamic>? selectedCountry() {
+      for (final countryRow in countries) {
+        if (countryRow['country_code']?.toString().toUpperCase() ==
+            selectedCountryCode) {
+          return countryRow;
+        }
+      }
+      return null;
+    }
+
+    if (currency.text.trim().isEmpty) {
+      currency.text =
+          selectedCountry()?['currency_code']?.toString().toUpperCase() ?? '';
+    }
 
     final save = await showDialog<bool>(
       context: context,
@@ -1776,11 +1832,60 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     decoration: const InputDecoration(labelText: 'Ciudad'),
                   ),
                   const SizedBox(height: 10),
-                  TextField(
-                    controller: country,
-                    decoration: const InputDecoration(labelText: 'País'),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedCountryCode,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'País',
+                      prefixIcon: Icon(Icons.public_rounded),
+                    ),
+                    items: countries
+                        .map(
+                          (countryRow) => DropdownMenuItem<String>(
+                            value: countryRow['country_code']
+                                ?.toString()
+                                .toUpperCase(),
+                            child: Text(
+                              (countryRow['name'] ?? 'País').toString() +
+                                  ' · ' +
+                                  (countryRow['country_code'] ?? '').toString(),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setLocal(() {
+                        selectedCountryCode = value;
+                        final selected = selectedCountry();
+                        final suggestedCurrency =
+                            selected?['currency_code']?.toString();
+                        if (suggestedCurrency != null &&
+                            suggestedCurrency.isNotEmpty) {
+                          currency.text = suggestedCurrency.toUpperCase();
+                        }
+                      });
+                    },
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AdminCountryCoveragePage(
+                              channel: widget.channel,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.settings_outlined, size: 17),
+                      label: const Text('Administrar países'),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: regionDepartment,
                     decoration: const InputDecoration(
@@ -2099,6 +2204,19 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                       'La app puede detectarla automáticamente por GPS.',
                     ),
                   ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: driverRegistrationEnabled,
+                    onChanged: active
+                        ? (value) => setLocal(
+                              () => driverRegistrationEnabled = value,
+                            )
+                        : null,
+                    title: const Text('Registro de conductores en esta zona'),
+                    subtitle: const Text(
+                      'Si está apagado, un conductor ubicado aquí verá que Express todavía no está disponible para registrarse.',
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2127,18 +2245,21 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           savedZoneId = row?['id'] ?? zoneRecordKey;
         } else {
           savedZoneId = await supabase.rpc(
-            'admin_upsert_zone_v2',
+            'admin_upsert_zone_v3',
             params: {
               'p_id': row?['id'],
               'p_name': name.text.trim(),
               'p_city': city.text.trim(),
               'p_region_department': regionDepartment.text.trim(),
-              'p_country': country.text.trim(),
+              'p_country_code': selectedCountryCode,
               'p_active': active,
+              'p_driver_registration_enabled':
+                  driverRegistrationEnabled,
               'p_center_latitude': _num(lat.text),
               'p_center_longitude': _num(lng.text),
               'p_radius_km': _num(radius.text) ?? 25,
-              'p_zone_key': row?['zone_key']?.toString() ?? zoneKey.text.trim(),
+              'p_zone_key':
+                  row?['zone_key']?.toString() ?? zoneKey.text.trim(),
               'p_currency_code': currency.text.trim().toUpperCase(),
             },
           );
@@ -2171,8 +2292,11 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'name': name.text.trim(),
               'city': city.text.trim(),
               'region_department': regionDepartment.text.trim(),
-              'country': country.text.trim(),
+              'country': selectedCountry()?['name']?.toString() ?? '',
+              'country_code': selectedCountryCode,
               'active': active,
+              'driver_registration_enabled':
+                  driverRegistrationEnabled,
               'center_latitude': _num(lat.text),
               'center_longitude': _num(lng.text),
               'radius_km': _num(radius.text) ?? 25,
@@ -2218,7 +2342,8 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
             'name': name.text.trim(),
             'city': city.text.trim(),
             'region_department': regionDepartment.text.trim(),
-            'country': country.text.trim(),
+            'country': selectedCountry()?['name']?.toString() ?? '',
+            'country_code': selectedCountryCode,
             'currency_code': currency.text.trim().toUpperCase(),
           };
           await showAdminZonePaymentMethodsEditor(context, zoneForPayments, channel: widget.channel);
@@ -2231,7 +2356,6 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
 
     name.dispose();
     city.dispose();
-    country.dispose();
     regionDepartment.dispose();
     zoneKey.dispose();
     currency.dispose();
@@ -2270,10 +2394,30 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               title: 'Zonas de operación',
               subtitle:
                   'Cada ciudad funciona como una unidad independiente de servicios, tarifas y suscripciones.',
-              action: FilledButton.icon(
-                onPressed: () => _edit(),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Nueva zona'),
+              action: Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AdminCountryCoveragePage(
+                            channel: widget.channel,
+                          ),
+                        ),
+                      );
+                      if (mounted) setState(() => revision++);
+                    },
+                    icon: const Icon(Icons.public_rounded),
+                    label: const Text('Países'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () => _edit(),
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Nueva zona'),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 18),
@@ -2318,6 +2462,10 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           (row['radius_km'] ?? '—').toString() +
                           ' km\nClave: ' +
                           (row['zone_key'] ?? '—').toString() +
+                          ' · Registro: ' +
+                          (row['driver_registration_enabled'] == false
+                              ? 'OFF'
+                              : 'ON') +
                           ' · Inicio: ' +
                           ((row['passenger_landing_mode'] ?? 'direct')
                                       .toString() ==
