@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-10-05 — Países, cobertura y expansión administrable
+
+- agregado **Países y cobertura** dentro del módulo Zonas;
+- el administrador puede crear países por código ISO (CL, BO, BR, AR, etc.), moneda y estado activo/inactivo;
+- cada país controla por separado registro de conductores y Didit;
+- Didit puede activarse/desactivarse por país y aceptar Workflow IDs sin exponerlos en la UI una vez guardados;
+- las ciudades ya no usan un país escrito libremente: deben pertenecer a un país maestro;
+- cada zona tiene switch propio para habilitar/deshabilitar registro de conductores;
+- un país inactivo bloquea todas sus zonas en la app aunque las ciudades sigan configuradas;
+- Prueba conserva la misma UI y persiste solo en el almacenamiento shadow, sin escribir Producción.
+
+---
+
 ## 2026-10-05 — Panel dedicado Didit
 
 - agregado **Didit · Centro de identidad** dentro del grupo Seguridad;
