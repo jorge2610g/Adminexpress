@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-10-05 — Panel dedicado Didit
+
+- agregado **Didit · Centro de identidad** dentro del grupo Seguridad;
+- usa una sola UI y respeta el selector global Prueba/Producción;
+- Prueba consulta únicamente `provider_environment=sandbox`;
+- Producción consulta únicamente `provider_environment=production`;
+- muestra sesiones, estados, país, workflow, documento, Face Match, liveness, scores, advertencias y tiempos;
+- detalle separado **Enviado a Didit / Recibido de Didit**;
+- el panel no muestra API Keys, Signing Secrets, tokens temporales ni imágenes biométricas;
+- lectura protegida por la política RLS administrativa existente de `identity_verifications`.
+
+---
+
 ## 2026-10-04 — Handoff IA, SMS y laboratorio QA Auto/Moto
 
 - agregado `AGENTS.md` y `docs/AI_HANDOFF_2026-10-04.md` para continuidad con otra IA;

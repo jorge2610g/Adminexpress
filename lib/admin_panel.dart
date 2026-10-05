@@ -14,6 +14,7 @@ import 'admin_driver_priority.dart';
 import 'admin_detail_dialogs.dart';
 import 'admin_environment_reports.dart';
 import 'admin_environment_audit.dart';
+import 'admin_didit.dart';
 
 const Color adminBlue = Color(0xFF2563EB);
 const Color adminDark = Color(0xFF0F172A);
@@ -260,6 +261,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Delivery Fase 2 / Express Plus', Icons.delivery_dining_rounded),
     ('Prioridad conductores', Icons.workspace_premium_outlined),
     ('Pedidos Delivery', Icons.receipt_long_rounded),
+    ('Didit', Icons.fingerprint_rounded),
   ];
 
   Future<bool> _authorized() async => await supabase.rpc('is_admin') == true;
@@ -962,6 +964,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         return AdminDriverPriorityPage(channel: adminChannel);
       case 26:
         return AdminMarketplacePhase2Page(ordersOnly: true, channel: adminChannel);
+      case 27:
+        return AdminDiditPage(channel: adminChannel);
       default:
         return const SizedBox.shrink();
     }
@@ -1720,7 +1724,7 @@ class _Navigation extends StatelessWidget {
         ('FINANZAS', [9, 8, 22]),
         ('ANÁLISIS', [10, 14]),
         ('COMUNICACIÓN', [15]),
-        ('SEGURIDAD', [17, 18]),
+        ('SEGURIDAD', [17, 18, 27]),
         ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
         ('HERRAMIENTAS QA', [20, 21]),
       ];
