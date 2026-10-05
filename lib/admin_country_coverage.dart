@@ -54,6 +54,9 @@ class _AdminCountryCoveragePageState
     if (raw.contains('Código de moneda inválido')) {
       return 'Usa un código de moneda de 3 letras, por ejemplo CLP, BOB, BRL o ARS.';
     }
+    if (raw.contains('Prefijo telefónico internacional inválido')) {
+      return 'Usa el prefijo internacional con +, por ejemplo +56, +591, +55 o +54.';
+    }
     return raw.replaceFirst('PostgrestException(message: ', '');
   }
 
@@ -66,6 +69,9 @@ class _AdminCountryCoveragePageState
     );
     final currency = TextEditingController(
       text: row?['currency_code']?.toString() ?? '',
+    );
+    final callingCode = TextEditingController(
+      text: row?['calling_code']?.toString() ?? '',
     );
     final productionWorkflow = TextEditingController();
     final sandboxWorkflow = TextEditingController();
@@ -129,6 +135,17 @@ class _AdminCountryCoveragePageState
                       labelText: 'Moneda',
                       hintText: 'BRL',
                       counterText: '',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: callingCode,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Prefijo telefónico internacional',
+                      hintText: '+55',
+                      helperText:
+                          'Se usa para registro y verificación SMS en este país.',
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -249,6 +266,7 @@ class _AdminCountryCoveragePageState
       code.dispose();
       name.dispose();
       currency.dispose();
+      callingCode.dispose();
       productionWorkflow.dispose();
       sandboxWorkflow.dispose();
       return;
@@ -265,6 +283,7 @@ class _AdminCountryCoveragePageState
             'country_code': countryCode,
             'name': name.text.trim(),
             'currency_code': currency.text.trim().toUpperCase(),
+            'calling_code': callingCode.text.trim(),
             'active': active,
             'driver_registration_enabled': driverRegistration,
             'didit_enabled': diditEnabled,
@@ -273,11 +292,12 @@ class _AdminCountryCoveragePageState
         );
       } else {
         await supabase.rpc(
-          'admin_upsert_country_coverage',
+          'admin_upsert_country_coverage_v2',
           params: {
             'p_country_code': countryCode,
             'p_name': name.text.trim(),
             'p_currency_code': currency.text.trim().toUpperCase(),
+            'p_calling_code': callingCode.text.trim(),
             'p_active': active,
             'p_driver_registration_enabled': driverRegistration,
             'p_didit_enabled': diditEnabled,
@@ -314,6 +334,7 @@ class _AdminCountryCoveragePageState
       code.dispose();
       name.dispose();
       currency.dispose();
+      callingCode.dispose();
       productionWorkflow.dispose();
       sandboxWorkflow.dispose();
     }
@@ -454,6 +475,8 @@ class _AdminCountryCoveragePageState
                         (row['country_code'] ?? '—').toString() +
                             ' · ' +
                             (row['currency_code'] ?? '—').toString() +
+                            ' · ' +
+                            (row['calling_code'] ?? 'sin prefijo').toString() +
                             ' · ' +
                             (row['zones_active'] ?? 0).toString() +
                             '/' +
