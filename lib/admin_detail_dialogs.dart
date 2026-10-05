@@ -329,6 +329,20 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
             countryCode = _text(matches.first['country_code'], '').toUpperCase();
           }
         }
+        if ((zoneId == null || zoneId!.isEmpty) &&
+            countryCode != null &&
+            countryCode!.isNotEmpty) {
+          final legacyCity = _text(driver['city'], '');
+          final matches = loadedZones.where(
+            (z) =>
+                _text(z['country_code'], '').toUpperCase() == countryCode &&
+                _text(z['city'], '').toLowerCase() ==
+                    legacyCity.toLowerCase(),
+          );
+          if (matches.length == 1) {
+            zoneId = matches.first['id']?.toString();
+          }
+        }
         loading = false;
       });
     } catch (e) {
@@ -847,7 +861,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                     ),
                                   )
                                   .toList(),
-                              onChanged: countryCode == null
+                              onChanged: countryCode == null || countryCode!.isEmpty
                                   ? null
                                   : (value) {
                                       setState(() {
