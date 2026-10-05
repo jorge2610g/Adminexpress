@@ -1,0 +1,29 @@
+name: Validate Driver Identity Admin
+
+on:
+  push:
+    branches:
+      - feature/driver-onboarding-documents
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze identity admin
+        run: |
+          flutter analyze --no-fatal-warnings --no-fatal-infos             lib/admin_driver_document_requirements.dart             lib/admin_control_sections.dart             lib/admin_detail_dialogs.dart             lib/admin_panel.dart
+      - name: Build admin web
+        run: flutter build web --release
