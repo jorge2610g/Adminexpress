@@ -11,6 +11,7 @@ import 'admin_driver_subscriptions.dart';
 import 'admin_marketplace.dart';
 import 'admin_marketplace_phase2.dart';
 import 'admin_driver_priority.dart';
+import 'admin_dynamic_pricing.dart';
 import 'admin_detail_dialogs.dart';
 import 'admin_environment_reports.dart';
 import 'admin_environment_audit.dart';
@@ -262,6 +263,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Prioridad conductores', Icons.workspace_premium_outlined),
     ('Pedidos Delivery', Icons.receipt_long_rounded),
     ('Didit', Icons.fingerprint_rounded),
+    ('Demanda y precios', Icons.trending_up_rounded),
   ];
 
   Future<bool> _authorized() async => await supabase.rpc('is_admin') == true;
@@ -966,6 +968,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         return AdminMarketplacePhase2Page(ordersOnly: true, channel: adminChannel);
       case 27:
         return AdminDiditPage(channel: adminChannel);
+      case 28:
+        return AdminDynamicPricingPage(channel: adminChannel);
       default:
         return const SizedBox.shrink();
     }
