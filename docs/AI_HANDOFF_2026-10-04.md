@@ -576,3 +576,29 @@ No borrar automáticamente el escenario del otro entorno al alternar pestañas. 
 - si no existe escenario activo para esa vista, debe mostrar LIMPIO / 0, no reutilizar el snapshot anterior.
 
 El RPC legado `admin_audit_load_snapshot()` no debe volver a usarse en esta pantalla porque no filtra por entorno.
+
+## 22. Países y cobertura administrable (2026-10-05)
+
+La expansión geográfica ya no requiere cambios de código para agregar un país.
+
+En **Zonas -> Países** el administrador puede:
+- crear un país mediante ISO-2 y moneda ISO-3;
+- activar/desactivar el país completo;
+- activar/desactivar registro de conductores;
+- activar/desactivar Didit;
+- guardar Workflow IDs de Didit para Producción/Prueba sin que el panel vuelva a mostrarlos;
+- crear después ciudades/zonas asociadas al país.
+
+Regla operativa:
+- país activo + zona activa = cobertura potencial;
+- GPS fuera de una zona activa = la app bloquea servicio y registro;
+- país inactivo = ninguna de sus zonas responde como cobertura;
+- una zona puede bloquear solo el registro de conductores manteniendo su configuración;
+- Preview usa la misma UI y almacenamiento shadow; no modifica Producción.
+
+Backend compartido:
+- `service_countries`;
+- `identity_verification_country_settings`;
+- `admin_country_list`;
+- `admin_upsert_country_coverage`;
+- `admin_upsert_zone_v3`.
