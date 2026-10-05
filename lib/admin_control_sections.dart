@@ -8260,10 +8260,13 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           subtitle:
               'Control independiente para pasajeros y conductores. Preview prueba el proveedor; Producción solo aplica el bloqueo después de una OTP real confirmada.',
           children: [
-            const _InlineNotice(
-              icon: Icons.sms_outlined,
-              text:
-                  'Al activarlo, Preview exige OTP inmediatamente. En Producción el switch queda preparado, pero el backend no bloqueará cuentas hasta que una verificación SMS real confirme que el proveedor está operativo.',
+            _InlineNotice(
+              icon: settings?['sms_provider_verified_at'] != null
+                  ? Icons.verified_rounded
+                  : Icons.sms_outlined,
+              text: settings?['sms_provider_verified_at'] != null
+                  ? 'Proveedor SMS verificado con OTP real. Producción puede aplicar la exigencia según los switches de abajo.'
+                  : 'Proveedor SMS pendiente de prueba real. Preview exige OTP; Producción permanece en modo seguro y no bloqueará usuarios hasta que una OTP se confirme correctamente.',
             ),
             const SizedBox(height: 8),
             SwitchListTile.adaptive(
