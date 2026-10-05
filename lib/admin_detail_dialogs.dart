@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
 
@@ -381,6 +382,31 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     }
   }
 
+  Future<void> _openDriverAsset(String? path) async {
+    final value = path?.trim() ?? '';
+    if (value.isEmpty) return;
+    try {
+      final signed = await supabase.storage
+          .from('driver-onboarding')
+          .createSignedUrl(value, 3600);
+      final ok = await launchUrl(
+        Uri.parse(signed),
+        mode: LaunchMode.platformDefault,
+      );
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el archivo.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo abrir el archivo: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _editDocument([Map<String, dynamic>? document]) async {
     final type = TextEditingController(
       text: document?['document_type']?.toString() ?? '',
@@ -511,6 +537,17 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
   @override
   Widget build(BuildContext context) {
     final user = _map(detail['user']);
+    final driver = _map(detail['driver']);
+    final vehicles = _maps(detail['vehicles']);
+    final activeVehicle = vehicles.where((v) => v['is_active'] == true).isNotEmpty
+        ? vehicles.firstWhere((v) => v['is_active'] == true)
+        : (vehicles.isEmpty ? <String, dynamic>{} : vehicles.first);
+    final vehiclePhotos = activeVehicle['photo_paths'] is List
+        ? (activeVehicle['photo_paths'] as List)
+            .map((e) => e.toString())
+            .where((e) => e.trim().isNotEmpty)
+            .toList()
+        : <String>[];
     final documents = _maps(detail['documents']);
     final verifications = _maps(detail['identity_verifications']);
     final rating = _map(detail['rating_summary']);
@@ -563,6 +600,44 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                             ),
                           ),
                         ),
+                      _Section(
+                        title: 'Fotos para aprobación',
+                        icon: Icons.photo_library_outlined,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                if (_text(driver['profile_photo_path'], '').isNotEmpty)
+                                  OutlinedButton.icon(
+                                    onPressed: () => _openDriverAsset(
+                                      driver['profile_photo_path']?.toString(),
+                                    ),
+                                    icon: const Icon(Icons.account_circle_outlined),
+                                    label: const Text('Ver foto de perfil'),
+                                  ),
+                                for (var i = 0; i < vehiclePhotos.length; i++)
+                                  OutlinedButton.icon(
+                                    onPressed: () => _openDriverAsset(vehiclePhotos[i]),
+                                    icon: const Icon(Icons.directions_car_outlined),
+                                    label: Text('Vehículo ${i + 1}'),
+                                  ),
+                              ],
+                            ),
+                            if (_text(driver['profile_photo_path'], '').isEmpty &&
+                                vehiclePhotos.isEmpty)
+                              const Text(
+                                'El conductor todavía no cargó fotografías.',
+                                style: TextStyle(
+                                  color: _detailMuted,
+                                  fontSize: 11,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                       _Section(
                         title: 'Datos personales y operación',
                         icon: Icons.person_rounded,
@@ -735,23 +810,82 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                               )
                             else
                               ...documents.map(
-                                (doc) => ListTile(
-                                  dense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: const Icon(Icons.description_outlined, color: _detailBlue),
-                                  title: Text(
-                                    _text(doc['document_type']),
-                                    style: const TextStyle(fontWeight: FontWeight.w800),
+                                (doc) => Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: _detailSoft,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: _detailBorder),
                                   ),
-                                  subtitle: Text(
-                                    'N° ' + _text(doc['document_number']) +
-                                        ' · ' + _text(doc['status']) +
-                                        ' · vence ' + _date(doc['expires_at']),
-                                  ),
-                                  trailing: IconButton(
-                                    tooltip: 'Editar documento',
-                                    onPressed: () => _editDocument(doc),
-                                    icon: const Icon(Icons.edit_outlined),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.description_outlined,
+                                            color: _detailBlue,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              _text(doc['document_type']),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                          Chip(
+                                            label: Text(_text(doc['status'])),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Editar documento',
+                                            onPressed: () => _editDocument(doc),
+                                            icon: const Icon(Icons.edit_outlined),
+                                          ),
+                                        ],
+                                      ),
+                                      Text(
+                                        'N° ' + _text(doc['document_number']) +
+                                            ' · vence ' + _date(doc['expires_at']),
+                                        style: const TextStyle(
+                                          color: _detailMuted,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 7),
+                                      Wrap(
+                                        spacing: 7,
+                                        runSpacing: 7,
+                                        children: [
+                                          if (_text(doc['front_object_path'], '').isNotEmpty)
+                                            OutlinedButton.icon(
+                                              onPressed: () => _openDriverAsset(
+                                                doc['front_object_path']?.toString(),
+                                              ),
+                                              icon: const Icon(Icons.credit_card_rounded, size: 16),
+                                              label: const Text('Ver frente'),
+                                            ),
+                                          if (_text(doc['back_object_path'], '').isNotEmpty)
+                                            OutlinedButton.icon(
+                                              onPressed: () => _openDriverAsset(
+                                                doc['back_object_path']?.toString(),
+                                              ),
+                                              icon: const Icon(Icons.flip_to_back_rounded, size: 16),
+                                              label: const Text('Ver reverso'),
+                                            ),
+                                          if (_text(doc['selfie_object_path'], '').isNotEmpty)
+                                            OutlinedButton.icon(
+                                              onPressed: () => _openDriverAsset(
+                                                doc['selfie_object_path']?.toString(),
+                                              ),
+                                              icon: const Icon(Icons.face_rounded, size: 16),
+                                              label: const Text('Ver selfie'),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),

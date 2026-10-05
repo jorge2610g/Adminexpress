@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
+import 'admin_driver_document_requirements.dart';
 
 const Color _blue = Color(0xFF2563EB);
 const Color _dark = Color(0xFF0F172A);
@@ -3814,6 +3815,8 @@ class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
                 ('Verificados', verified.toString()),
               ],
             ),
+            const SizedBox(height: 16),
+            AdminDriverDocumentRequirementsPanel(channel: widget.channel),
             const SizedBox(height: 16),
             LayoutBuilder(
               builder: (context, constraints) {
