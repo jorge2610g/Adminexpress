@@ -166,7 +166,7 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
                         : null,
                     title: const Text('Mostrar prioridad en Producción'),
                     subtitle: const Text(
-                      'Déjalo apagado hasta aprobar la prueba en Preview.',
+                      'Puedes administrarlo por separado; Producción está preparada para aplicar el ranking seguro.',
                     ),
                   ),
                   SwitchListTile.adaptive(
@@ -547,7 +547,7 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'El ranking de Preview solo cambia el orden en que aparecen las solicitudes. No bloquea conductores ni altera una solicitud ya aceptada.',
+                        'El ranking cambia solo el orden de solicitudes y nunca bloquea conductores. Alta prioriza cercanía, buena reputación del pasajero y mejor tarifa/km; Media prioriza cercanía y tarifa/km; Baja recibe flujo normal por antigüedad, sin castigos.',
                         style: TextStyle(
                           color: _ink,
                           fontSize: 12,
