@@ -255,7 +255,6 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
   final fullName = TextEditingController();
   final phone = TextEditingController();
   final license = TextEditingController();
-  final city = TextEditingController();
   final brand = TextEditingController();
   final model = TextEditingController();
   final color = TextEditingController();
@@ -266,6 +265,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
   String approvalStatus = 'pending';
   String onlineStatus = 'offline';
   String vehicleType = 'motorcycle';
+  String? countryCode;
   String? zoneId;
 
   @override
@@ -279,7 +279,6 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     fullName.dispose();
     phone.dispose();
     license.dispose();
-    city.dispose();
     brand.dispose();
     model.dispose();
     color.dispose();
@@ -306,7 +305,6 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
       fullName.text = _text(user['full_name'], '');
       phone.text = _text(user['phone'], '');
       license.text = _text(driver['license_number'], '');
-      city.text = _text(driver['city'], '');
       brand.text = _text(vehicle['brand'], '');
       model.text = _text(vehicle['model'], '');
       color.text = _text(vehicle['color'], '');
@@ -321,7 +319,16 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
         approvalStatus = _text(driver['approval_status'], 'pending');
         onlineStatus = _text(driver['online_status'], 'offline');
         vehicleType = _text(vehicle['vehicle_type'], 'motorcycle');
+        countryCode = _text(driver['country_code'], '').toUpperCase();
         zoneId = driver['zone_id']?.toString();
+        if ((countryCode == null || countryCode!.isEmpty) && zoneId != null) {
+          final matches = loadedZones.where(
+            (z) => z['id']?.toString() == zoneId,
+          );
+          if (matches.isNotEmpty) {
+            countryCode = _text(matches.first['country_code'], '').toUpperCase();
+          }
+        }
         loading = false;
       });
     } catch (e) {
@@ -335,10 +342,33 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
 
   Future<void> _save() async {
     if (saving) return;
+    if (countryCode == null || countryCode!.isEmpty) {
+      setState(() => error = 'Selecciona un país para el conductor.');
+      return;
+    }
     if (zoneId == null || zoneId!.isEmpty) {
       setState(() => error = 'Selecciona una zona para el conductor.');
       return;
     }
+    final selectedZoneMatches = zones.where(
+      (z) => z['id']?.toString() == zoneId,
+    );
+    if (selectedZoneMatches.isEmpty) {
+      setState(() => error = 'La zona seleccionada ya no está disponible.');
+      return;
+    }
+    final selectedZone = selectedZoneMatches.first;
+    final selectedCity = _text(
+      selectedZone['city'],
+      _text(selectedZone['name'], ''),
+    );
+    final selectedCountryCode =
+        _text(selectedZone['country_code'], countryCode!).toUpperCase();
+    if (selectedCountryCode != countryCode) {
+      setState(() => error = 'La zona no corresponde al país seleccionado.');
+      return;
+    }
+
     final vehicleYear =
         year.text.trim().isEmpty ? null : int.tryParse(year.text.trim());
     if (year.text.trim().isNotEmpty && vehicleYear == null) {
@@ -359,7 +389,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
           'p_phone': phone.text.trim(),
           'p_account_status': accountStatus,
           'p_license_number': license.text.trim(),
-          'p_city': city.text.trim(),
+          'p_city': selectedCity,
           'p_zone_id': zoneId,
           'p_approval_status': approvalStatus,
           'p_online_status': onlineStatus,
@@ -542,12 +572,46 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     final activeVehicle = vehicles.where((v) => v['is_active'] == true).isNotEmpty
         ? vehicles.firstWhere((v) => v['is_active'] == true)
         : (vehicles.isEmpty ? <String, dynamic>{} : vehicles.first);
+    final profilePhotoPath = _text(driver['profile_photo_path'], '');
     final vehiclePhotos = activeVehicle['photo_paths'] is List
         ? (activeVehicle['photo_paths'] as List)
-            .map((e) => e.toString())
-            .where((e) => e.trim().isNotEmpty)
+            .map((e) => e.toString().trim())
+            .where(
+              (e) =>
+                  e.isNotEmpty &&
+                  e != profilePhotoPath &&
+                  e.contains('/vehicle/'),
+            )
             .toList()
         : <String>[];
+
+    final countriesByCode = <String, String>{};
+    for (final zone in zones) {
+      final code = _text(zone['country_code'], '').toUpperCase();
+      if (code.isEmpty) continue;
+      countriesByCode[code] = _text(zone['country'], code);
+    }
+    final countryCodes = countriesByCode.keys.toList()..sort();
+    final selectedCountryCode =
+        countryCodes.contains(countryCode) ? countryCode : null;
+    final filteredZones = countryCode == null || countryCode!.isEmpty
+        ? <Map<String, dynamic>>[]
+        : zones
+            .where(
+              (z) =>
+                  _text(z['country_code'], '').toUpperCase() == countryCode,
+            )
+            .toList()
+          ..sort((a, b) {
+            final ac = _text(a['city'], _text(a['name'], ''));
+            final bc = _text(b['city'], _text(b['name'], ''));
+            return ac.compareTo(bc);
+          });
+    final selectedZoneId = filteredZones.any(
+      (z) => z['id']?.toString() == zoneId,
+    )
+        ? zoneId
+        : null;
     final documents = _maps(detail['documents']);
     final verifications = _maps(detail['identity_verifications']);
     final rating = _map(detail['rating_summary']);
@@ -610,10 +674,10 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                               spacing: 8,
                               runSpacing: 8,
                               children: [
-                                if (_text(driver['profile_photo_path'], '').isNotEmpty)
+                                if (profilePhotoPath.isNotEmpty)
                                   OutlinedButton.icon(
                                     onPressed: () => _openDriverAsset(
-                                      driver['profile_photo_path']?.toString(),
+                                      profilePhotoPath,
                                     ),
                                     icon: const Icon(Icons.account_circle_outlined),
                                     label: const Text('Ver foto de perfil'),
@@ -622,17 +686,27 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                   OutlinedButton.icon(
                                     onPressed: () => _openDriverAsset(vehiclePhotos[i]),
                                     icon: const Icon(Icons.directions_car_outlined),
-                                    label: Text('Vehículo ${i + 1}'),
+                                    label: Text('Foto vehículo ${i + 1}'),
                                   ),
                               ],
                             ),
-                            if (_text(driver['profile_photo_path'], '').isEmpty &&
-                                vehiclePhotos.isEmpty)
+                            if (profilePhotoPath.isEmpty && vehiclePhotos.isEmpty)
                               const Text(
                                 'El conductor todavía no cargó fotografías.',
                                 style: TextStyle(
                                   color: _detailMuted,
                                   fontSize: 11,
+                                ),
+                              )
+                            else if (vehiclePhotos.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.only(top: 8),
+                                child: Text(
+                                  'No hay fotos del vehículo cargadas.',
+                                  style: TextStyle(
+                                    color: _detailMuted,
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ),
                           ],
@@ -717,19 +791,31 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                     SizedBox(
                                       width: w,
                                       child: DropdownButtonFormField<String>(
-                                        initialValue: zoneId,
-                                        decoration: const InputDecoration(labelText: 'Zona'),
-                                        items: zones
+                                        initialValue: selectedCountryCode,
+                                        isExpanded: true,
+                                        decoration: const InputDecoration(labelText: 'País'),
+                                        items: countryCodes
                                             .map(
-                                              (z) => DropdownMenuItem<String>(
-                                                value: z['id']?.toString(),
+                                              (code) => DropdownMenuItem<String>(
+                                                value: code,
                                                 child: Text(
-                                                  _text(z['name']) + ' · ' + _text(z['currency_code']),
+                                                  (countriesByCode[code] ?? code) + ' · ' + code,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             )
                                             .toList(),
-                                        onChanged: (value) => setState(() => zoneId = value),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            countryCode = value;
+                                            final stillValid = zones.any(
+                                              (z) =>
+                                                  z['id']?.toString() == zoneId &&
+                                                  _text(z['country_code'], '').toUpperCase() == value,
+                                            );
+                                            if (!stillValid) zoneId = null;
+                                          });
+                                        },
                                       ),
                                     ),
                                   ],
@@ -737,14 +823,51 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                               },
                             ),
                             const SizedBox(height: 10),
-                            TextField(
-                              controller: license,
-                              decoration: const InputDecoration(labelText: 'Número de licencia'),
+                            DropdownButtonFormField<String>(
+                              initialValue: selectedZoneId,
+                              isExpanded: true,
+                              decoration: const InputDecoration(
+                                labelText: 'Zona / ciudad',
+                                hintText: 'Selecciona una zona del país',
+                              ),
+                              items: filteredZones
+                                  .map(
+                                    (z) => DropdownMenuItem<String>(
+                                      value: z['id']?.toString(),
+                                      child: Text(
+                                        _text(z['city'], _text(z['name'])) +
+                                            (_text(z['name'], '') ==
+                                                    _text(z['city'], '')
+                                                ? ''
+                                                : ' · ' + _text(z['name'])) +
+                                            ' · ' +
+                                            _text(z['region_department'], _text(z['currency_code'])),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: countryCode == null
+                                  ? null
+                                  : (value) {
+                                      setState(() {
+                                        zoneId = value;
+                                        final matches = zones.where(
+                                          (z) => z['id']?.toString() == value,
+                                        );
+                                        if (matches.isNotEmpty) {
+                                          countryCode = _text(
+                                            matches.first['country_code'],
+                                            countryCode!,
+                                          ).toUpperCase();
+                                        }
+                                      });
+                                    },
                             ),
                             const SizedBox(height: 10),
                             TextField(
-                              controller: city,
-                              decoration: const InputDecoration(labelText: 'Ciudad'),
+                              controller: license,
+                              decoration: const InputDecoration(labelText: 'Número de licencia'),
                             ),
                           ],
                         ),
