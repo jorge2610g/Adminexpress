@@ -1880,6 +1880,27 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                             ),
                           ),
                         );
+                        final refreshed = await _loadCountries();
+                        if (!context.mounted || refreshed.isEmpty) return;
+                        setLocal(() {
+                          countries = refreshed;
+                          final stillExists = countries.any(
+                            (countryRow) =>
+                                countryRow['country_code']
+                                    ?.toString()
+                                    .toUpperCase() ==
+                                selectedCountryCode,
+                          );
+                          if (!stillExists) {
+                            selectedCountryCode = countries.first['country_code']
+                                ?.toString()
+                                .toUpperCase();
+                            currency.text = countries.first['currency_code']
+                                    ?.toString()
+                                    .toUpperCase() ??
+                                currency.text;
+                          }
+                        });
                       },
                       icon: const Icon(Icons.settings_outlined, size: 17),
                       label: const Text('Administrar países'),
@@ -2482,8 +2503,13 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _MiniStatus(
-                          text: row['active'] == true ? 'Activa' : 'Inactiva',
-                          positive: row['active'] == true,
+                          text: row['country_active'] == false
+                              ? 'País OFF'
+                              : row['active'] == true
+                                  ? 'Activa'
+                                  : 'Inactiva',
+                          positive: row['active'] == true &&
+                              row['country_active'] != false,
                         ),
                         const SizedBox(width: 4),
                         IconButton(
