@@ -537,6 +537,17 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
   @override
   Widget build(BuildContext context) {
     final user = _map(detail['user']);
+    final driver = _map(detail['driver']);
+    final vehicles = _maps(detail['vehicles']);
+    final activeVehicle = vehicles.where((v) => v['is_active'] == true).isNotEmpty
+        ? vehicles.firstWhere((v) => v['is_active'] == true)
+        : (vehicles.isEmpty ? <String, dynamic>{} : vehicles.first);
+    final vehiclePhotos = activeVehicle['photo_paths'] is List
+        ? (activeVehicle['photo_paths'] as List)
+            .map((e) => e.toString())
+            .where((e) => e.trim().isNotEmpty)
+            .toList()
+        : <String>[];
     final documents = _maps(detail['documents']);
     final verifications = _maps(detail['identity_verifications']);
     final rating = _map(detail['rating_summary']);
@@ -589,6 +600,44 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                             ),
                           ),
                         ),
+                      _Section(
+                        title: 'Fotos para aprobación',
+                        icon: Icons.photo_library_outlined,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                if (_text(driver['profile_photo_path'], '').isNotEmpty)
+                                  OutlinedButton.icon(
+                                    onPressed: () => _openDriverAsset(
+                                      driver['profile_photo_path']?.toString(),
+                                    ),
+                                    icon: const Icon(Icons.account_circle_outlined),
+                                    label: const Text('Ver foto de perfil'),
+                                  ),
+                                for (var i = 0; i < vehiclePhotos.length; i++)
+                                  OutlinedButton.icon(
+                                    onPressed: () => _openDriverAsset(vehiclePhotos[i]),
+                                    icon: const Icon(Icons.directions_car_outlined),
+                                    label: Text('Vehículo ${i + 1}'),
+                                  ),
+                              ],
+                            ),
+                            if (_text(driver['profile_photo_path'], '').isEmpty &&
+                                vehiclePhotos.isEmpty)
+                              const Text(
+                                'El conductor todavía no cargó fotografías.',
+                                style: TextStyle(
+                                  color: _detailMuted,
+                                  fontSize: 11,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                       _Section(
                         title: 'Datos personales y operación',
                         icon: Icons.person_rounded,
