@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/driver-onboarding-documents
+      - feature/didit-sandbox-status
   workflow_dispatch:
 
 permissions:
