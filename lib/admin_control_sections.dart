@@ -8258,12 +8258,12 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
         content = _SettingsCard(
           title: 'Verificación de teléfono por SMS',
           subtitle:
-              'Control independiente para pasajeros y conductores. Déjalo apagado hasta configurar Twilio/SMS.',
+              'Control independiente para pasajeros y conductores. Preview prueba el proveedor; Producción solo aplica el bloqueo después de una OTP real confirmada.',
           children: [
             const _InlineNotice(
               icon: Icons.sms_outlined,
               text:
-                  'Con el switch apagado Express no enviará SMS ni bloqueará el uso de la app por teléfono sin verificar. Al activarlo, las cuentas nuevas y existentes de ese rol deberán verificar o cambiar su número.',
+                  'Al activarlo, Preview exige OTP inmediatamente. En Producción el switch queda preparado, pero el backend no bloqueará cuentas hasta que una verificación SMS real confirme que el proveedor está operativo.',
             ),
             const SizedBox(height: 8),
             SwitchListTile.adaptive(
