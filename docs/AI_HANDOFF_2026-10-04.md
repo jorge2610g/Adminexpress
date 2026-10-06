@@ -602,3 +602,44 @@ Backend compartido:
 - `admin_country_list`;
 - `admin_upsert_country_coverage`;
 - `admin_upsert_zone_v3`.
+
+
+---
+
+## 23. Ventana flotante de ofertas para conductor (decisión 2026-10-06)
+
+**Estado: PENDIENTE DE IMPLEMENTAR.**
+
+AdminExpress debe incorporar un switch global:
+
+**Permitir ventanas flotantes de ofertas**
+
+Contrato:
+- misma UI para Prueba/Producción;
+- cada entorno persiste su propio valor;
+- clave sugerida: `driver_floating_offer_enabled`;
+- ON habilita la posibilidad de uso en la app;
+- OFF impide overlays;
+- el switch Admin jamás concede el permiso Android del dispositivo.
+
+La app del conductor debe tener además su propio ajuste voluntario **Ventana flotante de ofertas** y solo funcionar si Android concedió **Mostrar sobre otras aplicaciones**.
+
+Condiciones efectivas:
+1. Admin ON;
+2. conductor ON;
+3. permiso Android ON;
+4. conductor online/disponible;
+5. oferta real vigente;
+6. app en segundo plano.
+
+Al rechazar o expirar, la ventana desaparece sin abrir Express. Al aceptar, la app valida backend y entra al viaje.
+
+No usar esta opción para publicidad, promociones, llamadas falsas o para saltarse políticas de full-screen intent.
+
+Documento específico Admin:
+- `docs/FLOATING_DRIVER_OFFERS_ADMIN.md`
+
+Contrato móvil:
+- `jorge2610g/Expressdelivery/docs/FLOATING_DRIVER_OFFERS.md`
+
+Otra IA debe tratar esto como requisito documentado, no como feature ya implementada.
