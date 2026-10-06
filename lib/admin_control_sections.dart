@@ -7948,6 +7948,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
   bool wallet = false;
   bool smsPassengerEnabled = false;
   bool smsDriverEnabled = false;
+  bool floatingOffersEnabled = false;
   bool rideEnabled = true;
   bool deliveryEnabled = true;
   String dispatchMode = 'broadcast';
@@ -7997,6 +7998,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           row['sms_verification_passenger_enabled'] == true;
       smsDriverEnabled =
           row['sms_verification_driver_enabled'] == true;
+      floatingOffersEnabled =
+          row['driver_floating_offer_enabled'] == true;
       rideEnabled = row['ride_enabled'] != false;
       deliveryEnabled = row['delivery_enabled'] != false;
       dispatchMode = (row['dispatch_mode'] ?? 'broadcast').toString();
@@ -8022,6 +8025,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
         'allow_wallet': wallet,
         'sms_verification_passenger_enabled': smsPassengerEnabled,
         'sms_verification_driver_enabled': smsDriverEnabled,
+        'driver_floating_offer_enabled': floatingOffersEnabled,
         'ride_enabled': rideEnabled,
         'delivery_enabled': deliveryEnabled,
         'dispatch_mode': dispatchMode,
@@ -8070,7 +8074,17 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                 next['sms_verification_driver_enabled'],
           },
         );
-        settings = _map(phoneSettings);
+        await supabase.rpc(
+          'admin_driver_floating_offer_update',
+          params: {
+            'p_enabled': next['driver_floating_offer_enabled'],
+          },
+        );
+        settings = {
+          ..._map(phoneSettings),
+          'driver_floating_offer_enabled':
+              next['driver_floating_offer_enabled'],
+        };
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -8288,6 +8302,23 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
               title: const Text('Verificación SMS · Conductores'),
               subtitle: const Text(
                 'Exige teléfono verificado para conectarse y enviar ofertas.',
+              ),
+            ),
+            const Divider(height: 1),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: floatingOffersEnabled,
+              onChanged: (value) =>
+                  setState(() => floatingOffersEnabled = value),
+              secondary:
+                  const Icon(Icons.picture_in_picture_alt_rounded),
+              title: const Text(
+                'Permitir ventanas flotantes de ofertas',
+              ),
+              subtitle: Text(
+                _environment.isPreview
+                    ? 'Preview: habilita la función para pruebas. Cada conductor todavía debe activar su switch y conceder manualmente el permiso Android “Mostrar sobre otras aplicaciones”.'
+                    : 'Producción: habilita la función globalmente. Este switch nunca concede permisos Android por el conductor.',
               ),
             ),
           ],
