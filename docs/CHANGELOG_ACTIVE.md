@@ -1,5 +1,12 @@
-## 2026-10-06 — PENDIENTE: ventana flotante de ofertas
+## 2026-10-06 — Ventana flotante de ofertas — implementada
 
+- Configuración → Seguridad incorpora **Permitir ventanas flotantes de ofertas**;
+- la misma UI respeta el selector Preview/Producción;
+- Preview persiste en `admin_environment_config` y queda ON para validar Express +155;
+- Producción persiste mediante RPC administrativa y queda OFF por defecto;
+- Admin jamás concede el permiso Android del conductor;
+- validación de separación Preview/Producción, `flutter analyze` y build web: SUCCESS;
+- despliegue AdminExpress: SUCCESS.
 
 ---
 
@@ -12,7 +19,7 @@
 - clave sugerida: `driver_floating_offer_enabled`;
 - alcance exclusivo: ofertas reales para conductor conectado;
 - documento: `docs/FLOATING_DRIVER_OFFERS_ADMIN.md`;
-- estado: **PENDIENTE DE IMPLEMENTAR**; no mostrar como funcional hasta que app/backend consuman el ajuste.
+- estado: **IMPLEMENTADO**; Preview ON para QA de +155 y Producción OFF por defecto.
 
 - se documenta futuro switch global **Permitir ventanas flotantes de ofertas**;
 - debe respetar selector Prueba/Producción y el aislamiento de configuración;
@@ -20,7 +27,7 @@
 - el conductor conserva un switch individual y consentimiento explícito en Android;
 - con Admin OFF no se muestran overlays aunque el permiso del teléfono siga concedido;
 - implementación móvil y permiso nativo se realizan en Expressdelivery;
-- estado: pendiente de implementación/QA; Producción no se modifica por esta documentación.
+- estado: implementado en AdminExpress; Producción móvil continúa deshabilitada.
 
 ---
 
