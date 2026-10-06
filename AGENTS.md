@@ -8,6 +8,7 @@ Este repositorio es el panel administrativo web de Express. Este archivo está d
 2. `docs/START_HERE_ADMINEXPRESS.md`
 3. `docs/admin-preview-production.md`
 4. `docs/CHANGELOG_ACTIVE.md`
+5. `docs/FLOATING_DRIVER_OFFERS_ADMIN.md` — control Admin de ofertas sobre otras apps
 
 El handoff de 2026-10-04 es el estado más reciente y prevalece sobre documentación histórica contradictoria.
 
