@@ -1,6 +1,6 @@
 # AdminExpress — control de ventana flotante de ofertas
 
-> Estado: **PENDIENTE DE IMPLEMENTAR**
+> Estado: **IMPLEMENTADO Y DESPLEGADO · PRODUCCIÓN DESHABILITADA POR DEFECTO**
 > Fecha de decisión: 2026-10-06
 > Feature móvil objetivo: Preview **1.6.0+155**
 
@@ -83,6 +83,12 @@ Cualquier implementación debe coordinar:
 
 ## Estado
 
-**NO IMPLEMENTADO.**
+**IMPLEMENTADO.**
 
-No mostrar el switch como funcional hasta que el backend/configuración y la app móvil lo consuman realmente.
+- UI: Configuración → Seguridad → **Permitir ventanas flotantes de ofertas**.
+- Preview escribe solo el shadow `admin_environment_config`.
+- Producción usa `admin_driver_floating_offer_update(boolean)`.
+- Preview queda ON para validar Express +155.
+- Producción queda OFF hasta habilitación explícita del propietario.
+- Admin no puede conceder ni forzar `SYSTEM_ALERT_WINDOW`; ese permiso sigue siendo decisión del conductor en Android.
+- Validación Preview/Producción y build web de AdminExpress quedaron en success el 2026-10-06.
