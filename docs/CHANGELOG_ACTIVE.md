@@ -1,3 +1,15 @@
+## 2026-10-06 — PENDIENTE: ventana flotante de ofertas
+
+- se documenta futuro switch global **Permitir ventanas flotantes de ofertas**;
+- debe respetar selector Prueba/Producción y el aislamiento de configuración;
+- Admin solo habilita/disponibiliza la función: nunca concede ni fuerza el permiso Android de superposición;
+- el conductor conserva un switch individual y consentimiento explícito en Android;
+- con Admin OFF no se muestran overlays aunque el permiso del teléfono siga concedido;
+- implementación móvil y permiso nativo se realizan en Expressdelivery;
+- estado: pendiente de implementación/QA; Producción no se modifica por esta documentación.
+
+---
+
 # Adminexpress — Changelog activo
 
 ---
