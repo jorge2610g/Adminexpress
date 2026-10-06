@@ -643,3 +643,23 @@ Contrato móvil:
 - `jorge2610g/Expressdelivery/docs/FLOATING_DRIVER_OFFERS.md`
 
 Otra IA debe tratar esto como requisito documentado, no como feature ya implementada.
+
+
+## 23. PENDIENTE +155 — Control administrativo de ventana flotante de ofertas
+
+Decisión coordinada con `Expressdelivery`:
+
+- agregar en Adminexpress un switch global **Permitir ventanas flotantes de ofertas**;
+- el control debe respetar el selector global **Prueba / Producción** y usar la misma UI en ambos entornos;
+- en Prueba solo modifica configuración Preview/shadow; en Producción modifica la configuración real únicamente cuando el administrador lo haga explícitamente;
+- el switch de Admin **no concede** el permiso Android `SYSTEM_ALERT_WINDOW`; solo habilita o deshabilita la disponibilidad de la función;
+- cada conductor tendrá además su propio switch en la app y deberá conceder manualmente **Mostrar sobre otras aplicaciones** en Android;
+- si Admin está OFF, la app no debe mostrar overlays aunque el conductor conserve el permiso Android;
+- si Admin está ON pero el conductor no activó la función o no concedió el permiso, no se fuerza ninguna superposición;
+- la ventana solo aplica a solicitudes reales/vigentes para conductores online y debe cerrarse al rechazar, expirar, quedar offline o invalidarse la solicitud;
+- aceptar debe abrir Express directamente en la solicitud/viaje real;
+- no reutilizar esta función para publicidad/promociones ni para simular llamadas;
+- implementación móvil vive en `Expressdelivery`; Adminexpress solo administra el feature flag global y su estado por entorno.
+
+**Estado:** pendiente de implementación. Debe coordinarse con la nueva base Android Preview +155 (o siguiente base nativa) y quedar documentado en ambos repos.
+
