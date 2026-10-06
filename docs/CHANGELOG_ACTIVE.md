@@ -1,5 +1,19 @@
 ## 2026-10-06 — PENDIENTE: ventana flotante de ofertas
 
+
+---
+
+## 2026-10-06 — Ventana flotante de ofertas — requisito
+
+- documentado switch Admin **Permitir ventanas flotantes de ofertas**;
+- debe respetar selector Prueba/Producción y persistencia separada;
+- Admin solo habilita la capacidad: no concede el permiso Android;
+- el conductor mantiene decisión local y voluntaria por dispositivo;
+- clave sugerida: `driver_floating_offer_enabled`;
+- alcance exclusivo: ofertas reales para conductor conectado;
+- documento: `docs/FLOATING_DRIVER_OFFERS_ADMIN.md`;
+- estado: **PENDIENTE DE IMPLEMENTAR**; no mostrar como funcional hasta que app/backend consuman el ajuste.
+
 - se documenta futuro switch global **Permitir ventanas flotantes de ofertas**;
 - debe respetar selector Prueba/Producción y el aislamiento de configuración;
 - Admin solo habilita/disponibiliza la función: nunca concede ni fuerza el permiso Android de superposición;
