@@ -223,6 +223,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   String? usersCity;
   String? usersRegionDepartment;
 
+  String? adminCountryCode;
+  String? adminZoneId;
+
   Future<bool>? _authFuture;
   Future<({Map<String, dynamic> state, List<Map<String, dynamic>> zones})>?
       _liveFuture;
@@ -287,15 +290,24 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     List<Map<String, dynamic>> scoped(String key) =>
         _list(state[key]).where(belongsToEnvironment).toList();
 
+    final zoneIds = await _geoScopeZoneIds();
     final drivers = await _drivers();
     final users = await _users();
     final tripsToday = await _trips();
     final deliveriesToday = await _deliveries();
 
-    final activeTrips = scoped('active_trips');
-    final activeDeliveries = scoped('active_deliveries');
-    final emergencies = scoped('emergencies');
-    final activity = scoped('activity');
+    final activeTrips = scoped('active_trips')
+        .where((row) => _matchesGeoScope(row, zoneIds))
+        .toList();
+    final activeDeliveries = scoped('active_deliveries')
+        .where((row) => _matchesGeoScope(row, zoneIds))
+        .toList();
+    final emergencies = scoped('emergencies')
+        .where((row) => _matchesGeoScope(row, zoneIds))
+        .toList();
+    final activity = scoped('activity')
+        .where((row) => _matchesGeoScope(row, zoneIds))
+        .toList();
 
     final metrics = _map(state['metrics']);
     metrics['users_total'] = users.length;
@@ -330,18 +342,57 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       _liveState() async {
     final state = await _dashboardState();
     final environment = AdminEnvironmentStore(adminChannel);
-    final zones = environment.isPreview
+    final allZones = environment.isPreview
         ? await environment.previewList('service_zones')
         : _list(await supabase.rpc('admin_zone_list'));
+    final zones = adminCountryCode == null
+        ? allZones
+        : allZones
+            .where((row) => _zoneCountryCode(row) == adminCountryCode)
+            .toList();
     return (state: state, zones: zones);
+  }
+
+  String _zoneCountryCode(Map<String, dynamic> row) {
+    final direct = row['country_code']?.toString().trim().toUpperCase();
+    if (direct != null && direct.isNotEmpty) return direct;
+    final country = row['country']?.toString().trim().toLowerCase() ?? '';
+    if (country == 'chile') return 'CL';
+    if (country == 'bolivia') return 'BO';
+    return country.toUpperCase();
+  }
+
+  Future<Set<String>> _geoScopeZoneIds() async {
+    if (adminZoneId != null && adminZoneId!.isNotEmpty) {
+      return {adminZoneId!};
+    }
+    final country = adminCountryCode;
+    if (country == null || country.isEmpty) return <String>{};
+    final zones = await _filterZones();
+    return zones
+        .where((row) => _zoneCountryCode(row) == country)
+        .map((row) => row['id']?.toString())
+        .whereType<String>()
+        .where((value) => value.isNotEmpty)
+        .toSet();
+  }
+
+  bool _matchesGeoScope(Map<String, dynamic> row, Set<String> zoneIds) {
+    if (zoneIds.isEmpty) {
+      return adminCountryCode == null && adminZoneId == null;
+    }
+    final zoneId = row['zone_id']?.toString();
+    return zoneId != null && zoneIds.contains(zoneId);
   }
 
   Future<List<Map<String, dynamic>>> _drivers() async {
     final value = await supabase.rpc('admin_driver_list_v2');
     final rows = _list(value);
     final preview = adminChannel == 'preview';
+    final zoneIds = await _geoScopeZoneIds();
     return rows
         .where((row) => (row['is_qa'] == true) == preview)
+        .where((row) => _matchesGeoScope(row, zoneIds))
         .toList();
   }
 
@@ -396,7 +447,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     final value = await supabase.rpc(
       'admin_user_list_v3',
       params: {
-        'p_zone_id': usersZoneId,
+        'p_zone_id': adminZoneId ?? usersZoneId,
         'p_city': usersCity,
         'p_region_department': usersRegionDepartment,
         'p_country': null,
@@ -407,8 +458,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     );
     final rows = _list(value);
     final preview = adminChannel == 'preview';
+    final zoneIds = await _geoScopeZoneIds();
     return rows
         .where((row) => (row['is_qa'] == true) == preview)
+        .where((row) => _matchesGeoScope(row, zoneIds))
         .toList();
   }
 
@@ -420,13 +473,15 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         'p_channel': adminChannel,
         'p_from': range.from.toUtc().toIso8601String(),
         'p_to': range.to.toUtc().toIso8601String(),
-        'p_zone_id': null,
+        'p_zone_id': adminZoneId,
         'p_status': null,
         'p_limit': 200,
         'p_offset': 0,
       },
     );
-    return _list(value);
+    final rows = _list(value);
+    final zoneIds = await _geoScopeZoneIds();
+    return rows.where((row) => _matchesGeoScope(row, zoneIds)).toList();
   }
 
   Future<List<Map<String, dynamic>>> _deliveries() async {
@@ -442,7 +497,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         'p_offset': 0,
       },
     );
-    return _list(value);
+    final rows = _list(value);
+    final zoneIds = await _geoScopeZoneIds();
+    return rows.where((row) => _matchesGeoScope(row, zoneIds)).toList();
   }
 
   Widget _periodFilter(String target) {
@@ -655,6 +712,150 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               ),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  Widget _globalGeoScopeSwitcher() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _filterZones(),
+      builder: (context, snapshot) {
+        final zones = snapshot.data ?? const <Map<String, dynamic>>[];
+        final countries = <String, String>{};
+        for (final zone in zones) {
+          final code = _zoneCountryCode(zone);
+          if (code.isEmpty) continue;
+          final name = zone['country']?.toString().trim();
+          countries[code] = (name != null && name.isNotEmpty) ? name : code;
+        }
+        final countryCodes = countries.keys.toList()
+          ..sort((a, b) => countries[a]!.compareTo(countries[b]!));
+        final scopedZones = adminCountryCode == null
+            ? zones
+            : zones
+                .where((row) => _zoneCountryCode(row) == adminCountryCode)
+                .toList();
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(18, 9, 18, 9),
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8FAFC),
+            border: Border(
+              bottom: BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+          ),
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.public_rounded, size: 18, color: adminBlue),
+                  SizedBox(width: 6),
+                  Text(
+                    'Ámbito',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: adminDark,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(
+                width: 190,
+                child: DropdownButtonFormField<String?>(
+                  value: adminCountryCode,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    labelText: 'País',
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Todos los países'),
+                    ),
+                    ...countryCodes.map(
+                      (code) => DropdownMenuItem<String?>(
+                        value: code,
+                        child: Text(countries[code] ?? code),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      adminCountryCode = value;
+                      adminZoneId = null;
+                      liveZoneId = null;
+                      revision++;
+                      _liveFuture = _liveState();
+                    });
+                  },
+                ),
+              ),
+              SizedBox(
+                width: 220,
+                child: DropdownButtonFormField<String?>(
+                  value: adminZoneId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    labelText: 'Zona',
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Todas las zonas'),
+                    ),
+                    ...scopedZones.map(
+                      (row) => DropdownMenuItem<String?>(
+                        value: row['id']?.toString(),
+                        child: Text(
+                          (row['name'] ?? 'Zona').toString() +
+                              ' · ' +
+                              (row['city'] ?? '').toString(),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      adminZoneId = value;
+                      liveZoneId = value;
+                      if (value != null) {
+                        final zone = zones.firstWhere(
+                          (row) => row['id']?.toString() == value,
+                        );
+                        adminCountryCode = _zoneCountryCode(zone);
+                      }
+                      revision++;
+                      _liveFuture = _liveState();
+                    });
+                  },
+                ),
+              ),
+              if (adminCountryCode != null || adminZoneId != null)
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      adminCountryCode = null;
+                      adminZoneId = null;
+                      liveZoneId = null;
+                      revision++;
+                      _liveFuture = _liveState();
+                    });
+                  },
+                  icon: const Icon(Icons.clear_all_rounded, size: 17),
+                  label: const Text('Ver todo'),
+                ),
+            ],
+          ),
         );
       },
     );
@@ -896,6 +1097,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                             onExit: widget.onExit,
                           ),
                         _environmentSwitcher(),
+                        _globalGeoScopeSwitcher(),
                         Expanded(child: _body(section)),
                       ],
                     ),
@@ -939,7 +1141,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 12:
         return const AdminBuildsPage();
       case 13:
-        return AdminDispatchPage(channel: adminChannel);
+        return AdminDispatchPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 14:
         return AdminEnvironmentAuditPage(channel: adminChannel);
       case 15:
@@ -961,11 +1167,20 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 23:
         return AdminMarketplacePage(channel: adminChannel);
       case 24:
-        return AdminMarketplacePhase2Page(channel: adminChannel);
+        return AdminMarketplacePhase2Page(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 25:
         return AdminDriverPriorityPage(channel: adminChannel);
       case 26:
-        return AdminMarketplacePhase2Page(ordersOnly: true, channel: adminChannel);
+        return AdminMarketplacePhase2Page(
+          ordersOnly: true,
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 27:
         return AdminDiditPage(channel: adminChannel);
       case 28:
@@ -1203,7 +1418,20 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               _LiveZoneStrip(
                 zones: zones,
                 selectedZoneId: liveZoneId,
-                onSelected: (value) => setState(() => liveZoneId = value),
+                onSelected: (value) {
+                  setState(() {
+                    liveZoneId = value;
+                    adminZoneId = value;
+                    if (value != null) {
+                      final zone = zones.firstWhere(
+                        (row) => row['id']?.toString() == value,
+                      );
+                      adminCountryCode = _zoneCountryCode(zone);
+                    }
+                    revision++;
+                    _liveFuture = _liveState();
+                  });
+                },
               ),
               const SizedBox(height: 12),
               Expanded(
