@@ -41,6 +41,23 @@ Cambios inmediatamente recientes:
 
 ---
 
+## 2.1 Runtime Scope Admin · 2026-10-07
+
+**REGLA VIGENTE:**
+
+Adminexpress sigue usando una sola interfaz, pero el selector global **Prueba / Producción** ahora es una frontera dura de datos.
+
+- el contexto efectivo es: `admin + environment + country + zone`;
+- cambiar entorno debe reconstruir el subárbol de contenido y no conservar futures, realtime ni estado Stateful del entorno anterior;
+- Preview usa configuración shadow/QA; Producción usa datos reales;
+- operaciones sensibles deben enviar `p_channel` y el backend valida que la cuenta/registro objetivo pertenezca al mismo runtime;
+- `admin_access_context` devuelve `allow_preview`, `allow_production`, `allowed_environments` y `default_environment`;
+- `admin_users.allow_preview/allow_production` controla autorización por entorno; no hace falta duplicar el correo administrador;
+- Producción requiere confirmación visual antes de cambiar desde Prueba;
+- `AdminRuntimeScope` es la identidad de caché/UI para el workspace activo;
+- herramientas puramente QA pueden mantener la misma ruta, pero en Producción no deben consultar ni mostrar datos Preview;
+- App Builder muestra únicamente artefactos del entorno seleccionado; el release gate sigue enlazando Preview aprobado con Producción por SHA.
+
 ## 3. Arquitectura visual
 
 Archivos principales:
