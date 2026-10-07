@@ -3790,10 +3790,14 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
 
 class AdminIdentitySecurityPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminIdentitySecurityPage({
     super.key,
     this.channel = 'production',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -3815,15 +3819,46 @@ class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
         _environment.previewGet('identity_verification_settings'),
         _environment.previewList('identity_verifications'),
       ]);
+      final rows = (values[1] as List<Map<String, dynamic>>).where((row) {
+        final selectedZone = widget.zoneId;
+        final selectedCountry = widget.countryCode?.trim().toUpperCase();
+        final rowZone =
+            (row['scope_zone_id'] ?? row['zone_id'])?.toString().trim();
+        final rowCountry =
+            (row['scope_country_code'] ?? row['country_code'])
+                ?.toString()
+                .trim()
+                .toUpperCase();
+
+        if (selectedZone != null && selectedZone.isNotEmpty) {
+          if (rowZone != null && rowZone.isNotEmpty) {
+            return rowZone == selectedZone;
+          }
+          return rowCountry == selectedCountry;
+        }
+        if (selectedCountry != null && selectedCountry.isNotEmpty) {
+          return rowCountry == selectedCountry;
+        }
+        return false;
+      }).toList();
       return (
         settings: values[0] as Map<String, dynamic>,
-        verifications: values[1] as List<Map<String, dynamic>>,
+        verifications: rows,
       );
     }
 
     final values = await Future.wait([
       supabase.rpc('admin_identity_settings_get'),
-      supabase.rpc('admin_identity_verification_list', params: {'p_limit': 200}),
+      supabase.rpc(
+        'admin_identity_verification_list_scoped',
+        params: {
+          'p_limit': 200,
+          'p_country_code': widget.countryCode,
+          'p_zone_id': widget.zoneId,
+          'p_provider': null,
+          'p_provider_environment': null,
+        },
+      ),
     ]);
     return (
       settings: _map(values[0]),
@@ -4162,7 +4197,11 @@ class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
               ],
             ),
             const SizedBox(height: 16),
-            AdminDriverDocumentRequirementsPanel(channel: widget.channel),
+            AdminDriverDocumentRequirementsPanel(
+              channel: widget.channel,
+              countryCode: widget.countryCode,
+              zoneId: widget.zoneId,
+            ),
             const SizedBox(height: 16),
             LayoutBuilder(
               builder: (context, constraints) {
