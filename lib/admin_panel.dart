@@ -1176,11 +1176,23 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 6:
         return _security();
       case 7:
-        return AdminZonesPage(channel: adminChannel);
+        return AdminZonesPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 8:
-        return AdminFaresPage(channel: adminChannel);
+        return AdminFaresPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 9:
-        return AdminPaymentsPage(channel: adminChannel);
+        return AdminPaymentsPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 10:
         return AdminEnvironmentReportsPage(channel: adminChannel);
       case 11:
@@ -1198,9 +1210,17 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 15:
         return AdminCommunicationsPage(channel: adminChannel);
       case 16:
-        return AdminServicesPage(channel: adminChannel);
+        return AdminServicesPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 17:
-        return AdminGeoSafetyPage(channel: adminChannel);
+        return AdminGeoSafetyPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 18:
         return AdminIdentitySecurityPage(channel: adminChannel);
       case 19:
