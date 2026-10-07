@@ -7,6 +7,7 @@ on:
       - feature/delivery-modules-merchant-dashboard
       - refactor/unified-preview-production-panel
       - fix/admin-live-channel-badges-20261006
+      - fix/admin-geo-scope-identity-20261007
   workflow_dispatch:
 
 permissions:
@@ -39,9 +40,9 @@ jobs:
           grep -q "AdminSettingsPage(channel: adminChannel)" lib/admin_panel.dart
           grep -q "AdminServicesPage(" lib/admin_panel.dart
           grep -q "AdminGeoSafetyPage(" lib/admin_panel.dart
-          grep -q "AdminIdentitySecurityPage(channel: adminChannel)" lib/admin_panel.dart
+          grep -q "AdminIdentitySecurityPage(" lib/admin_panel.dart
           grep -q "AdminAdvancedSettingsPage(channel: adminChannel)" lib/admin_panel.dart
-          grep -q "AdminDriverSubscriptionsPage(channel: adminChannel)" lib/admin_panel.dart
+          grep -q "AdminDriverSubscriptionsPage(" lib/admin_panel.dart
 
       - name: Analyze admin modules
         run: |
@@ -52,6 +53,9 @@ jobs:
             lib/admin_environment_store.dart \
             lib/admin_marketplace.dart \
             lib/admin_marketplace_phase2.dart \
-            lib/admin_driver_priority.dart
+            lib/admin_driver_priority.dart \
+            lib/admin_dynamic_pricing.dart \
+            lib/admin_didit.dart \
+            lib/admin_driver_document_requirements.dart
       - name: Build admin web smoke test
         run: flutter build web --release

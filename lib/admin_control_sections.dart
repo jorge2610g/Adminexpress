@@ -3790,10 +3790,14 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
 
 class AdminIdentitySecurityPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminIdentitySecurityPage({
     super.key,
     this.channel = 'production',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -3815,15 +3819,46 @@ class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
         _environment.previewGet('identity_verification_settings'),
         _environment.previewList('identity_verifications'),
       ]);
+      final rows = (values[1] as List<Map<String, dynamic>>).where((row) {
+        final selectedZone = widget.zoneId;
+        final selectedCountry = widget.countryCode?.trim().toUpperCase();
+        final rowZone =
+            (row['scope_zone_id'] ?? row['zone_id'])?.toString().trim();
+        final rowCountry =
+            (row['scope_country_code'] ?? row['country_code'])
+                ?.toString()
+                .trim()
+                .toUpperCase();
+
+        if (selectedZone != null && selectedZone.isNotEmpty) {
+          if (rowZone != null && rowZone.isNotEmpty) {
+            return rowZone == selectedZone;
+          }
+          return rowCountry == selectedCountry;
+        }
+        if (selectedCountry != null && selectedCountry.isNotEmpty) {
+          return rowCountry == selectedCountry;
+        }
+        return false;
+      }).toList();
       return (
         settings: values[0] as Map<String, dynamic>,
-        verifications: values[1] as List<Map<String, dynamic>>,
+        verifications: rows,
       );
     }
 
     final values = await Future.wait([
       supabase.rpc('admin_identity_settings_get'),
-      supabase.rpc('admin_identity_verification_list', params: {'p_limit': 200}),
+      supabase.rpc(
+        'admin_identity_verification_list_scoped',
+        params: {
+          'p_limit': 200,
+          'p_country_code': widget.countryCode,
+          'p_zone_id': widget.zoneId,
+          'p_provider': null,
+          'p_provider_environment': null,
+        },
+      ),
     ]);
     return (
       settings: _map(values[0]),
@@ -4162,7 +4197,11 @@ class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
               ],
             ),
             const SizedBox(height: 16),
-            AdminDriverDocumentRequirementsPanel(channel: widget.channel),
+            AdminDriverDocumentRequirementsPanel(
+              channel: widget.channel,
+              countryCode: widget.countryCode,
+              zoneId: widget.zoneId,
+            ),
             const SizedBox(height: 16),
             LayoutBuilder(
               builder: (context, constraints) {
@@ -7101,10 +7140,14 @@ class _AdminPaymentNotice extends StatelessWidget {
 
 class AdminCommunicationsPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminCommunicationsPage({
     super.key,
     this.channel = 'production',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -7138,13 +7181,23 @@ class _AdminCommunicationsPageState
   Future<void> _loadCampaignTargets() async {
     try {
       final values = await Future.wait([
-        supabase.rpc('admin_zone_list_v2'),
-        supabase.rpc('admin_partner_list'),
+        supabase.rpc(
+          'admin_zone_list_for_country',
+          params: {'p_country_code': widget.countryCode},
+        ),
+        supabase.rpc(
+          'admin_partner_list',
+          params: {'p_zone_id': widget.zoneId},
+        ),
       ]);
       if (!mounted) return;
+      final scopedZones = _list(values[0])
+          .where((row) => row['id']?.toString() == widget.zoneId)
+          .toList();
       setState(() {
-        campaignZones = _list(values[0]);
+        campaignZones = scopedZones;
         campaignPartners = _list(values[1]);
+        campaignZoneId = widget.zoneId;
         loadingCampaignTargets = false;
       });
     } catch (_) {
@@ -7161,9 +7214,14 @@ class _AdminCommunicationsPageState
   }
 
   Future<List<Map<String, dynamic>>> _threads() async {
+    final zoneId = widget.zoneId;
+    if (zoneId == null || zoneId.isEmpty) return const [];
     final value = await supabase.rpc(
-      'admin_support_threads_v2',
-      params: {'p_channel': widget.channel},
+      'admin_support_threads_scoped',
+      params: {
+        'p_channel': widget.channel,
+        'p_zone_id': zoneId,
+      },
     );
     return _list(value);
   }
@@ -7217,10 +7275,13 @@ class _AdminCommunicationsPageState
   }
 
   Future<List<Map<String, dynamic>>> _campaignHistory() async {
+    final zoneId = widget.zoneId;
+    if (zoneId == null || zoneId.isEmpty) return const [];
     final value = await supabase.rpc(
-      'admin_notification_campaign_list_v2',
+      'admin_notification_campaign_list_scoped',
       params: {
         'p_channel': widget.channel,
+        'p_zone_id': zoneId,
         'p_from': null,
         'p_to': null,
         'p_limit': 100,
@@ -7671,13 +7732,9 @@ class _AdminCommunicationsPageState
                 decoration: const InputDecoration(
                   labelText: 'Zona',
                   helperText:
-                      'Déjalo en Todas para enviar a todas las zonas.',
+                      'Bloqueada al ámbito seleccionado en la barra superior.',
                 ),
                 items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('Todas las zonas'),
-                  ),
                   ...campaignZones.map(
                     (zone) => DropdownMenuItem<String?>(
                       value: zone['id']?.toString(),
@@ -7689,24 +7746,7 @@ class _AdminCommunicationsPageState
                     ),
                   ),
                 ],
-                onChanged: loadingCampaignTargets
-                    ? null
-                    : (value) => setState(() {
-                          campaignZoneId = value;
-                          if (campaignPartnerId != null) {
-                            final selected = campaignPartners.where(
-                              (partner) =>
-                                  partner['id']?.toString() ==
-                                  campaignPartnerId,
-                            );
-                            if (selected.isNotEmpty &&
-                                value != null &&
-                                selected.first['zone_id']?.toString() !=
-                                    value) {
-                              campaignPartnerId = null;
-                            }
-                          }
-                        }),
+                onChanged: null,
               ),
               if (audience == 'drivers' && campaignPartners.isNotEmpty) ...[
                 const SizedBox(height: 12),

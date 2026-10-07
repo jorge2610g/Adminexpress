@@ -4,10 +4,14 @@ import 'core/supabase_client.dart';
 
 class AdminDynamicPricingPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminDynamicPricingPage({
     super.key,
     this.channel = 'preview',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -25,7 +29,17 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
   }
 
   Future<Map<String, dynamic>> _load() async {
-    final raw = await supabase.rpc('admin_dynamic_pricing_qa_state');
+    final zoneId = widget.zoneId;
+    if (zoneId == null || zoneId.isEmpty) {
+      return <String, dynamic>{
+        'settings': <String, dynamic>{},
+        'cities': <Map<String, dynamic>>[],
+      };
+    }
+    final raw = await supabase.rpc(
+      'admin_dynamic_pricing_qa_state_scoped',
+      params: {'p_zone_id': zoneId},
+    );
     return raw is Map
         ? Map<String, dynamic>.from(raw)
         : <String, dynamic>{};

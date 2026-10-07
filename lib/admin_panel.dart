@@ -1208,7 +1208,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 14:
         return AdminEnvironmentAuditPage(channel: adminChannel);
       case 15:
-        return AdminCommunicationsPage(channel: adminChannel);
+        return AdminCommunicationsPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 16:
         return AdminServicesPage(
           channel: adminChannel,
@@ -1222,7 +1226,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 18:
-        return AdminIdentitySecurityPage(channel: adminChannel);
+        return AdminIdentitySecurityPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 19:
         return AdminAdvancedSettingsPage(channel: adminChannel);
       case 20:
@@ -1230,9 +1238,17 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 21:
         return AdminLoadLabPage(channel: adminChannel);
       case 22:
-        return AdminDriverSubscriptionsPage(channel: adminChannel);
+        return AdminDriverSubscriptionsPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 23:
-        return AdminMarketplacePage(channel: adminChannel);
+        return AdminMarketplacePage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 24:
         return AdminMarketplacePhase2Page(
           channel: adminChannel,
@@ -1240,7 +1256,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 25:
-        return AdminDriverPriorityPage(channel: adminChannel);
+        return AdminDriverPriorityPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 26:
         return AdminMarketplacePhase2Page(
           ordersOnly: true,
@@ -1249,9 +1269,17 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 27:
-        return AdminDiditPage(channel: adminChannel);
+        return AdminDiditPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 28:
-        return AdminDynamicPricingPage(channel: adminChannel);
+        return AdminDynamicPricingPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       default:
         return const SizedBox.shrink();
     }

@@ -12,10 +12,14 @@ const _bg = Color(0xFFF1F5F9);
 
 class AdminDriverPriorityPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminDriverPriorityPage({
     super.key,
     this.channel = 'preview',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -33,9 +37,19 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
   }
 
   Future<Map<String, dynamic>> _load() async {
+    final zoneId = widget.zoneId;
+    if (zoneId == null || zoneId.isEmpty) {
+      return <String, dynamic>{
+        'settings': <String, dynamic>{},
+        'drivers': <Map<String, dynamic>>[],
+      };
+    }
     final value = await supabase.rpc(
-      'admin_driver_priority_state_v2',
-      params: {'p_channel': widget.channel},
+      'admin_driver_priority_state_scoped',
+      params: {
+        'p_channel': widget.channel,
+        'p_zone_id': zoneId,
+      },
     );
     return value is Map
         ? Map<String, dynamic>.from(value)
