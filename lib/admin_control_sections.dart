@@ -9486,75 +9486,33 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
         (patch + 1).toString();
   }
 
-  Future<void> _create({required bool production}) async {
-    List<Map<String, dynamic>> existing = const [];
-    try {
-      existing = await _load();
-    } catch (_) {}
+  Future<void> _createCandidate() async {
+    final version = releaseGate['preview_version_name']?.toString().trim();
+    final sha = releaseGate['preview_commit_sha']?.toString().trim();
+    final nextBuildRaw = releaseGate['next_production_build_number'];
+    final nextBuild = nextBuildRaw is num
+        ? nextBuildRaw.toInt()
+        : int.tryParse(nextBuildRaw?.toString() ?? '');
 
-    final android = existing
-        .where((row) =>
-            row['platform']?.toString() == 'android' &&
-            row['artifact_type']?.toString() == 'apk+aab')
-        .toList()
-      ..sort((a, b) {
-        final aBuild = a['build_number'] is num
-            ? (a['build_number'] as num).toInt()
-            : int.tryParse(a['build_number']?.toString() ?? '') ?? 0;
-        final bBuild = b['build_number'] is num
-            ? (b['build_number'] as num).toInt()
-            : int.tryParse(b['build_number']?.toString() ?? '') ?? 0;
-        return bBuild.compareTo(aBuild);
-      });
-
-    final latestBuild = android.fold<int>(
-      119,
-      (value, row) {
-        final raw = row['build_number'];
-        final n = raw is num ? raw.toInt() : int.tryParse(raw?.toString() ?? '');
-        return n != null && n > value ? n : value;
-      },
-    );
-    final latestVersion = android.isNotEmpty
-        ? android.first['version_name']?.toString() ?? '1.5.78'
-        : '1.5.78';
-
-    final previewApproved = releaseGate['preview_approved'] == true;
-    if (production && !previewApproved) {
+    if (version == null ||
+        version.isEmpty ||
+        sha == null ||
+        sha.isEmpty ||
+        nextBuild == null) {
       _snack(
         context,
-        'Producción bloqueada: primero compila y aprueba una Preview.',
+        'No hay una revisión Android fijada todavía para generar el candidato.',
       );
       return;
     }
 
-    final previewVersion = releaseGate['preview_version_name']?.toString();
-    final previewBuildRaw = releaseGate['preview_build_number'];
-    final previewBuild = previewBuildRaw is num
-        ? previewBuildRaw.toInt()
-        : int.tryParse(previewBuildRaw?.toString() ?? '');
-
-    final suggestedVersion = production && previewVersion != null
-        ? previewVersion
-        : _nextPatchVersion(latestVersion);
-    final suggestedBuild = production && previewBuild != null
-        ? previewBuild
-        : latestBuild + 1;
-
-    final version = TextEditingController(text: suggestedVersion);
-    final build = TextEditingController(text: suggestedBuild.toString());
     final changelog = TextEditingController();
-
     final save = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(
-          production
-              ? 'Compilar Producción aprobada'
-              : 'Compilar Express Preview',
-        ),
+        title: const Text('Generar candidato Android'),
         content: SizedBox(
-          width: 500,
+          width: 520,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -9562,51 +9520,22 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: production
-                      ? const Color(0xFFE8F8EF)
-                      : const Color(0xFFEAF2FF),
+                  color: const Color(0xFFEAF2FF),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  production
-                      ? 'Producción usará exactamente el SHA de la Preview que aprobaste.'
-                      : 'Preview usa el paquete separado com.express.usuario.preview y no reemplaza Producción.',
+                  'Se generarán APK + AAB de com.express.usuario1 desde el mismo SHA fijado para QA. '
+                  'Si las pruebas pasan, estos mismos artefactos se promoverán a Producción sin recompilar.\n\n'
+                  'Versión: $version · build $nextBuild\nSHA: $sha',
                   style: const TextStyle(
                     fontSize: 11,
                     color: _dark,
-                    height: 1.35,
+                    height: 1.4,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: version,
-                readOnly: production,
-                decoration: InputDecoration(
-                  labelText: 'Versión',
-                  helperText: production
-                      ? 'La misma versión de la Preview aprobada.'
-                      : 'Sugerida desde la última producción v' +
-                          latestVersion +
-                          '.',
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: build,
-                readOnly: production,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Build number',
-                  helperText: production
-                      ? 'El mismo build de la Preview aprobada.'
-                      : 'Siguiente build sugerido: ' +
-                          suggestedBuild.toString() +
-                          '.',
-                ),
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               TextField(
                 controller: changelog,
                 maxLines: 4,
@@ -9625,62 +9554,104 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
           ),
           FilledButton.icon(
             onPressed: () => Navigator.pop(dialogContext, true),
-            icon: Icon(
-              production
-                  ? Icons.verified_user_rounded
-                  : Icons.science_rounded,
-            ),
-            label: Text(
-              production ? 'Compilar Producción' : 'Compilar Preview',
-            ),
+            icon: const Icon(Icons.inventory_2_rounded),
+            label: const Text('Generar APK + AAB'),
           ),
         ],
       ),
     );
 
     if (save == true) {
-      final buildNumber = int.tryParse(build.text.trim());
-      if (version.text.trim().isEmpty || buildNumber == null || buildNumber < 1) {
-        if (mounted) {
-          _snack(context, 'Versión o build number no válido.');
-        }
-      } else {
-        try {
-          await supabase.rpc(
-            'admin_create_build_job',
-            params: {
-              'p_platform': 'android',
-              'p_artifact_type':
-                  production ? 'apk+aab' : 'preview-apk+aab',
-              'p_version_name': version.text.trim(),
-              'p_build_number': buildNumber,
-              'p_changelog': changelog.text.trim(),
-              'p_commit_sha':
-                  production ? releaseGate['approved_commit_sha'] : null,
-            },
-          );
-          if (mounted) {
-            await _refreshBuilds(silent: true);
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  production
-                      ? 'Producción en cola con el SHA aprobado de Preview.'
-                      : 'Preview en cola. Pruébala antes de aprobar Producción.',
-                ),
-              ),
-            );
-          }
-        } catch (e) {
-          if (mounted) _snack(context, e);
-        }
+      try {
+        await supabase.rpc(
+          'admin_create_build_job',
+          params: {
+            'p_platform': 'android',
+            'p_artifact_type': 'candidate-apk+aab',
+            'p_version_name': version,
+            'p_build_number': nextBuild,
+            'p_changelog': changelog.text.trim(),
+            'p_commit_sha': sha,
+          },
+        );
+        if (!mounted) return;
+        await _refreshBuilds(silent: true);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Candidato APK + AAB en cola. No se generará una app Preview separada.',
+            ),
+          ),
+        );
+      } catch (e) {
+        if (mounted) _snack(context, e);
       }
     }
 
-    version.dispose();
-    build.dispose();
     changelog.dispose();
+  }
+
+  Future<void> _promoteCandidate() async {
+    final candidateId =
+        releaseGate['production_candidate_build_id']?.toString();
+    final candidateReady = releaseGate['production_candidate_ready'] == true;
+    final qaCertified = releaseGate['preview_qa_certified'] == true;
+    final approved = releaseGate['preview_approved'] == true;
+
+    if (candidateId == null ||
+        candidateId.isEmpty ||
+        !candidateReady ||
+        !qaCertified ||
+        !approved) {
+      _snack(
+        context,
+        'El candidato todavía no está listo, certificado por QA y aprobado.',
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Promover sin recompilar'),
+        content: const Text(
+          'Se publicará como build de Producción el mismo APK + AAB que ya fueron generados y validados. '
+          'No se ejecutará una nueva compilación.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.verified_rounded),
+            label: const Text('Promover candidato'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await supabase.rpc(
+        'admin_promote_production_candidate',
+        params: {'p_candidate_build_id': candidateId},
+      );
+      if (!mounted) return;
+      await _refreshBuilds(silent: true);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Candidato promovido a Producción sin recompilar.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    }
   }
 
   Future<void> _approvePreview() async {
@@ -10188,22 +10159,24 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
         _Header(
           title: 'App Builder',
           subtitle:
-              'Preview primero. Producción solo se habilita cuando apruebas exactamente ese código.',
+              'Un solo Android: genera APK + AAB del mismo SHA, prueba y promueve sin recompilar.',
           action: Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
               FilledButton.icon(
-                onPressed: () => _create(production: false),
-                icon: const Icon(Icons.science_rounded),
-                label: const Text('Compilar Preview'),
+                onPressed: _createCandidate,
+                icon: const Icon(Icons.inventory_2_rounded),
+                label: const Text('Generar APK + AAB candidato'),
               ),
               OutlinedButton.icon(
-                onPressed: previewApproved
-                    ? () => _create(production: true)
+                onPressed: releaseGate['production_candidate_ready'] == true &&
+                        releaseGate['preview_qa_certified'] == true &&
+                        previewApproved
+                    ? _promoteCandidate
                     : null,
                 icon: const Icon(Icons.verified_user_rounded),
-                label: const Text('Compilar Producción'),
+                label: const Text('Promover sin recompilar'),
               ),
             ],
           ),
