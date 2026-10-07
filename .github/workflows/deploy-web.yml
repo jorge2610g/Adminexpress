@@ -30,6 +30,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Analyze production-critical admin modules
+        run: |
+          flutter analyze --no-fatal-warnings --no-fatal-infos \
+            lib/admin_panel.dart \
+            lib/admin_control_sections.dart \
+            lib/admin_dynamic_pricing.dart \
+            lib/admin_environment_store.dart
+
       - name: Build Flutter Web
         run: flutter build web --release --base-href /
 

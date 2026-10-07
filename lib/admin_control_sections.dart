@@ -8185,6 +8185,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
   bool loading = true;
   bool saving = false;
   int settingsTab = 0;
+  int _settingsLoadRevision = 0;
 
   late final TextEditingController currency;
   late final TextEditingController rideMin;
@@ -8223,14 +8224,44 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
     country = TextEditingController();
     supportPhone = TextEditingController();
     supportWhatsapp = TextEditingController();
-    _load();
+    _reloadForChannel();
   }
 
-  Future<void> _load() async {
+  @override
+  void didUpdateWidget(covariant AdminSettingsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.channel != widget.channel) {
+      _reloadForChannel();
+    }
+  }
+
+  void _reloadForChannel() {
+    final revision = ++_settingsLoadRevision;
+    final channel = widget.channel;
+    setState(() {
+      loading = true;
+      saving = false;
+      settings = null;
+    });
+    _load(channel: channel, revision: revision);
+  }
+
+  Future<void> _load({
+    required String channel,
+    required int revision,
+  }) async {
+    final environment = AdminEnvironmentStore(channel);
     try {
-      final row = _environment.isPreview
-          ? await _environment.previewGet('app_settings')
+      final row = environment.isPreview
+          ? await environment.previewGet('app_settings')
           : _map(await supabase.rpc('admin_settings_get'));
+
+      if (!mounted ||
+          revision != _settingsLoadRevision ||
+          channel != widget.channel) {
+        return;
+      }
+
       settings = row;
       currency.text = (row['currency'] ?? 'BOB').toString();
       rideMin.text = (row['min_ride_fare'] ?? 5).toString();
@@ -8257,13 +8288,27 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       deliveryEnabled = row['delivery_enabled'] != false;
       dispatchMode = (row['dispatch_mode'] ?? 'broadcast').toString();
     } catch (e) {
-      if (mounted) _snack(context, e);
+      if (mounted &&
+          revision == _settingsLoadRevision &&
+          channel == widget.channel) {
+        _snack(context, e);
+      }
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted &&
+          revision == _settingsLoadRevision &&
+          channel == widget.channel) {
+        setState(() => loading = false);
+      }
     }
   }
 
   Future<void> _save() async {
+    if (loading || saving) return;
+
+    final channel = widget.channel;
+    final revision = _settingsLoadRevision;
+    final environment = AdminEnvironmentStore(channel);
+
     setState(() => saving = true);
     try {
       final next = <String, dynamic>{
@@ -8290,8 +8335,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
         'support_whatsapp': supportWhatsapp.text.trim(),
       };
 
-      if (_environment.isPreview) {
-        await _environment.previewUpsert('app_settings', 'default', next);
+      if (environment.isPreview) {
+        await environment.previewUpsert('app_settings', 'default', next);
         settings = next;
       } else {
         await supabase.rpc(
@@ -8328,15 +8373,25 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
         );
         settings = _map(phoneSettings);
       }
-      if (mounted) {
+      if (mounted &&
+          channel == widget.channel &&
+          revision == _settingsLoadRevision) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Configuración guardada.')),
         );
       }
     } catch (e) {
-      if (mounted) _snack(context, e);
+      if (mounted &&
+          channel == widget.channel &&
+          revision == _settingsLoadRevision) {
+        _snack(context, e);
+      }
     } finally {
-      if (mounted) setState(() => saving = false);
+      if (mounted &&
+          channel == widget.channel &&
+          revision == _settingsLoadRevision) {
+        setState(() => saving = false);
+      }
     }
   }
 
@@ -8592,7 +8647,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           title: 'Configuración',
           subtitle: 'Administra los parámetros generales de Express Delivery.',
           action: FilledButton.icon(
-            onPressed: saving ? null : _save,
+            onPressed: loading || saving ? null : _save,
             icon: saving
                 ? const SizedBox.square(
                     dimension: 16,
