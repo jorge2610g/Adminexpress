@@ -7185,7 +7185,10 @@ class _AdminCommunicationsPageState
           'admin_zone_list_for_country',
           params: {'p_country_code': widget.countryCode},
         ),
-        supabase.rpc('admin_partner_list'),
+        supabase.rpc(
+          'admin_partner_list',
+          params: {'p_zone_id': widget.zoneId},
+        ),
       ]);
       if (!mounted) return;
       final scopedZones = _list(values[0])
@@ -7729,13 +7732,9 @@ class _AdminCommunicationsPageState
                 decoration: const InputDecoration(
                   labelText: 'Zona',
                   helperText:
-                      'Déjalo en Todas para enviar a todas las zonas.',
+                      'Bloqueada al ámbito seleccionado en la barra superior.',
                 ),
                 items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('Todas las zonas'),
-                  ),
                   ...campaignZones.map(
                     (zone) => DropdownMenuItem<String?>(
                       value: zone['id']?.toString(),
@@ -7747,24 +7746,7 @@ class _AdminCommunicationsPageState
                     ),
                   ),
                 ],
-                onChanged: loadingCampaignTargets
-                    ? null
-                    : (value) => setState(() {
-                          campaignZoneId = value;
-                          if (campaignPartnerId != null) {
-                            final selected = campaignPartners.where(
-                              (partner) =>
-                                  partner['id']?.toString() ==
-                                  campaignPartnerId,
-                            );
-                            if (selected.isNotEmpty &&
-                                value != null &&
-                                selected.first['zone_id']?.toString() !=
-                                    value) {
-                              campaignPartnerId = null;
-                            }
-                          }
-                        }),
+                onChanged: null,
               ),
               if (audience == 'drivers' && campaignPartners.isNotEmpty) ...[
                 const SizedBox(height: 12),
