@@ -4,10 +4,14 @@ import 'core/supabase_client.dart';
 
 class AdminDriverDocumentRequirementsPanel extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminDriverDocumentRequirementsPanel({
     super.key,
     required this.channel,
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -25,13 +29,44 @@ class _AdminDriverDocumentRequirementsPanelState
 
   Future<({List<Map<String, dynamic>> requirements, List<Map<String, dynamic>> zones})>
       _load() async {
+    final countryCode = widget.countryCode?.trim().toUpperCase();
+    final zoneId = widget.zoneId;
+    if (countryCode == null ||
+        countryCode.isEmpty ||
+        zoneId == null ||
+        zoneId.isEmpty) {
+      return (
+        requirements: <Map<String, dynamic>>[],
+        zones: <Map<String, dynamic>>[],
+      );
+    }
+
     final values = await Future.wait([
       supabase.rpc('admin_driver_document_requirement_list'),
-      supabase.rpc('admin_zone_list_v2'),
+      supabase.rpc(
+        'admin_zone_list_for_country',
+        params: {'p_country_code': countryCode},
+      ),
     ]);
+    final requirements = _list(values[0]).where((row) {
+      final rowCountry = row['country_code']?.toString().trim().toUpperCase();
+      final rowZone = row['zone_id']?.toString();
+      final isGlobal =
+          (rowCountry == null || rowCountry.isEmpty) &&
+          (rowZone == null || rowZone.isEmpty);
+      final isCountry =
+          rowCountry == countryCode && (rowZone == null || rowZone.isEmpty);
+      final isZone = rowZone == zoneId;
+      return isGlobal || isCountry || isZone;
+    }).toList();
+
+    final zones = _list(values[1])
+        .where((row) => row['id']?.toString() == zoneId)
+        .toList();
+
     return (
-      requirements: _list(values[0]),
-      zones: _list(values[1]),
+      requirements: requirements,
+      zones: zones,
     );
   }
 
@@ -51,9 +86,14 @@ class _AdminDriverDocumentRequirementsPanelState
         ? 'zone'
         : row?['country_code'] != null
             ? 'country'
-            : 'global';
-    String? countryCode = row?['country_code']?.toString();
-    String? zoneId = row?['zone_id']?.toString();
+            : widget.zoneId != null
+                ? 'zone'
+                : widget.countryCode != null
+                    ? 'country'
+                    : 'global';
+    String? countryCode =
+        row?['country_code']?.toString() ?? widget.countryCode;
+    String? zoneId = row?['zone_id']?.toString() ?? widget.zoneId;
     bool required = row?['required'] != false;
     bool requireNumber = row?['require_number'] == true;
     bool requireFront = row?['require_front'] != false;
@@ -149,9 +189,19 @@ class _AdminDriverDocumentRequirementsPanelState
                       DropdownButtonFormField<String>(
                         initialValue: countryCode,
                         decoration: const InputDecoration(labelText: 'País'),
-                        items: const [
-                          DropdownMenuItem(value: 'BO', child: Text('Bolivia')),
-                          DropdownMenuItem(value: 'CL', child: Text('Chile')),
+                        items: [
+                          if (widget.countryCode == null ||
+                              widget.countryCode == 'BO')
+                            const DropdownMenuItem(
+                              value: 'BO',
+                              child: Text('Bolivia'),
+                            ),
+                          if (widget.countryCode == null ||
+                              widget.countryCode == 'CL')
+                            const DropdownMenuItem(
+                              value: 'CL',
+                              child: Text('Chile'),
+                            ),
                         ],
                         onChanged: (value) => setLocal(() {
                           countryCode = value;
