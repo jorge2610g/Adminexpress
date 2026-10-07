@@ -1036,7 +1036,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
             ),
           ),
           SegmentedButton<String>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: 'production',
                 label: Text('Producción'),
