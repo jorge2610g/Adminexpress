@@ -13,10 +13,14 @@ int _adminSubscriptionInt(Object? raw) {
 
 class AdminDriverSubscriptionsPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminDriverSubscriptionsPage({
     super.key,
     this.channel = 'production',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -97,19 +101,12 @@ class _AdminDriverSubscriptionsPageState
 
     if (_environment.isPreview) {
       try {
-        zoneRows = await _environment.previewList('service_zones');
-        if (zoneRows.isNotEmpty &&
-            (zoneKey == null ||
-                !zoneRows.any(
-                  (row) => row['zone_key']?.toString() == zoneKey,
-                ))) {
-          final trinidad = zoneRows.where(
-            (row) => row['zone_key']?.toString() == 'trinidad',
-          );
-          zoneKey = trinidad.isNotEmpty
-              ? 'trinidad'
-              : zoneRows.first['zone_key']?.toString();
-        }
+        zoneRows = (await _environment.previewList('service_zones'))
+            .where((row) => row['id']?.toString() == widget.zoneId)
+            .toList();
+        zoneKey = zoneRows.isEmpty
+            ? null
+            : zoneRows.first['zone_key']?.toString();
 
         final allPlans =
             await _environment.previewList('driver_subscription_plans');
@@ -211,20 +208,16 @@ class _AdminDriverSubscriptionsPageState
     }
 
     try {
-      final rawZones = await supabase.rpc('admin_zone_list_v2');
-      zoneRows = _maps(rawZones);
-      if (zoneRows.isNotEmpty &&
-          (zoneKey == null ||
-              !zoneRows.any(
-                (row) => row['zone_key']?.toString() == zoneKey,
-              ))) {
-        final trinidad = zoneRows.where(
-          (row) => row['zone_key']?.toString() == 'trinidad',
-        );
-        zoneKey = trinidad.isNotEmpty
-            ? 'trinidad'
-            : zoneRows.first['zone_key']?.toString();
-      }
+      final rawZones = await supabase.rpc(
+        'admin_zone_list_for_country',
+        params: {'p_country_code': widget.countryCode},
+      );
+      zoneRows = _maps(rawZones)
+          .where((row) => row['id']?.toString() == widget.zoneId)
+          .toList();
+      zoneKey = zoneRows.isEmpty
+          ? null
+          : zoneRows.first['zone_key']?.toString();
       if (mounted) {
         setState(() {
           zones = zoneRows;
