@@ -1222,7 +1222,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 18:
-        return AdminIdentitySecurityPage(channel: adminChannel);
+        return AdminIdentitySecurityPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 19:
         return AdminAdvancedSettingsPage(channel: adminChannel);
       case 20:
@@ -1249,7 +1253,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 27:
-        return AdminDiditPage(channel: adminChannel);
+        return AdminDiditPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 28:
         return AdminDynamicPricingPage(channel: adminChannel);
       default:
