@@ -9477,7 +9477,12 @@ class _InlineNotice extends StatelessWidget {
 
 
 class AdminBuildsPage extends StatefulWidget {
-  const AdminBuildsPage({super.key});
+  final String channel;
+
+  const AdminBuildsPage({
+    super.key,
+    required this.channel,
+  });
 
   @override
   State<AdminBuildsPage> createState() => _AdminBuildsPageState();
@@ -9509,7 +9514,12 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
 
   Future<List<Map<String, dynamic>>> _load() async {
     final value = await supabase.rpc('admin_build_list');
-    return _list(value);
+    final rows = _list(value);
+    final preview = widget.channel == 'preview';
+    return rows.where((row) {
+      final artifact = row['artifact_type']?.toString() ?? '';
+      return preview ? artifact.startsWith('preview-') : !artifact.startsWith('preview-');
+    }).toList();
   }
 
   Future<Map<String, dynamic>> _loadReleaseGate() async {
@@ -10282,24 +10292,27 @@ class _AdminBuildsPageState extends State<AdminBuildsPage> {
       children: [
         _Header(
           title: 'App Builder',
-          subtitle:
-              'Preview primero. Producción solo se habilita cuando apruebas exactamente ese código.',
+          subtitle: widget.channel == 'preview'
+              ? 'Solo builds de Prueba. Aprueba aquí el código exacto antes de pasar a Producción.'
+              : 'Solo builds de Producción. Se habilitan únicamente desde una Preview aprobada del mismo SHA.',
           action: Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              FilledButton.icon(
-                onPressed: () => _create(production: false),
-                icon: const Icon(Icons.science_rounded),
-                label: const Text('Compilar Preview'),
-              ),
-              OutlinedButton.icon(
-                onPressed: previewApproved
-                    ? () => _create(production: true)
-                    : null,
-                icon: const Icon(Icons.verified_user_rounded),
-                label: const Text('Compilar Producción'),
-              ),
+              if (widget.channel == 'preview')
+                FilledButton.icon(
+                  onPressed: () => _create(production: false),
+                  icon: const Icon(Icons.science_rounded),
+                  label: const Text('Compilar Preview'),
+                ),
+              if (widget.channel == 'production')
+                FilledButton.icon(
+                  onPressed: previewApproved
+                      ? () => _create(production: true)
+                      : null,
+                  icon: const Icon(Icons.verified_user_rounded),
+                  label: const Text('Compilar Producción'),
+                ),
             ],
           ),
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
+import 'admin_environment_store.dart';
 
 const Color _detailBlue = Color(0xFF2563EB);
 const Color _detailDark = Color(0xFF0F172A);
@@ -44,42 +45,57 @@ String _money(Object? raw, [String currency = '']) {
   return '$prefix${amount.toStringAsFixed(2)}';
 }
 
-Future<List<Map<String, dynamic>>> _zones() async {
-  final raw = await supabase.rpc('admin_zone_list');
+Future<List<Map<String, dynamic>>> _zones(String channel) async {
+  if (channel == 'preview') {
+    return const AdminEnvironmentStore('preview').previewList('service_zones');
+  }
+  final raw = await supabase.rpc('admin_zone_list_scoped');
   return _maps(raw);
 }
 
 Future<bool> showAdminDriverEditor(
   BuildContext context,
-  String userId,
-) async {
+  String userId, {
+  required String channel,
+}) async {
   return await showDialog<bool>(
         context: context,
         barrierDismissible: false,
-        builder: (_) => _DriverEditorDialog(userId: userId),
+        builder: (_) => _DriverEditorDialog(
+          userId: userId,
+          channel: channel,
+        ),
       ) ??
       false;
 }
 
 Future<bool> showAdminUserEditor(
   BuildContext context,
-  String userId,
-) async {
+  String userId, {
+  required String channel,
+}) async {
   return await showDialog<bool>(
         context: context,
         barrierDismissible: false,
-        builder: (_) => _UserEditorDialog(userId: userId),
+        builder: (_) => _UserEditorDialog(
+          userId: userId,
+          channel: channel,
+        ),
       ) ??
       false;
 }
 
 Future<void> showAdminTripDetail(
   BuildContext context,
-  String tripId,
-) async {
+  String tripId, {
+  required String channel,
+}) async {
   await showDialog<void>(
     context: context,
-    builder: (_) => _TripDetailDialog(tripId: tripId),
+    builder: (_) => _TripDetailDialog(
+      tripId: tripId,
+      channel: channel,
+    ),
   );
 }
 
@@ -239,7 +255,11 @@ class _InfoGrid extends StatelessWidget {
 
 class _DriverEditorDialog extends StatefulWidget {
   final String userId;
-  const _DriverEditorDialog({required this.userId});
+  final String channel;
+  const _DriverEditorDialog({
+    required this.userId,
+    required this.channel,
+  });
 
   @override
   State<_DriverEditorDialog> createState() => _DriverEditorDialogState();
@@ -290,10 +310,13 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
   Future<void> _load() async {
     try {
       final detailValue = await supabase.rpc(
-        'admin_driver_detail',
-        params: {'p_user_id': widget.userId},
+        'admin_driver_detail_v2',
+        params: {
+          'p_user_id': widget.userId,
+          'p_channel': widget.channel,
+        },
       );
-      final loadedZones = await _zones();
+      final loadedZones = await _zones(widget.channel);
       final loaded = _map(detailValue);
       final user = _map(loaded['user']);
       final driver = _map(loaded['driver']);
@@ -396,7 +419,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     });
     try {
       await supabase.rpc(
-        'admin_update_driver_profile',
+        'admin_update_driver_profile_v2',
         params: {
           'p_user_id': widget.userId,
           'p_full_name': fullName.text.trim(),
@@ -413,6 +436,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
           'p_vehicle_color': color.text.trim(),
           'p_vehicle_plate': plate.text.trim(),
           'p_vehicle_year': vehicleYear,
+          'p_channel': widget.channel,
         },
       );
       if (!mounted) return;
@@ -553,7 +577,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
       }
       try {
         await supabase.rpc(
-          'admin_upsert_driver_document',
+          'admin_upsert_driver_document_v2',
           params: {
             'p_document_id': document?['id'],
             'p_driver_id': widget.userId,
@@ -563,6 +587,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
             'p_status': status,
             'p_expires_at': parsedExpiry?.toUtc().toIso8601String(),
             'p_notes': notes.text.trim(),
+            'p_channel': widget.channel,
           },
         );
         await _load();
@@ -1193,7 +1218,11 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
 
 class _UserEditorDialog extends StatefulWidget {
   final String userId;
-  const _UserEditorDialog({required this.userId});
+  final String channel;
+  const _UserEditorDialog({
+    required this.userId,
+    required this.channel,
+  });
 
   @override
   State<_UserEditorDialog> createState() => _UserEditorDialogState();
@@ -1228,10 +1257,13 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
   Future<void> _load() async {
     try {
       final detailValue = await supabase.rpc(
-        'admin_user_detail',
-        params: {'p_user_id': widget.userId},
+        'admin_user_detail_v2',
+        params: {
+          'p_user_id': widget.userId,
+          'p_channel': widget.channel,
+        },
       );
-      final loadedZones = await _zones();
+      final loadedZones = await _zones(widget.channel);
       final loaded = _map(detailValue);
       final user = _map(loaded['user']);
       fullName.text = _text(user['full_name'], '');
@@ -1264,7 +1296,7 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
     });
     try {
       await supabase.rpc(
-        'admin_update_user_profile',
+        'admin_update_user_profile_v2',
         params: {
           'p_user_id': widget.userId,
           'p_full_name': fullName.text.trim(),
@@ -1272,6 +1304,7 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
           'p_active_mode': activeMode,
           'p_account_status': accountStatus,
           'p_zone_id': zoneId,
+          'p_channel': widget.channel,
         },
       );
       if (!mounted) return;
@@ -1462,7 +1495,11 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
 
 class _TripDetailDialog extends StatefulWidget {
   final String tripId;
-  const _TripDetailDialog({required this.tripId});
+  final String channel;
+  const _TripDetailDialog({
+    required this.tripId,
+    required this.channel,
+  });
 
   @override
   State<_TripDetailDialog> createState() => _TripDetailDialogState();
@@ -1479,8 +1516,11 @@ class _TripDetailDialogState extends State<_TripDetailDialog> {
 
   Future<Map<String, dynamic>> _load() async {
     final value = await supabase.rpc(
-      'admin_trip_detail',
-      params: {'p_trip_id': widget.tripId},
+      'admin_trip_detail_v2',
+      params: {
+        'p_trip_id': widget.tripId,
+        'p_channel': widget.channel,
+      },
     );
     return _map(value);
   }

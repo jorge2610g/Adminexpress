@@ -1,3 +1,18 @@
+## 2026-10-07 — Runtime Scope Admin · separación dura Prueba / Producción
+
+- Adminexpress mantiene **una sola UI**, pero ahora el selector superior crea un workspace de datos independiente por entorno;
+- al cambiar Prueba ↔ Producción se destruye el subárbol Stateful del entorno anterior y se descartan futures/cachés visuales para impedir datos residuales;
+- entrar a Producción requiere confirmación explícita y el backend informa si la cuenta Admin tiene acceso a Preview/Producción;
+- `admin_users` incorpora permisos separados `allow_preview` / `allow_production`; los monitores de zona permanecen fijados a Producción;
+- país/zona en Prueba se cargan desde `admin_environment_config.service_zones`, no desde la configuración real de Producción;
+- fichas de usuarios/conductores/viajes y acciones sensibles usan RPC v2 con `p_channel` y el backend bloquea un registro cuyo runtime pertenece al otro entorno;
+- Entornos de prueba no carga ni muestra grupos QA cuando el selector está en Producción;
+- App Builder filtra historial/acciones según entorno activo: Preview en Prueba y candidatos/releases reales en Producción;
+- Supabase autoritativo: `admin_environment_allowed`, `admin_assert_environment`, `admin_assert_target_environment` y wrappers scoped;
+- auditoría v2 resuelve el entorno de acciones legacy por cuenta objetivo para no mezclar eventos Preview en la vista de Producción.
+
+---
+
 ## 2026-10-06 — Ventana flotante de ofertas — implementada
 
 - Configuración → Seguridad incorpora **Permitir ventanas flotantes de ofertas**;

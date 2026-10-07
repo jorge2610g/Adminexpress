@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
+import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
 import 'admin_audit_sandbox.dart';
 import 'admin_load_lab.dart';
@@ -212,6 +213,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   int section = 0;
   int revision = 0;
   String adminChannel = 'preview';
+  bool allowPreview = true;
+  bool allowProduction = true;
   String? liveZoneId;
 
   String tripPeriod = 'today';
@@ -285,6 +288,16 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     if (access['allowed'] != true) return false;
 
     adminAccess = access;
+    allowPreview = access['allow_preview'] != false;
+    allowProduction = access['allow_production'] != false;
+    final defaultEnvironment = access['default_environment']?.toString();
+    if (defaultEnvironment == 'production' && allowProduction) {
+      adminChannel = 'production';
+    } else if (defaultEnvironment == 'preview' && allowPreview) {
+      adminChannel = 'preview';
+    } else if (!allowPreview && allowProduction) {
+      adminChannel = 'production';
+    }
     if (access['role']?.toString() == 'zone_monitor') {
       adminChannel = 'production';
       adminCountryCode =
@@ -367,6 +380,22 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Future<List<Map<String, dynamic>>> _filterCountries() async {
+    if (adminChannel == 'preview') {
+      final zones =
+          await const AdminEnvironmentStore('preview').previewList('service_zones');
+      final byCode = <String, Map<String, dynamic>>{};
+      for (final zone in zones) {
+        final code = _zoneCountryCode(zone);
+        if (code.isEmpty) continue;
+        byCode[code] = <String, dynamic>{
+          'country_code': code,
+          'country': zone['country'] ?? code,
+          'active': zone['active'] != false,
+        };
+      }
+      return byCode.values.where((row) => row['active'] == true).toList();
+    }
+
     final value = await supabase.rpc('admin_country_list_scoped');
     return _list(value);
   }
@@ -374,6 +403,18 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<List<Map<String, dynamic>>> _filterZones() async {
     final country = adminCountryCode;
     if (country == null || country.isEmpty) return const [];
+
+    if (adminChannel == 'preview') {
+      final zones =
+          await const AdminEnvironmentStore('preview').previewList('service_zones');
+      return zones
+          .where(
+            (row) =>
+                row['active'] != false && _zoneCountryCode(row) == country,
+          )
+          .toList();
+    }
+
     final value = await supabase.rpc(
       'admin_zone_list_for_country',
       params: {'p_country_code': country},
@@ -881,12 +922,54 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     });
   }
 
-  void _setAdminChannel(String value) {
+  Future<void> _setAdminChannel(String value) async {
     if (_isZoneMonitor || value == adminChannel) return;
+    if (value == 'preview' && !allowPreview) {
+      _errorSnack('Tu cuenta no tiene acceso al entorno Prueba.');
+      return;
+    }
+    if (value == 'production' && !allowProduction) {
+      _errorSnack('Tu cuenta no tiene acceso al entorno Producción.');
+      return;
+    }
+
+    if (value == 'production') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Entrar a Producción'),
+          content: const Text(
+            'Producción contiene datos reales de clientes, conductores y operación. '
+            'Los cambios realizados aquí son reales. ¿Quieres continuar?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.verified_rounded),
+              label: const Text('Entrar a Producción'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
+    // Environment switch is a hard data boundary: all environment-specific
+    // state, cached futures and child StatefulWidgets are discarded.
     setState(() {
       adminChannel = value;
+      adminCountryCode = null;
+      adminZoneId = null;
+      liveZoneId = null;
+      usersZoneId = null;
+      usersCity = null;
+      usersRegionDepartment = null;
       revision++;
-      _liveFuture = _scopeReady ? _liveState() : null;
+      _liveFuture = null;
     });
   }
 
@@ -953,20 +1036,26 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
             ),
           ),
           SegmentedButton<String>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: 'production',
                 label: Text('Producción'),
                 icon: Icon(Icons.verified_outlined, size: 17),
+                enabled: allowProduction,
               ),
               ButtonSegment(
                 value: 'preview',
                 label: Text('Prueba'),
                 icon: Icon(Icons.science_outlined, size: 17),
+                enabled: allowPreview,
               ),
             ],
             selected: {adminChannel},
-            onSelectionChanged: (value) => _setAdminChannel(value.first),
+            onSelectionChanged: (value) {
+              if (value.isNotEmpty) {
+                _setAdminChannel(value.first);
+              }
+            },
             showSelectedIcon: false,
           ),
         ],
@@ -986,8 +1075,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<void> _driverStatus(String id, String status) async {
     try {
       await supabase.rpc(
-        'admin_set_driver_approval',
-        params: {'p_user_id': id, 'p_status': status},
+        'admin_set_driver_approval_v2',
+        params: {
+          'p_user_id': id,
+          'p_status': status,
+          'p_channel': adminChannel,
+        },
       );
       if (!mounted) return;
       _refresh();
@@ -1003,8 +1096,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<void> _accountStatus(String id, String status) async {
     try {
       await supabase.rpc(
-        'admin_set_account_status',
-        params: {'p_user_id': id, 'p_status': status},
+        'admin_set_account_status_v2',
+        params: {
+          'p_user_id': id,
+          'p_status': status,
+          'p_channel': adminChannel,
+        },
       );
       if (!mounted) return;
       _refresh();
@@ -1025,8 +1122,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<void> _resolveEmergency(String id) async {
     try {
       await supabase.rpc(
-        'admin_resolve_emergency',
-        params: {'p_emergency_id': id},
+        'admin_resolve_emergency_v2',
+        params: {
+          'p_emergency_id': id,
+          'p_channel': adminChannel,
+        },
       );
       if (!mounted) return;
       _refresh();
@@ -1136,7 +1236,19 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                           ),
                         _environmentSwitcher(),
                         _globalGeoScopeSwitcher(),
-                        Expanded(child: _body(section)),
+                        Expanded(
+                          child: KeyedSubtree(
+                            key: ValueKey(
+                              AdminRuntimeScope(
+                                environment:
+                                    AdminEnvironment.parse(adminChannel),
+                                countryCode: adminCountryCode,
+                                zoneId: adminZoneId,
+                              ).cacheKey,
+                            ),
+                            child: _body(section),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1198,7 +1310,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 11:
         return AdminSettingsPage(channel: adminChannel);
       case 12:
-        return const AdminBuildsPage();
+        return AdminBuildsPage(channel: adminChannel);
       case 13:
         return AdminDispatchPage(
           channel: adminChannel,
@@ -1234,7 +1346,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 19:
         return AdminAdvancedSettingsPage(channel: adminChannel);
       case 20:
-        return const AdminAuditSandboxPage();
+        return AdminAuditSandboxPage(channel: adminChannel);
       case 21:
         return AdminLoadLabPage(channel: adminChannel);
       case 22:
@@ -1617,6 +1729,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                 : () => showAdminTripDetail(
                       context,
                       row['id'].toString(),
+                      channel: adminChannel,
                     ),
           ),
         );
@@ -1757,6 +1870,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                         final changed = await showAdminDriverEditor(
                           context,
                           row['user_id'].toString(),
+                          channel: adminChannel,
                         );
                         if (changed && mounted) _refresh();
                         return;
@@ -1944,6 +2058,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     final changed = await showAdminUserEditor(
                       context,
                       row['user_id'].toString(),
+                      channel: adminChannel,
                     );
                     if (changed && mounted) _refresh();
                     return;
