@@ -28,6 +28,16 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
     future = _load();
   }
 
+  @override
+  void didUpdateWidget(covariant AdminDynamicPricingPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.channel != widget.channel ||
+        oldWidget.countryCode != widget.countryCode ||
+        oldWidget.zoneId != widget.zoneId) {
+      _refresh();
+    }
+  }
+
   Future<Map<String, dynamic>> _load() async {
     final zoneId = widget.zoneId;
     if (zoneId == null || zoneId.isEmpty) {
@@ -38,7 +48,10 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
     }
     final raw = await supabase.rpc(
       'admin_dynamic_pricing_qa_state_scoped',
-      params: {'p_zone_id': zoneId},
+      params: {
+        'p_zone_id': zoneId,
+        'p_channel': widget.channel,
+      },
     );
     return raw is Map
         ? Map<String, dynamic>.from(raw)
@@ -65,9 +78,9 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
   }
 
   Future<void> _configure(Map<String, dynamic> s) async {
-    var enabled = widget.channel == 'preview'
-        ? s['preview_enabled'] == true
-        : s['production_enabled'] == true;
+    final channel = widget.channel;
+    final zoneId = widget.zoneId;
+    var enabled = s['enabled'] == true;
 
     TextEditingController c(Object? v, num fallback) =>
         TextEditingController(text: _num(v, fallback.toDouble()).toString());
@@ -95,7 +108,7 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
         builder: (context, setLocal) => AlertDialog(
           title: Text(
             'Demanda dinámica · ' +
-                (widget.channel == 'preview' ? 'Preview' : 'Producción'),
+                (channel == 'preview' ? 'Preview' : 'Producción'),
           ),
           content: SizedBox(
             width: 720,
@@ -176,7 +189,7 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
         await supabase.rpc(
           'admin_update_dynamic_pricing_settings',
           params: {
-            'p_channel': widget.channel,
+            'p_channel': channel,
             'p_enabled': enabled,
             'p_low_ratio': double.tryParse(lowRatio.text),
             'p_low_multiplier': double.tryParse(lowMultiplier.text),
@@ -195,8 +208,12 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
             'p_max_multiplier': double.tryParse(maxMultiplier.text),
           },
         );
-        _refresh();
-        _snack('Demanda dinámica actualizada.');
+        if (mounted &&
+            channel == widget.channel &&
+            zoneId == widget.zoneId) {
+          _refresh();
+          _snack('Demanda dinámica actualizada.');
+        }
       } catch (e) {
         _snack(e);
       }
@@ -285,9 +302,7 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
                   .map((x) => Map<String, dynamic>.from(x))
                   .toList()
               : <Map<String, dynamic>>[];
-          final enabled = widget.channel == 'preview'
-              ? settings['preview_enabled'] == true
-              : settings['production_enabled'] == true;
+          final enabled = settings['enabled'] == true;
 
           return ListView(
             padding: const EdgeInsets.all(22),
