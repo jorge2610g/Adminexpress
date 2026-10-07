@@ -58,6 +58,30 @@ class _AdminMarketplacePhase2PageState
   }
 
   Future<Map<String, dynamic>> _load() async {
+    if (widget.zoneId == null || widget.zoneId!.isEmpty) {
+      return <String, dynamic>{
+        'zones': <Map<String, dynamic>>[],
+        'plus_plans': <Map<String, dynamic>>[],
+        'benefits': <Map<String, dynamic>>[],
+        'merchants': <Map<String, dynamic>>[],
+        'recent_orders': <Map<String, dynamic>>[],
+      };
+    }
+
+    if (widget.ordersOnly) {
+      final orders = await supabase.rpc(
+        'admin_marketplace_orders_v2',
+        params: {
+          'p_channel': widget.channel,
+          'p_zone_id': widget.zoneId,
+          'p_limit': 100,
+        },
+      );
+      return <String, dynamic>{
+        'recent_orders': _rows(orders),
+      };
+    }
+
     final value = await supabase.rpc('admin_marketplace_phase2_state');
     final state = value is Map
         ? Map<String, dynamic>.from(value)
