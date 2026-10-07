@@ -6153,7 +6153,10 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
         'admin_topup_requests',
         params: {'p_status': 'pending'},
       ),
-      supabase.rpc('admin_zone_list_v2'),
+      supabase.rpc(
+        'admin_zone_list_for_country',
+        params: {'p_country_code': widget.countryCode},
+      ),
     ]);
     final zoneRows = _list(values[2])
         .where((row) => row['id']?.toString() == widget.zoneId)
