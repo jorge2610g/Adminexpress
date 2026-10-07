@@ -15,7 +15,12 @@ List<Map<String, dynamic>> _auditMaps(Object? value) {
 }
 
 class AdminAuditSandboxPage extends StatefulWidget {
-  const AdminAuditSandboxPage({super.key});
+  final String channel;
+
+  const AdminAuditSandboxPage({
+    super.key,
+    required this.channel,
+  });
 
   @override
   State<AdminAuditSandboxPage> createState() => _AdminAuditSandboxPageState();
@@ -274,6 +279,46 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.channel != 'preview') {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.science_outlined,
+                    size: 42,
+                    color: _auditMuted,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Entornos de prueba no muestran datos en Producción',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      color: _auditDark,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Cambia el selector superior a Prueba para administrar cuentas QA y sandboxes. '
+                    'Producción no carga ni muestra esos registros.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: _auditMuted, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return FutureBuilder<Map<String, dynamic>>(
       key: ValueKey(revision),
       future: _load(),
