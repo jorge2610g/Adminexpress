@@ -6,6 +6,7 @@ on:
       - main
       - feature/delivery-modules-merchant-dashboard
       - refactor/unified-preview-production-panel
+      - fix/admin-live-channel-badges-20261006
   workflow_dispatch:
 
 permissions:
