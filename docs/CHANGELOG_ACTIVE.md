@@ -4,6 +4,7 @@
 - Producción lee/escribe `driver_document_requirements` reales.
 - Prueba lee/escribe `admin_environment_config.driver_document_requirements` y ya no toca Producción.
 - Edición, creación y borrado Preview usan `AdminEnvironmentStore`.
+- CI ahora también valida PRs hacia `main` y exige que este módulo mantenga persistencia separada por entorno.
 - Política vigente: BO = Carné activo / Licencia inactiva; CL = Cédula + Licencia activas.
 
 ---
