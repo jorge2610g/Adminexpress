@@ -9,10 +9,14 @@ const _bg = Color(0xFFF1F5F9);
 
 class AdminMarketplacePage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminMarketplacePage({
     super.key,
     this.channel = 'production',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -29,7 +33,26 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
   }
 
   Future<Map<String, dynamic>> _load() async {
-    final value = await supabase.rpc('admin_marketplace_state');
+    final zoneId = widget.zoneId;
+    final countryCode = widget.countryCode;
+    if (zoneId == null ||
+        zoneId.isEmpty ||
+        countryCode == null ||
+        countryCode.isEmpty) {
+      return <String, dynamic>{
+        'settings': <String, dynamic>{},
+        'categories': <Map<String, dynamic>>[],
+        'banners': <Map<String, dynamic>>[],
+        'merchants': <Map<String, dynamic>>[],
+      };
+    }
+    final value = await supabase.rpc(
+      'admin_marketplace_state_scoped',
+      params: {
+        'p_country_code': countryCode,
+        'p_zone_id': zoneId,
+      },
+    );
     final state = value is Map
         ? Map<String, dynamic>.from(value)
         : <String, dynamic>{};
@@ -449,8 +472,13 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
   }
 
   Future<List<Map<String, dynamic>>> _zones() async {
-    final value = await supabase.rpc('admin_zone_list');
-    return _rows(value);
+    final value = await supabase.rpc(
+      'admin_zone_list_for_country',
+      params: {'p_country_code': widget.countryCode},
+    );
+    return _rows(value)
+        .where((row) => row['id']?.toString() == widget.zoneId)
+        .toList();
   }
 
   Future<void> _editMerchant(
@@ -460,7 +488,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     final zones = await _zones();
     if (!mounted) return;
 
-    String? zoneId = row?['zone_id']?.toString();
+    String? zoneId = row?['zone_id']?.toString() ?? widget.zoneId;
     String categoryKey = row?['category_key']?.toString() ??
         (categories.isEmpty
             ? ''
@@ -516,10 +544,6 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Zona'),
                     items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('Todas / sin zona fija'),
-                      ),
                       ...zones.map(
                         (z) => DropdownMenuItem<String?>(
                           value: z['id']?.toString(),
