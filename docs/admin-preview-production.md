@@ -71,3 +71,24 @@ Preview/Producción también están separados por gate, no por UI:
 `Preview build -> aprobación -> mismo SHA -> Producción`
 
 La tabla `app_release_gate` es autoritativa. No crear un job Producción desde un SHA distinto al Preview aprobado.
+
+
+## Runtime Scope duro · 2026-10-07
+
+El selector superior ya no es solo visual. Cada selección crea un workspace:
+
+`AdminRuntimeScope(environment, countryCode, zoneId)`
+
+Reglas:
+
+- al cambiar entorno se desmonta el contenido del entorno anterior;
+- Preview no reutiliza país/zona de Producción: usa `admin_environment_config`;
+- acciones de usuario/conductor/viaje usan RPC scoped con `p_channel`;
+- el backend valida acceso del administrador al entorno y runtime del registro objetivo;
+- una cuenta Admin puede tener acceso a ambos entornos sin duplicar correo;
+- permisos backend: `allow_preview` y `allow_production`;
+- los monitores de zona permanecen Producción-only;
+- entrar a Producción desde Prueba requiere confirmación;
+- nuevas RPC operativas sensibles deben incluir entorno explícito o quedar bloqueadas por el validador CI.
+
+El objetivo es que un bug del frontend no pueda convertir una operación Preview en una mutación silenciosa de Producción.
