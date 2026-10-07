@@ -94,7 +94,10 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
         'admin_available_drivers_v2',
         params: {'p_channel': widget.channel},
       ),
-      supabase.rpc('admin_zone_list_v2'),
+      supabase.rpc(
+        'admin_zone_list_for_country',
+        params: {'p_country_code': widget.countryCode},
+      ),
     ]);
     final requests = _map(values[0]);
     final zones = _list(values[2]);
@@ -657,10 +660,14 @@ class _AdminAuditPageState extends State<AdminAuditPage> {
 
 class AdminZonesPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminZonesPage({
     super.key,
     this.channel = 'production',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -674,8 +681,13 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
       AdminEnvironmentStore(widget.channel);
 
   Future<List<Map<String, dynamic>>> _load() async {
+    final selectedZoneId = widget.zoneId;
+    if (selectedZoneId == null || selectedZoneId.isEmpty) return const [];
+
     if (_environment.isPreview) {
-      final zones = await _environment.previewList('service_zones');
+      final zones = (await _environment.previewList('service_zones'))
+          .where((zone) => zone['id']?.toString() == selectedZoneId)
+          .toList();
       final methods = await _environment.previewList('zone_payment_methods');
       return zones.map((zone) {
         final id = zone['id']?.toString();
@@ -687,16 +699,37 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         };
       }).toList();
     }
-    final value = await supabase.rpc('admin_zone_list_v2');
-    return _list(value);
+
+    final countryCode = widget.countryCode;
+    if (countryCode == null || countryCode.isEmpty) return const [];
+    final value = await supabase.rpc(
+      'admin_zone_list_for_country',
+      params: {'p_country_code': countryCode},
+    );
+    return _list(value)
+        .where((row) => row['id']?.toString() == selectedZoneId)
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> _loadCountries() async {
+    final countryCode = widget.countryCode;
+    if (countryCode == null || countryCode.isEmpty) return const [];
     if (_environment.isPreview) {
-      return _environment.previewList('service_countries');
+      return (await _environment.previewList('service_countries'))
+          .where(
+            (row) =>
+                row['country_code']?.toString().trim().toUpperCase() ==
+                countryCode.trim().toUpperCase(),
+          )
+          .toList();
     }
-    final value = await supabase.rpc('admin_country_list');
-    return _list(value);
+    return _list(await supabase.rpc('admin_country_list_scoped'))
+        .where(
+          (row) =>
+              row['country_code']?.toString().trim().toUpperCase() ==
+              countryCode.trim().toUpperCase(),
+        )
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> _loadPartners(String zoneId) async {
@@ -2645,10 +2678,14 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
 
 class AdminServicesPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminServicesPage({
     super.key,
     this.channel = 'production',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -2667,9 +2704,31 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
     List<Map<String, dynamic>> services,
     Map<String, dynamic>? zone,
   })> _load() async {
+    final selectedScopeZoneId = widget.zoneId;
+    final countryCode = widget.countryCode;
+    if (selectedScopeZoneId == null ||
+        selectedScopeZoneId.isEmpty ||
+        countryCode == null ||
+        countryCode.isEmpty) {
+      return (
+        zones: <Map<String, dynamic>>[],
+        services: <Map<String, dynamic>>[],
+        zone: null,
+      );
+    }
+
     final zoneRows = _environment.isPreview
-        ? await _environment.previewList('service_zones')
-        : _list(await supabase.rpc('admin_zone_list'));
+        ? (await _environment.previewList('service_zones'))
+            .where((row) => row['id']?.toString() == selectedScopeZoneId)
+            .toList()
+        : _list(
+            await supabase.rpc(
+              'admin_zone_list_for_country',
+              params: {'p_country_code': countryCode},
+            ),
+          )
+            .where((row) => row['id']?.toString() == selectedScopeZoneId)
+            .toList();
     if (zoneRows.isEmpty) {
       return (
         zones: zoneRows,
@@ -2678,17 +2737,8 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
       );
     }
 
-    var zoneId = selectedZoneId;
-    if (zoneId == null ||
-        !zoneRows.any((row) => row['id']?.toString() == zoneId)) {
-      final trinidad = zoneRows.where(
-        (row) => row['zone_key']?.toString() == 'trinidad',
-      );
-      zoneId = trinidad.isNotEmpty
-          ? trinidad.first['id'].toString()
-          : zoneRows.first['id'].toString();
-      selectedZoneId = zoneId;
-    }
+    var zoneId = selectedScopeZoneId;
+    selectedZoneId = zoneId;
 
     final zone = zoneRows.firstWhere(
       (row) => row['id']?.toString() == zoneId,
@@ -3173,10 +3223,14 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
 
 class AdminGeoSafetyPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminGeoSafetyPage({
     super.key,
     this.channel = 'production',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -3194,6 +3248,19 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
     List<Map<String, dynamic>> coverage,
     List<Map<String, dynamic>> safety,
   })> _load() async {
+    final selectedZoneId = widget.zoneId;
+    final countryCode = widget.countryCode;
+    if (selectedZoneId == null ||
+        selectedZoneId.isEmpty ||
+        countryCode == null ||
+        countryCode.isEmpty) {
+      return (
+        zones: <Map<String, dynamic>>[],
+        coverage: <Map<String, dynamic>>[],
+        safety: <Map<String, dynamic>>[],
+      );
+    }
+
     if (_environment.isPreview) {
       final values = await Future.wait([
         _environment.previewList('service_zones'),
@@ -3201,21 +3268,36 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
         _environment.previewList('security_zones'),
       ]);
       return (
-        zones: values[0],
-        coverage: values[1],
-        safety: values[2],
+        zones: values[0]
+            .where((row) => row['id']?.toString() == selectedZoneId)
+            .toList(),
+        coverage: values[1]
+            .where((row) => row['zone_id']?.toString() == selectedZoneId)
+            .toList(),
+        safety: values[2]
+            .where((row) => row['zone_id']?.toString() == selectedZoneId)
+            .toList(),
       );
     }
 
     final values = await Future.wait([
-      supabase.rpc('admin_zone_list'),
+      supabase.rpc(
+        'admin_zone_list_for_country',
+        params: {'p_country_code': countryCode},
+      ),
       supabase.rpc('admin_zone_polygon_list'),
       supabase.rpc('admin_security_zone_list'),
     ]);
     return (
-      zones: _list(values[0]),
-      coverage: _list(values[1]),
-      safety: _list(values[2]),
+      zones: _list(values[0])
+          .where((row) => row['id']?.toString() == selectedZoneId)
+          .toList(),
+      coverage: _list(values[1])
+          .where((row) => row['zone_id']?.toString() == selectedZoneId)
+          .toList(),
+      safety: _list(values[2])
+          .where((row) => row['zone_id']?.toString() == selectedZoneId)
+          .toList(),
     );
   }
 
@@ -4622,10 +4704,14 @@ double? _double(Object? value) {
 
 class AdminFaresPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminFaresPage({
     super.key,
     this.channel = 'production',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -4645,21 +4731,54 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     List<Map<String, dynamic>> services,
     Map<String, dynamic>? zone,
   })> _load() async {
+    final selectedScopeZoneId = widget.zoneId;
+    final countryCode = widget.countryCode;
+    if (selectedScopeZoneId == null ||
+        selectedScopeZoneId.isEmpty ||
+        countryCode == null ||
+        countryCode.isEmpty) {
+      return (
+        fares: <Map<String, dynamic>>[],
+        zones: <Map<String, dynamic>>[],
+        services: <Map<String, dynamic>>[],
+        zone: null,
+      );
+    }
+
     final List<Map<String, dynamic>> fares;
     final List<Map<String, dynamic>> zones;
     final List<Map<String, dynamic>> services;
     if (_environment.isPreview) {
-      fares = await _environment.previewList('fare_rules');
-      zones = await _environment.previewList('service_zones');
+      fares = (await _environment.previewList('fare_rules'))
+          .where(
+            (row) =>
+                row['zone_id']?.toString() == selectedScopeZoneId ||
+                row['zone_id'] == null,
+          )
+          .toList();
+      zones = (await _environment.previewList('service_zones'))
+          .where((row) => row['id']?.toString() == selectedScopeZoneId)
+          .toList();
       services = await _environment.previewList('service_catalog');
     } else {
       final values = await Future.wait([
         supabase.rpc('admin_fare_list'),
-        supabase.rpc('admin_zone_list'),
+        supabase.rpc(
+          'admin_zone_list_for_country',
+          params: {'p_country_code': countryCode},
+        ),
         supabase.rpc('admin_service_list'),
       ]);
-      fares = _list(values[0]);
-      zones = _list(values[1]);
+      fares = _list(values[0])
+          .where(
+            (row) =>
+                row['zone_id']?.toString() == selectedScopeZoneId ||
+                row['zone_id'] == null,
+          )
+          .toList();
+      zones = _list(values[1])
+          .where((row) => row['id']?.toString() == selectedScopeZoneId)
+          .toList();
       services = _list(values[2]);
     }
 
@@ -4672,22 +4791,12 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
       );
     }
 
-    var zoneId = selectedZoneId;
-    if (zoneId == null ||
-        !zones.any((row) => row['id']?.toString() == zoneId)) {
-      final trinidad =
-          zones.where((row) => row['zone_key']?.toString() == 'trinidad');
-      zoneId = trinidad.isNotEmpty
-          ? trinidad.first['id'].toString()
-          : zones.first['id'].toString();
-      selectedZoneId = zoneId;
-    }
-
+    selectedZoneId = selectedScopeZoneId;
     return (
       fares: fares,
       zones: zones,
       services: services,
-      zone: zones.firstWhere((row) => row['id']?.toString() == zoneId),
+      zone: zones.first,
     );
   }
 
@@ -5844,10 +5953,14 @@ Future<bool> showAdminZonePaymentMethodsEditor(
 
 class AdminPaymentsPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminPaymentsPage({
     super.key,
     this.channel = 'production',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -5864,6 +5977,12 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   String? selectedPaymentZoneId;
   final Set<String> savingZonePayments = <String>{};
   final Set<String> savingMercadoPagoZones = <String>{};
+
+  @override
+  void initState() {
+    super.initState();
+    selectedPaymentZoneId = widget.zoneId;
+  }
 
   ({DateTime from, DateTime to}) _paymentBounds() {
     final now = DateTime.now();
@@ -5925,7 +6044,9 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     final range = _paymentBounds();
 
     if (_environment.isPreview) {
-      final zoneBase = await _environment.previewList('service_zones');
+      final zoneBase = (await _environment.previewList('service_zones'))
+          .where((row) => row['id']?.toString() == widget.zoneId)
+          .toList();
       final methods = await _environment.previewList('zone_payment_methods');
       final zoneRows = zoneBase.map((zone) {
         final zoneId = zone['id']?.toString();
@@ -6034,7 +6155,9 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
       ),
       supabase.rpc('admin_zone_list_v2'),
     ]);
-    final zoneRows = _list(values[2]);
+    final zoneRows = _list(values[2])
+        .where((row) => row['id']?.toString() == widget.zoneId)
+        .toList();
     final mercadoPago = <String, Map<String, dynamic>>{};
     for (final zone in zoneRows) {
       if (!_zoneHasMethod(zone, 'mercado_pago') &&
