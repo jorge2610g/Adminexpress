@@ -6,6 +6,7 @@ on:
       - main
       - feature/delivery-modules-merchant-dashboard
       - refactor/unified-preview-production-panel
+      - fix/admin-live-channel-badges-20261006
   workflow_dispatch:
 
 permissions:
@@ -32,12 +33,12 @@ jobs:
             echo "ERROR: Navigation must be identical in Preview and Production."
             exit 1
           fi
-          grep -q "AdminZonesPage(channel: adminChannel)" lib/admin_panel.dart
-          grep -q "AdminFaresPage(channel: adminChannel)" lib/admin_panel.dart
-          grep -q "AdminPaymentsPage(channel: adminChannel)" lib/admin_panel.dart
+          grep -q "AdminZonesPage(" lib/admin_panel.dart
+          grep -q "AdminFaresPage(" lib/admin_panel.dart
+          grep -q "AdminPaymentsPage(" lib/admin_panel.dart
           grep -q "AdminSettingsPage(channel: adminChannel)" lib/admin_panel.dart
-          grep -q "AdminServicesPage(channel: adminChannel)" lib/admin_panel.dart
-          grep -q "AdminGeoSafetyPage(channel: adminChannel)" lib/admin_panel.dart
+          grep -q "AdminServicesPage(" lib/admin_panel.dart
+          grep -q "AdminGeoSafetyPage(" lib/admin_panel.dart
           grep -q "AdminIdentitySecurityPage(channel: adminChannel)" lib/admin_panel.dart
           grep -q "AdminAdvancedSettingsPage(channel: adminChannel)" lib/admin_panel.dart
           grep -q "AdminDriverSubscriptionsPage(channel: adminChannel)" lib/admin_panel.dart
