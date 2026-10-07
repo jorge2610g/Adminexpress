@@ -10,11 +10,15 @@ const _bg = Color(0xFFF1F5F9);
 class AdminMarketplacePhase2Page extends StatefulWidget {
   final bool ordersOnly;
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminMarketplacePhase2Page({
     super.key,
     this.ordersOnly = false,
     this.channel = 'preview',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -32,11 +36,48 @@ class _AdminMarketplacePhase2PageState
     future = _load();
   }
 
+  @override
+  void didUpdateWidget(covariant AdminMarketplacePhase2Page oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.channel != widget.channel ||
+        oldWidget.countryCode != widget.countryCode ||
+        oldWidget.zoneId != widget.zoneId) {
+      future = _load();
+    }
+  }
+
+  bool _inScope(Map<String, dynamic> row) {
+    if (widget.zoneId != null && widget.zoneId!.isNotEmpty) {
+      return row['zone_id']?.toString() == widget.zoneId;
+    }
+    if (widget.countryCode != null && widget.countryCode!.isNotEmpty) {
+      return row['country_code']?.toString().toUpperCase() ==
+          widget.countryCode;
+    }
+    return true;
+  }
+
   Future<Map<String, dynamic>> _load() async {
     final value = await supabase.rpc('admin_marketplace_phase2_state');
-    return value is Map
+    final state = value is Map
         ? Map<String, dynamic>.from(value)
         : <String, dynamic>{};
+
+    for (final key in const [
+      'zones',
+      'plus_plans',
+      'benefits',
+      'merchants',
+    ]) {
+      state[key] = _rows(state[key]).where(_inScope).toList();
+    }
+
+    state['recent_orders'] = _rows(state['recent_orders'])
+        .where((row) => row['channel']?.toString() == widget.channel)
+        .where(_inScope)
+        .toList();
+
+    return state;
   }
 
   void _refresh() {
