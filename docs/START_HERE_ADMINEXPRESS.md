@@ -137,3 +137,20 @@ La app `jorge2610g/Expressdelivery` adoptó la referencia **Express Dual**: una 
 Adminexpress sigue siendo un producto web separado. No copiar esta UI administrativa dentro del APK/AAB.
 
 La compilación Android continúa iniciándose únicamente desde App Builder cuando el administrador lo decide.
+
+
+## 10. Runtime Scope de administración (2026-10-07)
+
+Adminexpress usa una sola UI con dos workspaces de datos aislados:
+
+- Prueba -> Preview/QA/shadow;
+- Producción -> clientes y operación real.
+
+El cambio de entorno reconstruye el contenido para no conservar estado/caché del entorno anterior. Las acciones sensibles deben usar RPC con `p_channel` y Supabase valida tanto el permiso del administrador como el runtime del registro objetivo.
+
+Archivo central:
+- `lib/admin_runtime_scope.dart`
+
+Backend versionado en Expressdelivery:
+- `20261007230500_admin_runtime_scope_isolation.sql`
+- `20261007232000_admin_runtime_scope_document_fix.sql`
