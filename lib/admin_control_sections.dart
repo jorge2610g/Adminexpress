@@ -7140,10 +7140,14 @@ class _AdminPaymentNotice extends StatelessWidget {
 
 class AdminCommunicationsPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminCommunicationsPage({
     super.key,
     this.channel = 'production',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -7177,13 +7181,20 @@ class _AdminCommunicationsPageState
   Future<void> _loadCampaignTargets() async {
     try {
       final values = await Future.wait([
-        supabase.rpc('admin_zone_list_v2'),
+        supabase.rpc(
+          'admin_zone_list_for_country',
+          params: {'p_country_code': widget.countryCode},
+        ),
         supabase.rpc('admin_partner_list'),
       ]);
       if (!mounted) return;
+      final scopedZones = _list(values[0])
+          .where((row) => row['id']?.toString() == widget.zoneId)
+          .toList();
       setState(() {
-        campaignZones = _list(values[0]);
+        campaignZones = scopedZones;
         campaignPartners = _list(values[1]);
+        campaignZoneId = widget.zoneId;
         loadingCampaignTargets = false;
       });
     } catch (_) {
@@ -7200,9 +7211,14 @@ class _AdminCommunicationsPageState
   }
 
   Future<List<Map<String, dynamic>>> _threads() async {
+    final zoneId = widget.zoneId;
+    if (zoneId == null || zoneId.isEmpty) return const [];
     final value = await supabase.rpc(
-      'admin_support_threads_v2',
-      params: {'p_channel': widget.channel},
+      'admin_support_threads_scoped',
+      params: {
+        'p_channel': widget.channel,
+        'p_zone_id': zoneId,
+      },
     );
     return _list(value);
   }
@@ -7256,10 +7272,13 @@ class _AdminCommunicationsPageState
   }
 
   Future<List<Map<String, dynamic>>> _campaignHistory() async {
+    final zoneId = widget.zoneId;
+    if (zoneId == null || zoneId.isEmpty) return const [];
     final value = await supabase.rpc(
-      'admin_notification_campaign_list_v2',
+      'admin_notification_campaign_list_scoped',
       params: {
         'p_channel': widget.channel,
+        'p_zone_id': zoneId,
         'p_from': null,
         'p_to': null,
         'p_limit': 100,
