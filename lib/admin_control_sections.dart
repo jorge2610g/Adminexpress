@@ -16,10 +16,14 @@ const Color _muted = Color(0xFF64748B);
 
 class AdminDispatchPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminDispatchPage({
     super.key,
     this.channel = 'preview',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -28,6 +32,53 @@ class AdminDispatchPage extends StatefulWidget {
 
 class _AdminDispatchPageState extends State<AdminDispatchPage> {
   int revision = 0;
+
+  String _countryCode(Map<String, dynamic> row) {
+    final direct = row['country_code']?.toString().trim().toUpperCase();
+    if (direct != null && direct.isNotEmpty) return direct;
+    final country = row['country']?.toString().trim().toLowerCase() ?? '';
+    if (country == 'chile') return 'CL';
+    if (country == 'bolivia') return 'BO';
+    return country.toUpperCase();
+  }
+
+  bool _vehicleCompatible(
+    Map<String, dynamic> ride,
+    Map<String, dynamic> driver,
+  ) {
+    final category = ride['category']?.toString() ?? '';
+    final raw = driver['vehicle_types'];
+    final vehicleTypes = raw is List
+        ? raw.map((value) => value.toString()).toSet()
+        : <String>{};
+    if (vehicleTypes.isEmpty) return false;
+    switch (category) {
+      case 'motorcycle':
+        return vehicleTypes.contains('motorcycle');
+      case 'xl':
+        return vehicleTypes.contains('xl');
+      case 'economy':
+      case 'comfort':
+        return vehicleTypes.contains('car') || vehicleTypes.contains('xl');
+      default:
+        return true;
+    }
+  }
+
+  List<Map<String, dynamic>> _driversForService(
+    Map<String, dynamic> service,
+    List<Map<String, dynamic>> drivers, {
+    required bool ride,
+  }) {
+    final zoneId = service['zone_id']?.toString();
+    return drivers.where((driver) {
+      final driverZone = driver['zone_id']?.toString();
+      if (zoneId != null && zoneId.isNotEmpty && driverZone != zoneId) {
+        return false;
+      }
+      return !ride || _vehicleCompatible(service, driver);
+    }).toList();
+  }
 
   Future<({
     List<Map<String, dynamic>> rides,
@@ -43,12 +94,35 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
         'admin_available_drivers_v2',
         params: {'p_channel': widget.channel},
       ),
+      supabase.rpc('admin_zone_list_v2'),
     ]);
     final requests = _map(values[0]);
+    final zones = _list(values[2]);
+    final scopedZoneIds = <String>{};
+
+    if (widget.zoneId != null && widget.zoneId!.isNotEmpty) {
+      scopedZoneIds.add(widget.zoneId!);
+    } else if (widget.countryCode != null &&
+        widget.countryCode!.isNotEmpty) {
+      scopedZoneIds.addAll(
+        zones
+            .where((row) => _countryCode(row) == widget.countryCode)
+            .map((row) => row['id']?.toString())
+            .whereType<String>()
+            .where((value) => value.isNotEmpty),
+      );
+    }
+
+    bool inScope(Map<String, dynamic> row) {
+      if (widget.zoneId == null && widget.countryCode == null) return true;
+      final zoneId = row['zone_id']?.toString();
+      return zoneId != null && scopedZoneIds.contains(zoneId);
+    }
+
     return (
-      rides: _list(requests['rides']),
-      deliveries: _list(requests['deliveries']),
-      drivers: _list(values[1]),
+      rides: _list(requests['rides']).where(inScope).toList(),
+      deliveries: _list(requests['deliveries']).where(inScope).toList(),
+      drivers: _list(values[1]).where(inScope).toList(),
     );
   }
 
@@ -56,14 +130,23 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
     Map<String, dynamic> ride,
     List<Map<String, dynamic>> drivers,
   ) async {
-    if (drivers.isEmpty) {
+    final compatibleDrivers = _driversForService(
+      ride,
+      drivers,
+      ride: true,
+    );
+    if (compatibleDrivers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No hay conductores disponibles.')),
+        const SnackBar(
+          content: Text(
+            'No hay conductores compatibles con la zona y categoría del viaje.',
+          ),
+        ),
       );
       return;
     }
 
-    String? driverId = drivers.first['id']?.toString();
+    String? driverId = compatibleDrivers.first['id']?.toString();
     final fare = TextEditingController(
       text: ride['proposed_fare']?.toString() ?? '',
     );
@@ -88,7 +171,7 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
                   initialValue: driverId,
                   decoration:
                       const InputDecoration(labelText: 'Conductor disponible'),
-                  items: drivers
+                  items: compatibleDrivers
                       .map(
                         (driver) => DropdownMenuItem(
                           value: driver['id'].toString(),
@@ -155,14 +238,21 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
     Map<String, dynamic> delivery,
     List<Map<String, dynamic>> drivers,
   ) async {
-    if (drivers.isEmpty) {
+    final compatibleDrivers = _driversForService(
+      delivery,
+      drivers,
+      ride: false,
+    );
+    if (compatibleDrivers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No hay conductores disponibles.')),
+        const SnackBar(
+          content: Text('No hay repartidores disponibles en esta zona.'),
+        ),
       );
       return;
     }
 
-    String? driverId = drivers.first['id']?.toString();
+    String? driverId = compatibleDrivers.first['id']?.toString();
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -184,7 +274,7 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
                   initialValue: driverId,
                   decoration:
                       const InputDecoration(labelText: 'Repartidor disponible'),
-                  items: drivers
+                  items: compatibleDrivers
                       .map(
                         (driver) => DropdownMenuItem(
                           value: driver['id'].toString(),
