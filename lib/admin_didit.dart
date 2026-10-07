@@ -15,10 +15,14 @@ const _violet = Color(0xFF6941C6);
 
 class AdminDiditPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminDiditPage({
     super.key,
     required this.channel,
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -54,38 +58,28 @@ class _AdminDiditPageState extends State<AdminDiditPage> {
   }
 
   Future<Map<String, dynamic>> _load() async {
-    final raw = await supabase
-        .from('identity_verifications')
-        .select(
-          'id,user_id,subject_role,document_type,status,provider,'
-          'document_score,face_match_score,liveness_score,result,'
-          'created_at,updated_at,provider_session_id,provider_environment,'
-          'country_code,workflow_id,verification_url,provider_status,completed_at',
-        )
-        .eq('provider', 'didit')
-        .eq('provider_environment', providerEnvironment)
-        .order('created_at', ascending: false)
-        .limit(250);
+    final raw = await supabase.rpc(
+      'admin_identity_verification_list_scoped',
+      params: {
+        'p_limit': 250,
+        'p_country_code': widget.countryCode,
+        'p_zone_id': widget.zoneId,
+        'p_provider': 'didit',
+        'p_provider_environment': providerEnvironment,
+      },
+    );
 
     final sessions = _list(raw);
-
     final names = <String, String>{};
-    try {
-      final drivers = _list(await supabase.rpc('admin_driver_list_v2'));
-      for (final row in drivers) {
-        final id =
-            (row['id'] ?? row['user_id'] ?? row['driver_id'])?.toString();
-        if (id == null || id.isEmpty) continue;
-        final name = (row['full_name'] ??
-                row['driver_name'] ??
-                row['name'] ??
-                row['email'])
-            ?.toString()
-            .trim();
-        if (name != null && name.isNotEmpty) names[id] = name;
+    for (final row in sessions) {
+      final id = row['user_id']?.toString();
+      final name = row['full_name']?.toString().trim();
+      if (id != null &&
+          id.isNotEmpty &&
+          name != null &&
+          name.isNotEmpty) {
+        names[id] = name;
       }
-    } catch (_) {
-      // El panel sigue funcionando con IDs aunque el RPC de nombres no responda.
     }
 
     return {
