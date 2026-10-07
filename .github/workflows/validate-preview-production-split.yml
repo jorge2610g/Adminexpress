@@ -8,6 +8,7 @@ on:
       - refactor/unified-preview-production-panel
       - fix/admin-live-channel-badges-20261006
       - fix/admin-geo-scope-identity-20261007
+      - fix/admin-audit-readiness-20261007
   workflow_dispatch:
 
 permissions:
