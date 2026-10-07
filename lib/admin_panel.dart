@@ -3111,6 +3111,14 @@ class _LiveTripList extends StatelessWidget {
         final id = (row['id'] ?? '').toString();
         final shortId = id.length > 7 ? id.substring(0, 7).toUpperCase() : id;
         final status = (row['status'] ?? 'activo').toString();
+        final channel =
+            (row['channel'] ?? 'production').toString().toLowerCase();
+        final isPreview = channel == 'preview';
+        final channelLabel = isPreview ? 'Prueba' : 'Producción';
+        final channelForeground =
+            isPreview ? const Color(0xFFB54708) : const Color(0xFF14804A);
+        final channelBackground =
+            isPreview ? const Color(0xFFFFF7E6) : const Color(0xFFE8F8EF);
         final pickup = (row['pickup_address'] ?? 'Origen').toString();
         final destination =
             (row['destination_address'] ?? 'Destino').toString();
@@ -3146,6 +3154,25 @@ class _LiveTripList extends StatelessWidget {
                             ),
                           ),
                         ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: channelBackground,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            channelLabel,
+                            style: TextStyle(
+                              color: channelForeground,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 7,
