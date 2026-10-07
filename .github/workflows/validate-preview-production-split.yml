@@ -10,6 +10,9 @@ on:
       - fix/admin-geo-scope-identity-20261007
       - fix/admin-audit-readiness-20261007
       - feat/admin-runtime-scope-isolation-20261007
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -59,6 +62,8 @@ jobs:
           grep -q "admin_trip_detail_v2" lib/admin_detail_dialogs.dart
           grep -q "admin_update_driver_profile_v2" lib/admin_detail_dialogs.dart
           grep -q "admin_update_user_profile_v2" lib/admin_detail_dialogs.dart
+          grep -q "AdminEnvironmentStore(widget.channel)" lib/admin_driver_document_requirements.dart
+          grep -q "previewList('driver_document_requirements')" lib/admin_driver_document_requirements.dart
 
           for legacy in             "'admin_set_driver_approval'"             "'admin_set_account_status'"             "'admin_resolve_emergency'"; do
             if grep -q "$legacy" lib/admin_panel.dart; then

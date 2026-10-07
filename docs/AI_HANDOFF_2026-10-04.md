@@ -41,6 +41,14 @@ Cambios inmediatamente recientes:
 
 ---
 
+## 2.2 Documentos de conductor · separación por entorno
+
+- La pantalla de requisitos de documentos ya no comparte persistencia entre Prueba y Producción.
+- Producción usa RPC operativas reales.
+- Prueba usa shadow `driver_document_requirements` mediante `AdminEnvironmentStore`.
+- Configuración base: Bolivia solo Carné; Chile Cédula + Licencia.
+- Un chip `Inactivo` representa directamente `active=false` del entorno actual.
+
 ## 2.1 Runtime Scope Admin · 2026-10-07
 
 **REGLA VIGENTE:**
