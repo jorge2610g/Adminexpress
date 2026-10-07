@@ -9,6 +9,7 @@ on:
       - fix/admin-live-channel-badges-20261006
       - fix/admin-geo-scope-identity-20261007
       - fix/admin-audit-readiness-20261007
+      - feat/admin-runtime-scope-isolation-20261007
   workflow_dispatch:
 
 permissions:
@@ -44,6 +45,34 @@ jobs:
           grep -q "AdminIdentitySecurityPage(" lib/admin_panel.dart
           grep -q "AdminAdvancedSettingsPage(channel: adminChannel)" lib/admin_panel.dart
           grep -q "AdminDriverSubscriptionsPage(" lib/admin_panel.dart
+
+      - name: Enforce hard Admin runtime scope
+        run: |
+          test -f lib/admin_runtime_scope.dart
+          grep -q "AdminRuntimeScope(" lib/admin_panel.dart
+          grep -q "KeyedSubtree(" lib/admin_panel.dart
+          grep -q "admin_set_driver_approval_v2" lib/admin_panel.dart
+          grep -q "admin_set_account_status_v2" lib/admin_panel.dart
+          grep -q "admin_resolve_emergency_v2" lib/admin_panel.dart
+          grep -q "admin_driver_detail_v2" lib/admin_detail_dialogs.dart
+          grep -q "admin_user_detail_v2" lib/admin_detail_dialogs.dart
+          grep -q "admin_trip_detail_v2" lib/admin_detail_dialogs.dart
+          grep -q "admin_update_driver_profile_v2" lib/admin_detail_dialogs.dart
+          grep -q "admin_update_user_profile_v2" lib/admin_detail_dialogs.dart
+
+          for legacy in             "'admin_set_driver_approval'"             "'admin_set_account_status'"             "'admin_resolve_emergency'"; do
+            if grep -q "$legacy" lib/admin_panel.dart; then
+              echo "ERROR: sensitive Admin action still bypasses runtime scope: $legacy"
+              exit 1
+            fi
+          done
+
+          for legacy in             "'admin_driver_detail'"             "'admin_user_detail'"             "'admin_trip_detail'"             "'admin_update_driver_profile'"             "'admin_update_user_profile'"             "'admin_upsert_driver_document'"; do
+            if grep -q "$legacy" lib/admin_detail_dialogs.dart; then
+              echo "ERROR: detail/editor RPC still bypasses runtime scope: $legacy"
+              exit 1
+            fi
+          done
 
       - name: Analyze admin modules
         run: |
