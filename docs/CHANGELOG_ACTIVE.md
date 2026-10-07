@@ -1,3 +1,13 @@
+## 2026-10-07 — Documentos conductor separados por entorno
+
+- `AdminDriverDocumentRequirementsPanel` ahora respeta `channel`.
+- Producción lee/escribe `driver_document_requirements` reales.
+- Prueba lee/escribe `admin_environment_config.driver_document_requirements` y ya no toca Producción.
+- Edición, creación y borrado Preview usan `AdminEnvironmentStore`.
+- Política vigente: BO = Carné activo / Licencia inactiva; CL = Cédula + Licencia activas.
+
+---
+
 ## 2026-10-07 — Runtime Scope Admin · separación dura Prueba / Producción
 
 - Adminexpress mantiene **una sola UI**, pero ahora el selector superior crea un workspace de datos independiente por entorno;
