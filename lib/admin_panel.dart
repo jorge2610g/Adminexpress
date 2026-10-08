@@ -6,6 +6,7 @@ import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
+import 'admin_single_app_release.dart';
 import 'admin_audit_sandbox.dart';
 import 'admin_load_lab.dart';
 import 'admin_driver_subscriptions.dart';
@@ -1310,7 +1311,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 11:
         return AdminSettingsPage(channel: adminChannel);
       case 12:
-        return AdminBuildsPage(channel: adminChannel);
+        return AdminSingleAppReleasePage(channel: adminChannel);
       case 13:
         return AdminDispatchPage(
           channel: adminChannel,
