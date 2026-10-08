@@ -55,8 +55,8 @@ No eliminar funciones/tablas administrativas del backend desde el repositorio Ex
 > son globales para **toda la aplicación Express**. El módulo `Builds`
 > no solicita país ni zona y se puede abrir sin seleccionar ámbito geográfico.
 > Solo los módulos operativos mantienen filtros obligatorios país/zona.
-> La autorización por rol y la selección de entorno Prueba/Producción siguen
-> vigentes para proteger los releases reales.
+> La autorización por rol y el permiso `allow_production` siguen vigentes
+> para proteger los releases reales, sin depender del selector de entorno.
 >
 ## Cambio 2026-10-08 — un solo APK público, sin app Preview permanente
 
