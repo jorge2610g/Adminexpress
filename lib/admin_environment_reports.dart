@@ -29,6 +29,29 @@ class _AdminEnvironmentReportsPageState
   DateTime from = DateTime.now().subtract(const Duration(days: 30));
   DateTime to = DateTime.now().add(const Duration(days: 1));
   int revision = 0;
+  late Future<Map<String, Map<String, dynamic>>> _reportFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _reportFuture = _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant AdminEnvironmentReportsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.includePreview != widget.includePreview ||
+        oldWidget.includeProduction != widget.includeProduction) {
+      _reportFuture = _load();
+    }
+  }
+
+  void _refresh() {
+    setState(() {
+      revision++;
+      _reportFuture = _load();
+    });
+  }
 
   Future<Map<String, Map<String, dynamic>>> _load() async {
     final channels = <String>[
@@ -63,6 +86,7 @@ class _AdminEnvironmentReportsPageState
       setState(() {
         from = date;
         revision++;
+        _reportFuture = _load();
       });
     }
   }
@@ -79,6 +103,7 @@ class _AdminEnvironmentReportsPageState
       setState(() {
         to = date.add(const Duration(days: 1));
         revision++;
+        _reportFuture = _load();
       });
     }
   }
@@ -193,7 +218,7 @@ class _AdminEnvironmentReportsPageState
       color: _bg,
       child: FutureBuilder<Map<String, Map<String, dynamic>>>(
         key: ValueKey(revision),
-        future: _load(),
+        future: _reportFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting &&
               !snapshot.hasData) {
@@ -202,7 +227,7 @@ class _AdminEnvironmentReportsPageState
           if (snapshot.hasError) {
             return Center(
               child: FilledButton.icon(
-                onPressed: () => setState(() => revision++),
+                onPressed: _refresh,
                 icon: const Icon(Icons.refresh_rounded),
                 label: Text('Reintentar: ' + snapshot.error.toString()),
               ),
@@ -235,7 +260,7 @@ class _AdminEnvironmentReportsPageState
                     label: Text('Hasta ' + _date(to.subtract(const Duration(days: 1)))),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => setState(() => revision++),
+                    onPressed: _refresh,
                     icon: const Icon(Icons.refresh_rounded, size: 16),
                     label: const Text('Actualizar'),
                   ),
