@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
+import 'admin_bolivia_kyc.dart';
 
 const _bg = Color(0xFFF1F5F9);
 const _ink = Color(0xFF0F172A);
@@ -783,6 +784,13 @@ class _AdminDiditPageState extends State<AdminDiditPage> {
                 ],
               ),
               const SizedBox(height: 14),
+              if (widget.countryCode?.toUpperCase() == 'BO') ...[
+                AdminBoliviaKycPanel(
+                  channel: widget.channel,
+                  countryCode: widget.countryCode,
+                ),
+                const SizedBox(height: 14),
+              ],
               Container(
                 padding: const EdgeInsets.all(13),
                 decoration: BoxDecoration(
