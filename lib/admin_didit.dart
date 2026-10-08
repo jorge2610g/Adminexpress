@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
@@ -310,11 +308,6 @@ class _AdminDiditPageState extends State<AdminDiditPage> {
     final result = _map(row['result']);
     final modules = _map(result['modules']);
     final warnings = _list(result['warnings']);
-    final outboundEndpoint =
-        isPreview ? 'didit-identity' : 'didit-identity-prod';
-    final inboundEndpoint =
-        isPreview ? 'didit-webhook' : 'didit-webhook-prod';
-
     showDialog<void>(
       context: context,
       builder: (context) {
@@ -347,11 +340,11 @@ class _AdminDiditPageState extends State<AdminDiditPage> {
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                            Text(
-                              'Sesión ${row['provider_session_id'] ?? '—'}',
+                            const Text(
+                              'Detalle de la verificación de identidad',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: _muted,
                                 fontSize: 10,
                               ),
@@ -379,12 +372,18 @@ class _AdminDiditPageState extends State<AdminDiditPage> {
                           title: 'Enviado a Didit',
                           icon: Icons.upload_rounded,
                           children: [
-                            _field('Edge Function', outboundEndpoint),
-                            _field('Ambiente', providerEnvironment),
-                            _field('Usuario / vendor_data', row['user_id'], mono: true),
+                            _field(
+                              'Entorno',
+                              isPreview ? 'Prueba' : 'Producción',
+                            ),
+                            _field(
+                              'Conductor',
+                              driverName?.isNotEmpty == true
+                                  ? driverName
+                                  : 'Conductor de Express',
+                            ),
                             _field('País', row['country_code']),
-                            _field('Workflow ID', row['workflow_id'], mono: true),
-                            _field('Tipo de registro', row['document_type']),
+                            _field('Tipo de documento', row['document_type']),
                             _field(
                               'URL de verificación',
                               (row['verification_url'] ?? '').toString().isEmpty
@@ -399,9 +398,16 @@ class _AdminDiditPageState extends State<AdminDiditPage> {
                           title: 'Recibido de Didit',
                           icon: Icons.download_rounded,
                           children: [
-                            _field('Webhook', inboundEndpoint),
-                            _field('Estado Didit', row['provider_status']),
-                            _field('Estado Express', row['status']),
+                            _field(
+                              'Resultado de Didit',
+                              _statusLabel(
+                                (row['provider_status'] ?? '').toString(),
+                              ),
+                            ),
+                            _field(
+                              'Estado en Express',
+                              _statusLabel((row['status'] ?? '').toString()),
+                            ),
                             _field('Documento detectado', result['document_type']),
                             _field('País emisor', result['issuing_state']),
                             const SizedBox(height: 6),
@@ -410,14 +416,14 @@ class _AdminDiditPageState extends State<AdminDiditPage> {
                               runSpacing: 7,
                               children: [
                                 _moduleState('Documento', modules['id_verification']),
-                                _moduleState('Face match', modules['face_match']),
-                                _moduleState('Liveness', modules['liveness']),
+                                _moduleState('Coincidencia facial', modules['face_match']),
+                                _moduleState('Prueba de vida', modules['liveness']),
                               ],
                             ),
                             const SizedBox(height: 10),
-                            _field('Score documento', _score(row['document_score'])),
-                            _field('Score facial', _score(row['face_match_score'])),
-                            _field('Score liveness', _score(row['liveness_score'])),
+                            _field('Confianza del documento', _score(row['document_score'])),
+                            _field('Coincidencia facial', _score(row['face_match_score'])),
+                            _field('Prueba de vida', _score(row['liveness_score'])),
                             _field('Actualizado', _fmtDate(row['updated_at'])),
                             _field('Completado', _fmtDate(row['completed_at'])),
                           ],
@@ -472,22 +478,6 @@ class _AdminDiditPageState extends State<AdminDiditPage> {
                                 ],
                               ),
                             ],
-                            const SizedBox(height: 14),
-                            _detailPanel(
-                              title: 'Payload saneado guardado',
-                              icon: Icons.data_object_rounded,
-                              children: [
-                                SelectableText(
-                                  const JsonEncoder.withIndent('  ').convert(result),
-                                  style: const TextStyle(
-                                    color: _ink,
-                                    fontSize: 10,
-                                    fontFamily: 'monospace',
-                                    height: 1.45,
-                                  ),
-                                ),
-                              ],
-                            ),
                             const SizedBox(height: 10),
                             const Text(
                               'Por seguridad este panel nunca muestra API Keys, '
@@ -626,13 +616,12 @@ class _AdminDiditPageState extends State<AdminDiditPage> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Sesión: ${row['provider_session_id'] ?? '—'}',
+                    'Actualizado: ${_fmtDate(row['updated_at'])}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: _muted,
                       fontSize: 9,
-                      fontFamily: 'monospace',
                     ),
                   ),
                 ],
@@ -644,8 +633,8 @@ class _AdminDiditPageState extends State<AdminDiditPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _field('Documento', _score(row['document_score'])),
-                    _field('Face match', _score(row['face_match_score'])),
-                    _field('Liveness', _score(row['liveness_score'])),
+                    _field('Coincidencia facial', _score(row['face_match_score'])),
+                    _field('Prueba de vida', _score(row['liveness_score'])),
                     _field('Creado', _fmtDate(row['created_at'])),
                   ],
                 ),
@@ -702,7 +691,7 @@ class _AdminDiditPageState extends State<AdminDiditPage> {
                 child: FilledButton.icon(
                   onPressed: () => setState(() => revision++),
                   icon: const Icon(Icons.refresh_rounded),
-                  label: Text('Reintentar · ${snapshot.error}'),
+                  label: const Text('No se pudo cargar · Reintentar'),
                 ),
               ),
             );
@@ -881,7 +870,7 @@ class _AdminDiditPageState extends State<AdminDiditPage> {
                           onChanged: (_) => setState(() {}),
                           decoration: const InputDecoration(
                             prefixIcon: Icon(Icons.search_rounded, size: 18),
-                            hintText: 'Buscar conductor, sesión o workflow',
+                            hintText: 'Buscar conductor, país o estado',
                           ),
                         ),
                       ),
