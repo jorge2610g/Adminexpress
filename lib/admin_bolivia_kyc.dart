@@ -201,7 +201,7 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
       'front':'front_object_path',
       'back':'back_object_path',
       'selfie':'selfie_object_path',
-      'profile':'profile_photo_path',
+      // Bolivia uses the verified selfie as the profile photograph.
     };
     for(final entry in slots.entries){
       final objectPath=_text(document[entry.value]);
