@@ -1,3 +1,13 @@
+> **Regla global confirmada 2026-10-08:** las secciones `Reportes` (10),
+> `Builds` (12) y `Auditoría` (14) son únicas a nivel de Express, **sin**
+> selector Prueba/Producción ni obligación país/zona. Builds requiere permiso
+> `allow_production` para crear/aprobar/publicar; Reportes y Auditoría
+> consultan simultáneamente solo los entornos autorizados, mostrando los
+> datos QA separados o con etiquetas. **NO** aplicar esta excepción a Viajes,
+> Usuarios, Conductores, Configuración, Laboratorio QA ni otras funciones
+> operativas: deben seguir aisladas por canal y geografía.
+> Revisar `docs/CHANGELOG_ACTIVE.md` antes de cambiar navegación.
+>
 # AGENTS.md — Adminexpress
 
 Este repositorio es el panel administrativo web de Express. Este archivo está dirigido a IAs/agentes de código y desarrolladores que necesiten editarlo sin romper Producción, Preview, App Builder o el backend compartido.
