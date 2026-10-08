@@ -36,6 +36,19 @@ El acceso al panel está protegido por la RPC `is_admin`.
 
 No eliminar funciones/tablas administrativas del backend desde el repositorio Express: siguen siendo necesarias para Adminexpress.
 
+## Cambio 2026-10-08 — un solo APK público, sin app Preview permanente
+
+La pestaña **Builds** usa ahora `AdminSingleAppReleasePage`:
+
+1. En Producción, el administrador prepara un **candidato firmado de la única app** `com.express.usuario1`, build Google Play independiente.
+2. Se descargan los APK/AAB de ese mismo candidato para hacer QA real en Android. Los datos de QA siguen protegidos en Supabase.
+3. El administrador registra **qué comprobó**, certifica el SHA y hashes de esos mismos artefactos, aprueba y promueve **sin recompilar**.
+4. La publicación a clientes sigue siendo un paso manual independiente. QA Web cotidiana y APK debug temporal por demanda viven en el repositorio Expressdelivery.
+
+Backend: migración `20261008124200_single_app_android_release_gate.sql`, funciones `admin_queue_single_app_candidate`, `admin_single_app_release_status`, `admin_certify_single_app_candidate`, `admin_approve_single_app_candidate` y `admin_promote_single_app_candidate`. Se conservan registros históricos y respaldos; los mecanismos de Preview antiguo permanecen para recuperación sin intervenir el flujo nuevo.
+
+**No publicar en Google Play sin probar el APK firmado y verificar la misma identidad/hash que el AAB aprobado.**
+
 ## App Builder
 
 Adminexpress no compila Flutter dentro del navegador.
