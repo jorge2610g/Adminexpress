@@ -6,8 +6,9 @@ import 'core/supabase_client.dart';
 /// One Express Android package. The signed Production candidate itself is
 /// tested/certified; no permanent Preview APK is involved.
 class AdminSingleAppReleasePage extends StatefulWidget {
-  const AdminSingleAppReleasePage({super.key, required this.channel});
-  final String channel;
+  const AdminSingleAppReleasePage({super.key, required this.productionAccess});
+  // Capability from server-side admin_access_context; never a Preview/Production UI mode.
+  final bool productionAccess;
 
   @override
   State<AdminSingleAppReleasePage> createState() =>
@@ -21,7 +22,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
   bool loading = true;
   bool busy = false;
 
-  bool get canManage => widget.channel == 'production';
+  bool get canManage => widget.productionAccess;
   Map<String, dynamic> get candidate {
     final raw = status['candidate'];
     return raw is Map ? Map<String, dynamic>.from(raw) : {};
@@ -41,7 +42,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
   @override
   void didUpdateWidget(covariant AdminSingleAppReleasePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.channel != widget.channel) _refresh();
+    if (oldWidget.productionAccess != widget.productionAccess) _refresh();
   }
 
   Future<void> _refresh() async {
@@ -359,10 +360,10 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             'una función nativa que verificar o una nueva publicación.'),
         const SizedBox(height: 12),
         if (!canManage)
-          _section('Modo Prueba',
-            const Text('El entorno QA conserva sus datos aislados. '
-              'Para crear, certificar o promover un APK/AAB firmado, '
-              'cambia el panel a Producción. No necesitas Express Preview.')),
+          _section('Solo lectura',
+            const Text('Tu cuenta no tiene permiso para administrar '
+              'publicaciones Android. Las compilaciones son globales '
+              'para Express, sin separación por país, zona ni APK Preview.')),
         if (error != null)
           _section('Error al consultar builds', Text(error!,
               style: const TextStyle(color: Colors.red))),
