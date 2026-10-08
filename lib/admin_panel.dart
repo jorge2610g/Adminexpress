@@ -233,6 +233,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
 
   bool get _isZoneMonitor =>
       adminAccess['role']?.toString() == 'zone_monitor';
+  // Android releases belong to the entire Express app, never to a
+  // country, city or service zone. Operational sections still require scope.
+  static bool _requiresZoneScope(int selectedSection) => selectedSection != 12;
+
   bool get _scopeReady =>
       adminCountryCode != null &&
       adminCountryCode!.isNotEmpty &&
@@ -1236,15 +1240,20 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                             showNewTrip: !_isZoneMonitor,
                           ),
                         _environmentSwitcher(),
-                        _globalGeoScopeSwitcher(),
+                        if (_requiresZoneScope(section))
+                          _globalGeoScopeSwitcher(),
                         Expanded(
                           child: KeyedSubtree(
                             key: ValueKey(
                               AdminRuntimeScope(
                                 environment:
                                     AdminEnvironment.parse(adminChannel),
-                                countryCode: adminCountryCode,
-                                zoneId: adminZoneId,
+                                countryCode: _requiresZoneScope(section)
+                                    ? adminCountryCode
+                                    : null,
+                                zoneId: _requiresZoneScope(section)
+                                    ? adminZoneId
+                                    : null,
                               ).cacheKey,
                             ),
                             child: _body(section),
@@ -1264,7 +1273,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _body(int value) {
-    if (!_scopeReady) {
+    if (_requiresZoneScope(value) && !_scopeReady) {
       return const _ScopeSelectionRequired();
     }
 
