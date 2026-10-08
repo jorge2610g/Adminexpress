@@ -79,6 +79,36 @@ jobs:
             fi
           done
 
+      - name: Verify Builds is app-global without weakening zone-scoped screens
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          panel = Path('lib/admin_panel.dart').read_text()
+          builds = Path('lib/admin_single_app_release.dart').read_text()
+          checks = {
+            'only Builds bypasses the zone precondition':
+              'static bool _requiresZoneScope(int selectedSection) => selectedSection != 12;' in panel,
+            'global scope bar hidden only for app-global Builds':
+              'if (_requiresZoneScope(section))\n                          _globalGeoScopeSwitcher(),' in panel,
+            'other sections still require country and zone':
+              'if (_requiresZoneScope(value) && !_scopeReady)' in panel,
+            'Builds cache key does not depend on country':
+              'countryCode: _requiresZoneScope(section)' in panel,
+            'Builds cache key does not depend on zone':
+              'zoneId: _requiresZoneScope(section)' in panel,
+            'Builds still uses the current environment channel':
+              'return AdminSingleAppReleasePage(channel: adminChannel);' in panel,
+            'zone monitors still have restricted module access':
+              'if (_isZoneMonitor &&' in panel,
+            'build controls still require production channel':
+              "bool get canManage => widget.channel == 'production';" in builds,
+          }
+          for description, success in checks.items():
+            if not success:
+              raise SystemExit(f'FAIL: {description}')
+          print('PASS: Builds global; operational zone checks and Production gate unchanged.')
+          PY
       - name: Analyze admin modules
         run: |
           flutter analyze --no-fatal-warnings --no-fatal-infos \
