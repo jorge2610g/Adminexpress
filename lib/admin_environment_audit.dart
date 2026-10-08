@@ -25,6 +25,29 @@ class AdminEnvironmentAuditPage extends StatefulWidget {
 
 class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
   int revision = 0;
+  late Future<List<Map<String, dynamic>>> _auditFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _auditFuture = _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant AdminEnvironmentAuditPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.includePreview != widget.includePreview ||
+        oldWidget.includeProduction != widget.includeProduction) {
+      _auditFuture = _load();
+    }
+  }
+
+  void _refresh() {
+    setState(() {
+      revision++;
+      _auditFuture = _load();
+    });
+  }
 
   Future<List<Map<String, dynamic>>> _load() async {
     final channels = <String>[
@@ -82,7 +105,7 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
       color: _bg,
       child: FutureBuilder<List<Map<String, dynamic>>>(
         key: ValueKey(revision),
-        future: _load(),
+        future: _auditFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting &&
               !snapshot.hasData) {
@@ -91,7 +114,7 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
           if (snapshot.hasError) {
             return Center(
               child: FilledButton.icon(
-                onPressed: () => setState(() => revision++),
+                onPressed: _refresh,
                 icon: const Icon(Icons.refresh_rounded),
                 label: Text('Reintentar: ' + snapshot.error.toString()),
               ),
@@ -119,7 +142,7 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
                   ),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => setState(() => revision++),
+                  onPressed: _refresh,
                   icon: const Icon(Icons.refresh_rounded),
                   label: const Text('Actualizar'),
                 ),
