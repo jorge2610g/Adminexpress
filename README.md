@@ -36,6 +36,13 @@ El acceso al panel está protegido por la RPC `is_admin`.
 
 No eliminar funciones/tablas administrativas del backend desde el repositorio Express: siguen siendo necesarias para Adminexpress.
 
+> **Corrección de Builds, 2026-10-08:** las compilaciones y publicaciones
+> son globales para **toda la aplicación Express**. El módulo `Builds`
+> no solicita país ni zona y se puede abrir sin seleccionar ámbito geográfico.
+> Solo los módulos operativos mantienen filtros obligatorios país/zona.
+> La autorización por rol y la selección de entorno Prueba/Producción siguen
+> vigentes para proteger los releases reales.
+>
 ## Cambio 2026-10-08 — un solo APK público, sin app Preview permanente
 
 La pestaña **Builds** usa ahora `AdminSingleAppReleasePage`:
