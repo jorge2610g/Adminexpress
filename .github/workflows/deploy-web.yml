@@ -35,6 +35,8 @@ jobs:
           flutter analyze --no-fatal-warnings --no-fatal-infos \
             lib/admin_panel.dart \
             lib/admin_single_app_release.dart \
+            lib/admin_environment_reports.dart \
+            lib/admin_environment_audit.dart \
             lib/admin_control_sections.dart \
             lib/admin_dynamic_pricing.dart \
             lib/admin_environment_store.dart
