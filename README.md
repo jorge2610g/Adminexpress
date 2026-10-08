@@ -1,3 +1,18 @@
+## 2026-10-08 — Módulos globales: Builds, Auditoría y Reportes
+
+- **Builds, Auditoría y Reportes son globales para Express**: no requieren país,
+  zona, ni selector superior Prueba/Producción.
+- Builds gestiona **un solo paquete Android** y sus publicaciones. Las acciones
+  peligrosas siguen dependiendo del permiso de Producción de la cuenta.
+- Reportes carga en una misma pantalla los resultados reales y los de QA,
+  **identificados por separado**, sin sumar datos de prueba en las métricas reales.
+- Auditoría muestra cronológicamente los eventos autorizados de ambos orígenes
+  con etiquetas **REAL / QA** y sin perder la trazabilidad.
+- Los restantes módulos operativos conservan los filtros obligatorios de zona
+  y la separación estricta de entornos. Los monitores de zona siguen restringidos.
+
+---
+
 # Adminexpress
 
 Panel administrativo web independiente de **Express**.
@@ -40,8 +55,8 @@ No eliminar funciones/tablas administrativas del backend desde el repositorio Ex
 > son globales para **toda la aplicación Express**. El módulo `Builds`
 > no solicita país ni zona y se puede abrir sin seleccionar ámbito geográfico.
 > Solo los módulos operativos mantienen filtros obligatorios país/zona.
-> La autorización por rol y la selección de entorno Prueba/Producción siguen
-> vigentes para proteger los releases reales.
+> La autorización por rol y el permiso `allow_production` siguen vigentes
+> para proteger los releases reales, sin depender del selector de entorno.
 >
 ## Cambio 2026-10-08 — un solo APK público, sin app Preview permanente
 

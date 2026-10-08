@@ -79,41 +79,68 @@ jobs:
             fi
           done
 
-      - name: Verify Builds is app-global without weakening zone-scoped screens
+      - name: Assert Builds, Audit and Reports are system-global without breaking operational scope
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           panel = Path('lib/admin_panel.dart').read_text()
           builds = Path('lib/admin_single_app_release.dart').read_text()
+          reports = Path('lib/admin_environment_reports.dart').read_text()
+          audit = Path('lib/admin_environment_audit.dart').read_text()
           checks = {
-            'only Builds bypasses the zone precondition':
-              'static bool _requiresZoneScope(int selectedSection) => selectedSection != 12;' in panel,
-            'global scope bar hidden only for app-global Builds':
+            'only Reports, Builds and Audit bypass zone scope':
+              'static const Set<int> _globalSections = {10, 12, 14};' in panel
+              and '!_globalSections.contains(selectedSection)' in panel,
+            'environment switch hidden for system-global modules':
+              'if (!_globalSections.contains(section))\n                          _environmentSwitcher(),' in panel,
+            'country/zone switch hidden for system-global modules':
               'if (_requiresZoneScope(section))\n                          _globalGeoScopeSwitcher(),' in panel,
-            'other sections still require country and zone':
+            'other sections still require selected zone':
               'if (_requiresZoneScope(value) && !_scopeReady)' in panel,
-            'Builds cache key does not depend on country':
-              'countryCode: _requiresZoneScope(section)' in panel,
-            'Builds cache key does not depend on zone':
-              'zoneId: _requiresZoneScope(section)' in panel,
-            'Builds still uses the current environment channel':
-              'return AdminSingleAppReleasePage(channel: adminChannel);' in panel,
-            'zone monitors still have restricted module access':
+            'Builds cache scope excludes country/zone':
+              'countryCode: _requiresZoneScope(section)' in panel
+              and 'zoneId: _requiresZoneScope(section)' in panel,
+            'zone monitor access stays restricted':
               'if (_isZoneMonitor &&' in panel,
-            'build controls still require production channel':
-              "bool get canManage => widget.channel == 'production';" in builds,
+            'Builds publication controls require production access permission':
+              'return AdminSingleAppReleasePage(' in panel
+              and 'productionAccess: allowProduction' in panel
+              and 'bool get canManage => widget.productionAccess;' in builds,
+            'unified Reports view only queries authorized environments':
+              'includePreview: allowPreview' in panel
+              and 'includeProduction: allowProduction' in panel
+              and "supabase.rpc('admin_report_summary_v2'" in reports
+              and "if (widget.includeProduction)" in reports
+              and "if (widget.includePreview)" in reports
+              and "'p_channel': channel" in reports
+              and "widget.channel" not in reports,
+            'unified Audit retains origin and chronological ordering':
+              "supabase.rpc('admin_audit_list_v2'" in audit
+              and 'source_channel' in audit
+              and "rows.sort(" in audit
+              and "if (widget.includeProduction)" in audit
+              and "if (widget.includePreview)" in audit
+              and "'p_channel': channel" in audit
+              and "widget.channel" not in audit,
+            'no Preview/Production UI switch embedded in shared pages':
+              "SegmentedButton" not in reports
+              and "SegmentedButton" not in audit
+              and "SegmentedButton" not in builds,
           }
           for description, success in checks.items():
             if not success:
-              raise SystemExit(f'FAIL: {description}')
-          print('PASS: Builds global; operational zone checks and Production gate unchanged.')
+              raise SystemExit('FAIL: ' + description)
+          print('PASS: global Builds, Audit, Reports; operational geo + access guards intact.')
           PY
+
       - name: Analyze admin modules
         run: |
           flutter analyze --no-fatal-warnings --no-fatal-infos \
             lib/admin_panel.dart \
             lib/admin_single_app_release.dart \
+            lib/admin_environment_reports.dart \
+            lib/admin_environment_audit.dart \
             lib/admin_control_sections.dart \
             lib/admin_driver_subscriptions.dart \
             lib/admin_environment_store.dart \

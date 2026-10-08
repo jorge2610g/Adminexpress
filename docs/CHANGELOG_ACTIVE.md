@@ -1,3 +1,21 @@
+## 2026-10-08 — Builds, Auditoría y Reportes no tienen modo de entorno
+
+- Eliminado el selector Prueba/Producción y el filtro obligatorio país/zona
+  **solo** para los módulos globales Builds (12), Auditoría (14) y Reportes (10).
+- Reportes muestra dos grupos visibles simultáneamente: resultados reales
+  y métricas QA, sin combinar los datos en un único total engañoso.
+- Auditoría reúne las acciones autorizadas en una sola cronología con
+  origen REAL/QA por registro, manteniendo la comprobación de permisos RPC.
+- Builds mantiene el control de publicación únicamente para quienes poseen
+  `allow_production`; ya no depende del selector global para habilitarlo.
+- Los demás módulos conservan el aislamiento hard de Preview/Producción,
+  y los requisitos de zona que protegen operaciones de clientes.
+- Respaldo de código: `backup/admin-global-modules-before-20261008`.
+- Los workflows del panel verifican explícitamente la regresión y ejecutan
+  `flutter analyze` y `flutter build web --release` antes del despliegue.
+
+---
+
 ## 2026-10-07 — Documentos conductor separados por entorno
 
 - `AdminDriverDocumentRequirementsPanel` ahora respeta `channel`.

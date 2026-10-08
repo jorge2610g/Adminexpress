@@ -235,7 +235,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       adminAccess['role']?.toString() == 'zone_monitor';
   // Android releases belong to the entire Express app, never to a
   // country, city or service zone. Operational sections still require scope.
-  static bool _requiresZoneScope(int selectedSection) => selectedSection != 12;
+  // These administration modules cover the entire Express system rather than
+  // an operational country, zone, or a separate Preview/Production mode.
+  static const Set<int> _globalSections = {10, 12, 14}; // Reports, Builds, Audit
+  static bool _requiresZoneScope(int selectedSection) =>
+      !_globalSections.contains(selectedSection);
 
   bool get _scopeReady =>
       adminCountryCode != null &&
@@ -1239,7 +1243,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                             onExit: widget.onExit,
                             showNewTrip: !_isZoneMonitor,
                           ),
-                        _environmentSwitcher(),
+                        if (!_globalSections.contains(section))
+                          _environmentSwitcher(),
                         if (_requiresZoneScope(section))
                           _globalGeoScopeSwitcher(),
                         Expanded(
@@ -1316,11 +1321,16 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 10:
-        return AdminEnvironmentReportsPage(channel: adminChannel);
+        return AdminEnvironmentReportsPage(
+          includePreview: allowPreview,
+          includeProduction: allowProduction,
+        );
       case 11:
         return AdminSettingsPage(channel: adminChannel);
       case 12:
-        return AdminSingleAppReleasePage(channel: adminChannel);
+        return AdminSingleAppReleasePage(
+          productionAccess: allowProduction,
+        );
       case 13:
         return AdminDispatchPage(
           channel: adminChannel,
@@ -1328,7 +1338,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 14:
-        return AdminEnvironmentAuditPage(channel: adminChannel);
+        return AdminEnvironmentAuditPage(
+          includePreview: allowPreview,
+          includeProduction: allowProduction,
+        );
       case 15:
         return AdminCommunicationsPage(
           channel: adminChannel,
