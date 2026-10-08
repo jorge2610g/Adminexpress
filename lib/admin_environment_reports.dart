@@ -7,13 +7,17 @@ const _ink = Color(0xFF0F172A);
 const _muted = Color(0xFF64748B);
 const _blue = Color(0xFF2563EB);
 
+/// One reports destination for Express. Production and QA metrics remain
+/// separate, clearly labeled datasets; never sum test figures into real KPIs.
 class AdminEnvironmentReportsPage extends StatefulWidget {
-  final String channel;
-
   const AdminEnvironmentReportsPage({
     super.key,
-    required this.channel,
+    required this.includePreview,
+    required this.includeProduction,
   });
+
+  final bool includePreview;
+  final bool includeProduction;
 
   @override
   State<AdminEnvironmentReportsPage> createState() =>
@@ -26,30 +30,38 @@ class _AdminEnvironmentReportsPageState
   DateTime to = DateTime.now().add(const Duration(days: 1));
   int revision = 0;
 
-  Future<Map<String, dynamic>> _load() async {
-    final value = await supabase.rpc(
-      'admin_report_summary_v2',
-      params: {
-        'p_channel': widget.channel,
-        'p_from': from.toUtc().toIso8601String(),
-        'p_to': to.toUtc().toIso8601String(),
-      },
-    );
-    return value is Map
-        ? Map<String, dynamic>.from(value)
-        : <String, dynamic>{};
+  Future<Map<String, Map<String, dynamic>>> _load() async {
+    final channels = <String>[
+      if (widget.includeProduction) 'production',
+      if (widget.includePreview) 'preview',
+    ];
+    if (channels.isEmpty) return const {};
+    // Exactly one query per accessible environment, concurrently; data for
+    // production and test must never be merged or presented as one total.
+    final responses = await Future.wait(channels.map((channel) =>
+        supabase.rpc('admin_report_summary_v2', params: {
+          'p_channel': channel,
+          'p_from': from.toUtc().toIso8601String(),
+          'p_to': to.toUtc().toIso8601String(),
+        })));
+    return {
+      for (var i = 0; i < channels.length; i++)
+        channels[i]: responses[i] is Map
+            ? Map<String, dynamic>.from(responses[i] as Map)
+            : <String, dynamic>{},
+    };
   }
 
   Future<void> _pickFrom() async {
-    final value = await showDatePicker(
+    final date = await showDatePicker(
       context: context,
       firstDate: DateTime(2024),
       lastDate: DateTime.now(),
       initialDate: from,
     );
-    if (value != null) {
+    if (date != null && mounted) {
       setState(() {
-        from = value;
+        from = date;
         revision++;
       });
     }
@@ -57,36 +69,134 @@ class _AdminEnvironmentReportsPageState
 
   Future<void> _pickTo() async {
     final now = DateTime.now();
-    final value = await showDatePicker(
+    final date = await showDatePicker(
       context: context,
       firstDate: DateTime(2024),
       lastDate: now.add(const Duration(days: 1)),
       initialDate: to.isAfter(now) ? now : to,
     );
-    if (value != null) {
+    if (date != null && mounted) {
       setState(() {
-        to = value.add(const Duration(days: 1));
+        to = date.add(const Duration(days: 1));
         revision++;
       });
     }
   }
 
-  String _date(DateTime value) =>
-      '${value.day.toString().padLeft(2, '0')}/'
-      '${value.month.toString().padLeft(2, '0')}/'
-      '${value.year}';
+  String _date(DateTime value) => value.day.toString().padLeft(2, '0') +
+      '/' + value.month.toString().padLeft(2, '0') + '/' + value.year.toString();
+
+  Widget _metrics(Map<String, dynamic> data) {
+    final entries = <(String, Object?, IconData)>[
+      ('Viajes', data['trips_total'], Icons.local_taxi_rounded),
+      ('Completados', data['trips_completed'], Icons.task_alt_rounded),
+      ('Cancelados', data['trips_cancelled'], Icons.cancel_outlined),
+      ('Delivery', data['delivery_total'], Icons.local_shipping_rounded),
+      ('Delivery completados', data['delivery_completed'], Icons.inventory_2_outlined),
+      ('Delivery cancelados', data['delivery_cancelled'], Icons.remove_shopping_cart_outlined),
+      ('Cobrado', data['paid_volume'], Icons.payments_outlined),
+      ('Usuarios nuevos', data['new_users'], Icons.person_add_alt_1_rounded),
+      ('Emergencias', data['emergencies'], Icons.sos_rounded),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final cardWidth = width < 650
+            ? width
+            : width < 1000
+                ? (width - 12) / 2
+                : (width - 36) / 4;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: entries.map((item) => SizedBox(
+            width: cardWidth,
+            child: Card(
+              color: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: const Color(0xFFEAF2FF),
+                      child: Icon(item.$3, color: _blue),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text((item.$2 ?? 0).toString(),
+                              style: const TextStyle(
+                                color: _ink, fontSize: 20,
+                                fontWeight: FontWeight.w900)),
+                          Text(item.$1, style: const TextStyle(color: _muted)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _channelReport(String channel, Map<String, dynamic> data) {
+    final isTest = channel == 'preview';
+    final accent = isTest ? const Color(0xFFB54708) : const Color(0xFF14804A);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isTest ? const Color(0xFFFFF7E6) : const Color(0xFFE8F8EF),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(children: [
+            Icon(isTest ? Icons.science_rounded : Icons.verified_rounded,
+                color: accent),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(isTest ? 'Actividad de pruebas internas'
+                              : 'Actividad real de Express',
+                      style: TextStyle(color: accent,
+                          fontSize: 15, fontWeight: FontWeight.w900)),
+                  Text(
+                    isTest
+                        ? 'Datos QA separados: no se suman a los resultados reales.'
+                        : 'Datos reales de clientes y operaciones.',
+                    style: const TextStyle(color: _ink, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        _metrics(data),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final preview = widget.channel == 'preview';
     return ColoredBox(
       color: _bg,
-      child: FutureBuilder<Map<String, dynamic>>(
-        key: ValueKey('${widget.channel}-$revision'),
+      child: FutureBuilder<Map<String, Map<String, dynamic>>>(
+        key: ValueKey(revision),
         future: _load(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData &&
-              snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
@@ -94,76 +204,35 @@ class _AdminEnvironmentReportsPageState
               child: FilledButton.icon(
                 onPressed: () => setState(() => revision++),
                 icon: const Icon(Icons.refresh_rounded),
-                label: Text('Reintentar: ${snapshot.error}'),
+                label: Text('Reintentar: ' + snapshot.error.toString()),
               ),
             );
           }
-
-          final data = snapshot.data ?? const <String, dynamic>{};
+          final reports = snapshot.data ?? const <String, Map<String, dynamic>>{};
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Reportes',
-                          style: TextStyle(
-                            color: _ink,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          preview
-                              ? 'Solo métricas Preview / QA.'
-                              : 'Solo métricas reales de Producción.',
-                          style: const TextStyle(color: _muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: preview
-                          ? const Color(0xFFFFF7E6)
-                          : const Color(0xFFE8F8EF),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      preview ? 'PRUEBA' : 'PRODUCCIÓN',
-                      style: TextStyle(
-                        color: preview
-                            ? const Color(0xFFB54708)
-                            : const Color(0xFF14804A),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
+              const Text('Reportes', style: TextStyle(
+                color: _ink, fontSize: 24, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 4),
+              const Text(
+                'Resumen general de Express. Una sola pantalla, sin cambiar '
+                'el modo del panel ni seleccionar país o zona.',
+                style: TextStyle(color: _muted),
               ),
               const SizedBox(height: 14),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 8, runSpacing: 8,
                 children: [
                   OutlinedButton.icon(
                     onPressed: _pickFrom,
                     icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                    label: Text('Desde ${_date(from)}'),
+                    label: Text('Desde ' + _date(from)),
                   ),
                   OutlinedButton.icon(
                     onPressed: _pickTo,
                     icon: const Icon(Icons.event_outlined, size: 16),
-                    label: Text('Hasta ${_date(to.subtract(const Duration(days: 1)))}'),
+                    label: Text('Hasta ' + _date(to.subtract(const Duration(days: 1)))),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => setState(() => revision++),
@@ -172,75 +241,14 @@ class _AdminEnvironmentReportsPageState
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final width = constraints.maxWidth;
-                  final cardWidth = width < 650
-                      ? width
-                      : width < 1000
-                          ? (width - 12) / 2
-                          : (width - 36) / 4;
-                  final cards = <(String, Object?, IconData)>[
-                    ('Viajes', data['trips_total'], Icons.local_taxi_rounded),
-                    ('Completados', data['trips_completed'], Icons.task_alt_rounded),
-                    ('Cancelados', data['trips_cancelled'], Icons.cancel_outlined),
-                    ('Delivery', data['delivery_total'], Icons.local_shipping_rounded),
-                    ('Delivery completados', data['delivery_completed'], Icons.inventory_2_outlined),
-                    ('Delivery cancelados', data['delivery_cancelled'], Icons.remove_shopping_cart_outlined),
-                    ('Cobrado', data['paid_volume'], Icons.payments_outlined),
-                    ('Usuarios nuevos', data['new_users'], Icons.person_add_alt_1_rounded),
-                    ('Emergencias', data['emergencies'], Icons.sos_rounded),
-                  ];
-                  return Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: cards
-                        .map(
-                          (item) => SizedBox(
-                            width: cardWidth,
-                            child: Card(
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Row(
-                                  children: [
-                                    CircleAvatar(
-                                      backgroundColor:
-                                          const Color(0xFFEAF2FF),
-                                      child: Icon(item.$3, color: _blue),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            (item.$2 ?? 0).toString(),
-                                            style: const TextStyle(
-                                              color: _ink,
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.w900,
-                                            ),
-                                          ),
-                                          Text(
-                                            item.$1,
-                                            style:
-                                                const TextStyle(color: _muted),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  );
-                },
-              ),
+              const SizedBox(height: 18),
+              if (reports.isEmpty)
+                const Card(child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('No hay entornos autorizados para consultar reportes.'),
+                )),
+              for (final item in reports.entries)
+                _channelReport(item.key, item.value),
             ],
           );
         },
