@@ -61,48 +61,6 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
     if (mounted) setState(() { _future = _load(); });
   }
 
-  Future<void> _setMethod(String method) async {
-    if (_busy) return;
-    final previous = _map((await _future)['settings'])['preferred_method'];
-    if (previous == method) return;
-    final approved = await showDialog<bool>(
-      context:context,
-      builder:(context)=>AlertDialog(
-        title:const Text('Cambiar método de verificación'),
-        content:Text('Bolivia · ${widget.channel == 'preview' ? 'Pruebas' : 'Producción'}\n\n'
-          'Nuevo método: ${_label(method)}.\n\n'
-          'El límite de Didit seguirá siendo 30 sesiones por mes. '
-          'Al agotarse, Express utilizará el sistema manual. '
-          'No afecta Chile ni las verificaciones en curso.'),
-        actions:[
-          TextButton(onPressed:()=>Navigator.pop(context,false),
-            child:const Text('Cancelar')),
-          FilledButton(onPressed:()=>Navigator.pop(context,true),
-            child:const Text('Guardar método')),
-        ],
-      ),
-    );
-    if (approved != true || !mounted) return;
-    setState(() => _busy=true);
-    try {
-      await supabase.rpc('admin_driver_kyc_bolivia_set_method',params:{
-        'p_channel':widget.channel,'p_method':method,
-      });
-      if (mounted) _reload();
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:Text('No se pudo guardar el método: $e')));
-    } finally {
-      if (mounted) setState(() => _busy=false);
-    }
-  }
-
-  String _label(String mode) => switch (mode) {
-    'didit' => 'Didit (máximo 30 mensuales)',
-    'manual' => 'Solo verificación manual Express',
-    _ => 'Automático: Didit → manual después de 30',
-  };
-
   String _slotLabel(String slot) => switch (slot) {
     'front' => 'Frente del carné',
     'back' => 'Reverso del carné',
