@@ -1226,9 +1226,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                 child: TabBar(
                   tabs: [
                     Tab(icon: Icon(Icons.location_city_outlined),
-                        text: 'Zonas y servicios'),
+                        text: 'Zonas y cobertura'),
                     Tab(icon: Icon(Icons.shield_outlined),
-                        text: 'Cobertura y seguridad'),
+                        text: 'Seguridad'),
                   ],
                 ),
               ),
