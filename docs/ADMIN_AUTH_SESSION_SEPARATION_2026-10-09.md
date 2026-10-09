@@ -25,6 +25,8 @@ entrar a uno podía restaurar la sesión del otro.
   misma comprobación de canal antes de presentar el panel administrativo.
 - El selector `Ir a Prueba / Ir a Producción` cambia de página; no copia
   una sesión a la otra.
+- El cierre de sesión usa explícitamente `SignOutScope.local` y no
+  invalida sesiones en otros dispositivos o pestañas con otro token.
 
 Esto **no crea un usuario nuevo**. La cuenta original conserva temporalmente
 ambos permisos hasta disponer de una segunda cuenta de prueba ya verificada.
