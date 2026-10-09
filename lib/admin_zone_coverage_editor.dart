@@ -128,7 +128,7 @@ class AdminZoneCoverageEditor extends StatelessWidget {
                 CircleLayer(circles: [
                   CircleMarker(
                     point: LatLng(_lat!, _lng!),
-                    radius: ((_radius ?? 0) * 1000).clamp(0, 1000000),
+                    radius: ((_radius ?? 0) * 1000).clamp(0, 1000000).toDouble(),
                     useRadiusInMeter: true,
                     color: const Color(0x202563EB),
                     borderColor: const Color(0xFF2563EB),
