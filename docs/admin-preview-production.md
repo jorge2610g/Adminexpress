@@ -1,3 +1,9 @@
+## Control de promoción y trazabilidad — 2026-10-09
+
+Antes de fusionar una PR del panel, GitHub Actions debe generar un inventario de archivos con SHA de base, SHA del commit de QA y hash de archivos mediante `.github/workflows/release-change-inventory.yml`. Recalcular si cambia el código después del QA. La vista Preview no debe activar pagos/zonas reales por cambios del frontend; backend continúa siendo la barrera final, no un parámetro manipulable de UI. **Registro de cambios no equivale a permiso de desplegar**: bloqueo de RPC administrativas sin canal sigue pendiente. Backups principales disponibles en `backup/2026-10-09-before-preview-production-safety` para este trabajo. 
+
+---
+
 ## Corrección en rama de QA · 2026-10-09 (sin desplegar)
 
 Se detectó una discrepancia: cinco editores de configuración obtenían
