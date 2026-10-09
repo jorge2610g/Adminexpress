@@ -229,6 +229,23 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
                   style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17))),
               ],
             ),
+            if (_environment.isPreview) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7E6),
+                  border: Border.all(color: const Color(0xFFF5D58A)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'PREVIEW · Simulación QA: estos escalones no modifican '
+                  'las tarifas de pasajeros ni los precios de Producción.',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             Text('Configura cuánto cuesta cada tramo en $currency. '
                 'Los límites son inclusivos: 3 km = primer tramo, '
