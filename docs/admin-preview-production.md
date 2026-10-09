@@ -1,3 +1,9 @@
+## Validación estricta de canal
+
+Al crear un `AdminEnvironmentStore` con un nombre de canal distinto de `preview` o `production`, las rutas consultadas mediante `isPreview` e `isProduction` fallan con `StateError` en vez de interpretarlo accidentalmente como el canal real. El frontend suma protección frente a bugs de enrutamiento pero NO equivale al límite criptográfico ni sustituye la revisión de RPC de servidor que sigue pendiente.
+
+---
+
 ## 2026-10-09 — Prueba Preview-only de Pages, sin publicación
 
 - Se ensayó `Deploy Adminexpress Web to GitHub Pages` en rama QA, run `37990890621`, fuente exacta `a8a12585181d484d4767c03cb4aaed64c314a50e`.
