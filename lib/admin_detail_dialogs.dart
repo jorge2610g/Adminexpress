@@ -840,6 +840,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                     SizedBox(
                                       width: w,
                                       child: DropdownButtonFormField<String>(
+                                        key: ValueKey('driver-country-${selectedCountryCode ?? 'unselected'}'),
                                         initialValue: selectedCountryCode,
                                         isExpanded: true,
                                         decoration: const InputDecoration(labelText: 'País'),
@@ -873,6 +874,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                             ),
                             const SizedBox(height: 10),
                             DropdownButtonFormField<String>(
+                              key: ValueKey('driver-zone-${countryCode ?? 'unselected'}'),
                               initialValue: selectedZoneId,
                               isExpanded: true,
                               decoration: const InputDecoration(
