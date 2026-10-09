@@ -108,7 +108,7 @@ jobs:
               and 'productionAccess: allowProduction' in panel
               and 'bool get canManage => widget.productionAccess;' in builds,
             'unified Reports view only queries authorized environments':
-              'includePreview: allowPreview' in panel
+              'includePreview: false' in panel
               and 'includeProduction: allowProduction' in panel
               and "supabase.rpc('admin_report_summary_v2'" in reports
               and "if (widget.includeProduction)" in reports
