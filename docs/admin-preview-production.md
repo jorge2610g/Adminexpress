@@ -1,14 +1,13 @@
-## Arquitectura vigente — 2026-10-09: dos bases y dos paneles web
-- **Producción:** sitio raíz, proyecto Supabase `zgpijrznvaskgcmauwxx`.
-- **Preview:** sitio `/preview/`, proyecto Supabase `xbphilqezmwfjfpdbwad`.
-- Ambos muestran un enlace rápido de navegación: Producción **«Ir a Prueba»**, Preview **«Ir a Producción»**; aparece también en Login. Usa URLs relativas (`preview/` y `../`) en la misma pestaña, nunca modifica la conexión a Supabase. Los proyectos conservan sesiones y permisos separados.
-- Mismo código y navegación, pero compilaciones Flutter independientes; se suprimió el selector Prueba/Producción dentro de cada sitio.
-- Las llamadas RPC usan el canal `preview` en el proyecto físico Preview, y `production` en el proyecto físico Producción. Así coinciden los registros de `account_runtime_bindings`, los viajes y las reglas de revisión manual.
-- Login, sesión, permisos RLS, documentos, Storage y revisiones son independientes por proyecto. El panel Preview exige una cuenta de administrador autorizada **en Preview**, sin heredar permisos de Producción.
-- Preview no habilita la promoción/publicación de Android; `productionAccess` se desactiva para Builds allí.
-- Los registros antiguos de QA en Producción NO se migran ni borran automáticamente. No se han cambiado registros reales.
-- Las instrucciones históricas sobre `admin_environment_config` describen el **modelo antiguo**, que no se utiliza en los dos despliegues nuevos.
-- **Antes de publicar:** validar `flutter analyze`, ambos `flutter build web`, acceso Admin en cada proyecto y rechazo/corrección de selfie exclusivamente en Preview.
+## Arquitectura vigente — 2026-10-09: dos sitios web y Supabase compartido, nunca datos mezclados
+- Producción: raíz `/`, proyecto `zgpijrznvaskgcmauwxx`, canal `production`.
+- Prueba: ruta `/preview/`, **mismo proyecto** `zgpijrznvaskgcmauwxx`, canal `preview`.
+- La antigua base separada `xbphilqezmwfjfpdbwad` no recibe solicitudes de los dos paneles; permanece intacta hasta decisión expresa del titular.
+- Ambas páginas comparten la infraestructura de autenticación y almacenamiento, pero los administradores únicamente pueden operar canales permitidos. Las RPCs operativas verifican `allow_preview`/`allow_production` y entorno del registro destino; los usuarios QA requieren marca de entorno.
+- Ajustes, zonas, servicios y tarifas QA se almacenan en `admin_environment_config` con `p_environment='preview'`. La tabla `service_zones` de producción NO se modifica desde Prueba.
+- El cambio de página no cambia la conexión ni eleva permisos, solo usa un binario web compilado con `ADMIN_ENV` diferente.
+- Preview bloquea módulos con RPCs no aisladas por canal. Válidos: Dashboard, Operación en vivo, Viajes, Delivery, Conductores, Usuarios, Seguridad/SOS, Zonas, Tarifas, Reportes, Configuración, Auditoría, Servicios, Verificación de identidad y Verificación manual. Bloqueados: Builds, finanzas, marketplace, suscripciones y otros no auditados.
+- La separación es responsabilidad del backend y del guard de UI. Si un módulo se añade a la lista segura, debe auditarse todo su árbol y cada RPC, incluidas las escrituras y Storage.
+- Desplegar inicialmente solo Preview, preservar bytes de Producción y comprobar lectura/edición QA con un administrador autorizado.
 
 ---
 

@@ -1,13 +1,14 @@
-## Arquitectura vigente — 2026-10-09: dos bases y dos paneles web
-- **Producción:** sitio raíz, proyecto Supabase `zgpijrznvaskgcmauwxx`.
-- **Preview:** sitio `/preview/`, proyecto Supabase `xbphilqezmwfjfpdbwad`.
-- Mismo código y navegación, pero compilaciones Flutter independientes; se suprimió el selector Prueba/Producción dentro de cada sitio.
-- El canal RPC `production` **es local a la base conectada**. En el proyecto físico Preview significa filas normales de Preview, no clientes reales ni las antiguas cuentas QA mezcladas en Producción.
-- Login, sesión, permisos RLS, documentos, Storage y revisiones son independientes por proyecto. El panel Preview exige una cuenta de administrador autorizada **en Preview**, sin heredar permisos de Producción.
-- Preview no habilita la promoción/publicación de Android; `productionAccess` se desactiva para Builds allí.
-- Los registros antiguos de QA en Producción NO se migran ni borran automáticamente. No se han cambiado registros reales.
-- Las instrucciones históricas sobre `admin_environment_config` describen el **modelo antiguo**, que no se utiliza en los dos despliegues nuevos.
-- **Antes de publicar:** validar `flutter analyze`, ambos `flutter build web`, acceso Admin en cada proyecto y rechazo/corrección de selfie exclusivamente en Preview.
+## Arquitectura obligatoria — 2026-10-09: dos páginas en Supabase principal
+- Producción (`/`): Supabase `zgpijrznvaskgcmauwxx`, canal `production`.
+- Preview (`/preview/`): **el mismo** Supabase `zgpijrznvaskgcmauwxx`, canal `preview`.
+- `ADMIN_ENV` es inmutable por compilación y determina la página/canal, nunca la base de datos.
+- Queda prohibida la conexión de Adminexpress con el proyecto secundario antiguo `xbphilqezmwfjfpdbwad`; no borrarlo ni migrarlo.
+- Los usuarios QA se identifican por `account_runtime_bindings.environment='preview'` y las RPC operativas toman `p_channel='preview'`, con `admin_assert_target_environment`.
+- Configuración QA usa `admin_environment_config` con entorno preview; zonas, servicios, tarifas y ajustes jamás deben escribir registros reales.
+- **IMPORTANTE:** tener dos páginas no aísla un RPC sin parámetro de entorno. El guard `_previewScopedModules` bloquea módulos no auditados antes de ejecutar sus llamadas. No quitarlo para recuperar funcionalidad sin RPCs con aislamiento comprobado.
+- Builds, pagos, billetera, suscripciones, marketplace y otras funciones no auditadas se bloquean desde Preview.
+- Mantener la UI y rutas de Producción, firmas Android y datos reales sin cambios; publicar exclusivamente la página Preview hasta que se valide.
+- Validar `flutter analyze`, ambos `flutter build web`, consulta/revisión QA real y ausencia de escrituras Production en tests de aislamiento.
 
 ---
 

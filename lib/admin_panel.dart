@@ -239,6 +239,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // These administration modules cover the entire Express system rather than
   // an operational country, zone, or a separate Preview/Production mode.
   static const Set<int> _globalSections = {10, 12, 14}; // Reports, Builds, Audit
+  // The only Preview modules vetted for shared-database scoped operations.
+  // Every other module may run unscoped RPCs and must fail closed in QA.
+  static const Set<int> _previewScopedModules = {
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 14, 16, 18, 27,
+  };
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
 
@@ -297,13 +302,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     final access = Map<String, dynamic>.from(value);
     if (access['allowed'] != true) return false;
 
-    // Separate Supabase project per site. 'production' here refers to
-    // normal rows INSIDE the currently connected project. Preview users
-    // are not legacy QA-marked accounts and must never use the shadow store.
+    // Both websites connect to MAIN. Backend checks allow_preview and
+    // allow_production, plus target account runtime environment.
     adminAccess = access;
-    // The two deployed sites have different Supabase URLs and Auth projects.
-    // p_channel identifies the rows INSIDE that physical project. Every real
-    // Express Preview account is runtime-bound to the 'preview' channel.
     allowPreview = adminIsPreview && access['allow_preview'] != false;
     allowProduction = !adminIsPreview && access['allow_production'] != false;
     adminChannel = adminIsPreview ? 'preview' : 'production';
@@ -390,7 +391,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Future<List<Map<String, dynamic>>> _filterCountries() async {
-    if (adminChannel == 'preview' && !adminIsPreview) {
+    if (adminChannel == 'preview') {
       final zones =
           await const AdminEnvironmentStore('preview').previewList('service_zones');
       final byCode = <String, Map<String, dynamic>>{};
@@ -414,7 +415,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     final country = adminCountryCode;
     if (country == null || country.isEmpty) return const [];
 
-    if (adminChannel == 'preview' && !adminIsPreview) {
+    if (adminChannel == 'preview') {
       final zones =
           await const AdminEnvironmentStore('preview').previewList('service_zones');
       return zones
@@ -932,8 +933,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     });
   }
 
-  // The active database is selected at BUILD time, never from a UI control.
-  // A preview administrator therefore has no path to write to Production.
+  // ADMIN_ENV selects a fixed website data channel, not a database project.
+  // Preview is restricted to reviewed channel-scoped modules.
   Widget _environmentSwitcher() {
     final preview = adminIsPreview;
     final icon = Icon(
@@ -943,7 +944,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     );
     final title = Text(
       preview
-          ? 'EXPRESS PREVIEW · Base de pruebas independiente'
+          ? 'EXPRESS PREVIEW · Solo registros de prueba'
           : 'EXPRESS PRODUCCIÓN · Datos reales',
       style: TextStyle(
         color: preview ? const Color(0xFF7A2E0E) : const Color(0xFF0F6848),
@@ -1201,6 +1202,22 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _body(int value) {
+    // Fail closed: a shared database also has REAL merchants, subscriptions,
+    // payments and releases. Never run unscoped Preview module RPCs.
+    if (adminIsPreview && !_previewScopedModules.contains(value)) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Este módulo todavía no tiene aislamiento seguro por canal. '
+            'Está bloqueado en Prueba para proteger los datos reales. '
+            'Puedes gestionar conductores, documentos, viajes y '
+            'configuración QA desde sus secciones.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
     if (_requiresZoneScope(value) && !_scopeReady) {
       return const _ScopeSelectionRequired();
     }

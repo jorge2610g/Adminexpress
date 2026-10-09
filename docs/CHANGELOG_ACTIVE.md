@@ -1,3 +1,13 @@
+## 2026-10-09 — Admin Preview usa Supabase principal con datos QA aislados
+- `/` y `/preview/` se conservan como dos páginas distintas.
+- Ambas comparten Supabase `zgpijrznvaskgcmauwxx`; `ADMIN_ENV` fija canales `production` y `preview`.
+- Se elimina del cliente web la referencia al proyecto Supabase secundario; el proyecto no se borra.
+- Restaurado `admin_environment_config` para configuración Preview; consultas/acciones QA solo en `p_channel='preview'`.
+- En Preview se bloquean preventivamente módulos que usan RPCs sin aislamiento por canal (pagos, marketplace, Builds, etc.).
+- La primera publicación debe ser solo de `/preview/` con hash/bytes invariables en raíz Producción.
+
+---
+
 ## Arquitectura vigente — 2026-10-09: dos bases y dos paneles web
 - **Producción:** sitio raíz, proyecto Supabase `zgpijrznvaskgcmauwxx`.
 - **Preview:** sitio `/preview/`, proyecto Supabase `xbphilqezmwfjfpdbwad`.
