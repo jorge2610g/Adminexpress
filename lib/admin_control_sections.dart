@@ -10,6 +10,7 @@ import 'admin_driver_document_requirements.dart';
 import 'admin_country_coverage.dart';
 import 'admin_admob_settings.dart';
 import 'admin_distance_fares.dart';
+import 'admin_zone_coverage_editor.dart';
 
 const Color _blue = Color(0xFF2563EB);
 const Color _dark = Color(0xFF0F172A);
@@ -1823,6 +1824,34 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
       }
     }
 
+    // Read the actual persisted mode and polygon before editing other fields.
+    var coverageMode = row?['coverage_mode'] == 'polygon' ? 'polygon' : 'radius';
+    var polygonPoints = <LatLng>[];
+    if (row?['id'] != null) {
+      try {
+        final raw = await supabase.rpc('admin_zone_coverage_get', params: {
+          'p_zone_id': row!['id'],
+          'p_channel': widget.channel,
+        });
+        if (!mounted) return;
+        if (raw is Map) {
+          final data = Map<String, dynamic>.from(raw);
+          coverageMode = data['coverage_mode'] == 'polygon' ? 'polygon' : 'radius';
+          final rawPoints = data['polygon'];
+          if (rawPoints is List) {
+            polygonPoints = rawPoints.whereType<Map>().map((point) {
+              final y = double.tryParse(point['lat']?.toString() ?? '');
+              final x = double.tryParse(point['lng']?.toString() ?? '');
+              return y == null || x == null ? null : LatLng(y, x);
+            }).whereType<LatLng>().toList();
+          }
+        }
+      } catch (error) {
+        if (mounted) _snack(context, 'No se pudo cargar la cobertura: $error');
+        return;
+      }
+    }
+
     final name = TextEditingController(text: row?['name']?.toString() ?? '');
     final city =
         TextEditingController(text: row?['city']?.toString() ?? '');
@@ -2047,137 +2076,18 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                       hintText: 'BOB / CLP',
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: lat,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                            signed: true,
-                          ),
-                          decoration:
-                              const InputDecoration(labelText: 'Latitud'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: lng,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                            signed: true,
-                          ),
-                          decoration:
-                              const InputDecoration(labelText: 'Longitud'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Row(
-                          children: [
-                            Icon(
-                              Icons.map_outlined,
-                              color: _blue,
-                              size: 19,
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Seleccionar centro en el mapa',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 5),
-                        const Text(
-                          'Toca el punto que será el centro de la ciudad. La latitud y longitud se completan automáticamente.',
-                          style: TextStyle(
-                            color: _muted,
-                            fontSize: 11,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          height: 270,
-                          child: FlutterMap(
-                            key: ValueKey(
-                              'zone-map-' + lat.text + '-' + lng.text,
-                            ),
-                            options: MapOptions(
-                              initialCenter: LatLng(
-                                _num(lat.text)?.toDouble() ?? -18.0,
-                                _num(lng.text)?.toDouble() ?? -66.0,
-                              ),
-                              initialZoom:
-                                  _num(lat.text) != null &&
-                                          _num(lng.text) != null
-                                      ? 12
-                                      : 4.2,
-                              onTap: (_, point) {
-                                setLocal(() {
-                                  lat.text =
-                                      point.latitude.toStringAsFixed(6);
-                                  lng.text =
-                                      point.longitude.toStringAsFixed(6);
-                                });
-                              },
-                            ),
-                            children: [
-                              TileLayer(
-                                urlTemplate:
-                                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                userAgentPackageName:
-                                    'com.express.admin',
-                              ),
-                              if (_num(lat.text) != null &&
-                                  _num(lng.text) != null)
-                                MarkerLayer(
-                                  markers: [
-                                    Marker(
-                                      point: LatLng(
-                                        _num(lat.text)!.toDouble(),
-                                        _num(lng.text)!.toDouble(),
-                                      ),
-                                      width: 44,
-                                      height: 44,
-                                      child: const Icon(
-                                        Icons.location_pin,
-                                        color: Color(0xFFD92D20),
-                                        size: 42,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: radius,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration:
-                        const InputDecoration(labelText: 'Radio de cobertura km'),
+                  const SizedBox(height: 14),
+                  AdminZoneCoverageEditor(
+                    mode: coverageMode,
+                    latitude: lat,
+                    longitude: lng,
+                    radiusKm: radius,
+                    polygonPoints: polygonPoints,
+                    onModeChanged: (mode) => setLocal(() => coverageMode = mode),
+                    onPositionChanged: () => setLocal(() {}),
+                    onPolygonChanged: (points) => setLocal(() {
+                      polygonPoints = points;
+                    }),
                   ),
                   const SizedBox(height: 14),
                   Container(
@@ -2373,7 +2283,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Guardar'),
+              child: const Text('Guardar zona y cobertura'),
             ),
           ],
         ),
@@ -2381,6 +2291,16 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     );
 
     if (save == true) {
+      if (coverageMode == 'polygon' && polygonPoints.length < 3) {
+        _snack(context, 'Dibuja tres o más puntos para el polígono.');
+        return;
+      }
+      if (coverageMode == 'radius' &&
+          (_num(lat.text) == null || _num(lng.text) == null ||
+           (_num(radius.text) ?? 0) <= 0)) {
+        _snack(context, 'Selecciona un centro y un radio válido.');
+        return;
+      }
       try {
         Object? savedZoneId;
         final zoneRecordKey = row == null
@@ -2390,8 +2310,15 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           savedZoneId = row?['id'] ?? zoneRecordKey;
         } else {
           savedZoneId = await supabase.rpc(
-            'admin_upsert_zone_v3',
+            'admin_zone_coverage_save',
             params: {
+              'p_channel': widget.channel,
+              'p_coverage_mode': coverageMode,
+              'p_polygon': coverageMode == 'polygon'
+                  ? polygonPoints.map((point) => <String, double>{
+                      'lat': point.latitude, 'lng': point.longitude,
+                    }).toList()
+                  : null,
               'p_id': row?['id'],
               'p_name': name.text.trim(),
               'p_city': city.text.trim(),
@@ -2445,6 +2372,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'center_latitude': _num(lat.text),
               'center_longitude': _num(lng.text),
               'radius_km': _num(radius.text) ?? 25,
+              'coverage_mode': coverageMode,
               'zone_key': row?['zone_key']?.toString() ?? zoneKey.text.trim(),
               'currency_code': currency.text.trim().toUpperCase(),
               'passenger_landing_mode': landingMode,
@@ -2477,7 +2405,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'Zona y pantalla inicial guardadas. Ahora puedes definir métodos de pago.',
+                'Zona y cobertura guardadas. Solo se usará el método seleccionado.',
               ),
             ),
           );
@@ -3680,109 +3608,48 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
               safety: <Map<String, dynamic>>[],
             );
 
-        return DefaultTabController(
-          length: 2,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 22, 22, 12),
-                child: _AdminHero(
-                  icon: Icons.gpp_good_rounded,
-                  title: 'Cobertura y seguridad',
-                  subtitle:
-                      'Controla dónde opera Express y qué sectores necesitan reglas especiales.',
-                  stats: [
-                    ('Zonas', data.zones.length.toString()),
-                    ('Polígonos', data.coverage.length.toString()),
-                    ('Seguridad', data.safety.length.toString()),
-                  ],
-                ),
+        return ListView(
+          padding: const EdgeInsets.all(22),
+          children: [
+            _AdminHero(
+              icon: Icons.shield_outlined,
+              title: 'Seguridad de zonas',
+              subtitle: 'La cobertura por radio o polígono se configura '
+                  'directamente al crear o editar la zona. Aquí solo se '
+                  'administran sectores de seguridad, precaución o riesgo.',
+              stats: [
+                ('Zonas', data.zones.length.toString()),
+                ('Sectores de seguridad', data.safety.length.toString()),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _Header(
+              title: 'Zonas rojas y prevención',
+              subtitle: 'Sectores de riesgo y zonas seguras para '
+                  'conductores y pasajeros.',
+              action: FilledButton.icon(
+                onPressed: () => _editSafety(),
+                icon: const Icon(Icons.add_moderator_outlined),
+                label: const Text('Crear sector'),
               ),
-              const Material(
-                color: Colors.white,
-                child: TabBar(
-                  tabs: [
-                    Tab(icon: Icon(Icons.polyline_rounded), text: 'Cobertura'),
-                    Tab(icon: Icon(Icons.shield_outlined), text: 'Zonas de seguridad'),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    ListView(
-                      padding: const EdgeInsets.all(22),
-                      children: [
-                        _Header(
-                          title: 'Polígonos de cobertura',
-                          subtitle:
-                              'Dibuja áreas reales en el mapa. El radio circular queda como respaldo.',
-                          action: FilledButton.icon(
-                            onPressed: () => _editCoverage(data.zones),
-                            icon: const Icon(Icons.draw_rounded),
-                            label: const Text('Dibujar polígono'),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        if (data.coverage.isEmpty)
-                          const _Empty(text: 'Todavía no hay polígonos de cobertura.')
-                        else
-                          ...data.coverage.map(
-                            (row) => _GeoRow(
-                              tone: _blue,
-                              icon: Icons.polyline_rounded,
-                              title: row['name']?.toString() ?? 'Cobertura',
-                              subtitle:
-                                  (row['zone_name'] ?? 'Zona').toString() +
-                                      ' · ' +
-                                      (row['city'] ?? 'Trinidad').toString(),
-                              badge: row['active'] == true ? 'Activa' : 'Inactiva',
-                              onTap: () => _editCoverage(data.zones, row),
-                            ),
-                          ),
-                      ],
-                    ),
-                    ListView(
-                      padding: const EdgeInsets.all(22),
-                      children: [
-                        _Header(
-                          title: 'Zonas rojas y prevención',
-                          subtitle:
-                              'Marca sectores de riesgo, precaución o zonas seguras para conductor y pasajero.',
-                          action: FilledButton.icon(
-                            onPressed: () => _editSafety(),
-                            icon: const Icon(Icons.add_moderator_outlined),
-                            label: const Text('Crear zona'),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        if (data.safety.isEmpty)
-                          const _Empty(text: 'Todavía no hay zonas de seguridad.')
-                        else
-                          ...data.safety.map(
-                            (row) => _GeoRow(
-                              tone: _securityTone(row['zone_type']?.toString()),
-                              icon: row['zone_type'] == 'safe'
-                                  ? Icons.verified_user_outlined
-                                  : Icons.warning_amber_rounded,
-                              title: row['name']?.toString() ?? 'Zona de seguridad',
-                              subtitle:
-                                  _securityLabel(row['zone_type']?.toString()) +
-                                      ' · nivel ' +
-                                      (row['severity'] ?? 3).toString() +
-                                      ' · ' +
-                                      (row['applies_to'] ?? 'both').toString(),
-                              badge: row['active'] == true ? 'Activa' : 'Inactiva',
-                              onTap: () => _editSafety(row),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 14),
+            if (data.safety.isEmpty)
+              const _Empty(text: 'Todavía no hay sectores de seguridad.')
+            else
+              ...data.safety.map((row) => _GeoRow(
+                tone: _securityTone(row['zone_type']?.toString()),
+                icon: row['zone_type'] == 'safe'
+                    ? Icons.verified_user_outlined
+                    : Icons.warning_amber_rounded,
+                title: row['name']?.toString() ?? 'Zona de seguridad',
+                subtitle:
+                    _securityLabel(row['zone_type']?.toString()) +
+                    ' · nivel ' + (row['severity'] ?? 3).toString(),
+                badge: row['active'] == true ? 'Activa' : 'Inactiva',
+                onTap: () => _editSafety(row),
+              )),
+          ],
         );
       },
     );
