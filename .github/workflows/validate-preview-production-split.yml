@@ -159,6 +159,38 @@ jobs:
           print('PASS: production/preview identity UI is manual-only, no legacy session feed.')
           PY
 
+      - name: Guard physical Supabase project isolation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          config = Path('lib/core/supabase_client.dart').read_text()
+          panel = Path('lib/admin_panel.dart').read_text()
+          workflow = Path('.github/workflows/deploy-web.yml').read_text()
+          assert 'zgpijrznvaskgcmauwxx' in config
+          assert 'xbphilqezmwfjfpdbwad' in config
+          assert 'validateAdminDeployment()' in config
+          assert "String adminChannel = adminIsPreview ? 'preview' : 'production';" in panel
+          assert 'SegmentedButton<String>(' not in panel.split('Widget _environmentSwitcher() {')[1].split('void _goTo(', 1)[0]
+          assert "allowPreview = adminIsPreview" in panel
+          assert "allowProduction = !adminIsPreview" in panel
+          assert "if (adminChannel == 'preview' && !adminIsPreview)" in panel
+          assert 'productionAccess: allowProduction && !adminIsPreview' in panel
+          assert '--dart-define=ADMIN_ENV=production' in workflow
+          assert '--dart-define=ADMIN_ENV=preview' in workflow
+          assert '--base-href /preview/' in workflow
+          assert 'path: build/site' in workflow
+          navigation = Path('lib/core/admin_environment_navigation.dart').read_text()
+          login = Path('lib/main.dart').read_text()
+          assert "adminIsPreview ? 'Ir a Producción' : 'Ir a Prueba'" in navigation
+          assert "Uri.base.resolve(adminIsPreview ? '../' : 'preview/')" in navigation
+          assert "webOnlyWindowName: '_self'" in navigation
+          assert 'supabase.auth' not in navigation and 'Supabase.initialize' not in navigation
+          assert 'AdminEnvironmentLinkButton()' in panel
+          assert 'AdminEnvironmentLinkButton()' in login
+          print('PASS: deployed sites use separately pinned physical Supabase projects.')
+          PY
+
       - name: Analyze admin modules
         run: |
           flutter analyze --no-fatal-warnings --no-fatal-infos \
@@ -169,11 +201,14 @@ jobs:
             lib/admin_control_sections.dart \
             lib/admin_driver_subscriptions.dart \
             lib/admin_environment_store.dart \
+            lib/core/admin_environment_navigation.dart \
             lib/admin_marketplace.dart \
             lib/admin_marketplace_phase2.dart \
             lib/admin_driver_priority.dart \
             lib/admin_dynamic_pricing.dart \
             lib/admin_manual_identity.dart \
             lib/admin_driver_document_requirements.dart
-      - name: Build admin web smoke test
-        run: flutter build web --release
+      - name: Build admin production web smoke test
+        run: flutter build web --release --dart-define=ADMIN_ENV=production
+      - name: Build admin physical Preview web smoke test
+        run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview

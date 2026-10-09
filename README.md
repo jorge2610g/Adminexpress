@@ -1,3 +1,16 @@
+## Arquitectura vigente — 2026-10-09: dos bases y dos paneles web
+- **Producción:** sitio raíz, proyecto Supabase `zgpijrznvaskgcmauwxx`.
+- **Preview:** sitio `/preview/`, proyecto Supabase `xbphilqezmwfjfpdbwad`.
+- Mismo código y navegación, pero compilaciones Flutter independientes; se suprimió el selector Prueba/Producción dentro de cada sitio.
+- Cada proyecto físico mantiene su canal RPC: `preview` en Supabase Preview y `production` en Supabase Producción; el selector interno se eliminó.
+- Login, sesión, permisos RLS, documentos, Storage y revisiones son independientes por proyecto. El panel Preview exige una cuenta de administrador autorizada **en Preview**, sin heredar permisos de Producción.
+- Preview no habilita la promoción/publicación de Android; `productionAccess` se desactiva para Builds allí.
+- Los registros antiguos de QA en Producción NO se migran ni borran automáticamente. No se han cambiado registros reales.
+- Las instrucciones históricas sobre `admin_environment_config` describen el **modelo antiguo**, que no se utiliza en los dos despliegues nuevos.
+- **Antes de publicar:** validar `flutter analyze`, ambos `flutter build web`, acceso Admin en cada proyecto y rechazo/corrección de selfie exclusivamente en Preview.
+
+---
+
 ## 2026-10-08 — Módulos globales: Builds, Auditoría y Reportes
 
 - **Builds, Auditoría y Reportes son globales para Express**: no requieren país,

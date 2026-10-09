@@ -3,7 +3,7 @@ import 'core/supabase_client.dart';
 /// Environment-aware storage used by Adminexpress.
 ///
 /// Production pages continue to use the real operational RPCs/tables.
-/// Preview uses the isolated `admin_environment_config` shadow store.
+/// Legacy mixed-database Preview uses the shadow store.\n/// On the PHYSICAL Preview deployment, read/write real Preview tables/RPCs.
 /// The UI must remain identical between both environments; only this
 /// persistence layer changes.
 class AdminEnvironmentStore {
@@ -11,7 +11,7 @@ class AdminEnvironmentStore {
 
   const AdminEnvironmentStore(this.channel);
 
-  bool get isPreview => channel == 'preview';
+  bool get isPreview => channel == 'preview' && !adminIsPreview;
   bool get isProduction => !isPreview;
 
   Future<List<Map<String, dynamic>>> previewList(String module) async {

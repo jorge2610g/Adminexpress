@@ -1,3 +1,17 @@
+## Arquitectura vigente — 2026-10-09: dos bases y dos paneles web
+- **Producción:** sitio raíz, proyecto Supabase `zgpijrznvaskgcmauwxx`.
+- **Preview:** sitio `/preview/`, proyecto Supabase `xbphilqezmwfjfpdbwad`.
+- Ambos muestran un enlace rápido de navegación: Producción **«Ir a Prueba»**, Preview **«Ir a Producción»**; aparece también en Login. Usa URLs relativas (`preview/` y `../`) en la misma pestaña, nunca modifica la conexión a Supabase. Los proyectos conservan sesiones y permisos separados.
+- Mismo código y navegación, pero compilaciones Flutter independientes; se suprimió el selector Prueba/Producción dentro de cada sitio.
+- Las llamadas RPC usan el canal `preview` en el proyecto físico Preview, y `production` en el proyecto físico Producción. Así coinciden los registros de `account_runtime_bindings`, los viajes y las reglas de revisión manual.
+- Login, sesión, permisos RLS, documentos, Storage y revisiones son independientes por proyecto. El panel Preview exige una cuenta de administrador autorizada **en Preview**, sin heredar permisos de Producción.
+- Preview no habilita la promoción/publicación de Android; `productionAccess` se desactiva para Builds allí.
+- Los registros antiguos de QA en Producción NO se migran ni borran automáticamente. No se han cambiado registros reales.
+- Las instrucciones históricas sobre `admin_environment_config` describen el **modelo antiguo**, que no se utiliza en los dos despliegues nuevos.
+- **Antes de publicar:** validar `flutter analyze`, ambos `flutter build web`, acceso Admin en cada proyecto y rechazo/corrección de selfie exclusivamente en Preview.
+
+---
+
 # Adminexpress — regla Preview / Producción
 
 ## Regla obligatoria

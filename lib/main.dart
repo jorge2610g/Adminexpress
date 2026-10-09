@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'admin_panel.dart';
 import 'core/supabase_client.dart';
+import 'core/admin_environment_navigation.dart';
 import 'partner_panel.dart';
 
 const adminExpressVersion = 'Adminexpress v1.0.1 · build 2';
@@ -14,6 +15,7 @@ Future<void> main() async {
 
   Object? startupError;
   try {
+    validateAdminDeployment();
     await Supabase.initialize(
       url: supabaseUrl,
       publishableKey: supabasePublishableKey,
@@ -33,7 +35,7 @@ class AdminExpressApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Adminexpress',
+      title: adminIsPreview ? 'Adminexpress · Prueba' : 'Adminexpress · Producción',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -195,6 +197,27 @@ class _AdminLoginState extends State<_AdminLogin> {
     }
   }
 
+  Future<void> _googleLogin() async {
+    if (!adminIsPreview || busy) return;
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      final started = await supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: Uri.base.toString(),
+      );
+      if (!started && mounted) {
+        setState(() => error = 'No se pudo iniciar sesión con Google.');
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString());
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 900;
@@ -284,6 +307,40 @@ class _AdminLoginState extends State<_AdminLogin> {
                                     )
                                   : const Icon(Icons.login_rounded),
                               label: const Text('Ingresar al panel'),
+                            ),
+                          ),
+                          if (adminIsPreview) ...[
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 46,
+                              child: OutlinedButton.icon(
+                                onPressed: busy ? null : _googleLogin,
+                                icon: const Icon(Icons.account_circle_outlined),
+                                label: const Text('Acceder con Google · Preview'),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Necesitas una cuenta autorizada en el proyecto '
+                              'de pruebas. El acceso de Producción es independiente.',
+                              style: TextStyle(
+                                color: Color(0xFF667085),
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          const Center(
+                            child: AdminEnvironmentLinkButton(),
+                          ),
+                          const SizedBox(height: 7),
+                          const Center(
+                            child: Text(
+                              'Cada entorno tiene su propia sesión y permisos.',
+                              style: TextStyle(
+                                fontSize: 11, color: Color(0xFF667085),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 18),
