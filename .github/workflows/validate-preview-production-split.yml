@@ -62,7 +62,17 @@ jobs:
           grep -q "admin_trip_detail_v2" lib/admin_detail_dialogs.dart
           grep -q "admin_update_driver_profile_v2" lib/admin_detail_dialogs.dart
           grep -q "admin_update_user_profile_v2" lib/admin_detail_dialogs.dart
-          grep -Fq "const AdminEnvironmentStore('production')" lib/admin_driver_document_requirements.dart
+          if grep -Fq "const AdminEnvironmentStore('production')" lib/admin_driver_document_requirements.dart; then
+            echo "ERROR: document requirements Preview must not read/write Production."
+            exit 1
+          fi
+          grep -Fq "AdminEnvironmentStore(widget.channel)" lib/admin_driver_document_requirements.dart
+          grep -Fq "AdminEnvironmentStore(widget.channel)" lib/admin_country_coverage.dart
+          grep -Fq "if (!_environment.isPreview) return;" lib/admin_country_coverage.dart
+          grep -Fq "existingCodes.contains(code)" lib/admin_country_coverage.dart
+          grep -Fq "'active': false" lib/admin_country_coverage.dart
+          grep -Fq "'driver_registration_enabled': false" lib/admin_country_coverage.dart
+          grep -Fq "'service_countries'," lib/admin_country_coverage.dart
           grep -q "admin_driver_document_requirement_list" lib/admin_driver_document_requirements.dart
 
           for legacy in             "'admin_set_driver_approval'"             "'admin_set_account_status'"             "'admin_resolve_emergency'"; do
@@ -182,14 +192,26 @@ jobs:
           assert "admin_zone_list_for_country" in panel
           assert "admin_country_list_scoped" in panel
           assert "bool get isPreview => channel == 'preview';" in env_store
-          # Business settings are shared; account, identity review, trip and
-          # payment operations still require runtime channel isolation.
+          # All QA business configuration editors must target shadow storage,
+          # never silently resolve to the live production store.
+          docs = Path('lib/admin_driver_document_requirements.dart').read_text()
+          assert docs.count('AdminEnvironmentStore(widget.channel)') == 3
+          countries = Path('lib/admin_country_coverage.dart').read_text()
+          assert 'AdminEnvironmentStore(widget.channel)' in countries
+          assert "AdminEnvironmentStore('production')" not in countries
+          controls = Path('lib/admin_control_sections.dart').read_text()
           for name in ['_AdminZonesPageState','_AdminGeoSafetyPageState',
                        '_AdminServicesPageState','_AdminFaresPageState',
                        '_AdminSettingsPageState']:
-              section = Path('lib/admin_control_sections.dart').read_text().split(
-                  'class '+name,1)[1].split('class ',1)[0]
-              assert "const AdminEnvironmentStore('production')" in section
+              section = controls.split('class '+name,1)[1].split('class ',1)[0]
+              assert 'AdminEnvironmentStore(widget.channel);' in section, name
+              assert "const AdminEnvironmentStore('production')" not in section, name
+          payment_editor = controls.split('Future<bool> showAdminZonePaymentMethodsEditor(',1)[1].split('class ',1)[0]
+          assert 'AdminEnvironmentStore(channel);' in payment_editor
+          zones_editor = controls.split('class _AdminZonesPageState',1)[1].split('class ',1)[0]
+          assert "row?['id'] != null && !_environment.isPreview" in zones_editor
+          assert "'polygon': coverageMode == 'polygon'" in zones_editor
+          assert "if (_environment.isPreview)" in zones_editor
           assert "AdminManualIdentityPage(" in panel and "AdminIdentitySecurityPage(" in panel
           assert "AdminDistanceFaresEditor(" in Path('lib/admin_control_sections.dart').read_text()
           assert 'productionAccess: allowProduction && !adminIsPreview' in panel
@@ -205,6 +227,10 @@ jobs:
           assert '--base-href /preview/' in workflow
           assert 'path: build/site' in workflow
           assert 'preview_source_sha' in workflow
+          assert "run-id: 37969274447" in workflow, 'Unexpected Production artifact for Preview-only Pages update'
+          assert 'Verify live Preview SHA and unchanged Production marker' in workflow
+          assert 'EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df' in workflow
+          assert "contains(github.event.head_commit.message, '[deploy-preview-only]')" in workflow
           assert "const supabaseUrl = _productionUrl;" in workflow
           navigation = Path('lib/core/admin_environment_navigation.dart').read_text()
           assert "adminIsPreview ? 'Ir a Producción' : 'Ir a Prueba'" in navigation
@@ -233,7 +259,8 @@ jobs:
             lib/admin_driver_priority.dart \
             lib/admin_dynamic_pricing.dart \
             lib/admin_manual_identity.dart \
-            lib/admin_driver_document_requirements.dart
+            lib/admin_driver_document_requirements.dart \
+            lib/admin_country_coverage.dart
       - name: Verify active polygon vs radio zone labels
         run: flutter test test/admin_zone_coverage_label_test.dart
       - name: Build admin production web smoke test

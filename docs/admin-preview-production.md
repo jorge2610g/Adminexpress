@@ -1,3 +1,57 @@
+## 2026-10-09 — Prueba Preview-only de Pages, sin publicación
+
+- Se ensayó `Deploy Adminexpress Web to GitHub Pages` en rama QA, run `37990890621`, fuente exacta `a8a12585181d484d4767c03cb4aaed64c314a50e`.
+- El job `build` de Producción quedó **SKIPPED**. El job `preview_only` pasó: validó SHA QA, descargó artefacto de Producción, comparó bytes de la URL real con la copia, compiló Preview y confirmó el manifiesto SHA256 de todos los archivos no Preview.
+- El job final `deploy` terminó en **FAILURE antes de ejecutar pasos**. No existe evidencia de publicación de la nueva Preview: considerar la URL en su estado anterior. No interpretar el artefacto compilado como versión publicada.
+- El artefacto `github-pages` QA de ese run está guardado en Actions (ID `11644663644`), pero **no** se autorizó publicarlo por otra vía.
+- Se restauró exactamente `.github/workflows/deploy-web.yml` desde `main` al terminar el ensayo; no quedó el trigger de push QA ni la alteración temporal de deploy en la PR.
+- Supabase principal se consultó solo con `SELECT` después del ensayo: 0 países QA, 2 zonas QA shadow, 5 cuentas Preview, 6 Producción; el servidor todavía tiene un superadministrador de doble permiso.
+- Ninguna migración / Edge Function / tabla / pago / Google Play se ha modificado en este ensayo. La separación backend total sigue pendiente; P0 documentado en Expressdelivery issue #141.
+
+---
+
+## Semilla QA de países — sin escritura de Producción
+
+En la PR #51 la pantalla Preview incorpora el botón `Preparar países QA` que solo aparece en Preview y requiere confirmación. Lee por RPC administrativo la lista de países existente **solo como referencia** y crea nuevas filas en el almacenamiento shadow `admin_environment_config`; el país y el registro de conductores están inicialmente desactivados para evitar una activación accidental. Nunca sobrescribe países QA existentes ni modifica `service_countries` de Producción. No se ha ejecutado la semilla contra Supabase; se requiere QA manual del administrador antes de considerar la funcionalidad certificada.
+
+---
+
+## Control de promoción y trazabilidad — 2026-10-09
+
+Antes de fusionar una PR del panel, GitHub Actions debe generar un inventario de archivos con SHA de base, SHA del commit de QA y hash de archivos mediante `.github/workflows/release-change-inventory.yml`. Recalcular si cambia el código después del QA. La vista Preview no debe activar pagos/zonas reales por cambios del frontend; backend continúa siendo la barrera final, no un parámetro manipulable de UI. **Registro de cambios no equivale a permiso de desplegar**: bloqueo de RPC administrativas sin canal sigue pendiente. Backups principales disponibles en `backup/2026-10-09-before-preview-production-safety` para este trabajo. 
+
+---
+
+## Corrección en rama de QA · 2026-10-09 (sin desplegar)
+
+Se detectó una discrepancia: cinco editores de configuración obtenían
+`AdminEnvironmentStore('production')` aunque la web estuviera compilada
+con `ADMIN_ENV=preview`. En esa situación el formulario QA podía invocar
+RPC operativas y modificar zonas, cobertura, tarifas o ajustes reales.
+
+La rama `fix/preview-shared-config-isolation-20261009` cambia los cinco
+editores a `AdminEnvironmentStore(widget.channel)`; la edición de métodos
+de pago por zona recibe el canal del llamador. El formulario de cobertura
+lee y persiste su polígono Preview en el shadow QA, sin consultar la cobertura
+real para editar. **Producción conserva exactamente la misma ruta lógica**.
+
+**Esta rama NO equivale a aislamiento completo ni debe fusionarse sin QA:**
+- La auditoría adicional detectó el mismo error en el catálogo de países y requisitos documentales de conductor. La rama QA también corrige su lectura/escritura por canal, sin tocar la base real.
+- la app móvil consume aún algunas configuraciones operativas principales;
+  la cobertura Preview guardada en shadow puede no aplicarse al cálculo de rutas;
+- la RPC `admin_zone_coverage_save` acepta `p_channel='preview'` y escribe
+  `service_zones` reales en el backend principal. Se debe corregir con una
+  migración compatible y pruebas antes de habilitar acceso Preview libre;
+- hay que revisar todas las llamadas desde las páginas de países, seguridad,
+  servicios y otros editores secundarios, además de RLS, Storage y webhooks;
+- la publicación inicial debe ser solo del sitio Preview y los bytes del
+  sitio Producción deben permanecer sin cambios.
+
+No editar ni desplegar migraciones, credenciales, pagos o bases de datos en
+Producción hasta que los tests de aislamiento y el QA físico estén aprobados.
+
+---
+
 ## Arquitectura vigente — 2026-10-09: dos sitios web y Supabase compartido, nunca datos mezclados
 - Producción: raíz `/`, proyecto `zgpijrznvaskgcmauwxx`, canal `production`.
 - Prueba: ruta `/preview/`, **mismo proyecto** `zgpijrznvaskgcmauwxx`, canal `preview`.

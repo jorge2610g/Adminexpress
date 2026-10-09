@@ -149,7 +149,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: github-pages
-          run-id: 37890547971
+          run-id: 37969274447
           github-token: ${{ github.token }}
           path: pages-prod
 
@@ -262,3 +262,36 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Verify live Preview SHA and unchanged Production marker
+        if: ${{ needs.preview_only.result == 'success' }}
+        shell: bash
+        env:
+          EXPECTED_PREVIEW_SHA: ${{ github.sha }}
+          EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df
+        run: |
+          set -euo pipefail
+          BASE="https://admin.expressviajes.online"
+          for attempt in $(seq 1 12); do
+            if curl -fsSL --max-time 20 -H "Cache-Control: no-cache" "$BASE/version.json?check=$EXPECTED_PREVIEW_SHA" -o /tmp/production-marker.json \
+              && curl -fsSL --max-time 20 -H "Cache-Control: no-cache" "$BASE/preview/version.json?check=$EXPECTED_PREVIEW_SHA" -o /tmp/preview-marker.json \
+              && python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          production = json.loads(Path('/tmp/production-marker.json').read_text())
+          preview = json.loads(Path('/tmp/preview-marker.json').read_text())
+          assert production.get('commit') == os.environ['EXPECTED_PRODUCTION_SHA'], 'Production SHA unexpectedly changed'
+          assert production.get('environment') == 'production', 'Production channel unexpectedly changed'
+          assert preview.get('commit') == os.environ['EXPECTED_PREVIEW_SHA'], 'New Preview SHA not yet published'
+          assert preview.get('environment') == 'preview', 'Preview channel unexpectedly changed'
+          assert preview.get('supabase_project_ref') == 'zgpijrznvaskgcmauwxx', 'Preview project unexpectedly changed'
+          print('PASS: expected Preview SHA is live; Production SHA and channel unchanged')
+          PY
+            then
+              exit 0
+            fi
+            echo "Public Pages version not confirmed on attempt $attempt of 12."
+            sleep 10
+          done
+          echo "::error::Published version could not be verified. Review GitHub Pages immediately."
+          exit 1

@@ -1,3 +1,9 @@
+## Anotación QA 2026-10-09: cambios de Admin Preview / Producción
+
+El contrato para publicar del panel es `docs/admin-preview-production.md`. En la rama PR #51 existe un nuevo workflow `release-change-inventory.yml` que produce un inventario verificable de cambios SHA-256 de cada Pull Request, sin acceso a Producción. El módulo Preview debe mantener `AdminEnvironmentStore(widget.channel)` en editores QA; la separación backend completa de RPC no canalizadas sigue siendo bloqueante. No publicar cambios de PR #51 únicamente porque el build y el inventario estén verdes.
+
+---
+
 # Adminexpress — AI handoff operativo (2026-10-04)
 
 > Documento autoritativo de continuidad para otra IA o desarrollador.

@@ -1,3 +1,54 @@
+## 2026-10-09 — Corrección segura de publicación exclusiva de Preview (rama PR #51)
+
+- La prueba desde una rama de trabajo generó un artefacto válido y conservó bytes de Producción, pero GitHub Pages bloqueó el job final por su entorno protegido. Se conserva la protección de GitHub Pages; **no** se abre a todas las ramas.
+- La vía existente de actualización Preview desde `main` se activa exclusivamente con el mensaje de merge `[deploy-preview-only]`. El build y el despliegue de Producción quedan omitidos; la compilación de QA usa ese mismo SHA de merge.
+- El workflow utiliza el último artefacto Prod probado contra el sitio real, run `37969274447` (SHA `30e60582a337be3911671742d780b240793497df`), y verifica la identidad **byte por byte** antes de preparar Preview. Si cambia Producción o falla algún hash, se aborta.
+- Tras la publicación, comprueba `version.json` de ambos sitios: Preview debe mostrar el SHA publicado y Producción el SHA estable anterior. No modifica Supabase, APK, AAB, Google Play ni el sistema de pagos.
+- Guía de aceptación y reversión: `docs/QA_PREVIEW_PRODUCTION_ACCEPTANCE_2026-10-09.md`.
+- **Aún NO equivale a certificar aislamiento de todas las RPC administrativas** ni permite promociones de datos de prueba a Producción.
+
+---
+
+## 2026-10-09 — Prueba Preview-only de Pages, sin publicación
+
+- Se ensayó `Deploy Adminexpress Web to GitHub Pages` en rama QA, run `37990890621`, fuente exacta `a8a12585181d484d4767c03cb4aaed64c314a50e`.
+- El job `build` de Producción quedó **SKIPPED**. El job `preview_only` pasó: validó SHA QA, descargó artefacto de Producción, comparó bytes de la URL real con la copia, compiló Preview y confirmó el manifiesto SHA256 de todos los archivos no Preview.
+- El job final `deploy` terminó en **FAILURE antes de ejecutar pasos**. No existe evidencia de publicación de la nueva Preview: considerar la URL en su estado anterior. No interpretar el artefacto compilado como versión publicada.
+- El artefacto `github-pages` QA de ese run está guardado en Actions (ID `11644663644`), pero **no** se autorizó publicarlo por otra vía.
+- Se restauró exactamente `.github/workflows/deploy-web.yml` desde `main` al terminar el ensayo; no quedó el trigger de push QA ni la alteración temporal de deploy en la PR.
+- Supabase principal se consultó solo con `SELECT` después del ensayo: 0 países QA, 2 zonas QA shadow, 5 cuentas Preview, 6 Producción; el servidor todavía tiene un superadministrador de doble permiso.
+- Ninguna migración / Edge Function / tabla / pago / Google Play se ha modificado en este ensayo. La separación backend total sigue pendiente; P0 documentado en Expressdelivery issue #141.
+
+---
+
+## 2026-10-09 — Preparación explícita de países QA (Preview solamente)
+
+El panel de países dispone de **Preparar países QA** exclusivamente cuando `ADMIN_ENV=preview`. Bajo confirmación, consulta únicamente datos públicos básicos de referencia (nombre, ISO país, moneda y prefijo) y los guarda en el almacenamiento `admin_environment_config` con módulo `service_countries`. Los nuevos registros QA quedan con `active=false` y `driver_registration_enabled=false` por defecto; **nunca llama al RPC de escritura real `admin_upsert_country_coverage_v2`**. Respeta QA existente y omite países repetidos. No se ha pulsado el botón, sembrado datos, ni desplegado la rama. CI valida las guardias.
+
+---
+
+## 2026-10-09 — Registro automático de cambios de cada PR administrativa (QA, sin despliegue)
+
+- CI nuevo `.github/workflows/release-change-inventory.yml`: corre en **toda PR hacia main** y verifica SHA de base, cabeza, commit de prueba y árbol Git; adjunta inventario de archivos con hashes SHA-256 y riesgo.
+- Script y pruebas en `.github/scripts/release_change_manifest.py` y `.github/scripts/test_release_change_manifest.py`.
+- Esta revisión ayuda a saber exactamente qué código cambiaría; NO comprueba por sí sola la seguridad de permisos Supabase, equivalencia de datos ni ausencia de bugs.
+- Los cambios permanecen en PR #51 como borrador. No se fusionó ni se desplegó Producción.
+
+---
+
+## 2026-10-09 — Corrección QA de configuración por canal (EN PR, no desplegado)
+
+- Rama: `fix/preview-shared-config-isolation-20261009` desde main `30e60582a337be3911671742d780b240793497df`.
+- Los editores Zonas, Seguridad geográfica, Servicios, Tarifas y Ajustes ya no fuerzan el entorno Production al abrirse desde Preview.
+- La edición de métodos de pago por zona respeta `channel`; la cobertura QA recupera/guarda sus puntos poligonales en shadow.
+- Adicionalmente, `AdminCountryCoveragePage` y `AdminDriverDocumentRequirementsPanel` dejan de forzar Production al listar, guardar o eliminar; Preview utiliza `AdminEnvironmentStore(widget.channel)` y su shadow QA. La comprobación CI ahora bloquea explícitamente esta regresión.
+- El CI del panel valida que esos editores no vuelvan a usar configuración Production fija.
+- **Sin cambios en main, Supabase, Android, firmas ni publicaciones.** Validación Flutter/QA pendiente antes de merge.
+- **Bloqueador de seguridad:** la RPC backend `admin_zone_coverage_save` sigue pudiendo modificar configuración real incluso con `p_channel=preview`. Debe impedirse desde backend antes de activar pruebas completas.
+- Documento: `docs/admin-preview-production.md`.
+
+---
+
 ## 2026-10-09 — Admin Preview usa Supabase principal con datos QA aislados
 - `/` y `/preview/` se conservan como dos páginas distintas.
 - Ambas comparten Supabase `zgpijrznvaskgcmauwxx`; `ADMIN_ENV` fija canales `production` y `preview`.
