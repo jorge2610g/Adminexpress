@@ -1,13 +1,14 @@
-## Arquitectura vigente — 2026-10-09: dos bases y dos paneles web
-- **Producción:** sitio raíz, proyecto Supabase `zgpijrznvaskgcmauwxx`.
-- **Preview:** sitio `/preview/`, proyecto Supabase `xbphilqezmwfjfpdbwad`.
-- Mismo código y navegación, pero compilaciones Flutter independientes; se suprimió el selector Prueba/Producción dentro de cada sitio.
-- Cada proyecto físico mantiene su canal RPC: `preview` en Supabase Preview y `production` en Supabase Producción; el selector interno se eliminó.
-- Login, sesión, permisos RLS, documentos, Storage y revisiones son independientes por proyecto. El panel Preview exige una cuenta de administrador autorizada **en Preview**, sin heredar permisos de Producción.
-- Preview no habilita la promoción/publicación de Android; `productionAccess` se desactiva para Builds allí.
-- Los registros antiguos de QA en Producción NO se migran ni borran automáticamente. No se han cambiado registros reales.
-- Las instrucciones históricas sobre `admin_environment_config` describen el **modelo antiguo**, que no se utiliza en los dos despliegues nuevos.
-- **Antes de publicar:** validar `flutter analyze`, ambos `flutter build web`, acceso Admin en cada proyecto y rechazo/corrección de selfie exclusivamente en Preview.
+## Arquitectura vigente — 2026-10-09: dos páginas, una base de datos con canales aislados
+- **Producción:** `/ ` (raíz), Supabase principal `zgpijrznvaskgcmauwxx`, canal `production`.
+- **Prueba:** `/preview/`, **MISMO** Supabase principal `zgpijrznvaskgcmauwxx`, canal `preview`.
+- Se elimina la conexión administrativa con la base secundaria `xbphilqezmwfjfpdbwad`. La base secundaria no se modifica ni se borra.
+- La navegación y login permanecen en dos páginas independientes, sin selector de datos dentro de una página.
+- QA utiliza `account_runtime_bindings.environment='preview'` para usuarios y RPCs `p_channel='preview'`, con validación de acceso/objetivo en el backend.
+- La configuración QA (zonas, servicios, tarifas y ajustes) se guarda en `admin_environment_config` con `p_environment='preview'`, nunca en registros operativos de producción.
+- Por seguridad Preview solo habilita módulos con consultas y escrituras revisadas: Dashboard, Operación, Viajes, Delivery, Conductores, Usuarios, SOS, Zonas, Tarifas, Reportes, Configuración, Auditoría, Servicios, Identidad y Verificación manual. Los demás módulos se bloquean en Prueba hasta añadir un aislamiento real, porque contienen RPCs sin canal.
+- Builds, pagos, billetera, suscripciones, marketplace y publicaciones reales no están disponibles en la página QA.
+- Producción conserva su comportamiento y permisos; los datos reales no se migran, borran ni alteran.
+- Para publicar la página QA de forma independiente, usar el workflow `[deploy-preview-only]` y verificar que los bytes publicados en Producción permanecen intactos.
 
 ---
 
