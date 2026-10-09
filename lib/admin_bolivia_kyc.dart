@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
 
-/// Bolivia-only policy and manual KYC reviews. Never changes Chile settings.
+/// Manual document moderation for all supported regions.
 class AdminBoliviaKycPanel extends StatefulWidget {
   const AdminBoliviaKycPanel({
     super.key,
@@ -47,12 +47,14 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
   String _text(dynamic value) => value?.toString().trim() ?? '';
 
   Future<Map<String, dynamic>> _load() async {
-    if (widget.countryCode?.toUpperCase() != 'BO') return {};
     final results = await Future.wait([
       supabase.rpc('admin_driver_kyc_bolivia_manual_list',
           params: {'p_channel':widget.channel,'p_limit':150}),
     ]);
-    return {'documents':_list(results[0])};
+    final rows=_list(results[0]);
+    final region=widget.countryCode?.toUpperCase();
+    return {'documents':rows.where((d)=>region==null || region.isEmpty ||
+      _text(d['country_code']).toUpperCase()==region).toList()};
   }
 
   void _reload() {
@@ -172,7 +174,7 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
     await showDialog<void>(
       context:context,
       builder:(dialogContext)=>AlertDialog(
-        title:const Text('Revisión individual · Bolivia'),
+        title:const Text('Revisión individual de identidad'),
         content:SizedBox(width:690,child:SingleChildScrollView(
           child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             Text('Conductor: ${_text(document['full_name'])}'),
@@ -256,9 +258,6 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.countryCode?.toUpperCase() != 'BO') {
-      return const SizedBox.shrink();
-    }
     return FutureBuilder<Map<String,dynamic>>(
       future:_future,
       builder:(context,snapshot) {
@@ -291,13 +290,13 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
               if (docs.isEmpty)
                 const Padding(
                   padding:EdgeInsets.symmetric(vertical:12),
-                  child:Text('Aún no hay documentos manuales en Bolivia.')),
+                  child:Text('Aún no hay documentos para revisar.')),
               for (final doc in docs.take(40)) ListTile(
                 contentPadding:EdgeInsets.zero,
                 leading:Icon(doc['status']=='pending'
                   ? Icons.hourglass_empty:Icons.verified_user_outlined),
                 title:Text(_text(doc['full_name']).isNotEmpty
-                  ? _text(doc['full_name']):'Conductor · Bolivia'),
+                  ? _text(doc['full_name']):'Conductor'),
                 subtitle:Text('Carné ${_text(doc['document_number'])} · '
                   '${_text(doc['status'])}'),
                 trailing:const Icon(Icons.chevron_right),
