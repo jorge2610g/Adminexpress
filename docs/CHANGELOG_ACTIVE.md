@@ -1,3 +1,29 @@
+## 2026-10-09 — Sesiones independientes y acceso administrativo por canal
+
+- Se detectó que las dos rutas del panel `/` (Producción) y
+  `/preview/` compartían la sesión del mismo Supabase almacenada por
+  origen en el navegador. Esto podía intercambiar sesiones al cambiar
+  de panel o cerrar sesión.
+- Solo **Preview** utiliza una nueva clave de sesión local; **Producción**
+  conserva el almacenamiento original de Supabase para no desconectar
+  administradores activos.
+- El login por correo/contraseña, OAuth y la validación de sesiones
+  restauradas consultan en servidor `admin_environment_allowed` para
+  el canal fijo compilado. Las credenciales administrativas no permitidas
+  para ese canal se rechazan antes de abrir la interfaz.
+- No se rotó clave publishable/service-role ni se cambió Auth o
+  `admin_users`. El usuario principal sigue con los permisos actuales
+  hasta que exista una segunda identidad QA verificada; bloquearlo
+  antes dejaría a Preview sin administrador.
+- Procedimiento para invitar cuenta administrativa QA-only y recién
+  entonces quitar permiso Preview al administrador principal:
+  `docs/ADMIN_AUTH_SESSION_SEPARATION_2026-10-09.md`.
+- **Todavía no hay aislamiento completo:** RPC legacy sin canal pueden
+  autorizar operaciones en Producción a un usuario QA-only si solo
+  hacen `is_admin()`; issue Expressdelivery #141.
+
+---
+
 ## 2026-10-09 — Tarifa por distancia exclusivamente QA en Preview
 
 La pantalla `AdminDistanceFaresEditor` tenía una vía de escritura compartida:
