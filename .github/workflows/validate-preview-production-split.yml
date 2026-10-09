@@ -62,7 +62,7 @@ jobs:
           grep -q "admin_trip_detail_v2" lib/admin_detail_dialogs.dart
           grep -q "admin_update_driver_profile_v2" lib/admin_detail_dialogs.dart
           grep -q "admin_update_user_profile_v2" lib/admin_detail_dialogs.dart
-          grep -q "const AdminEnvironmentStore(\x27production\x27)" lib/admin_driver_document_requirements.dart
+          grep -Fq "const AdminEnvironmentStore('production')" lib/admin_driver_document_requirements.dart
           grep -q "admin_driver_document_requirement_list" lib/admin_driver_document_requirements.dart
 
           for legacy in             "'admin_set_driver_approval'"             "'admin_set_account_status'"             "'admin_resolve_emergency'"; do
