@@ -62,7 +62,12 @@ jobs:
           grep -q "admin_trip_detail_v2" lib/admin_detail_dialogs.dart
           grep -q "admin_update_driver_profile_v2" lib/admin_detail_dialogs.dart
           grep -q "admin_update_user_profile_v2" lib/admin_detail_dialogs.dart
-          grep -Fq "const AdminEnvironmentStore('production')" lib/admin_driver_document_requirements.dart
+          if grep -Fq "const AdminEnvironmentStore('production')" lib/admin_driver_document_requirements.dart; then
+            echo "ERROR: document requirements Preview must not read/write Production."
+            exit 1
+          fi
+          grep -Fq "AdminEnvironmentStore(widget.channel)" lib/admin_driver_document_requirements.dart
+          grep -Fq "AdminEnvironmentStore(widget.channel)" lib/admin_country_coverage.dart
           grep -q "admin_driver_document_requirement_list" lib/admin_driver_document_requirements.dart
 
           for legacy in             "'admin_set_driver_approval'"             "'admin_set_account_status'"             "'admin_resolve_emergency'"; do
@@ -184,6 +189,11 @@ jobs:
           assert "bool get isPreview => channel == 'preview';" in env_store
           # All QA business configuration editors must target shadow storage,
           # never silently resolve to the live production store.
+          docs = Path('lib/admin_driver_document_requirements.dart').read_text()
+          assert docs.count('AdminEnvironmentStore(widget.channel)') == 3
+          countries = Path('lib/admin_country_coverage.dart').read_text()
+          assert 'AdminEnvironmentStore(widget.channel)' in countries
+          assert "AdminEnvironmentStore('production')" not in countries
           controls = Path('lib/admin_control_sections.dart').read_text()
           for name in ['_AdminZonesPageState','_AdminGeoSafetyPageState',
                        '_AdminServicesPageState','_AdminFaresPageState',
