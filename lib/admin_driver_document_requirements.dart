@@ -42,7 +42,7 @@ class _AdminDriverDocumentRequirementsPanelState
       );
     }
 
-    final store = AdminEnvironmentStore(widget.channel);
+    final store = const AdminEnvironmentStore('production');
     final List<Map<String, dynamic>> allRequirements;
     final List<Map<String, dynamic>> allZones;
 
@@ -332,7 +332,7 @@ class _AdminDriverDocumentRequirementsPanelState
         _snack('Selecciona la ciudad.');
       } else {
         try {
-          final store = AdminEnvironmentStore(widget.channel);
+          final store = const AdminEnvironmentStore('production');
           if (store.isPreview) {
             final normalizedCountry =
                 scope == 'global' ? null : countryCode?.trim().toUpperCase();
@@ -422,7 +422,7 @@ class _AdminDriverDocumentRequirementsPanelState
     if (ok != true) return;
 
     try {
-      final store = AdminEnvironmentStore(widget.channel);
+      final store = const AdminEnvironmentStore('production');
       if (store.isPreview) {
         await store.previewSoftDelete('driver_document_requirements', row);
       } else {

@@ -9,6 +9,7 @@ import 'admin_environment_store.dart';
 import 'admin_driver_document_requirements.dart';
 import 'admin_country_coverage.dart';
 import 'admin_admob_settings.dart';
+import 'admin_distance_fares.dart';
 
 const Color _blue = Color(0xFF2563EB);
 const Color _dark = Color(0xFF0F172A);
@@ -678,7 +679,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+      const AdminEnvironmentStore('production');
 
   Future<List<Map<String, dynamic>>> _load() async {
     final selectedZoneId = widget.zoneId;
@@ -2696,7 +2697,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+      const AdminEnvironmentStore('production');
   String? selectedZoneId;
 
   Future<({
@@ -3241,7 +3242,7 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+      const AdminEnvironmentStore('production');
 
   Future<({
     List<Map<String, dynamic>> zones,
@@ -3821,8 +3822,8 @@ class AdminIdentitySecurityPage extends StatelessWidget {
         const _AdminHero(
           icon: Icons.verified_user_rounded,
           title: 'Centro de identidad',
-          subtitle: 'Las aprobaciones se realizan manualmente desde '
-              'Verificación manual. Los registros históricos de servicios '
+          subtitle: 'Las aprobaciones se realizan manualmente desde la pestaña '
+              'Revisión de documentos. Los registros históricos de servicios '
               'anteriores no son solicitudes activas.',
           stats: [
             ('Motor', 'Manual'),
@@ -3848,7 +3849,7 @@ class AdminIdentitySecurityPage extends StatelessWidget {
                   child: Text(
                     'Para revisar, aprobar, rechazar o reactivar por separado '
                     'el frente, reverso y la selfie de un conductor, '
-                    'abre «Verificación manual» en el menú lateral. '
+                    'usa la pestaña «Revisión de documentos». '
                     'Las solicitudes de Prueba y Producción se gestionan '
                     'por separado.',
                     style: TextStyle(color: _dark, height: 1.5),
@@ -4346,7 +4347,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+      const AdminEnvironmentStore('production');
   String? selectedZoneId;
 
   Future<({
@@ -5150,6 +5151,13 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                       ],
                     ),
             ),
+            if (data.zone != null)
+              AdminDistanceFaresEditor(
+                key: ValueKey('distance-steps-${data.zone!['id']}-${widget.channel}'),
+                channel: widget.channel,
+                zone: data.zone!,
+                services: data.services,
+              ),
             const SizedBox(height: 14),
             if (data.zones.isNotEmpty)
               Card(
@@ -5255,7 +5263,7 @@ Future<bool> showAdminZonePaymentMethodsEditor(
   Map<String, dynamic> zone, {
   String channel = 'production',
 }) async {
-  final environment = AdminEnvironmentStore(channel);
+  final environment = const AdminEnvironmentStore('production');
   final zoneId = zone['id']?.toString();
   if (zoneId == null || zoneId.isEmpty) return false;
 
@@ -5595,7 +5603,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+      const AdminEnvironmentStore('production');
   String paymentPeriod = 'today';
   DateTimeRange? paymentCustomRange;
   String? selectedPaymentZoneId;
@@ -7765,7 +7773,7 @@ class AdminSettingsPage extends StatefulWidget {
 
 class _AdminSettingsPageState extends State<AdminSettingsPage> {
   AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+      const AdminEnvironmentStore('production');
   Map<String, dynamic>? settings;
   bool loading = true;
   bool saving = false;
@@ -7835,7 +7843,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
     required String channel,
     required int revision,
   }) async {
-    final environment = AdminEnvironmentStore(channel);
+    final environment = const AdminEnvironmentStore('production');
     try {
       final row = environment.isPreview
           ? await environment.previewGet('app_settings')
@@ -7892,7 +7900,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
     final channel = widget.channel;
     final revision = _settingsLoadRevision;
-    final environment = AdminEnvironmentStore(channel);
+    final environment = const AdminEnvironmentStore('production');
 
     setState(() => saving = true);
     try {

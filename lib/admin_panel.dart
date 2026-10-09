@@ -242,7 +242,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // The only Preview modules vetted for shared-database scoped operations.
   // Every other module may run unscoped RPCs and must fail closed in QA.
   static const Set<int> _previewScopedModules = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 14, 16, 18, 27,
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 14, 16, 17, 18, 27,
   };
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
@@ -272,7 +272,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Conductores', Icons.drive_eta_rounded),
     ('Usuarios', Icons.people_rounded),
     ('Seguridad / SOS', Icons.shield_rounded),
-    ('Zonas', Icons.hexagon_outlined),
+    ('Zonas y cobertura', Icons.hexagon_outlined),
     ('Tarifas', Icons.payments_outlined),
     ('Pagos / Billetera', Icons.account_balance_wallet_rounded),
     ('Reportes', Icons.bar_chart_rounded),
@@ -391,22 +391,6 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Future<List<Map<String, dynamic>>> _filterCountries() async {
-    if (adminChannel == 'preview') {
-      final zones =
-          await const AdminEnvironmentStore('preview').previewList('service_zones');
-      final byCode = <String, Map<String, dynamic>>{};
-      for (final zone in zones) {
-        final code = _zoneCountryCode(zone);
-        if (code.isEmpty) continue;
-        byCode[code] = <String, dynamic>{
-          'country_code': code,
-          'country': zone['country'] ?? code,
-          'active': zone['active'] != false,
-        };
-      }
-      return byCode.values.where((row) => row['active'] == true).toList();
-    }
-
     final value = await supabase.rpc('admin_country_list_scoped');
     return _list(value);
   }
@@ -414,17 +398,6 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<List<Map<String, dynamic>>> _filterZones() async {
     final country = adminCountryCode;
     if (country == null || country.isEmpty) return const [];
-
-    if (adminChannel == 'preview') {
-      final zones =
-          await const AdminEnvironmentStore('preview').previewList('service_zones');
-      return zones
-          .where(
-            (row) =>
-                row['active'] != false && _zoneCountryCode(row) == country,
-          )
-          .toList();
-    }
 
     final value = await supabase.rpc(
       'admin_zone_list_for_country',
@@ -1243,10 +1216,38 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 6:
         return _security();
       case 7:
-        return AdminZonesPage(
-          channel: adminChannel,
-          countryCode: adminCountryCode,
-          zoneId: adminZoneId,
+        return DefaultTabController(
+          key: ValueKey('unified-zones-$adminZoneId-$adminChannel'),
+          length: 2,
+          child: Column(
+            children: [
+              const Material(
+                color: Colors.white,
+                child: TabBar(
+                  tabs: [
+                    Tab(icon: Icon(Icons.location_city_outlined),
+                        text: 'Zonas y servicios'),
+                    Tab(icon: Icon(Icons.shield_outlined),
+                        text: 'Cobertura y seguridad'),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: TabBarView(children: [
+                  AdminZonesPage(
+                    channel: adminChannel,
+                    countryCode: adminCountryCode,
+                    zoneId: adminZoneId,
+                  ),
+                  AdminGeoSafetyPage(
+                    channel: adminChannel,
+                    countryCode: adminCountryCode,
+                    zoneId: adminZoneId,
+                  ),
+                ]),
+              ),
+            ],
+          ),
         );
       case 8:
         return AdminFaresPage(
@@ -1301,10 +1302,34 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 18:
-        return AdminIdentitySecurityPage(
-          channel: adminChannel,
-          countryCode: adminCountryCode,
-          zoneId: adminZoneId,
+        return DefaultTabController(
+          key: ValueKey('unified-identity-$adminZoneId-$adminChannel'),
+          length: 2,
+          child: Column(
+            children: [
+              const Material(
+                color: Colors.white,
+                child: TabBar(tabs: [
+                  Tab(icon: Icon(Icons.fact_check_outlined),
+                      text: 'Revisión de documentos'),
+                  Tab(icon: Icon(Icons.settings_outlined),
+                      text: 'Requisitos de identidad'),
+                ]),
+              ),
+              Expanded(child: TabBarView(children: [
+                AdminManualIdentityPage(
+                  channel: adminChannel,
+                  countryCode: adminCountryCode,
+                  zoneId: adminZoneId,
+                ),
+                AdminIdentitySecurityPage(
+                  channel: adminChannel,
+                  countryCode: adminCountryCode,
+                  zoneId: adminZoneId,
+                ),
+              ])),
+            ],
+          ),
         );
       case 19:
         return AdminAdvancedSettingsPage(channel: adminChannel);
@@ -2225,7 +2250,7 @@ class _Navigation extends StatelessWidget {
           ('FINANZAS', [9, 8, 22]),
           ('ANÁLISIS', [10, 14]),
           ('COMUNICACIÓN', [15]),
-          ('SEGURIDAD', [17, 18, 27]),
+          ('SEGURIDAD', [18]),
           ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
           ('HERRAMIENTAS QA', [20, 21]),
         ];
