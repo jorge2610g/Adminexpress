@@ -110,7 +110,7 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
   }
 
   Future<void> _logout() async {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut(scope: SignOutScope.local);
     if (mounted) setState(() => revision++);
   }
 
@@ -212,7 +212,7 @@ class _AdminLoginState extends State<_AdminLogin> {
               true;
       if (isAdmin && !allowedForPage) {
         // Reject the wrong administrator identity before entering the panel.
-        await supabase.auth.signOut();
+        await supabase.auth.signOut(scope: SignOutScope.local);
         throw Exception(
           'Esta cuenta no tiene autorización para este entorno. '
           'Utiliza las credenciales administrativas correspondientes.',
@@ -224,7 +224,7 @@ class _AdminLoginState extends State<_AdminLogin> {
         hasPartnerAccess = raw is List && raw.isNotEmpty;
       }
       if (!allowedForPage && !hasPartnerAccess) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut(scope: SignOutScope.local);
         throw Exception(
           'Esta cuenta no tiene acceso de administrador ni de organización.',
         );
