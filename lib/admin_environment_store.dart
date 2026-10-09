@@ -2,14 +2,14 @@ import 'core/supabase_client.dart';
 
 /// Environment-aware storage used by Adminexpress.
 ///
-/// Production pages continue to use the real operational RPCs/tables.
-/// Both web pages use the SAME physical Supabase database.
-/// Shared BUSINESS SETTINGS (countries, zones, services, tariffs, coverage,
-/// security polygons, general settings, identity requirements) use the normal
-/// operational RPCs on both pages. Preview still uses admin_environment_config
-/// ONLY for intentionally isolated QA settings / operational fixtures.
-/// Production continues using the normal operational RPCs and tables.
-/// Never route QA driver documents, test rides or payments through this switch.
+/// The two websites currently share the primary Supabase project.
+/// Operational Production settings use existing RPCs; Preview configuration
+/// edits for zones, polygons, fares, services, and app settings MUST remain
+/// inside the `admin_environment_config` QA shadow.
+///
+/// Runtime-sensitive records (trips, identity reviews, wallets, payments)
+/// additionally require server-side channel/identity assertions. This client
+/// switch is not a substitute for authorization checks on privileged RPCs.
 class AdminEnvironmentStore {
   final String channel;
 
