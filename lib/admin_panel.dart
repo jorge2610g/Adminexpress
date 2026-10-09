@@ -213,7 +213,7 @@ class ExpressAdminPanel extends StatefulWidget {
 class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   int section = 0;
   int revision = 0;
-  String adminChannel = 'production';
+  String adminChannel = adminIsPreview ? 'preview' : 'production';
   bool allowPreview = true;
   bool allowProduction = true;
   String? liveZoneId;
@@ -300,10 +300,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     // normal rows INSIDE the currently connected project. Preview users
     // are not legacy QA-marked accounts and must never use the shadow store.
     adminAccess = access;
-    allowPreview = false;
-    allowProduction = access['allow_production'] != false;
-    adminChannel = 'production';
-    if (!allowProduction) return false;
+    // The two deployed sites have different Supabase URLs and Auth projects.
+    // p_channel identifies the rows INSIDE that physical project. Every real
+    // Express Preview account is runtime-bound to the 'preview' channel.
+    allowPreview = adminIsPreview && access['allow_preview'] != false;
+    allowProduction = !adminIsPreview && access['allow_production'] != false;
+    adminChannel = adminIsPreview ? 'preview' : 'production';
+    if (adminIsPreview ? !allowPreview : !allowProduction) return false;
 
     if (access['role']?.toString() == 'zone_monitor') {
       adminCountryCode =
@@ -386,7 +389,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Future<List<Map<String, dynamic>>> _filterCountries() async {
-    if (adminChannel == 'preview') {
+    if (adminChannel == 'preview' && !adminIsPreview) {
       final zones =
           await const AdminEnvironmentStore('preview').previewList('service_zones');
       final byCode = <String, Map<String, dynamic>>{};
@@ -410,7 +413,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     final country = adminCountryCode;
     if (country == null || country.isEmpty) return const [];
 
-    if (adminChannel == 'preview') {
+    if (adminChannel == 'preview' && !adminIsPreview) {
       final zones =
           await const AdminEnvironmentStore('preview').previewList('service_zones');
       return zones
@@ -1217,7 +1220,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         );
       case 10:
         return AdminEnvironmentReportsPage(
-          includePreview: false,
+          includePreview: allowPreview,
           includeProduction: allowProduction,
         );
       case 11:
@@ -1234,7 +1237,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         );
       case 14:
         return AdminEnvironmentAuditPage(
-          includePreview: false,
+          includePreview: allowPreview,
           includeProduction: allowProduction,
         );
       case 15:
