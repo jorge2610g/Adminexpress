@@ -188,6 +188,18 @@ jobs:
           assert 'supabase.auth' not in navigation and 'Supabase.initialize' not in navigation
           assert 'AdminEnvironmentLinkButton()' in panel
           assert 'AdminEnvironmentLinkButton()' in login
+          detail = Path('lib/admin_detail_dialogs.dart').read_text()
+          # Admin Preview has an independent physical database: do not look
+          # up selectable countries/zones in the old shared QA shadow store.
+          assert "if (channel == 'preview' && !adminIsPreview)" in detail
+          assert "supabase.rpc('admin_zone_list_scoped')" in detail
+          assert "_reviewDocument(doc, 'verified')" in detail
+          assert "_reviewDocument(doc, 'rejected')" in detail
+          assert "Motivo del rechazo" in detail
+          assert "labelText: 'URL / referencia del archivo'" not in detail
+          assert "labelText: 'Tipo de documento'" not in detail
+          assert "_friendlyDriverDocumentType" in detail
+          print('PASS: physical Preview zones and user-friendly manual reviews.')
           print('PASS: deployed sites use separately pinned physical Supabase projects.')
           PY
 
@@ -195,6 +207,7 @@ jobs:
         run: |
           flutter analyze --no-fatal-warnings --no-fatal-infos \
             lib/admin_panel.dart \
+            lib/admin_detail_dialogs.dart \
             lib/admin_single_app_release.dart \
             lib/admin_environment_reports.dart \
             lib/admin_environment_audit.dart \
