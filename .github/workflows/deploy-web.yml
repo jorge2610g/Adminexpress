@@ -190,7 +190,7 @@ jobs:
           set -euo pipefail
           test "$(git -C preview-source rev-parse HEAD)" = "$PREVIEW_SHA"
           grep -q "admin_zone_list_scoped" preview-source/lib/admin_detail_dialogs.dart
-          grep -q "Aprobar documento" preview-source/lib/admin_detail_dialogs.dart
+          grep -q "admin_driver_kyc_bolivia_manual_review_part" preview-source/lib/admin_bolivia_kyc.dart
           grep -q "AdminEnvironmentLinkButton" preview-source/lib/admin_panel.dart
           grep -q "const supabaseUrl = _productionUrl;" preview-source/lib/core/supabase_client.dart
           grep -q "if (adminIsPreview && !_previewScopedModules.contains(value))" preview-source/lib/admin_panel.dart
