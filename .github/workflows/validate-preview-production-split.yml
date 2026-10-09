@@ -148,7 +148,7 @@ jobs:
             lib/admin_marketplace_phase2.dart \
             lib/admin_driver_priority.dart \
             lib/admin_dynamic_pricing.dart \
-            lib/admin_didit.dart \
+            lib/admin_manual_identity.dart \
             lib/admin_driver_document_requirements.dart
       - name: Build admin web smoke test
         run: flutter build web --release

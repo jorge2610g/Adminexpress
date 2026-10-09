@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
 
-/// Bolivia-only policy and manual KYC reviews. Never changes Chile settings.
+/// Manual document moderation for all supported regions.
 class AdminBoliviaKycPanel extends StatefulWidget {
   const AdminBoliviaKycPanel({
     super.key,
@@ -47,61 +47,19 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
   String _text(dynamic value) => value?.toString().trim() ?? '';
 
   Future<Map<String, dynamic>> _load() async {
-    if (widget.countryCode?.toUpperCase() != 'BO') return {};
     final results = await Future.wait([
-      supabase.rpc('admin_driver_kyc_bolivia_settings',
-          params: {'p_channel':widget.channel}),
       supabase.rpc('admin_driver_kyc_bolivia_manual_list',
           params: {'p_channel':widget.channel,'p_limit':150}),
     ]);
-    return {'settings':_map(results[0]),'documents':_list(results[1])};
+    final rows=_list(results[0]);
+    final region=widget.countryCode?.toUpperCase();
+    return {'documents':rows.where((d)=>region==null || region.isEmpty ||
+      _text(d['country_code']).toUpperCase()==region).toList()};
   }
 
   void _reload() {
     if (mounted) setState(() { _future = _load(); });
   }
-
-  Future<void> _setMethod(String method) async {
-    if (_busy) return;
-    final previous = _map((await _future)['settings'])['preferred_method'];
-    if (previous == method) return;
-    final approved = await showDialog<bool>(
-      context:context,
-      builder:(context)=>AlertDialog(
-        title:const Text('Cambiar método de verificación'),
-        content:Text('Bolivia · ${widget.channel == 'preview' ? 'Pruebas' : 'Producción'}\n\n'
-          'Nuevo método: ${_label(method)}.\n\n'
-          'El límite de Didit seguirá siendo 30 sesiones por mes. '
-          'Al agotarse, Express utilizará el sistema manual. '
-          'No afecta Chile ni las verificaciones en curso.'),
-        actions:[
-          TextButton(onPressed:()=>Navigator.pop(context,false),
-            child:const Text('Cancelar')),
-          FilledButton(onPressed:()=>Navigator.pop(context,true),
-            child:const Text('Guardar método')),
-        ],
-      ),
-    );
-    if (approved != true || !mounted) return;
-    setState(() => _busy=true);
-    try {
-      await supabase.rpc('admin_driver_kyc_bolivia_set_method',params:{
-        'p_channel':widget.channel,'p_method':method,
-      });
-      if (mounted) _reload();
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:Text('No se pudo guardar el método: $e')));
-    } finally {
-      if (mounted) setState(() => _busy=false);
-    }
-  }
-
-  String _label(String mode) => switch (mode) {
-    'didit' => 'Didit (máximo 30 mensuales)',
-    'manual' => 'Solo verificación manual Express',
-    _ => 'Automático: Didit → manual después de 30',
-  };
 
   String _slotLabel(String slot) => switch (slot) {
     'front' => 'Frente del carné',
@@ -216,7 +174,7 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
     await showDialog<void>(
       context:context,
       builder:(dialogContext)=>AlertDialog(
-        title:const Text('Revisión individual · Bolivia'),
+        title:const Text('Revisión individual de identidad'),
         content:SizedBox(width:690,child:SingleChildScrollView(
           child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             Text('Conductor: ${_text(document['full_name'])}'),
@@ -300,9 +258,6 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.countryCode?.toUpperCase() != 'BO') {
-      return const SizedBox.shrink();
-    }
     return FutureBuilder<Map<String,dynamic>>(
       future:_future,
       builder:(context,snapshot) {
@@ -310,56 +265,21 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
           if (snapshot.hasError) return Card(child:Padding(
             padding:const EdgeInsets.all(14),
             child:Column(children:[
-              const Text('No se pudo consultar el método de Bolivia.'),
+              const Text('No se pudieron consultar los documentos.'),
               TextButton(onPressed:_reload,child:const Text('Reintentar')),
             ])));
           return const LinearProgressIndicator();
         }
         final data=snapshot.data!;
-        final cfg=_map(data['settings']);
         final docs=_list(data['documents']);
-        final mode=_text(cfg['preferred_method']).isEmpty
-            ? 'automatic':_text(cfg['preferred_method']);
-        final used=int.tryParse(_text(cfg['used']))??0;
-        final remaining=int.tryParse(_text(cfg['remaining']))??0;
-        return Card(
-          child:Padding(
-            padding:const EdgeInsets.all(16),
-            child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-              const Text('Bolivia · Control de reconocimiento de identidad',
-                style:TextStyle(fontWeight:FontWeight.w900,fontSize:18)),
-              const SizedBox(height:6),
-              Text('Didit: $used de 30 sesiones usadas este mes · '
-                '$remaining disponibles · Canal: ${widget.channel}',
-                style:const TextStyle(fontWeight:FontWeight.w700)),
-              const SizedBox(height:7),
-              LinearProgressIndicator(value:(used/30).clamp(0.0,1.0)),
-              const SizedBox(height:14),
-              DropdownButtonFormField<String>(
-                key:ValueKey('${widget.channel}-$mode'),
-                initialValue:mode,
-                decoration:const InputDecoration(
-                  labelText:'Método sugerido de verificación',
-                  border:OutlineInputBorder(),
-                ),
-                items:const [
-                  DropdownMenuItem(value:'automatic',
-                    child:Text('Automático · 30 Didit y luego manual')),
-                  DropdownMenuItem(value:'didit',
-                    child:Text('Preferir Didit (respetar límite)')),
-                  DropdownMenuItem(value:'manual',
-                    child:Text('Solo Express manual')),
-                ],
-                onChanged:_busy?null:(value) {
-                  if (value!=null) _setMethod(value);
-                },
-              ),
-              const SizedBox(height:8),
-              const Text('El contador utiliza el mes de Bolivia. '
-                'Al llegar a 30, el próximo registro usa capturas manuales. '
-                'Las verificaciones iniciadas mantienen su estado.',
-                style:TextStyle(fontSize:12)),
-              const SizedBox(height:18),
+        return Card(child:Padding(padding:const EdgeInsets.all(16),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+            const Text('Verificación manual de identidad',
+              style:TextStyle(fontWeight:FontWeight.w900,fontSize:18)),
+            const SizedBox(height:8),
+            const Text('Revisa cada fotografía del carné y la selfie '
+              'por separado. Puedes reactivar rechazos por error.'),
+            const SizedBox(height:18),
               Row(children:[
                 Expanded(child:Text(
                   'Identidades por revisar: ${docs.where((d) => d['status'] != 'verified').length}',
@@ -370,13 +290,13 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
               if (docs.isEmpty)
                 const Padding(
                   padding:EdgeInsets.symmetric(vertical:12),
-                  child:Text('Aún no hay documentos manuales en Bolivia.')),
+                  child:Text('Aún no hay documentos para revisar.')),
               for (final doc in docs.take(40)) ListTile(
                 contentPadding:EdgeInsets.zero,
                 leading:Icon(doc['status']=='pending'
                   ? Icons.hourglass_empty:Icons.verified_user_outlined),
                 title:Text(_text(doc['full_name']).isNotEmpty
-                  ? _text(doc['full_name']):'Conductor · Bolivia'),
+                  ? _text(doc['full_name']):'Conductor'),
                 subtitle:Text('Carné ${_text(doc['document_number'])} · '
                   '${_text(doc['status'])}'),
                 trailing:const Icon(Icons.chevron_right),
