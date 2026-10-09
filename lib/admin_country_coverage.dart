@@ -145,7 +145,7 @@ class _AdminCountryCoveragePageState
                       labelText: 'Prefijo telefónico internacional',
                       hintText: '+55',
                       helperText:
-                          'Se usa para registro y verificación SMS en este país.',
+                          'Se usa para el contacto y registro. No se envían códigos SMS.',
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -171,79 +171,17 @@ class _AdminCountryCoveragePageState
                     ),
                   ),
                   const Divider(height: 28),
-                  SwitchListTile(
+                  const ListTile(
                     contentPadding: EdgeInsets.zero,
-                    value: diditEnabled,
-                    onChanged: (value) =>
-                        setLocal(() => diditEnabled = value),
-                    title: const Text('Didit · identidad automática'),
+                    leading: Icon(Icons.verified_user_rounded,
+                        color: Color(0xFF14804A)),
+                    title: Text('Identidad: verificación manual'),
                     subtitle: Text(
-                      diditEnabled
-                          ? 'Documento + prueba de vida + coincidencia facial.'
-                          : 'Didit está desactivado para este país.',
+                      'Carné frontal, reverso y selfie. La revisión '
+                      'se gestiona en Verificación de identidad. '
+                      'Didit y la verificación SMS están retirados.',
                     ),
                   ),
-                  if (diditEnabled) ...[
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: manualFallback,
-                      onChanged: (value) =>
-                          setLocal(() => manualFallback = value),
-                      title: const Text('Permitir revisión manual de respaldo'),
-                      subtitle: const Text(
-                        'Úsalo si una verificación automática requiere revisión adicional.',
-                      ),
-                    ),
-                    if (_environment.isProduction) ...[
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: productionWorkflow,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          labelText: 'Workflow Didit Producción',
-                          helperText: row == null
-                              ? 'Opcional al crear. También puede existir como secret DIDIT_PROD_WORKFLOW_<PAÍS>.'
-                              : 'Déjalo vacío para conservar el workflow actual / secret existente.',
-                          suffixIcon: row?['production_workflow_configured'] ==
-                                  true
-                              ? const Icon(
-                                  Icons.check_circle_rounded,
-                                  color: Color(0xFF14804A),
-                                )
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: sandboxWorkflow,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          labelText: 'Workflow Didit Prueba',
-                          helperText: row == null
-                              ? 'Opcional. Se usa solo en Prueba.'
-                              : 'Déjalo vacío para conservar el workflow actual / secret existente.',
-                          suffixIcon:
-                              row?['sandbox_workflow_configured'] == true
-                                  ? const Icon(
-                                      Icons.check_circle_rounded,
-                                      color: Color(0xFF14804A),
-                                    )
-                                  : null,
-                        ),
-                      ),
-                    ] else
-                      const Padding(
-                        padding: EdgeInsets.only(top: 8),
-                        child: Text(
-                          'En modo Prueba los Workflow IDs no se guardan aquí; solo se simulan los switches de configuración.',
-                          style: TextStyle(
-                            color: _countryMuted,
-                            fontSize: 11,
-                            height: 1.35,
-                          ),
-                        ),
-                      ),
-                  ],
                 ],
               ),
             ),
@@ -300,8 +238,8 @@ class _AdminCountryCoveragePageState
             'p_calling_code': callingCode.text.trim(),
             'p_active': active,
             'p_driver_registration_enabled': driverRegistration,
-            'p_didit_enabled': diditEnabled,
-            'p_manual_fallback_enabled': manualFallback,
+            'p_didit_enabled': false,
+            'p_manual_fallback_enabled': true,
             'p_production_workflow_id':
                 productionWorkflow.text.trim().isEmpty
                     ? null
@@ -369,8 +307,8 @@ class _AdminCountryCoveragePageState
       appBar: AppBar(
         title: Text(
           widget.channel == 'preview'
-              ? 'Países y cobertura · Prueba'
-              : 'Países y cobertura · Producción',
+              ? 'Países y cobertura · Compartida'
+              : 'Países y cobertura · Compartida',
         ),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
@@ -414,7 +352,7 @@ class _AdminCountryCoveragePageState
                         ),
                         SizedBox(height: 4),
                         Text(
-                          'Activa países, registro de conductores y Didit. La cobertura real sigue dependiendo de las ciudades activas.',
+                          'Activa países y registro de conductores. Identidad es manual; la cobertura depende de las ciudades activas.',
                           style: TextStyle(
                             color: _countryMuted,
                             fontSize: 12,
