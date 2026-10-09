@@ -65,6 +65,8 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
   Future<_ExpressPanelAccess> _resolveAccess() async {
     final isAdmin = await supabase.rpc('is_admin') == true;
     if (isAdmin) return _ExpressPanelAccess.admin;
+    // Preview must not query real partner data in shared Supabase.
+    if (adminIsPreview) return _ExpressPanelAccess.denied;
 
     final raw = await supabase.rpc('partner_my_dashboard');
     if (raw is List && raw.isNotEmpty) {
@@ -178,7 +180,7 @@ class _AdminLoginState extends State<_AdminLogin> {
       await supabase.auth.signInWithPassword(email: mail, password: pass);
       final isAdmin = await supabase.rpc('is_admin') == true;
       var hasPartnerAccess = false;
-      if (!isAdmin) {
+      if (!isAdmin && !adminIsPreview) {
         final raw = await supabase.rpc('partner_my_dashboard');
         hasPartnerAccess = raw is List && raw.isNotEmpty;
       }
@@ -322,8 +324,8 @@ class _AdminLoginState extends State<_AdminLogin> {
                             ),
                             const SizedBox(height: 8),
                             const Text(
-                              'Necesitas una cuenta autorizada en el proyecto '
-                              'de pruebas. El acceso de Producción es independiente.',
+                              'Necesitas permisos administrativos para el canal '
+                              'de Prueba en Supabase principal.',
                               style: TextStyle(
                                 color: Color(0xFF667085),
                                 fontSize: 11,
@@ -337,7 +339,7 @@ class _AdminLoginState extends State<_AdminLogin> {
                           const SizedBox(height: 7),
                           const Center(
                             child: Text(
-                              'Cada entorno tiene su propia sesión y permisos.',
+                              'Cada página utiliza su canal autorizado.',
                               style: TextStyle(
                                 fontSize: 11, color: Color(0xFF667085),
                               ),
