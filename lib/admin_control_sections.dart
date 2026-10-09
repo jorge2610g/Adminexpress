@@ -11,6 +11,7 @@ import 'admin_country_coverage.dart';
 import 'admin_admob_settings.dart';
 import 'admin_distance_fares.dart';
 import 'admin_zone_coverage_editor.dart';
+import 'core/admin_zone_coverage_label.dart';
 
 const Color _blue = Color(0xFF2563EB);
 const Color _dark = Color(0xFF0F172A);
@@ -725,7 +726,11 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           )
           .toList();
     }
-    return _list(await supabase.rpc('admin_country_list_scoped'))
+    // This form needs the full country name and its real currency.
+    // admin_country_list_scoped returns only country_code/country and led
+    // to misleading labels like "País · BO" and missing currency defaults.
+    // Still filter to the currently authorized country scope.
+    return _list(await supabase.rpc('admin_country_list'))
         .where(
           (row) =>
               row['country_code']?.toString().trim().toUpperCase() ==
@@ -2531,9 +2536,9 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           (row['country'] ?? '—').toString() +
                           ' · ' +
                           (row['currency_code'] ?? 'BOB').toString() +
-                          ' · radio ' +
-                          (row['radius_km'] ?? '—').toString() +
-                          ' km\nClave: ' +
+                          ' · Cobertura: ' +
+                          adminZoneCoverageSummary(row) +
+                          '\nClave: ' +
                           (row['zone_key'] ?? '—').toString() +
                           ' · Registro: ' +
                           (row['driver_registration_enabled'] == false

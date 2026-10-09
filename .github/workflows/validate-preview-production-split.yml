@@ -234,6 +234,8 @@ jobs:
             lib/admin_dynamic_pricing.dart \
             lib/admin_manual_identity.dart \
             lib/admin_driver_document_requirements.dart
+      - name: Verify active polygon vs radio zone labels
+        run: flutter test test/admin_zone_coverage_label_test.dart
       - name: Build admin production web smoke test
         run: flutter build web --release --dart-define=ADMIN_ENV=production
       - name: Build admin shared-database Preview web smoke test
