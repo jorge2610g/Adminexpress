@@ -12,6 +12,7 @@ lee y persiste su polígono Preview en el shadow QA, sin consultar la cobertura
 real para editar. **Producción conserva exactamente la misma ruta lógica**.
 
 **Esta rama NO equivale a aislamiento completo ni debe fusionarse sin QA:**
+- La auditoría adicional detectó el mismo error en el catálogo de países y requisitos documentales de conductor. La rama QA también corrige su lectura/escritura por canal, sin tocar la base real.
 - la app móvil consume aún algunas configuraciones operativas principales;
   la cobertura Preview guardada en shadow puede no aplicarse al cálculo de rutas;
 - la RPC `admin_zone_coverage_save` acepta `p_channel='preview'` y escribe
