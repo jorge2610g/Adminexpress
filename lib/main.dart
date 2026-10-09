@@ -196,6 +196,27 @@ class _AdminLoginState extends State<_AdminLogin> {
     }
   }
 
+  Future<void> _googleLogin() async {
+    if (!adminIsPreview || busy) return;
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      final started = await supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: Uri.base.toString(),
+      );
+      if (!started && mounted) {
+        setState(() => error = 'No se pudo iniciar sesión con Google.');
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString());
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 900;
@@ -287,6 +308,27 @@ class _AdminLoginState extends State<_AdminLogin> {
                               label: const Text('Ingresar al panel'),
                             ),
                           ),
+                          if (adminIsPreview) ...[
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 46,
+                              child: OutlinedButton.icon(
+                                onPressed: busy ? null : _googleLogin,
+                                icon: const Icon(Icons.account_circle_outlined),
+                                label: const Text('Acceder con Google · Preview'),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Necesitas una cuenta autorizada en el proyecto '
+                              'de pruebas. El acceso de Producción es independiente.',
+                              style: TextStyle(
+                                color: Color(0xFF667085),
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 18),
                           const Center(
                             child: Text(
