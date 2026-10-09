@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'core/supabase_client.dart';
+import 'core/admin_environment_navigation.dart';
 import 'admin_environment_store.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
@@ -935,35 +936,59 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // A preview administrator therefore has no path to write to Production.
   Widget _environmentSwitcher() {
     final preview = adminIsPreview;
+    final icon = Icon(
+      preview ? Icons.science_rounded : Icons.verified_rounded,
+      size: 19,
+      color: preview ? const Color(0xFFB54708) : const Color(0xFF14804A),
+    );
+    final title = Text(
+      preview
+          ? 'EXPRESS PREVIEW · Base de pruebas independiente'
+          : 'EXPRESS PRODUCCIÓN · Datos reales',
+      style: TextStyle(
+        color: preview ? const Color(0xFF7A2E0E) : const Color(0xFF0F6848),
+        fontSize: 12,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       color: preview ? const Color(0xFFFFF7E6) : const Color(0xFFE8F8EF),
-      child: Row(
-        children: [
-          Icon(
-            preview ? Icons.science_rounded : Icons.verified_rounded,
-            size: 19,
-            color: preview
-                ? const Color(0xFFB54708)
-                : const Color(0xFF14804A),
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              preview
-                  ? 'EXPRESS PREVIEW · Base de pruebas independiente'
-                  : 'EXPRESS PRODUCCIÓN · Datos reales',
-              style: TextStyle(
-                color: preview
-                    ? const Color(0xFF7A2E0E)
-                    : const Color(0xFF0F6848),
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // On narrow phones the button sits on its own line.
+          final badge = Row(
+            children: [
+              icon,
+              const SizedBox(width: 9),
+              Expanded(child: title),
+            ],
+          );
+          if (constraints.maxWidth < 580) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                badge,
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: const AdminEnvironmentLinkButton(),
+                ),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              icon,
+              const SizedBox(width: 9),
+              Expanded(child: title),
+              const SizedBox(width: 12),
+              const AdminEnvironmentLinkButton(),
+            ],
+          );
+        },
       ),
     );
   }
