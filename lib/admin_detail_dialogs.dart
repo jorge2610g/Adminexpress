@@ -1094,144 +1094,32 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                 );
                               }),
                             const Divider(),
-                            Row(
-                              children: [
-                                const Expanded(
-                                  child: Text(
-                                    'Verificaciones de identidad',
-                                    style: TextStyle(fontWeight: FontWeight.w900),
-                                  ),
-                                ),
-                                Chip(label: Text('${verifications.length}')),
-                              ],
+                            const Text(
+                              'Revisión de identidad',
+                              style: TextStyle(fontWeight: FontWeight.w900),
                             ),
                             if (verifications.isEmpty)
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 8),
-                                child: Text(
-                                  'Todavía no hay verificaciones biométricas.',
-                                  style: TextStyle(color: _detailMuted, fontSize: 11),
-                                ),
+                                child: Text('Aún no se realizó la revisión.',
+                                  style: TextStyle(color: _detailMuted, fontSize: 11)),
                               )
                             else
-                              ...verifications.take(5).map((v) {
+                              ...verifications.take(3).map((v) {
                                 final status = _text(v['status'], 'pending');
-                                final provider = _text(v['provider'], 'manual');
-                                final environment =
-                                    _text(v['provider_environment'], '');
-                                final providerStatus =
-                                    _text(v['provider_status'], '');
-                                final verified = status == 'verified';
-                                final rejected = status == 'rejected';
-                                final review = status == 'review';
-                                final tone = verified
-                                    ? const Color(0xFF067647)
-                                    : rejected
-                                        ? const Color(0xFFB42318)
-                                        : review
-                                            ? const Color(0xFFB54708)
-                                            : _detailBlue;
-                                final face = _text(v['face_match_score'], '');
-                                final live = _text(v['liveness_score'], '');
-                                final document = _text(v['document_score'], '');
-
-                                return Container(
-                                  margin: const EdgeInsets.only(top: 8),
-                                  padding: const EdgeInsets.all(11),
-                                  decoration: BoxDecoration(
-                                    color: tone.withValues(alpha: .06),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: tone.withValues(alpha: .22),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 7),
+                                  child: Row(
                                     children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            verified
-                                                ? Icons.verified_user_rounded
-                                                : Icons.security_rounded,
-                                            color: tone,
-                                            size: 19,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              provider.toUpperCase() +
-                                                  (environment.isEmpty
-                                                      ? ''
-                                                      : ' · ' +
-                                                          environment.toUpperCase()),
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w900,
-                                              ),
-                                            ),
-                                          ),
-                                          Chip(
-                                            label: Text(
-                                              verified
-                                                  ? 'Verificado'
-                                                  : rejected
-                                                      ? 'Rechazado'
-                                                      : review
-                                                          ? 'En revisión'
-                                                          : 'Pendiente',
-                                            ),
-                                          ),
-                                        ],
+                                      const Icon(Icons.fact_check_outlined, size: 18),
+                                      const SizedBox(width: 9),
+                                      const Expanded(
+                                        child: Text('Verificación manual',
+                                          style: TextStyle(fontWeight: FontWeight.w600)),
                                       ),
-                                      if (providerStatus.isNotEmpty) ...[
-                                        const SizedBox(height: 5),
-                                        Text(
-                                          'Proveedor: ' + providerStatus,
-                                          style: const TextStyle(
-                                            color: _detailMuted,
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                      ],
-                                      if (face.isNotEmpty ||
-                                          live.isNotEmpty ||
-                                          document.isNotEmpty) ...[
-                                        const SizedBox(height: 7),
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 6,
-                                          children: [
-                                            if (document.isNotEmpty)
-                                              Chip(
-                                                label: Text(
-                                                  'Documento ' + document,
-                                                ),
-                                              ),
-                                            if (live.isNotEmpty)
-                                              Chip(
-                                                label: Text(
-                                                  'Liveness ' + live,
-                                                ),
-                                              ),
-                                            if (face.isNotEmpty)
-                                              Chip(
-                                                label: Text(
-                                                  'Face match ' + face,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ],
-                                      const SizedBox(height: 5),
-                                      Text(
-                                        _text(v['document_type'], 'Identidad') +
-                                            ' · ' +
-                                            _date(v['created_at']),
-                                        style: const TextStyle(
-                                          color: _detailMuted,
-                                          fontSize: 10,
-                                        ),
-                                      ),
+                                      Chip(label: Text(
+                                        _friendlyDocumentStatus(status),
+                                      )),
                                     ],
                                   ),
                                 );
