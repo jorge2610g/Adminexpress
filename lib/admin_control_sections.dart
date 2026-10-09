@@ -3787,7 +3787,13 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
   }
 }
 
-class AdminIdentitySecurityPage extends StatefulWidget {
+/// Admin identity configuration is document-based and manual-only.
+///
+/// Historical third-party sessions live in the audit trail, not in active
+/// driver verification. Never query legacy identity_verifications here:
+/// old provider records (including test sessions) must not appear as
+/// production requests or count towards pending reviews.
+class AdminIdentitySecurityPage extends StatelessWidget {
   final String channel;
   final String? countryCode;
   final String? zoneId;
@@ -3800,479 +3806,58 @@ class AdminIdentitySecurityPage extends StatefulWidget {
   });
 
   @override
-  State<AdminIdentitySecurityPage> createState() => _AdminIdentitySecurityPageState();
-}
-
-class _AdminIdentitySecurityPageState extends State<AdminIdentitySecurityPage> {
-  int revision = 0;
-
-  AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
-
-  Future<({
-    Map<String, dynamic> settings,
-    List<Map<String, dynamic>> verifications,
-  })> _load() async {
-    if (_environment.isPreview) {
-      final values = await Future.wait([
-        _environment.previewGet('identity_verification_settings'),
-        _environment.previewList('identity_verifications'),
-      ]);
-      final rows = (values[1] as List<Map<String, dynamic>>).where((row) {
-        final selectedZone = widget.zoneId;
-        final selectedCountry = widget.countryCode?.trim().toUpperCase();
-        final rowZone =
-            (row['scope_zone_id'] ?? row['zone_id'])?.toString().trim();
-        final rowCountry =
-            (row['scope_country_code'] ?? row['country_code'])
-                ?.toString()
-                .trim()
-                .toUpperCase();
-
-        if (selectedZone != null && selectedZone.isNotEmpty) {
-          if (rowZone != null && rowZone.isNotEmpty) {
-            return rowZone == selectedZone;
-          }
-          return rowCountry == selectedCountry;
-        }
-        if (selectedCountry != null && selectedCountry.isNotEmpty) {
-          return rowCountry == selectedCountry;
-        }
-        return false;
-      }).toList();
-      return (
-        settings: values[0] as Map<String, dynamic>,
-        verifications: rows,
-      );
-    }
-
-    final values = await Future.wait([
-      supabase.rpc('admin_identity_settings_get'),
-      supabase.rpc(
-        'admin_identity_verification_list_scoped',
-        params: {
-          'p_limit': 200,
-          'p_country_code': widget.countryCode,
-          'p_zone_id': widget.zoneId,
-          'p_provider': null,
-          'p_provider_environment': null,
-        },
-      ),
-    ]);
-    return (
-      settings: _map(values[0]),
-      verifications: _list(values[1]),
-    );
-  }
-
-  Future<void> _configure(Map<String, dynamic> row) async {
-    var provider = row['provider']?.toString() ?? 'manual';
-    var document = row['document_enabled'] != false;
-    var face = row['face_enabled'] != false;
-    var match = row['face_match_enabled'] != false;
-    var liveness = row['liveness_enabled'] == true;
-    var driver = row['require_driver'] != false;
-    var passenger = row['require_passenger'] == true;
-    var review = row['manual_review_on_fail'] != false;
-    var faceScore = _double(row['min_face_score']) ?? .75;
-    var liveScore = _double(row['min_liveness_score']) ?? .70;
-
-    final save = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setLocal) => AlertDialog(
-          title: const Text('Política de verificación'),
-          content: SizedBox(
-            width: 620,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFEAF2FF), Color(0xFFF7F5FF)],
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.info_outline_rounded, color: _blue),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'La política ya queda preparada. La conexión con un proveedor externo se activa aparte para no enviar documentos a un servicio sin credenciales.',
-                            style: TextStyle(fontSize: 11, color: _dark, height: 1.35),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: provider,
-                    decoration: const InputDecoration(labelText: 'Motor actual'),
-                    items: const [
-                      DropdownMenuItem(value: 'manual', child: Text('Revisión manual segura')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) setLocal(() => provider = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: document,
-                    onChanged: (value) => setLocal(() => document = value),
-                    title: const Text('Revisar documento'),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: face,
-                    onChanged: (value) => setLocal(() => face = value),
-                    title: const Text('Capturar rostro'),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: match,
-                    onChanged: (value) => setLocal(() => match = value),
-                    title: const Text('Comparar rostro con documento'),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: liveness,
-                    onChanged: (value) => setLocal(() => liveness = value),
-                    title: const Text('Prueba de vida'),
-                  ),
-                  const Divider(),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: driver,
-                    onChanged: (value) => setLocal(() => driver = value),
-                    title: const Text('Obligatorio para conductores'),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: passenger,
-                    onChanged: (value) => setLocal(() => passenger = value),
-                    title: const Text('Obligatorio para pasajeros'),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: review,
-                    onChanged: (value) => setLocal(() => review = value),
-                    title: const Text('Enviar a revisión manual si falla'),
-                  ),
-                  const SizedBox(height: 8),
-                  Text('Coincidencia facial mínima · ' + (faceScore * 100).round().toString() + '%'),
-                  Slider(
-                    value: faceScore.clamp(0, 1),
-                    min: 0,
-                    max: 1,
-                    divisions: 20,
-                    onChanged: (value) => setLocal(() => faceScore = value),
-                  ),
-                  Text('Prueba de vida mínima · ' + (liveScore * 100).round().toString() + '%'),
-                  Slider(
-                    value: liveScore.clamp(0, 1),
-                    min: 0,
-                    max: 1,
-                    divisions: 20,
-                    onChanged: (value) => setLocal(() => liveScore = value),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              icon: const Icon(Icons.security_rounded),
-              label: const Text('Guardar política'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (save == true) {
-      try {
-        if (_environment.isPreview) {
-          await _environment.previewUpsert(
-            'identity_verification_settings',
-            'default',
-            <String, dynamic>{
-              ...row,
-              'provider': provider,
-              'document_enabled': document,
-              'face_enabled': face,
-              'face_match_enabled': match,
-              'liveness_enabled': liveness,
-              'require_driver': driver,
-              'require_passenger': passenger,
-              'min_face_score': faceScore,
-              'min_liveness_score': liveScore,
-              'manual_review_on_fail': review,
-            },
-          );
-        } else {
-          await supabase.rpc(
-            'admin_identity_settings_update',
-            params: {
-              'p_provider': provider,
-              'p_document_enabled': document,
-              'p_face_enabled': face,
-              'p_face_match_enabled': match,
-              'p_liveness_enabled': liveness,
-              'p_require_driver': driver,
-              'p_require_passenger': passenger,
-              'p_min_face_score': faceScore,
-              'p_min_liveness_score': liveScore,
-              'p_manual_review_on_fail': review,
-            },
-          );
-        }
-        if (mounted) setState(() => revision++);
-      } catch (e) {
-        if (mounted) _snack(context, e);
-      }
-    }
-  }
-
-
-  Future<void> _reviewVerification(Map<String, dynamic> row) async {
-    var status = row['status']?.toString() ?? 'review';
-    if (!const ['review', 'verified', 'rejected'].contains(status)) {
-      status = 'review';
-    }
-    final note = TextEditingController();
-
-    final save = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setLocal) => AlertDialog(
-          title: const Text('Revisar verificación'),
-          content: SizedBox(
-            width: 520,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  initialValue: status,
-                  decoration: const InputDecoration(labelText: 'Resultado'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'review',
-                      child: Text('Mantener en revisión'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'verified',
-                      child: Text('Verificado'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'rejected',
-                      child: Text('Rechazado'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) setLocal(() => status = value);
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: note,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Nota administrativa',
-                    hintText: 'Opcional',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              icon: const Icon(Icons.verified_user_outlined),
-              label: const Text('Guardar revisión'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (save == true) {
-      try {
-        if (_environment.isPreview) {
-          await _environment.previewUpsert(
-            'identity_verifications',
-            AdminEnvironmentStore.recordKey(row),
-            <String, dynamic>{
-              ...row,
-              'status': status,
-              'review_note': note.text.trim(),
-            },
-          );
-        } else {
-          await supabase.rpc(
-            'admin_identity_resolve',
-            params: {
-              'p_verification_id': row['id'],
-              'p_status': status,
-              'p_review_note': note.text.trim(),
-            },
-          );
-        }
-        if (mounted) {
-          setState(() => revision++);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Verificación actualizada.')),
-          );
-        }
-      } catch (e) {
-        if (mounted) _snack(context, e);
-      }
-    }
-
-    note.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<
-        ({
-          Map<String, dynamic> settings,
-          List<Map<String, dynamic>> verifications,
-        })>(
-      key: ValueKey(revision),
-      future: _load(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-          return const _Loading(title: 'Cargando seguridad de identidad');
-        }
-        if (snapshot.hasError) {
-          return _Error(error: snapshot.error, onRetry: () => setState(() => revision++));
-        }
-
-        final data = snapshot.data ??
-            (settings: <String, dynamic>{}, verifications: <Map<String, dynamic>>[]);
-        final pending = data.verifications
-            .where((row) => ['pending', 'processing', 'review'].contains(row['status']))
-            .length;
-        final verified =
-            data.verifications.where((row) => row['status'] == 'verified').length;
-
-        return ListView(
-          padding: const EdgeInsets.all(22),
-          children: [
-            _Header(
-              title: 'Verificación de identidad',
-              subtitle:
-                  'Documento, rostro, coincidencia facial y prueba de vida para proteger a pasajeros y conductores.',
-              action: FilledButton.icon(
-                onPressed: () => _configure(data.settings),
-                icon: const Icon(Icons.tune_rounded),
-                label: const Text('Configurar política'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _AdminHero(
-              icon: Icons.verified_user_rounded,
-              title: 'Centro de identidad',
-              subtitle:
-                  'La política queda centralizada y preparada para conectar un proveedor automático.',
-              stats: [
-                ('Motor', (data.settings['provider'] ?? 'manual').toString()),
-                ('Pendientes', pending.toString()),
-                ('Verificados', verified.toString()),
+    return ListView(
+      padding: const EdgeInsets.all(22),
+      children: [
+        const _Header(
+          title: 'Verificación de identidad',
+          subtitle: 'Documentos de conductores y revisión manual de fotografías. '
+              'Los servicios de identidad automáticos y la verificación por SMS '
+              'están deshabilitados.',
+        ),
+        const SizedBox(height: 16),
+        const _AdminHero(
+          icon: Icons.verified_user_rounded,
+          title: 'Centro de identidad',
+          subtitle: 'Las aprobaciones se realizan manualmente desde '
+              'Verificación manual. Los registros históricos de servicios '
+              'anteriores no son solicitudes activas.',
+          stats: [
+            ('Motor', 'Manual'),
+            ('Proveedor externo', 'Deshabilitado'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        AdminDriverDocumentRequirementsPanel(
+          channel: channel,
+          countryCode: countryCode,
+          zoneId: zoneId,
+        ),
+        const SizedBox(height: 16),
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(18),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.fact_check_outlined, color: _blue),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Para revisar, aprobar, rechazar o reactivar por separado '
+                    'el frente, reverso y la selfie de un conductor, '
+                    'abre «Verificación manual» en el menú lateral. '
+                    'Las solicitudes de Prueba y Producción se gestionan '
+                    'por separado.',
+                    style: TextStyle(color: _dark, height: 1.5),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 16),
-            AdminDriverDocumentRequirementsPanel(
-              channel: widget.channel,
-              countryCode: widget.countryCode,
-              zoneId: widget.zoneId,
-            ),
-            const SizedBox(height: 16),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final width = constraints.maxWidth;
-                final cardWidth = width < 760 ? width : (width - 12) / 2;
-                return Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    SizedBox(
-                      width: cardWidth,
-                      child: _AdminModuleCard(
-                        icon: Icons.badge_outlined,
-                        title: 'Documento oficial',
-                        subtitle:
-                            'Captura y revisión del documento. La automatización OCR se conectará por proveedor.',
-                        accent: const Color(0xFF6941C6),
-                        chips: [
-                          data.settings['document_enabled'] == true ? 'Activo' : 'Inactivo',
-                          data.settings['require_driver'] == true ? 'Conductor obligatorio' : 'Opcional',
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: _AdminModuleCard(
-                        icon: Icons.face_retouching_natural_rounded,
-                        title: 'Rostro y coincidencia',
-                        subtitle:
-                            'Compara la selfie con la identidad y permite exigir prueba de vida.',
-                        accent: const Color(0xFF0E9384),
-                        chips: [
-                          data.settings['face_match_enabled'] == true ? 'Comparación activa' : 'Comparación inactiva',
-                          data.settings['liveness_enabled'] == true ? 'Liveness activo' : 'Liveness pendiente',
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Solicitudes de verificación',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: _dark),
-            ),
-            const SizedBox(height: 10),
-            if (data.verifications.isEmpty)
-              const _Empty(
-                text:
-                    'Todavía no hay verificaciones. El módulo está listo para recibirlas cuando conectemos el flujo de registro.',
-              )
-            else
-              ...data.verifications.map(
-                (row) => _GeoRow(
-                  tone: row['status'] == 'verified'
-                      ? const Color(0xFF12B76A)
-                      : row['status'] == 'rejected'
-                          ? const Color(0xFFD92D20)
-                          : const Color(0xFFF79009),
-                  icon: Icons.person_search_rounded,
-                  title: row['full_name']?.toString() ?? 'Usuario Express',
-                  subtitle:
-                      (row['subject_role'] ?? 'driver').toString() +
-                          ' · ' +
-                          (row['provider'] ?? 'manual').toString(),
-                  badge: row['status']?.toString() ?? 'pending',
-                ),
-              ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 }
