@@ -1,3 +1,12 @@
+## 2026-10-09 — Descartar canales administrativos inválidos de forma segura
+
+- `AdminEnvironmentStore` conserva la misma interfaz pública (constructor `const`, getters `isPreview/isProduction`). Para valores válidos `preview` y `production`, el comportamiento no cambia.
+- Si se introduce un canal inválido, ambos getters lanzan `StateError` también en compilaciones de lanzamiento. Antes `isProduction => !isPreview` interpretaba cualquier error tipográfico como Producción. Ahora se bloquea.
+- Pruebas Flutter y CI verifican este comportamiento. No se cambian RPC, tablas, firmware, pagos ni artefactos Android. El guard en el cliente no sustituye autorización backend.
+- Modo de despliegue: preservar el sitio raíz byte a byte mediante `[deploy-preview-only]`; ver `docs/QA_PREVIEW_PRODUCTION_ACCEPTANCE_2026-10-09.md`.
+
+---
+
 ## 2026-10-09 — Corrección segura de publicación exclusiva de Preview (rama PR #51)
 
 - La prueba desde una rama de trabajo generó un artefacto válido y conservó bytes de Producción, pero GitHub Pages bloqueó el job final por su entorno protegido. Se conserva la protección de GitHub Pages; **no** se abre a todas las ramas.

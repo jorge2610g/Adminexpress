@@ -15,8 +15,23 @@ class AdminEnvironmentStore {
 
   const AdminEnvironmentStore(this.channel);
 
-  bool get isPreview => channel == 'preview';
-  bool get isProduction => !isPreview;
+  // UI routing is a second line of defense, not a substitute for database
+  // authorization. Invalid channels must NEVER fall through to Production.
+  void _assertValidChannel() {
+    if (channel != 'preview' && channel != 'production') {
+      throw StateError('Canal administrativo inválido: operación bloqueada');
+    }
+  }
+
+  bool get isPreview {
+    _assertValidChannel();
+    return channel == 'preview';
+  }
+
+  bool get isProduction {
+    _assertValidChannel();
+    return channel == 'production';
+  }
 
   Future<List<Map<String, dynamic>>> previewList(String module) async {
     final value = await supabase.rpc(

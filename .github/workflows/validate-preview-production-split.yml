@@ -191,7 +191,11 @@ jobs:
           assert 'allowProduction = !adminIsPreview' in panel
           assert "admin_zone_list_for_country" in panel
           assert "admin_country_list_scoped" in panel
-          assert "bool get isPreview => channel == 'preview';" in env_store
+          assert "void _assertValidChannel()" in env_store
+          assert "throw StateError('Canal administrativo inválido: operación bloqueada')" in env_store
+          assert "return channel == 'preview';" in env_store
+          assert "return channel == 'production';" in env_store
+          assert "bool get isProduction => !isPreview;" not in env_store
           # All QA business configuration editors must target shadow storage,
           # never silently resolve to the live production store.
           docs = Path('lib/admin_driver_document_requirements.dart').read_text()
@@ -263,6 +267,8 @@ jobs:
             lib/admin_country_coverage.dart
       - name: Verify active polygon vs radio zone labels
         run: flutter test test/admin_zone_coverage_label_test.dart
+      - name: Verify invalid environment channel fails closed in release and QA
+        run: flutter test test/admin_environment_store_test.dart
       - name: Build admin production web smoke test
         run: flutter build web --release --dart-define=ADMIN_ENV=production
       - name: Build admin shared-database Preview web smoke test
