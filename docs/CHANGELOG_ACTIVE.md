@@ -1,3 +1,9 @@
+## 2026-10-09 — Preparación explícita de países QA (Preview solamente)
+
+El panel de países dispone de **Preparar países QA** exclusivamente cuando `ADMIN_ENV=preview`. Bajo confirmación, consulta únicamente datos públicos básicos de referencia (nombre, ISO país, moneda y prefijo) y los guarda en el almacenamiento `admin_environment_config` con módulo `service_countries`. Los nuevos registros QA quedan con `active=false` y `driver_registration_enabled=false` por defecto; **nunca llama al RPC de escritura real `admin_upsert_country_coverage_v2`**. Respeta QA existente y omite países repetidos. No se ha pulsado el botón, sembrado datos, ni desplegado la rama. CI valida las guardias.
+
+---
+
 ## 2026-10-09 — Registro automático de cambios de cada PR administrativa (QA, sin despliegue)
 
 - CI nuevo `.github/workflows/release-change-inventory.yml`: corre en **toda PR hacia main** y verifica SHA de base, cabeza, commit de prueba y árbol Git; adjunta inventario de archivos con hashes SHA-256 y riesgo.
