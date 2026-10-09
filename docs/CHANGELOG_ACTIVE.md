@@ -1,3 +1,15 @@
+## 2026-10-09 — Prueba Preview-only de Pages, sin publicación
+
+- Se ensayó `Deploy Adminexpress Web to GitHub Pages` en rama QA, run `37990890621`, fuente exacta `a8a12585181d484d4767c03cb4aaed64c314a50e`.
+- El job `build` de Producción quedó **SKIPPED**. El job `preview_only` pasó: validó SHA QA, descargó artefacto de Producción, comparó bytes de la URL real con la copia, compiló Preview y confirmó el manifiesto SHA256 de todos los archivos no Preview.
+- El job final `deploy` terminó en **FAILURE antes de ejecutar pasos**. No existe evidencia de publicación de la nueva Preview: considerar la URL en su estado anterior. No interpretar el artefacto compilado como versión publicada.
+- El artefacto `github-pages` QA de ese run está guardado en Actions (ID `11644663644`), pero **no** se autorizó publicarlo por otra vía.
+- Se restauró exactamente `.github/workflows/deploy-web.yml` desde `main` al terminar el ensayo; no quedó el trigger de push QA ni la alteración temporal de deploy en la PR.
+- Supabase principal se consultó solo con `SELECT` después del ensayo: 0 países QA, 2 zonas QA shadow, 5 cuentas Preview, 6 Producción; el servidor todavía tiene un superadministrador de doble permiso.
+- Ninguna migración / Edge Function / tabla / pago / Google Play se ha modificado en este ensayo. La separación backend total sigue pendiente; P0 documentado en Expressdelivery issue #141.
+
+---
+
 ## 2026-10-09 — Preparación explícita de países QA (Preview solamente)
 
 El panel de países dispone de **Preparar países QA** exclusivamente cuando `ADMIN_ENV=preview`. Bajo confirmación, consulta únicamente datos públicos básicos de referencia (nombre, ISO país, moneda y prefijo) y los guarda en el almacenamiento `admin_environment_config` con módulo `service_countries`. Los nuevos registros QA quedan con `active=false` y `driver_registration_enabled=false` por defecto; **nunca llama al RPC de escritura real `admin_upsert_country_coverage_v2`**. Respeta QA existente y omite países repetidos. No se ha pulsado el botón, sembrado datos, ni desplegado la rama. CI valida las guardias.
