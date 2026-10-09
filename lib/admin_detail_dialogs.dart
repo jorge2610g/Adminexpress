@@ -45,10 +45,44 @@ String _money(Object? raw, [String currency = '']) {
   return '$prefix${amount.toStringAsFixed(2)}';
 }
 
+String _friendlyDriverDocumentType(Object? raw) {
+  switch ((raw?.toString().trim().toLowerCase() ?? '')) {
+    case 'driver_license':
+      return 'Licencia de conducir';
+    case 'identity_card':
+    case 'national_id':
+    case 'id_card':
+      return 'Cédula de identidad';
+    case 'vehicle_registration':
+      return 'Documento del vehículo';
+    case 'insurance':
+      return 'Seguro del vehículo';
+    default:
+      return 'Documento del conductor';
+  }
+}
+
+String _friendlyDocumentStatus(Object? raw) {
+  switch ((raw?.toString().trim().toLowerCase() ?? '')) {
+    case 'verified':
+    case 'approved':
+      return 'Aprobado';
+    case 'rejected':
+      return 'Rechazado';
+    case 'expired':
+      return 'Vencido';
+    default:
+      return 'Pendiente';
+  }
+}
+
 Future<List<Map<String, dynamic>>> _zones(String channel) async {
   if (channel == 'preview') {
+    // Only the retired shared-database QA mode reads shadow configuration.
     return const AdminEnvironmentStore('preview').previewList('service_zones');
   }
+  // The real Preview site has its own service_zones and admin RPCs.
+
   final raw = await supabase.rpc('admin_zone_list_scoped');
   return _maps(raw);
 }
@@ -475,132 +509,108 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     }
   }
 
-  Future<void> _editDocument([Map<String, dynamic>? document]) async {
-    final type = TextEditingController(
-      text: document?['document_type']?.toString() ?? '',
-    );
-    final number = TextEditingController(
-      text: document?['document_number']?.toString() ?? '',
-    );
-    final url = TextEditingController(
-      text: document?['document_url']?.toString() ?? '',
-    );
-    final expires = TextEditingController(
-      text: document?['expires_at']?.toString().split('T').first ?? '',
-    );
-    final notes = TextEditingController(
-      text: document?['notes']?.toString() ?? '',
-    );
-    var status = document?['status']?.toString() ?? 'pending';
-
-    final saved = await showDialog<bool>(
+  Future<void> _reviewDocument(
+    Map<String, dynamic> document,
+    String newStatus,
+  ) async {
+    if (saving) return;
+    final documentId = document['id']?.toString();
+    if (documentId == null || documentId.isEmpty) return;
+    final label = _friendlyDriverDocumentType(document['document_type']);
+    final rejecting = newStatus == 'rejected';
+    final note = TextEditingController();
+    final accepted = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (_, setLocal) => AlertDialog(
-          title: Text(document == null ? 'Agregar documento' : 'Editar documento'),
-          content: SizedBox(
-            width: 520,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  TextField(
-                    controller: type,
-                    decoration: const InputDecoration(
-                      labelText: 'Tipo de documento',
-                      hintText: 'Licencia, CI, permiso...',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: number,
-                    decoration: const InputDecoration(
-                      labelText: 'Número',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: url,
-                    decoration: const InputDecoration(
-                      labelText: 'URL / referencia del archivo',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    initialValue: status,
-                    decoration: const InputDecoration(labelText: 'Estado'),
-                    items: const [
-                      DropdownMenuItem(value: 'pending', child: Text('Pendiente')),
-                      DropdownMenuItem(value: 'verified', child: Text('Verificado')),
-                      DropdownMenuItem(value: 'rejected', child: Text('Rechazado')),
-                      DropdownMenuItem(value: 'expired', child: Text('Vencido')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) setLocal(() => status = value);
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: expires,
-                    decoration: const InputDecoration(
-                      labelText: 'Vence (AAAA-MM-DD)',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: notes,
-                    minLines: 2,
-                    maxLines: 4,
-                    decoration: const InputDecoration(labelText: 'Notas'),
-                  ),
-                ],
+      builder: (dialogContext) => AlertDialog(
+        title: Text(rejecting ? 'Rechazar $label' :
+            newStatus == 'verified' ? 'Aprobar $label' :
+            'Volver a revisar $label'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(rejecting
+                ? 'Indica por qué se rechaza. El conductor podrá corregirlo.'
+                : 'Solo cambiará el estado de este documento. '
+                  'La aprobación general del conductor se hace por separado.'),
+            if (rejecting) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: note,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Motivo del rechazo',
+                  hintText: 'Ej.: foto ilegible o documento incorrecto',
+                ),
               ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Guardar'),
-            ),
+            ],
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(rejecting ? 'Confirmar rechazo' :
+                newStatus == 'verified' ? 'Aprobar documento' :
+                'Reabrir revisión'),
+          ),
+        ],
       ),
     );
-
-    if (saved == true && type.text.trim().isNotEmpty) {
-      DateTime? parsedExpiry;
-      if (expires.text.trim().isNotEmpty) {
-        parsedExpiry = DateTime.tryParse(expires.text.trim());
-      }
-      try {
-        await supabase.rpc(
-          'admin_upsert_driver_document_v2',
-          params: {
-            'p_document_id': document?['id'],
-            'p_driver_id': widget.userId,
-            'p_document_type': type.text.trim(),
-            'p_document_number': number.text.trim(),
-            'p_document_url': url.text.trim(),
-            'p_status': status,
-            'p_expires_at': parsedExpiry?.toUtc().toIso8601String(),
-            'p_notes': notes.text.trim(),
-            'p_channel': widget.channel,
-          },
-        );
-        await _load();
-      } catch (e) {
-        if (mounted) setState(() => error = e.toString());
-      }
+    final reason = note.text.trim();
+    note.dispose();
+    if (accepted != true || !mounted) return;
+    if (rejecting && reason.length < 5) {
+      setState(() => error = 'Indica un motivo de rechazo de al menos cinco caracteres.');
+      return;
     }
 
-    type.dispose();
-    number.dispose();
-    url.dispose();
-    expires.dispose();
-    notes.dispose();
+    // Preserve all document metadata: admins only change its review status.
+    final oldNotes = (document['notes']?.toString() ?? '').trim();
+    final newNotes = rejecting
+        ? (oldNotes.isEmpty ? 'Motivo del rechazo: $reason'
+            : '$oldNotes\nMotivo del rechazo: $reason')
+        : oldNotes;
+    final expires = DateTime.tryParse(
+      document['expires_at']?.toString() ?? '',
+    );
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    try {
+      await supabase.rpc(
+        'admin_upsert_driver_document_v2',
+        params: {
+          'p_document_id': documentId,
+          'p_driver_id': widget.userId,
+          'p_document_type': document['document_type']?.toString() ?? '',
+          'p_document_number': document['document_number']?.toString() ?? '',
+          'p_document_url': document['document_url']?.toString() ?? '',
+          'p_status': newStatus,
+          'p_expires_at': expires?.toUtc().toIso8601String(),
+          'p_notes': newNotes,
+          'p_channel': widget.channel,
+        },
+      );
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(
+            '$label: ${_friendlyDocumentStatus(newStatus)}.',
+          )),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(
+        () => error = 'No se pudo actualizar el documento. $e',
+      );
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
   }
 
   @override
@@ -830,6 +840,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                     SizedBox(
                                       width: w,
                                       child: DropdownButtonFormField<String>(
+                                        key: ValueKey('driver-country-${selectedCountryCode ?? 'unselected'}'),
                                         initialValue: selectedCountryCode,
                                         isExpanded: true,
                                         decoration: const InputDecoration(labelText: 'País'),
@@ -863,6 +874,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                             ),
                             const SizedBox(height: 10),
                             DropdownButtonFormField<String>(
+                              key: ValueKey('driver-zone-${countryCode ?? 'unselected'}'),
                               initialValue: selectedZoneId,
                               isExpanded: true,
                               decoration: const InputDecoration(
@@ -954,27 +966,28 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: OutlinedButton.icon(
-                                onPressed: () => _editDocument(),
-                                icon: const Icon(Icons.add_rounded, size: 17),
-                                label: const Text('Agregar documento'),
-                              ),
+                            const Text(
+                              'Revisa las imágenes y aprueba o rechaza cada '
+                              'documento. No necesitas editar datos técnicos.',
+                              style: TextStyle(color: _detailMuted, fontSize: 12),
                             ),
+                            const SizedBox(height: 12),
                             if (documents.isEmpty)
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 10),
                                 child: Text(
-                                  'No hay documentos administrativos cargados.',
+                                  'El conductor todavía no cargó documentos.',
                                   style: TextStyle(color: _detailMuted, fontSize: 11),
                                 ),
                               )
                             else
-                              ...documents.map(
-                                (doc) => Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.all(10),
+                              ...documents.map((doc) {
+                                final status = (doc['status'] ?? 'pending').toString();
+                                final expiry = doc['expires_at'];
+                                final rejectionNote = (doc['notes'] ?? '').toString();
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 9),
+                                  padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: _detailSoft,
                                     borderRadius: BorderRadius.circular(12),
@@ -983,43 +996,46 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Row(
+                                      Wrap(
+                                        spacing: 9,
+                                        runSpacing: 7,
+                                        crossAxisAlignment: WrapCrossAlignment.center,
                                         children: [
-                                          const Icon(
-                                            Icons.description_outlined,
-                                            color: _detailBlue,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              _text(doc['document_type']),
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                              ),
+                                          Text(
+                                            _friendlyDriverDocumentType(
+                                              doc['document_type'],
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w800,
                                             ),
                                           ),
                                           Chip(
-                                            label: Text(_text(doc['status'])),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Editar documento',
-                                            onPressed: () => _editDocument(doc),
-                                            icon: const Icon(Icons.edit_outlined),
+                                            label: Text(
+                                              _friendlyDocumentStatus(status),
+                                            ),
                                           ),
                                         ],
                                       ),
-                                      Text(
-                                        'N° ' + _text(doc['document_number']) +
-                                            ' · vence ' + _date(doc['expires_at']),
-                                        style: const TextStyle(
-                                          color: _detailMuted,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 7),
+                                      if (_text(doc['document_number'], '').isNotEmpty)
+                                        Text('Número: ${doc['document_number']}',
+                                          style: const TextStyle(
+                                            color: _detailMuted, fontSize: 11,
+                                          )),
+                                      if (expiry != null)
+                                        Text('Vencimiento: ${_date(expiry)}',
+                                          style: const TextStyle(
+                                            color: _detailMuted, fontSize: 11,
+                                          )),
+                                      if (status == 'rejected' && rejectionNote.isNotEmpty)
+                                        Text(rejectionNote,
+                                          style: const TextStyle(
+                                            color: Color(0xFFB42318), fontSize: 11,
+                                          )),
+                                      const SizedBox(height: 9),
                                       Wrap(
                                         spacing: 7,
-                                        runSpacing: 7,
+                                        runSpacing: 8,
                                         children: [
                                           if (_text(doc['front_object_path'], '').isNotEmpty)
                                             OutlinedButton.icon(
@@ -1043,153 +1059,69 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                                 doc['selfie_object_path']?.toString(),
                                               ),
                                               icon: const Icon(Icons.face_rounded, size: 16),
-                                              label: const Text('Ver selfie'),
+                                              label: const Text('Ver foto facial'),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 9),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 7,
+                                        children: [
+                                          if (status != 'verified')
+                                            FilledButton.icon(
+                                              onPressed: saving ? null :
+                                                  () => _reviewDocument(doc, 'verified'),
+                                              icon: const Icon(Icons.check_circle_outline, size: 17),
+                                              label: const Text('Aprobar'),
+                                            ),
+                                          if (status != 'rejected')
+                                            OutlinedButton.icon(
+                                              onPressed: saving ? null :
+                                                  () => _reviewDocument(doc, 'rejected'),
+                                              icon: const Icon(Icons.cancel_outlined, size: 17),
+                                              label: const Text('Rechazar'),
+                                            ),
+                                          if (status != 'pending')
+                                            TextButton.icon(
+                                              onPressed: saving ? null :
+                                                  () => _reviewDocument(doc, 'pending'),
+                                              icon: const Icon(Icons.restart_alt, size: 17),
+                                              label: const Text('Reabrir revisión'),
                                             ),
                                         ],
                                       ),
                                     ],
                                   ),
-                                ),
-                              ),
+                                );
+                              }),
                             const Divider(),
-                            Row(
-                              children: [
-                                const Expanded(
-                                  child: Text(
-                                    'Verificaciones de identidad',
-                                    style: TextStyle(fontWeight: FontWeight.w900),
-                                  ),
-                                ),
-                                Chip(label: Text('${verifications.length}')),
-                              ],
+                            const Text(
+                              'Revisión de identidad',
+                              style: TextStyle(fontWeight: FontWeight.w900),
                             ),
                             if (verifications.isEmpty)
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 8),
-                                child: Text(
-                                  'Todavía no hay verificaciones biométricas.',
-                                  style: TextStyle(color: _detailMuted, fontSize: 11),
-                                ),
+                                child: Text('Aún no se realizó la revisión.',
+                                  style: TextStyle(color: _detailMuted, fontSize: 11)),
                               )
                             else
-                              ...verifications.take(5).map((v) {
+                              ...verifications.take(3).map((v) {
                                 final status = _text(v['status'], 'pending');
-                                final provider = _text(v['provider'], 'manual');
-                                final environment =
-                                    _text(v['provider_environment'], '');
-                                final providerStatus =
-                                    _text(v['provider_status'], '');
-                                final verified = status == 'verified';
-                                final rejected = status == 'rejected';
-                                final review = status == 'review';
-                                final tone = verified
-                                    ? const Color(0xFF067647)
-                                    : rejected
-                                        ? const Color(0xFFB42318)
-                                        : review
-                                            ? const Color(0xFFB54708)
-                                            : _detailBlue;
-                                final face = _text(v['face_match_score'], '');
-                                final live = _text(v['liveness_score'], '');
-                                final document = _text(v['document_score'], '');
-
-                                return Container(
-                                  margin: const EdgeInsets.only(top: 8),
-                                  padding: const EdgeInsets.all(11),
-                                  decoration: BoxDecoration(
-                                    color: tone.withValues(alpha: .06),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: tone.withValues(alpha: .22),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 7),
+                                  child: Row(
                                     children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            verified
-                                                ? Icons.verified_user_rounded
-                                                : Icons.security_rounded,
-                                            color: tone,
-                                            size: 19,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              provider.toUpperCase() +
-                                                  (environment.isEmpty
-                                                      ? ''
-                                                      : ' · ' +
-                                                          environment.toUpperCase()),
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w900,
-                                              ),
-                                            ),
-                                          ),
-                                          Chip(
-                                            label: Text(
-                                              verified
-                                                  ? 'Verificado'
-                                                  : rejected
-                                                      ? 'Rechazado'
-                                                      : review
-                                                          ? 'En revisión'
-                                                          : 'Pendiente',
-                                            ),
-                                          ),
-                                        ],
+                                      const Icon(Icons.fact_check_outlined, size: 18),
+                                      const SizedBox(width: 9),
+                                      const Expanded(
+                                        child: Text('Verificación manual',
+                                          style: TextStyle(fontWeight: FontWeight.w600)),
                                       ),
-                                      if (providerStatus.isNotEmpty) ...[
-                                        const SizedBox(height: 5),
-                                        Text(
-                                          'Proveedor: ' + providerStatus,
-                                          style: const TextStyle(
-                                            color: _detailMuted,
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                      ],
-                                      if (face.isNotEmpty ||
-                                          live.isNotEmpty ||
-                                          document.isNotEmpty) ...[
-                                        const SizedBox(height: 7),
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 6,
-                                          children: [
-                                            if (document.isNotEmpty)
-                                              Chip(
-                                                label: Text(
-                                                  'Documento ' + document,
-                                                ),
-                                              ),
-                                            if (live.isNotEmpty)
-                                              Chip(
-                                                label: Text(
-                                                  'Liveness ' + live,
-                                                ),
-                                              ),
-                                            if (face.isNotEmpty)
-                                              Chip(
-                                                label: Text(
-                                                  'Face match ' + face,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      ],
-                                      const SizedBox(height: 5),
-                                      Text(
-                                        _text(v['document_type'], 'Identidad') +
-                                            ' · ' +
-                                            _date(v['created_at']),
-                                        style: const TextStyle(
-                                          color: _detailMuted,
-                                          fontSize: 10,
-                                        ),
-                                      ),
+                                      Chip(label: Text(
+                                        _friendlyDocumentStatus(status),
+                                      )),
                                     ],
                                   ),
                                 );
