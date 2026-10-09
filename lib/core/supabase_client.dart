@@ -19,6 +19,14 @@ const supabaseUrl = _productionUrl;
 const supabasePublishableKey = _productionPublishableKey;
 const adminRuntimeChannel = adminIsPreview ? 'preview' : 'production';
 
+/// A separate web LocalStorage session for Admin Preview.
+/// Production deliberately keeps Supabase's original/default storage key
+/// so no existing Production administrator is unexpectedly signed out.
+/// This is session separation only, not an independent Supabase backend.
+const adminPreviewAuthSessionStorageKey =
+    'express-admin-preview-zgpijrznvaskgcmauwxx-session-v1';
+
+
 /// Reject misspelled flags instead of silently using Production.
 void validateAdminDeployment() {
   if (adminDeployment != 'production' && adminDeployment != 'preview') {
