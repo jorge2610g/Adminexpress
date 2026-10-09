@@ -3,6 +3,7 @@
 - Rama: `fix/preview-shared-config-isolation-20261009` desde main `30e60582a337be3911671742d780b240793497df`.
 - Los editores Zonas, Seguridad geográfica, Servicios, Tarifas y Ajustes ya no fuerzan el entorno Production al abrirse desde Preview.
 - La edición de métodos de pago por zona respeta `channel`; la cobertura QA recupera/guarda sus puntos poligonales en shadow.
+- Adicionalmente, `AdminCountryCoveragePage` y `AdminDriverDocumentRequirementsPanel` dejan de forzar Production al listar, guardar o eliminar; Preview utiliza `AdminEnvironmentStore(widget.channel)` y su shadow QA. La comprobación CI ahora bloquea explícitamente esta regresión.
 - El CI del panel valida que esos editores no vuelvan a usar configuración Production fija.
 - **Sin cambios en main, Supabase, Android, firmas ni publicaciones.** Validación Flutter/QA pendiente antes de merge.
 - **Bloqueador de seguridad:** la RPC backend `admin_zone_coverage_save` sigue pudiendo modificar configuración real incluso con `p_channel=preview`. Debe impedirse desde backend antes de activar pruebas completas.
