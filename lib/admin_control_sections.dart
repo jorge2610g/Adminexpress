@@ -679,7 +679,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+      const AdminEnvironmentStore('production');
 
   Future<List<Map<String, dynamic>>> _load() async {
     final selectedZoneId = widget.zoneId;
@@ -2697,7 +2697,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+      const AdminEnvironmentStore('production');
   String? selectedZoneId;
 
   Future<({
@@ -3242,7 +3242,7 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+      const AdminEnvironmentStore('production');
 
   Future<({
     List<Map<String, dynamic>> zones,
@@ -4347,7 +4347,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+      const AdminEnvironmentStore('production');
   String? selectedZoneId;
 
   Future<({
@@ -5263,7 +5263,7 @@ Future<bool> showAdminZonePaymentMethodsEditor(
   Map<String, dynamic> zone, {
   String channel = 'production',
 }) async {
-  final environment = AdminEnvironmentStore(channel);
+  final environment = const AdminEnvironmentStore('production');
   final zoneId = zone['id']?.toString();
   if (zoneId == null || zoneId.isEmpty) return false;
 
@@ -5603,7 +5603,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+      const AdminEnvironmentStore('production');
   String paymentPeriod = 'today';
   DateTimeRange? paymentCustomRange;
   String? selectedPaymentZoneId;
@@ -7773,7 +7773,7 @@ class AdminSettingsPage extends StatefulWidget {
 
 class _AdminSettingsPageState extends State<AdminSettingsPage> {
   AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+      const AdminEnvironmentStore('production');
   Map<String, dynamic>? settings;
   bool loading = true;
   bool saving = false;
@@ -7843,7 +7843,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
     required String channel,
     required int revision,
   }) async {
-    final environment = AdminEnvironmentStore(channel);
+    final environment = const AdminEnvironmentStore('production');
     try {
       final row = environment.isPreview
           ? await environment.previewGet('app_settings')
@@ -7900,7 +7900,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
     final channel = widget.channel;
     final revision = _settingsLoadRevision;
-    final environment = AdminEnvironmentStore(channel);
+    final environment = const AdminEnvironmentStore('production');
 
     setState(() => saving = true);
     try {
