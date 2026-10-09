@@ -9,6 +9,7 @@ import 'admin_environment_store.dart';
 import 'admin_driver_document_requirements.dart';
 import 'admin_country_coverage.dart';
 import 'admin_admob_settings.dart';
+import 'admin_distance_fares.dart';
 
 const Color _blue = Color(0xFF2563EB);
 const Color _dark = Color(0xFF0F172A);
@@ -5150,6 +5151,13 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                       ],
                     ),
             ),
+            if (data.zone != null)
+              AdminDistanceFaresEditor(
+                key: ValueKey('distance-steps-${data.zone!['id']}-${widget.channel}'),
+                channel: widget.channel,
+                zone: data.zone!,
+                services: data.services,
+              ),
             const SizedBox(height: 14),
             if (data.zones.isNotEmpty)
               Card(
