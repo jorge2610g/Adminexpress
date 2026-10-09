@@ -250,6 +250,8 @@ jobs:
           assert "'p_channel': adminRuntimeChannel" in login
           assert 'Acceso de Prueba · sesión independiente' in login
           assert 'Acceso de Producción' in login
+          assert login.count('supabase.auth.signOut(scope: SignOutScope.local)') == 3
+          assert 'supabase.auth.signOut()' not in login
           assert 'adminPreviewAuthSessionStorageKey' in config
           assert 'express-admin-preview-zgpijrznvaskgcmauwxx-session-v1' in config
           assert '--dart-define=ADMIN_ENV=production' in workflow
