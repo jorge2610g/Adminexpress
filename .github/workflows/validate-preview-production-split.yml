@@ -68,6 +68,11 @@ jobs:
           fi
           grep -Fq "AdminEnvironmentStore(widget.channel)" lib/admin_driver_document_requirements.dart
           grep -Fq "AdminEnvironmentStore(widget.channel)" lib/admin_country_coverage.dart
+          grep -Fq "if (!_environment.isPreview) return;" lib/admin_country_coverage.dart
+          grep -Fq "existingCodes.contains(code)" lib/admin_country_coverage.dart
+          grep -Fq "'active': false" lib/admin_country_coverage.dart
+          grep -Fq "'driver_registration_enabled': false" lib/admin_country_coverage.dart
+          grep -Fq "'service_countries'," lib/admin_country_coverage.dart
           grep -q "admin_driver_document_requirement_list" lib/admin_driver_document_requirements.dart
 
           for legacy in             "'admin_set_driver_approval'"             "'admin_set_account_status'"             "'admin_resolve_emergency'"; do
@@ -250,7 +255,8 @@ jobs:
             lib/admin_driver_priority.dart \
             lib/admin_dynamic_pricing.dart \
             lib/admin_manual_identity.dart \
-            lib/admin_driver_document_requirements.dart
+            lib/admin_driver_document_requirements.dart \
+            lib/admin_country_coverage.dart
       - name: Verify active polygon vs radio zone labels
         run: flutter test test/admin_zone_coverage_label_test.dart
       - name: Build admin production web smoke test
