@@ -306,9 +306,7 @@ class _AdminCountryCoveragePageState
       backgroundColor: const Color(0xFFF7F9FC),
       appBar: AppBar(
         title: Text(
-          widget.channel == 'preview'
-              ? 'Países y cobertura · Compartida'
-              : 'Países y cobertura · Compartida',
+          'Países y cobertura · Compartida',
         ),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
@@ -384,7 +382,6 @@ class _AdminCountryCoveragePageState
                   final active = row['active'] == true;
                   final registration =
                       row['driver_registration_enabled'] != false;
-                  final didit = row['didit_enabled'] == true;
                   return Card(
                     elevation: 0,
                     margin: const EdgeInsets.only(bottom: 9),
