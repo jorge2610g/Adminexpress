@@ -159,6 +159,27 @@ jobs:
           print('PASS: production/preview identity UI is manual-only, no legacy session feed.')
           PY
 
+      - name: Guard physical Supabase project isolation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          config = Path('lib/core/supabase_client.dart').read_text()
+          panel = Path('lib/admin_panel.dart').read_text()
+          workflow = Path('.github/workflows/deploy-web.yml').read_text()
+          assert 'zgpijrznvaskgcmauwxx' in config
+          assert 'xbphilqezmwfjfpdbwad' in config
+          assert 'validateAdminDeployment()' in config
+          assert "String adminChannel = 'production';" in panel
+          assert 'SegmentedButton<String>(' not in panel.split('Widget _environmentSwitcher() {')[1].split('void _goTo(', 1)[0]
+          assert 'productionAccess: allowProduction && !adminIsPreview' in panel
+          assert '--dart-define=ADMIN_ENV=production' in workflow
+          assert '--dart-define=ADMIN_ENV=preview' in workflow
+          assert '--base-href /preview/' in workflow
+          assert 'path: build/site' in workflow
+          print('PASS: deployed sites use separately pinned physical Supabase projects.')
+          PY
+
       - name: Analyze admin modules
         run: |
           flutter analyze --no-fatal-warnings --no-fatal-infos \

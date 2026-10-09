@@ -42,7 +42,7 @@ jobs:
             lib/admin_environment_store.dart
 
       - name: Build Flutter Web
-        run: flutter build web --release --base-href /
+        run: flutter build web --release --base-href / --dart-define=ADMIN_ENV=production
 
       - name: Bust Flutter web cache
         shell: bash
@@ -71,10 +71,48 @@ jobs:
           }
           EOF
 
+      # GitHub Pages serves both builds from the SAME source commit but
+      # different Supabase projects and different URLs.
+      - name: Preserve production site
+        run: |
+          mkdir -p build/site
+          cp -a build/web/. build/site/
+
+      - name: Build independent Admin Preview
+        run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
+
+      - name: Bust Preview web cache
+        shell: bash
+        run: |
+          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${GITHUB_SHA}#g" build/web/index.html
+          if [ -f build/web/flutter_bootstrap.js ]; then
+            sed -i "s#main.dart.js#main.dart.js?v=${GITHUB_SHA}#g" build/web/flutter_bootstrap.js
+          fi
+
+      - name: Install Preview as separate site
+        shell: bash
+        run: |
+          mkdir -p build/site/preview
+          cp -a build/web/. build/site/preview/
+          cp build/site/version.json build/site/preview/version.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          for name, label, project in [
+              ('build/site/version.json', 'production', 'zgpijrznvaskgcmauwxx'),
+              ('build/site/preview/version.json', 'preview', 'xbphilqezmwfjfpdbwad'),
+          ]:
+              path = Path(name)
+              data = json.loads(path.read_text())
+              data['environment'] = label
+              data['supabase_project_ref'] = project
+              path.write_text(json.dumps(data, indent=2))
+          PY
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: build/web
+          path: build/site
 
   deploy:
     environment:

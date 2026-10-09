@@ -14,6 +14,7 @@ Future<void> main() async {
 
   Object? startupError;
   try {
+    validateAdminDeployment();
     await Supabase.initialize(
       url: supabaseUrl,
       publishableKey: supabasePublishableKey,
@@ -33,7 +34,7 @@ class AdminExpressApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Adminexpress',
+      title: adminIsPreview ? 'Adminexpress · Prueba' : 'Adminexpress · Producción',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

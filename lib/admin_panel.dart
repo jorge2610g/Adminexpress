@@ -213,7 +213,7 @@ class ExpressAdminPanel extends StatefulWidget {
 class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   int section = 0;
   int revision = 0;
-  String adminChannel = 'preview';
+  String adminChannel = 'production';
   bool allowPreview = true;
   bool allowProduction = true;
   String? liveZoneId;
@@ -296,19 +296,16 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     final access = Map<String, dynamic>.from(value);
     if (access['allowed'] != true) return false;
 
+    // Separate Supabase project per site. 'production' here refers to
+    // normal rows INSIDE the currently connected project. Preview users
+    // are not legacy QA-marked accounts and must never use the shadow store.
     adminAccess = access;
-    allowPreview = access['allow_preview'] != false;
+    allowPreview = false;
     allowProduction = access['allow_production'] != false;
-    final defaultEnvironment = access['default_environment']?.toString();
-    if (defaultEnvironment == 'production' && allowProduction) {
-      adminChannel = 'production';
-    } else if (defaultEnvironment == 'preview' && allowPreview) {
-      adminChannel = 'preview';
-    } else if (!allowPreview && allowProduction) {
-      adminChannel = 'production';
-    }
+    adminChannel = 'production';
+    if (!allowProduction) return false;
+
     if (access['role']?.toString() == 'zone_monitor') {
-      adminChannel = 'production';
       adminCountryCode =
           access['country_code']?.toString().trim().toUpperCase();
       adminZoneId = access['zone_id']?.toString();
@@ -931,95 +928,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     });
   }
 
-  Future<void> _setAdminChannel(String value) async {
-    if (_isZoneMonitor || value == adminChannel) return;
-    if (value == 'preview' && !allowPreview) {
-      _errorSnack('Tu cuenta no tiene acceso al entorno Prueba.');
-      return;
-    }
-    if (value == 'production' && !allowProduction) {
-      _errorSnack('Tu cuenta no tiene acceso al entorno Producción.');
-      return;
-    }
-
-    if (value == 'production') {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Entrar a Producción'),
-          content: const Text(
-            'Producción contiene datos reales de clientes, conductores y operación. '
-            'Los cambios realizados aquí son reales. ¿Quieres continuar?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              icon: const Icon(Icons.verified_rounded),
-              label: const Text('Entrar a Producción'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true || !mounted) return;
-    }
-
-    // Environment switch is a hard data boundary: all environment-specific
-    // state, cached futures and child StatefulWidgets are discarded.
-    setState(() {
-      adminChannel = value;
-      adminCountryCode = null;
-      adminZoneId = null;
-      liveZoneId = null;
-      usersZoneId = null;
-      usersCity = null;
-      usersRegionDepartment = null;
-      revision++;
-      _liveFuture = null;
-    });
-  }
-
+  // The active database is selected at BUILD time, never from a UI control.
+  // A preview administrator therefore has no path to write to Production.
   Widget _environmentSwitcher() {
-    if (_isZoneMonitor) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-        color: const Color(0xFFE8F8EF),
-        child: const Row(
-          children: [
-            Icon(Icons.verified_rounded, size: 18, color: Color(0xFF14804A)),
-            SizedBox(width: 8),
-            Text(
-              'Producción · entorno fijo para monitor de zona',
-              style: TextStyle(
-                color: Color(0xFF0F6848),
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    final preview = adminChannel == 'preview';
+    final preview = adminIsPreview;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-      decoration: BoxDecoration(
-        color: preview
-            ? const Color(0xFFFFF7E6)
-            : const Color(0xFFE8F8EF),
-        border: Border(
-          bottom: BorderSide(
-            color: preview
-                ? const Color(0xFFF5C36A)
-                : const Color(0xFF9AD8B3),
-          ),
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      color: preview ? const Color(0xFFFFF7E6) : const Color(0xFFE8F8EF),
       child: Row(
         children: [
           Icon(
@@ -1033,8 +949,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           Expanded(
             child: Text(
               preview
-                  ? 'MODO PRUEBA · Solo datos Preview / QA'
-                  : 'MODO PRODUCCIÓN · Datos reales de clientes',
+                  ? 'EXPRESS PREVIEW · Base de pruebas independiente'
+                  : 'EXPRESS PRODUCCIÓN · Datos reales',
               style: TextStyle(
                 color: preview
                     ? const Color(0xFF7A2E0E)
@@ -1043,29 +959,6 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                 fontWeight: FontWeight.w900,
               ),
             ),
-          ),
-          SegmentedButton<String>(
-            segments: [
-              ButtonSegment(
-                value: 'production',
-                label: Text('Producción'),
-                icon: Icon(Icons.verified_outlined, size: 17),
-                enabled: allowProduction,
-              ),
-              ButtonSegment(
-                value: 'preview',
-                label: Text('Prueba'),
-                icon: Icon(Icons.science_outlined, size: 17),
-                enabled: allowPreview,
-              ),
-            ],
-            selected: {adminChannel},
-            onSelectionChanged: (value) {
-              if (value.isNotEmpty) {
-                _setAdminChannel(value.first);
-              }
-            },
-            showSelectedIcon: false,
           ),
         ],
       ),
@@ -1245,6 +1138,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                           ),
                         if (!_globalSections.contains(section))
                           _environmentSwitcher(),
+                        if (_globalSections.contains(section))
+                          _environmentSwitcher(),
                         if (_requiresZoneScope(section))
                           _globalGeoScopeSwitcher(),
                         Expanded(
@@ -1322,14 +1217,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         );
       case 10:
         return AdminEnvironmentReportsPage(
-          includePreview: allowPreview,
+          includePreview: false,
           includeProduction: allowProduction,
         );
       case 11:
         return AdminSettingsPage(channel: adminChannel);
       case 12:
         return AdminSingleAppReleasePage(
-          productionAccess: allowProduction,
+          productionAccess: allowProduction && !adminIsPreview,
         );
       case 13:
         return AdminDispatchPage(
@@ -1339,7 +1234,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         );
       case 14:
         return AdminEnvironmentAuditPage(
-          includePreview: allowPreview,
+          includePreview: false,
           includeProduction: allowProduction,
         );
       case 15:
