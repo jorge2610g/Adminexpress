@@ -391,22 +391,6 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Future<List<Map<String, dynamic>>> _filterCountries() async {
-    if (adminChannel == 'preview') {
-      final zones =
-          await const AdminEnvironmentStore('preview').previewList('service_zones');
-      final byCode = <String, Map<String, dynamic>>{};
-      for (final zone in zones) {
-        final code = _zoneCountryCode(zone);
-        if (code.isEmpty) continue;
-        byCode[code] = <String, dynamic>{
-          'country_code': code,
-          'country': zone['country'] ?? code,
-          'active': zone['active'] != false,
-        };
-      }
-      return byCode.values.where((row) => row['active'] == true).toList();
-    }
-
     final value = await supabase.rpc('admin_country_list_scoped');
     return _list(value);
   }
@@ -414,17 +398,6 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<List<Map<String, dynamic>>> _filterZones() async {
     final country = adminCountryCode;
     if (country == null || country.isEmpty) return const [];
-
-    if (adminChannel == 'preview') {
-      final zones =
-          await const AdminEnvironmentStore('preview').previewList('service_zones');
-      return zones
-          .where(
-            (row) =>
-                row['active'] != false && _zoneCountryCode(row) == country,
-          )
-          .toList();
-    }
 
     final value = await supabase.rpc(
       'admin_zone_list_for_country',
