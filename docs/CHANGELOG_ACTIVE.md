@@ -1,3 +1,12 @@
+## 2026-10-09 — Registro automático de cambios de cada PR administrativa (QA, sin despliegue)
+
+- CI nuevo `.github/workflows/release-change-inventory.yml`: corre en **toda PR hacia main** y verifica SHA de base, cabeza, commit de prueba y árbol Git; adjunta inventario de archivos con hashes SHA-256 y riesgo.
+- Script y pruebas en `.github/scripts/release_change_manifest.py` y `.github/scripts/test_release_change_manifest.py`.
+- Esta revisión ayuda a saber exactamente qué código cambiaría; NO comprueba por sí sola la seguridad de permisos Supabase, equivalencia de datos ni ausencia de bugs.
+- Los cambios permanecen en PR #51 como borrador. No se fusionó ni se desplegó Producción.
+
+---
+
 ## 2026-10-09 — Corrección QA de configuración por canal (EN PR, no desplegado)
 
 - Rama: `fix/preview-shared-config-isolation-20261009` desde main `30e60582a337be3911671742d780b240793497df`.
