@@ -52,7 +52,7 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
       supabase.rpc('admin_driver_kyc_bolivia_manual_list',
           params: {'p_channel':widget.channel,'p_limit':150}),
     ]);
-    return {'settings':_map(results[0]),'documents':_list(results[1])};
+    return {'documents':_list(results[0])};
   }
 
   void _reload() {
