@@ -1,3 +1,15 @@
+## 2026-10-09 — Prueba Preview-only de Pages, sin publicación
+
+- Se ensayó `Deploy Adminexpress Web to GitHub Pages` en rama QA, run `37990890621`, fuente exacta `a8a12585181d484d4767c03cb4aaed64c314a50e`.
+- El job `build` de Producción quedó **SKIPPED**. El job `preview_only` pasó: validó SHA QA, descargó artefacto de Producción, comparó bytes de la URL real con la copia, compiló Preview y confirmó el manifiesto SHA256 de todos los archivos no Preview.
+- El job final `deploy` terminó en **FAILURE antes de ejecutar pasos**. No existe evidencia de publicación de la nueva Preview: considerar la URL en su estado anterior. No interpretar el artefacto compilado como versión publicada.
+- El artefacto `github-pages` QA de ese run está guardado en Actions (ID `11644663644`), pero **no** se autorizó publicarlo por otra vía.
+- Se restauró exactamente `.github/workflows/deploy-web.yml` desde `main` al terminar el ensayo; no quedó el trigger de push QA ni la alteración temporal de deploy en la PR.
+- Supabase principal se consultó solo con `SELECT` después del ensayo: 0 países QA, 2 zonas QA shadow, 5 cuentas Preview, 6 Producción; el servidor todavía tiene un superadministrador de doble permiso.
+- Ninguna migración / Edge Function / tabla / pago / Google Play se ha modificado en este ensayo. La separación backend total sigue pendiente; P0 documentado en Expressdelivery issue #141.
+
+---
+
 ## Semilla QA de países — sin escritura de Producción
 
 En la PR #51 la pantalla Preview incorpora el botón `Preparar países QA` que solo aparece en Preview y requiere confirmación. Lee por RPC administrativo la lista de países existente **solo como referencia** y crea nuevas filas en el almacenamiento shadow `admin_environment_config`; el país y el registro de conductores están inicialmente desactivados para evitar una activación accidental. Nunca sobrescribe países QA existentes ni modifica `service_countries` de Producción. No se ha ejecutado la semilla contra Supabase; se requiere QA manual del administrador antes de considerar la funcionalidad certificada.
