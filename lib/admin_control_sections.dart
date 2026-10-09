@@ -681,7 +681,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      const AdminEnvironmentStore('production');
+      AdminEnvironmentStore(widget.channel);
 
   Future<List<Map<String, dynamic>>> _load() async {
     final selectedZoneId = widget.zoneId;
@@ -1832,7 +1832,15 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     // Read the actual persisted mode and polygon before editing other fields.
     var coverageMode = row?['coverage_mode'] == 'polygon' ? 'polygon' : 'radius';
     var polygonPoints = <LatLng>[];
-    if (row?['id'] != null) {
+    if (_environment.isPreview && row?['polygon'] is List) {
+      final rawPoints = row!['polygon'] as List;
+      polygonPoints = rawPoints.whereType<Map>().map((point) {
+        final y = double.tryParse(point['lat']?.toString() ?? '');
+        final x = double.tryParse(point['lng']?.toString() ?? '');
+        return y == null || x == null ? null : LatLng(y, x);
+      }).whereType<LatLng>().toList();
+    }
+    if (row?['id'] != null && !_environment.isPreview) {
       try {
         final raw = await supabase.rpc('admin_zone_coverage_get', params: {
           'p_zone_id': row!['id'],
@@ -2378,6 +2386,12 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'center_longitude': _num(lng.text),
               'radius_km': _num(radius.text) ?? 25,
               'coverage_mode': coverageMode,
+              'polygon': coverageMode == 'polygon'
+                  ? polygonPoints.map((point) => <String, double>{
+                      'lat': point.latitude,
+                      'lng': point.longitude,
+                    }).toList()
+                  : null,
               'zone_key': row?['zone_key']?.toString() ?? zoneKey.text.trim(),
               'currency_code': currency.text.trim().toUpperCase(),
               'passenger_landing_mode': landingMode,
@@ -2630,7 +2644,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      const AdminEnvironmentStore('production');
+      AdminEnvironmentStore(widget.channel);
   String? selectedZoneId;
 
   Future<({
@@ -3175,7 +3189,7 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      const AdminEnvironmentStore('production');
+      AdminEnvironmentStore(widget.channel);
 
   Future<({
     List<Map<String, dynamic>> zones,
@@ -4219,7 +4233,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      const AdminEnvironmentStore('production');
+      AdminEnvironmentStore(widget.channel);
   String? selectedZoneId;
 
   Future<({
@@ -5135,7 +5149,7 @@ Future<bool> showAdminZonePaymentMethodsEditor(
   Map<String, dynamic> zone, {
   String channel = 'production',
 }) async {
-  final environment = const AdminEnvironmentStore('production');
+  final environment = AdminEnvironmentStore(channel);
   final zoneId = zone['id']?.toString();
   if (zoneId == null || zoneId.isEmpty) return false;
 
@@ -7645,7 +7659,7 @@ class AdminSettingsPage extends StatefulWidget {
 
 class _AdminSettingsPageState extends State<AdminSettingsPage> {
   AdminEnvironmentStore get _environment =>
-      const AdminEnvironmentStore('production');
+      AdminEnvironmentStore(widget.channel);
   Map<String, dynamic>? settings;
   bool loading = true;
   bool saving = false;
@@ -7715,7 +7729,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
     required String channel,
     required int revision,
   }) async {
-    final environment = const AdminEnvironmentStore('production');
+    final environment = AdminEnvironmentStore(channel);
     try {
       final row = environment.isPreview
           ? await environment.previewGet('app_settings')
@@ -7772,7 +7786,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
     final channel = widget.channel;
     final revision = _settingsLoadRevision;
-    final environment = const AdminEnvironmentStore('production');
+    final environment = AdminEnvironmentStore(channel);
 
     setState(() => saving = true);
     try {
