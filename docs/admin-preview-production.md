@@ -1,6 +1,7 @@
 ## Arquitectura vigente — 2026-10-09: dos bases y dos paneles web
 - **Producción:** sitio raíz, proyecto Supabase `zgpijrznvaskgcmauwxx`.
 - **Preview:** sitio `/preview/`, proyecto Supabase `xbphilqezmwfjfpdbwad`.
+- Ambos muestran un enlace rápido de navegación: Producción **«Ir a Prueba»**, Preview **«Ir a Producción»**; aparece también en Login. Usa URLs relativas (`preview/` y `../`) en la misma pestaña, nunca modifica la conexión a Supabase. Los proyectos conservan sesiones y permisos separados.
 - Mismo código y navegación, pero compilaciones Flutter independientes; se suprimió el selector Prueba/Producción dentro de cada sitio.
 - Las llamadas RPC usan el canal `preview` en el proyecto físico Preview, y `production` en el proyecto físico Producción. Así coinciden los registros de `account_runtime_bindings`, los viajes y las reglas de revisión manual.
 - Login, sesión, permisos RLS, documentos, Storage y revisiones son independientes por proyecto. El panel Preview exige una cuenta de administrador autorizada **en Preview**, sin heredar permisos de Producción.
