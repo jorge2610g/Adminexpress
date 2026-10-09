@@ -3608,109 +3608,48 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
               safety: <Map<String, dynamic>>[],
             );
 
-        return DefaultTabController(
-          length: 2,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 22, 22, 12),
-                child: _AdminHero(
-                  icon: Icons.gpp_good_rounded,
-                  title: 'Cobertura y seguridad',
-                  subtitle:
-                      'Controla dónde opera Express y qué sectores necesitan reglas especiales.',
-                  stats: [
-                    ('Zonas', data.zones.length.toString()),
-                    ('Polígonos', data.coverage.length.toString()),
-                    ('Seguridad', data.safety.length.toString()),
-                  ],
-                ),
+        return ListView(
+          padding: const EdgeInsets.all(22),
+          children: [
+            _AdminHero(
+              icon: Icons.shield_outlined,
+              title: 'Seguridad de zonas',
+              subtitle: 'La cobertura por radio o polígono se configura '
+                  'directamente al crear o editar la zona. Aquí solo se '
+                  'administran sectores de seguridad, precaución o riesgo.',
+              stats: [
+                ('Zonas', data.zones.length.toString()),
+                ('Sectores de seguridad', data.safety.length.toString()),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _Header(
+              title: 'Zonas rojas y prevención',
+              subtitle: 'Sectores de riesgo y zonas seguras para '
+                  'conductores y pasajeros.',
+              action: FilledButton.icon(
+                onPressed: () => _editSafety(),
+                icon: const Icon(Icons.add_moderator_outlined),
+                label: const Text('Crear sector'),
               ),
-              const Material(
-                color: Colors.white,
-                child: TabBar(
-                  tabs: [
-                    Tab(icon: Icon(Icons.polyline_rounded), text: 'Cobertura'),
-                    Tab(icon: Icon(Icons.shield_outlined), text: 'Zonas de seguridad'),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    ListView(
-                      padding: const EdgeInsets.all(22),
-                      children: [
-                        _Header(
-                          title: 'Polígonos de cobertura',
-                          subtitle:
-                              'Dibuja áreas reales en el mapa. El radio circular queda como respaldo.',
-                          action: FilledButton.icon(
-                            onPressed: () => _editCoverage(data.zones),
-                            icon: const Icon(Icons.draw_rounded),
-                            label: const Text('Dibujar polígono'),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        if (data.coverage.isEmpty)
-                          const _Empty(text: 'Todavía no hay polígonos de cobertura.')
-                        else
-                          ...data.coverage.map(
-                            (row) => _GeoRow(
-                              tone: _blue,
-                              icon: Icons.polyline_rounded,
-                              title: row['name']?.toString() ?? 'Cobertura',
-                              subtitle:
-                                  (row['zone_name'] ?? 'Zona').toString() +
-                                      ' · ' +
-                                      (row['city'] ?? 'Trinidad').toString(),
-                              badge: row['active'] == true ? 'Activa' : 'Inactiva',
-                              onTap: () => _editCoverage(data.zones, row),
-                            ),
-                          ),
-                      ],
-                    ),
-                    ListView(
-                      padding: const EdgeInsets.all(22),
-                      children: [
-                        _Header(
-                          title: 'Zonas rojas y prevención',
-                          subtitle:
-                              'Marca sectores de riesgo, precaución o zonas seguras para conductor y pasajero.',
-                          action: FilledButton.icon(
-                            onPressed: () => _editSafety(),
-                            icon: const Icon(Icons.add_moderator_outlined),
-                            label: const Text('Crear zona'),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        if (data.safety.isEmpty)
-                          const _Empty(text: 'Todavía no hay zonas de seguridad.')
-                        else
-                          ...data.safety.map(
-                            (row) => _GeoRow(
-                              tone: _securityTone(row['zone_type']?.toString()),
-                              icon: row['zone_type'] == 'safe'
-                                  ? Icons.verified_user_outlined
-                                  : Icons.warning_amber_rounded,
-                              title: row['name']?.toString() ?? 'Zona de seguridad',
-                              subtitle:
-                                  _securityLabel(row['zone_type']?.toString()) +
-                                      ' · nivel ' +
-                                      (row['severity'] ?? 3).toString() +
-                                      ' · ' +
-                                      (row['applies_to'] ?? 'both').toString(),
-                              badge: row['active'] == true ? 'Activa' : 'Inactiva',
-                              onTap: () => _editSafety(row),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 14),
+            if (data.safety.isEmpty)
+              const _Empty(text: 'Todavía no hay sectores de seguridad.')
+            else
+              ...data.safety.map((row) => _GeoRow(
+                tone: _securityTone(row['zone_type']?.toString()),
+                icon: row['zone_type'] == 'safe'
+                    ? Icons.verified_user_outlined
+                    : Icons.warning_amber_rounded,
+                title: row['name']?.toString() ?? 'Zona de seguridad',
+                subtitle:
+                    _securityLabel(row['zone_type']?.toString()) +
+                    ' · nivel ' + (row['severity'] ?? 3).toString(),
+                badge: row['active'] == true ? 'Activa' : 'Inactiva',
+                onTap: () => _editSafety(row),
+              )),
+          ],
         );
       },
     );
