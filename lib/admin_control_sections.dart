@@ -3822,8 +3822,8 @@ class AdminIdentitySecurityPage extends StatelessWidget {
         const _AdminHero(
           icon: Icons.verified_user_rounded,
           title: 'Centro de identidad',
-          subtitle: 'Las aprobaciones se realizan manualmente desde '
-              'Verificación manual. Los registros históricos de servicios '
+          subtitle: 'Las aprobaciones se realizan manualmente desde la pestaña '
+              'Revisión de documentos. Los registros históricos de servicios '
               'anteriores no son solicitudes activas.',
           stats: [
             ('Motor', 'Manual'),
@@ -3849,7 +3849,7 @@ class AdminIdentitySecurityPage extends StatelessWidget {
                   child: Text(
                     'Para revisar, aprobar, rechazar o reactivar por separado '
                     'el frente, reverso y la selfie de un conductor, '
-                    'abre «Verificación manual» en el menú lateral. '
+                    'usa la pestaña «Revisión de documentos». '
                     'Las solicitudes de Prueba y Producción se gestionan '
                     'por separado.',
                     style: TextStyle(color: _dark, height: 1.5),
