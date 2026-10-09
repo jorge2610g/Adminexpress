@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/preview-shared-config-isolation-20261009
   workflow_dispatch:
     inputs:
       preview_only:
@@ -28,7 +29,8 @@ concurrency:
 
 jobs:
   build:
-    if: ${{ !contains(github.event.head_commit.message, '[deploy-preview-only]') && !(inputs.preview_only == true) }}
+    # Never allow a QA branch push to build/deploy the Production site.
+    if: ${{ github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[deploy-preview-only]') && !(inputs.preview_only == true) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -145,11 +147,14 @@ jobs:
             exit 1
           fi
 
+      # Pin verified current Production deployment for QA-only smoke.
+      # Workflow compares live Production files byte-for-byte and aborts if
+      # there is any discrepancy before publishing /preview/.
       - name: Download current Production Pages artifact (known-good build)
         uses: actions/download-artifact@v4
         with:
           name: github-pages
-          run-id: 37890547971
+          run-id: 37969274447
           github-token: ${{ github.token }}
           path: pages-prod
 
