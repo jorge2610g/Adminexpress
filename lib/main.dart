@@ -152,9 +152,14 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
             return PartnerExpressPanel(onExit: _logout);
           case _ExpressPanelAccess.denied:
             return _AccessDenied(
-              title: 'Cuenta sin acceso al panel',
-              message:
-                  'Esta cuenta no es administrador de Express ni tiene una organización asignada.',
+              title: adminIsPreview
+                  ? 'Cuenta sin acceso a Prueba'
+                  : 'Cuenta sin acceso a Producción',
+              message: adminIsPreview
+                  ? 'La cuenta ingresada no está autorizada para Preview. '
+                    'Cierra sesión y utiliza las credenciales de prueba.'
+                  : 'Esta cuenta no tiene acceso administrativo a '
+                    'Producción ni una organización asignada.',
               onExit: _logout,
             );
         }
