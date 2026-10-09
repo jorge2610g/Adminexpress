@@ -1,3 +1,32 @@
+## Corrección en rama de QA · 2026-10-09 (sin desplegar)
+
+Se detectó una discrepancia: cinco editores de configuración obtenían
+`AdminEnvironmentStore('production')` aunque la web estuviera compilada
+con `ADMIN_ENV=preview`. En esa situación el formulario QA podía invocar
+RPC operativas y modificar zonas, cobertura, tarifas o ajustes reales.
+
+La rama `fix/preview-shared-config-isolation-20261009` cambia los cinco
+editores a `AdminEnvironmentStore(widget.channel)`; la edición de métodos
+de pago por zona recibe el canal del llamador. El formulario de cobertura
+lee y persiste su polígono Preview en el shadow QA, sin consultar la cobertura
+real para editar. **Producción conserva exactamente la misma ruta lógica**.
+
+**Esta rama NO equivale a aislamiento completo ni debe fusionarse sin QA:**
+- la app móvil consume aún algunas configuraciones operativas principales;
+  la cobertura Preview guardada en shadow puede no aplicarse al cálculo de rutas;
+- la RPC `admin_zone_coverage_save` acepta `p_channel='preview'` y escribe
+  `service_zones` reales en el backend principal. Se debe corregir con una
+  migración compatible y pruebas antes de habilitar acceso Preview libre;
+- hay que revisar todas las llamadas desde las páginas de países, seguridad,
+  servicios y otros editores secundarios, además de RLS, Storage y webhooks;
+- la publicación inicial debe ser solo del sitio Preview y los bytes del
+  sitio Producción deben permanecer sin cambios.
+
+No editar ni desplegar migraciones, credenciales, pagos o bases de datos en
+Producción hasta que los tests de aislamiento y el QA físico estén aprobados.
+
+---
+
 ## Arquitectura vigente — 2026-10-09: dos sitios web y Supabase compartido, nunca datos mezclados
 - Producción: raíz `/`, proyecto `zgpijrznvaskgcmauwxx`, canal `production`.
 - Prueba: ruta `/preview/`, **mismo proyecto** `zgpijrznvaskgcmauwxx`, canal `preview`.
