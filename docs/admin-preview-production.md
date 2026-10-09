@@ -1,3 +1,26 @@
+### Accesos y credenciales de Admin Preview / Producción
+
+Ambas páginas usan todavía el **mismo proyecto Supabase principal**.
+Para evitar que el navegador intercambie cuentas al abrir las dos rutas:
+
+- `/` conserva la clave de sesión Auth original y no obliga a un nuevo
+  login de Producción.
+- `/preview/` usa una clave local exclusiva; el primer despliegue
+  pide volver a iniciar sesión **solo en Preview**.
+- El servidor valida el permiso `allow_preview` o
+  `allow_production` para el canal compilado antes de mostrar el panel.
+- Se requiere un correo/cuenta **diferente** para QA, verificado e
+  invitado en Supabase Auth principal. Después de confirmar el login
+  QA-only se convertirá la cuenta original en Production-only sin
+  cambiar su contraseña ni afectarla antes.
+- Son credenciales **de usuario** distintas, no claves privadas
+  diferentes pegadas a la web. Esto no sustituye una frontera
+  robusta en todas las RPC `SECURITY DEFINER` antiguas.
+
+Ver `docs/ADMIN_AUTH_SESSION_SEPARATION_2026-10-09.md`.
+
+---
+
 ### Tarifas escalonadas por distancia: Preview aislado
 
 El editor `lib/admin_distance_fares.dart` ya no utiliza para Preview las RPC que leen y reemplazan las reglas de distancia operativa real. En Preview, almacena `steps` bajo módulo `zone_distance_fare_steps` en `admin_environment_config`, clave `zoneId::serviceKey` y lista de tramos con `up_to_km`/`fare`. Producción mantiene el mismo comportamiento previo con RPCs y precios reales. La QA shadow representa **configuración para pruebas**, no se aplica automáticamente al algoritmo real de precios de pasajero ni puede considerarse una cotización end-to-end sin infraestructura runtime de QA equivalente. Revisar separación server-side antes de entregar pruebas móviles reales.

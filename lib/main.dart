@@ -19,6 +19,16 @@ Future<void> main() async {
     await Supabase.initialize(
       url: supabaseUrl,
       publishableKey: supabasePublishableKey,
+      // Preview and Production have distinct browser sessions on the same
+      // origin. Keep Production's DEFAULT storage key unchanged for existing
+      // sessions; only Preview receives its own session key.
+      authOptions: adminIsPreview
+          ? FlutterAuthClientOptions(
+              localStorage: SharedPreferencesLocalStorage(
+                persistSessionKey: adminPreviewAuthSessionStorageKey,
+              ),
+            )
+          : const FlutterAuthClientOptions(),
     );
   } catch (e) {
     startupError = e;
@@ -64,7 +74,17 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
 
   Future<_ExpressPanelAccess> _resolveAccess() async {
     final isAdmin = await supabase.rpc('is_admin') == true;
-    if (isAdmin) return _ExpressPanelAccess.admin;
+    if (isAdmin) {
+      // Access is checked server-side for the compiled page's environment,
+      // including OAuth redirects and restored browser sessions.
+      final allowed = await supabase.rpc(
+        'admin_environment_allowed',
+        params: {'p_channel': adminRuntimeChannel},
+      ) == true;
+      return allowed
+          ? _ExpressPanelAccess.admin
+          : _ExpressPanelAccess.denied;
+    }
     // Preview must not query real partner data in shared Supabase.
     if (adminIsPreview) return _ExpressPanelAccess.denied;
 
@@ -90,7 +110,7 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
   }
 
   Future<void> _logout() async {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut(scope: SignOutScope.local);
     if (mounted) setState(() => revision++);
   }
 
@@ -132,9 +152,14 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
             return PartnerExpressPanel(onExit: _logout);
           case _ExpressPanelAccess.denied:
             return _AccessDenied(
-              title: 'Cuenta sin acceso al panel',
-              message:
-                  'Esta cuenta no es administrador de Express ni tiene una organización asignada.',
+              title: adminIsPreview
+                  ? 'Cuenta sin acceso a Prueba'
+                  : 'Cuenta sin acceso a Producción',
+              message: adminIsPreview
+                  ? 'La cuenta ingresada no está autorizada para Preview. '
+                    'Cierra sesión y utiliza las credenciales de prueba.'
+                  : 'Esta cuenta no tiene acceso administrativo a '
+                    'Producción ni una organización asignada.',
               onExit: _logout,
             );
         }
@@ -179,13 +204,27 @@ class _AdminLoginState extends State<_AdminLogin> {
     try {
       await supabase.auth.signInWithPassword(email: mail, password: pass);
       final isAdmin = await supabase.rpc('is_admin') == true;
+      final allowedForPage = isAdmin &&
+          await supabase.rpc(
+                'admin_environment_allowed',
+                params: {'p_channel': adminRuntimeChannel},
+              ) ==
+              true;
+      if (isAdmin && !allowedForPage) {
+        // Reject the wrong administrator identity before entering the panel.
+        await supabase.auth.signOut(scope: SignOutScope.local);
+        throw Exception(
+          'Esta cuenta no tiene autorización para este entorno. '
+          'Utiliza las credenciales administrativas correspondientes.',
+        );
+      }
       var hasPartnerAccess = false;
       if (!isAdmin && !adminIsPreview) {
         final raw = await supabase.rpc('partner_my_dashboard');
         hasPartnerAccess = raw is List && raw.isNotEmpty;
       }
-      if (!isAdmin && !hasPartnerAccess) {
-        await supabase.auth.signOut();
+      if (!allowedForPage && !hasPartnerAccess) {
+        await supabase.auth.signOut(scope: SignOutScope.local);
         throw Exception(
           'Esta cuenta no tiene acceso de administrador ni de organización.',
         );
@@ -246,6 +285,19 @@ class _AdminLoginState extends State<_AdminLogin> {
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            adminIsPreview
+                                ? 'Acceso de Prueba · sesión independiente'
+                                : 'Acceso de Producción',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: adminIsPreview
+                                  ? const Color(0xFF935B0B)
+                                  : const Color(0xFF156C41),
                             ),
                           ),
                           const SizedBox(height: 6),
