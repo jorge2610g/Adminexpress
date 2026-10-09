@@ -134,6 +134,31 @@ jobs:
           print('PASS: global Builds, Audit, Reports; operational geo + access guards intact.')
           PY
 
+      - name: Guard manual-only identity dashboard and environment separation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          code = Path('lib/admin_control_sections.dart').read_text()
+          module = code.split('class AdminIdentitySecurityPage extends StatelessWidget {', 1)[1].split(
+              'class _PolygonEditor extends StatelessWidget {', 1)[0]
+          forbidden = [
+              'admin_identity_verification_list_scoped',
+              'admin_identity_settings_get',
+              'admin_identity_resolve',
+              'identity_verifications',
+              'identity_verification_settings',
+          ]
+          # Comments can document retired tables, but active UI cannot query them.
+          statements = '\n'.join(line for line in module.splitlines() if not line.strip().startswith('///'))
+          assert all(legacy not in statements for legacy in forbidden), 'Legacy identity requests remain in the live screen'
+          assert "('Motor', 'Manual')" in module, 'Automatic provider still appears as active'
+          assert 'AdminDriverDocumentRequirementsPanel(' in module, 'Document requirements must remain available'
+          assert 'channel: channel' in module and 'zoneId: zoneId' in module, 'Keep environment and zone scope'
+          manual = Path('lib/admin_manual_identity.dart').read_text()
+          assert 'AdminBoliviaKycPanel(' in manual, 'Manual document reviews must remain accessible'
+          print('PASS: production/preview identity UI is manual-only, no legacy session feed.')
+          PY
+
       - name: Analyze admin modules
         run: |
           flutter analyze --no-fatal-warnings --no-fatal-infos \
