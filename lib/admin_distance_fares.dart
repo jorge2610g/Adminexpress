@@ -43,7 +43,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
   AdminEnvironmentStore get _environment => AdminEnvironmentStore(widget.channel);
 
   String _qaRecordKey(String zoneId, String serviceKey) =>
-      '${zoneId}::${serviceKey}';
+      '$zoneId::$serviceKey';
 
   final List<_Step> _steps = <_Step>[];
   String? _service;
@@ -188,7 +188,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(
+        SnackBar(content: Text(
             _environment.isPreview
                 ? 'Tarifas de prueba guardadas solo en Preview.'
                 : 'Tarifas escalonadas de Producción guardadas.')),
