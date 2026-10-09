@@ -1,3 +1,9 @@
+## Semilla QA de países — sin escritura de Producción
+
+En la PR #51 la pantalla Preview incorpora el botón `Preparar países QA` que solo aparece en Preview y requiere confirmación. Lee por RPC administrativo la lista de países existente **solo como referencia** y crea nuevas filas en el almacenamiento shadow `admin_environment_config`; el país y el registro de conductores están inicialmente desactivados para evitar una activación accidental. Nunca sobrescribe países QA existentes ni modifica `service_countries` de Producción. No se ha ejecutado la semilla contra Supabase; se requiere QA manual del administrador antes de considerar la funcionalidad certificada.
+
+---
+
 ## Control de promoción y trazabilidad — 2026-10-09
 
 Antes de fusionar una PR del panel, GitHub Actions debe generar un inventario de archivos con SHA de base, SHA del commit de QA y hash de archivos mediante `.github/workflows/release-change-inventory.yml`. Recalcular si cambia el código después del QA. La vista Preview no debe activar pagos/zonas reales por cambios del frontend; backend continúa siendo la barrera final, no un parámetro manipulable de UI. **Registro de cambios no equivale a permiso de desplegar**: bloqueo de RPC administrativas sin canal sigue pendiente. Backups principales disponibles en `backup/2026-10-09-before-preview-production-safety` para este trabajo. 
