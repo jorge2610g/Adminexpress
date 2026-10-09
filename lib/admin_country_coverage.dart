@@ -427,10 +427,7 @@ class _AdminCountryCoveragePageState
                             registration ? 'Registro ON' : 'Registro OFF',
                             active && registration,
                           ),
-                          _status(
-                            didit ? 'Didit ON' : 'Didit OFF',
-                            didit,
-                          ),
+                          _status('Verificación manual', true),
                           IconButton(
                             tooltip: 'Editar país',
                             onPressed: () => _edit(row),
