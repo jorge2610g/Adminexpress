@@ -200,6 +200,18 @@ jobs:
           # never silently resolve to the live production store.
           docs = Path('lib/admin_driver_document_requirements.dart').read_text()
           assert docs.count('AdminEnvironmentStore(widget.channel)') == 3
+          # Distance fare editor must never read or mutate live fare tiers from Preview.
+          distance = Path('lib/admin_distance_fares.dart').read_text()
+          assert "AdminEnvironmentStore(widget.channel)" in distance
+          assert "if (_environment.isPreview) {" in distance
+          assert "_environment.previewGet(" in distance
+          assert "_environment.previewUpsert(" in distance
+          assert distance.count("'zone_distance_fare_steps'") >= 2
+          assert "_qaRecordKey(zone, service)" in distance
+          assert "'admin_distance_fare_steps_replace'" in distance
+          assert "'admin_distance_fare_steps_get'" in distance
+          assert "Tarifas de prueba guardadas solo en Preview." in distance
+          assert "Ambas páginas Admin usan estas reglas." not in distance
           countries = Path('lib/admin_country_coverage.dart').read_text()
           assert 'AdminEnvironmentStore(widget.channel)' in countries
           assert "AdminEnvironmentStore('production')" not in countries
@@ -264,7 +276,8 @@ jobs:
             lib/admin_dynamic_pricing.dart \
             lib/admin_manual_identity.dart \
             lib/admin_driver_document_requirements.dart \
-            lib/admin_country_coverage.dart
+            lib/admin_country_coverage.dart \
+            lib/admin_distance_fares.dart
       - name: Verify active polygon vs radio zone labels
         run: flutter test test/admin_zone_coverage_label_test.dart
       - name: Verify invalid environment channel fails closed in release and QA

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
+import 'admin_environment_store.dart';
 
-/// Live, shared business configuration. This is NOT QA trip or driver data.
-/// Both admin websites use the same protected RPC with their own access scope.
+/// Production distance fares use the existing operational RPCs.
+/// Preview reads/writes only the isolated QA shadow: it MUST NEVER alter
+/// zone_distance_fare_steps consumed by real passenger fare calculations.
 class AdminDistanceFaresEditor extends StatefulWidget {
   const AdminDistanceFaresEditor({
     super.key,
@@ -38,6 +40,11 @@ class _Step {
 }
 
 class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
+  AdminEnvironmentStore get _environment => AdminEnvironmentStore(widget.channel);
+
+  String _qaRecordKey(String zoneId, String serviceKey) =>
+      '$zoneId::$serviceKey';
+
   final List<_Step> _steps = <_Step>[];
   String? _service;
   String? _error;
@@ -98,14 +105,19 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
       return;
     }
     try {
-      final raw = await supabase.rpc(
-        'admin_distance_fare_steps_get',
-        params: {
-          'p_channel': widget.channel,
-          'p_zone_id': zone,
-          'p_service_key': service,
-        },
-      );
+      final raw = _environment.isPreview
+          ? await _environment.previewGet(
+              'zone_distance_fare_steps',
+              recordKey: _qaRecordKey(zone, service),
+            )
+          : await supabase.rpc(
+              'admin_distance_fare_steps_get',
+              params: {
+                'p_channel': widget.channel,
+                'p_zone_id': zone,
+                'p_service_key': service,
+              },
+            );
       if (!mounted || revision != _revision) return;
       if (raw is! Map) throw StateError('Respuesta de tarifas no válida');
       final data = Map<String, dynamic>.from(raw);
@@ -156,16 +168,30 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
       _error = null;
     });
     try {
-      await supabase.rpc('admin_distance_fare_steps_replace', params: {
-        'p_channel': widget.channel,
-        'p_zone_id': zone,
-        'p_service_key': service,
-        'p_steps': steps,
-      });
+      if (_environment.isPreview) {
+        await _environment.previewUpsert(
+          'zone_distance_fare_steps',
+          _qaRecordKey(zone, service),
+          <String, dynamic>{
+            'zone_id': zone,
+            'service_key': service,
+            'steps': steps,
+          },
+        );
+      } else {
+        await supabase.rpc('admin_distance_fare_steps_replace', params: {
+          'p_channel': widget.channel,
+          'p_zone_id': zone,
+          'p_service_key': service,
+          'p_steps': steps,
+        });
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(
-            'Tarifas escalonadas guardadas. Ambas páginas Admin usan estas reglas.')),
+        SnackBar(content: Text(
+            _environment.isPreview
+                ? 'Tarifas de prueba guardadas solo en Preview.'
+                : 'Tarifas escalonadas de Producción guardadas.')),
       );
       await _load();
     } catch (error) {
@@ -203,6 +229,23 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
                   style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17))),
               ],
             ),
+            if (_environment.isPreview) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7E6),
+                  border: Border.all(color: const Color(0xFFF5D58A)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'PREVIEW · Simulación QA: estos escalones no modifican '
+                  'las tarifas de pasajeros ni los precios de Producción.',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             Text('Configura cuánto cuesta cada tramo en $currency. '
                 'Los límites son inclusivos: 3 km = primer tramo, '

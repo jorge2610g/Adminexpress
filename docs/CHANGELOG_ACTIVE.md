@@ -1,3 +1,16 @@
+## 2026-10-09 — Tarifa por distancia exclusivamente QA en Preview
+
+La pantalla `AdminDistanceFaresEditor` tenía una vía de escritura compartida:
+`admin_distance_fare_steps_replace` con `p_channel=preview` aún borraba/insertaba registros reales de `zone_distance_fare_steps`, pese a mostrar un canal QA. Se corrigió sin alterar el flujo de Producción:
+
+- **Preview** lee/escribe solamente `admin_environment_config` mediante `AdminEnvironmentStore.previewGet/previewUpsert`, módulo `zone_distance_fare_steps`, clave determinística `zone_id::service_key`.
+- **Producción** conserva exactamente sus RPC históricas `admin_distance_fare_steps_get` y `admin_distance_fare_steps_replace`.
+- En Preview sin registros QA, se muestra la lista vacía (no se importan ni reutilizan precios reales); al guardar, sólo se registra la simulación.
+- Los mensajes de confirmación distinguen Preview de Producción. CI verifica ambas rutas y analiza la pantalla.
+- **No se hizo migración de datos**, ni se modificaron precios de viajes reales. Es una mejora de seguridad de UI; debe complementarse con denegación SQL de `p_channel=preview` y vigilancia de funciones heredadas sin canal.
+
+---
+
 ## 2026-10-09 — Descartar canales administrativos inválidos de forma segura
 
 - `AdminEnvironmentStore` conserva la misma interfaz pública (constructor `const`, getters `isPreview/isProduction`). Para valores válidos `preview` y `production`, el comportamiento no cambia.

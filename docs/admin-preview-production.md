@@ -1,3 +1,9 @@
+### Tarifas escalonadas por distancia: Preview aislado
+
+El editor `lib/admin_distance_fares.dart` ya no utiliza para Preview las RPC que leen y reemplazan las reglas de distancia operativa real. En Preview, almacena `steps` bajo módulo `zone_distance_fare_steps` en `admin_environment_config`, clave `zoneId::serviceKey` y lista de tramos con `up_to_km`/`fare`. Producción mantiene el mismo comportamiento previo con RPCs y precios reales. La QA shadow representa **configuración para pruebas**, no se aplica automáticamente al algoritmo real de precios de pasajero ni puede considerarse una cotización end-to-end sin infraestructura runtime de QA equivalente. Revisar separación server-side antes de entregar pruebas móviles reales.
+
+---
+
 ## Validación estricta de canal
 
 Al crear un `AdminEnvironmentStore` con un nombre de canal distinto de `preview` o `production`, las rutas consultadas mediante `isPreview` e `isProduction` fallan con `StateError` en vez de interpretarlo accidentalmente como el canal real. El frontend suma protección frente a bugs de enrutamiento pero NO equivale al límite criptográfico ni sustituye la revisión de RPC de servidor que sigue pendiente.
