@@ -5,9 +5,20 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      preview_only:
+        description: 'Deploy a pinned QA commit ONLY to /preview/; preserve production files byte for byte.'
+        type: boolean
+        required: false
+        default: false
+      preview_source_sha:
+        description: 'Full commit SHA on QA branch (required when preview_only=true).'
+        type: string
+        required: false
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -17,6 +28,7 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ !contains(github.event.head_commit.message, '[deploy-preview-only]') && !(inputs.preview_only == true) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -114,12 +126,129 @@ jobs:
         with:
           path: build/site
 
+  preview_only:
+    if: ${{ contains(github.event.head_commit.message, '[deploy-preview-only]') || inputs.preview_only == true }}
+    runs-on: ubuntu-latest
+    env:
+      PREVIEW_SHA: ${{ github.event_name == 'push' && '71ff9dfd476088dfaf04ac9f84b455fbb569c0d7' || inputs.preview_source_sha }}
+    steps:
+      - name: Validate pinned QA source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PREVIEW_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Full Preview SHA is required"; exit 1; }
+          if [[ "$PREVIEW_SHA" = "${{ github.sha }}" ]]; then
+            echo "ERROR: Preview QA source cannot be the deployment workflow commit."
+            exit 1
+          fi
+
+      - name: Download current Production Pages artifact (known-good build)
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          run-id: 37890547971
+          github-token: ${{ github.token }}
+          path: pages-prod
+
+      - name: Restore Production bytes and verify published site
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/site
+          test -f pages-prod/artifact.tar
+          tar -xf pages-prod/artifact.tar -C build/site
+          test -s build/site/main.dart.js
+          test -s build/site/flutter_bootstrap.js
+          test -s build/site/index.html
+          test -s build/site/version.json
+          test -s build/site/preview/index.html
+          BASE="https://admin.expressviajes.online"
+          for FILE in index.html flutter_bootstrap.js main.dart.js version.json; do
+            curl --fail --location --silent --show-error --retry 3 --max-time 90 \
+              -H "Cache-Control: no-cache" "$BASE/$FILE" -o "/tmp/live-$FILE"
+            cmp "/tmp/live-$FILE" "build/site/$FILE" || {
+              echo "ERROR: published Production $FILE does not match archived bytes; abort Preview-only deploy."
+              exit 1
+            }
+          done
+          find build/site -type f ! -path 'build/site/preview/*' -print0 \
+            | sort -z | xargs -0 sha256sum > /tmp/exact-prod-manifest
+          echo "PASS: Production site matches published artifact exactly."
+
+      - name: Checkout pinned Preview QA code without changing main
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.PREVIEW_SHA }}
+          path: preview-source
+
+      - name: Validate QA commit and project isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C preview-source rev-parse HEAD)" = "$PREVIEW_SHA"
+          grep -q "admin_zone_list_scoped" preview-source/lib/admin_detail_dialogs.dart
+          grep -q "Aprobar documento" preview-source/lib/admin_detail_dialogs.dart
+          grep -q "AdminEnvironmentLinkButton" preview-source/lib/admin_panel.dart
+          grep -q "xbphilqezmwfjfpdbwad" preview-source/lib/core/supabase_client.dart
+          echo "PASS: tested, pinned Preview source and isolated Supabase config."
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install Preview dependencies
+        working-directory: preview-source
+        run: flutter pub get
+
+      - name: Analyze Preview driver review
+        working-directory: preview-source
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos lib/admin_detail_dialogs.dart lib/admin_panel.dart lib/core/supabase_client.dart
+
+      - name: Build Preview only (dedicated Supabase database)
+        working-directory: preview-source
+        run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
+
+      - name: Replace ONLY Preview files; verify every Production byte
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${PREVIEW_SHA}#g" preview-source/build/web/index.html
+          if [ -f preview-source/build/web/flutter_bootstrap.js ]; then
+            sed -i "s#main.dart.js#main.dart.js?v=${PREVIEW_SHA}#g" preview-source/build/web/flutter_bootstrap.js
+          fi
+          rm -rf build/site/preview
+          mkdir -p build/site/preview
+          cp -a preview-source/build/web/. build/site/preview/
+          cp build/site/version.json build/site/preview/version.json
+          python3 - <<'PY'
+          import json, os, datetime
+          from pathlib import Path
+          path = Path('build/site/preview/version.json')
+          data = json.loads(path.read_text())
+          data['environment'] = 'preview'
+          data['supabase_project_ref'] = 'xbphilqezmwfjfpdbwad'
+          data['commit'] = os.environ['PREVIEW_SHA']
+          data['deployed_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          path.write_text(json.dumps(data, indent=2))
+          PY
+          find build/site -type f ! -path 'build/site/preview/*' -print0 \
+            | sort -z | xargs -0 sha256sum > /tmp/after-prod-manifest
+          cmp /tmp/exact-prod-manifest /tmp/after-prod-manifest
+          echo "PASS: Only /preview/ changed; Production files are byte-identical."
+
+      - name: Upload isolated Preview Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: build/site
+
   deploy:
+    if: ${{ always() && (needs.build.result == 'success' || needs.preview_only.result == 'success') }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, preview_only]
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
