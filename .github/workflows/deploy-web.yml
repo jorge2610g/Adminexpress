@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/admin-driver-review-simple-preview-zones-20261009
   workflow_dispatch:
 
 permissions:
@@ -15,12 +16,17 @@ concurrency:
   group: adminexpress-pages
   cancel-in-progress: true
 
+env:
+  PREVIEW_BUILD_DIR: ${{ github.ref_name == 'fix/admin-driver-review-simple-preview-zones-20261009' && 'preview-source/build/web' || 'build/web' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout production-pinned code
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name == 'fix/admin-driver-review-simple-preview-zones-20261009' && 'main' || github.sha }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -47,9 +53,10 @@ jobs:
       - name: Bust Flutter web cache
         shell: bash
         run: |
-          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${GITHUB_SHA}#g" build/web/index.html
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${SOURCE_SHA}#g" build/web/index.html
           if [ -f build/web/flutter_bootstrap.js ]; then
-            sed -i "s#main.dart.js#main.dart.js?v=${GITHUB_SHA}#g" build/web/flutter_bootstrap.js
+            sed -i "s#main.dart.js#main.dart.js?v=${SOURCE_SHA}#g" build/web/flutter_bootstrap.js
           fi
 
       - name: Write deployed version marker
@@ -66,7 +73,7 @@ jobs:
             "version": "${VERSION_NAME}",
             "build": "${BUILD_NUMBER}",
             "display": "Adminexpress v${VERSION_NAME} · build ${BUILD_NUMBER}",
-            "commit": "${GITHUB_SHA}",
+            "commit": "$(git rev-parse HEAD)",
             "deployed_at": "${DEPLOYED_AT}"
           }
           EOF
@@ -78,22 +85,53 @@ jobs:
           mkdir -p build/site
           cp -a build/web/. build/site/
 
+      - name: Prevent modifying production when testing Preview
+        if: github.ref_name == 'fix/admin-driver-review-simple-preview-zones-20261009'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://admin.expressviajes.online"
+          curl --fail --location --silent --show-error --retry 3 --max-time 100 "$BASE/main.dart.js" -o /tmp/express-live-main.js
+          cmp /tmp/express-live-main.js build/site/main.dart.js || {
+            echo "ERROR: production JS differs from currently published main. QA deploy aborted."
+            exit 1
+          }
+          curl --fail --location --silent --show-error --retry 3 --max-time 100 "$BASE/flutter_bootstrap.js" -o /tmp/express-live-bootstrap.js
+          cmp /tmp/express-live-bootstrap.js build/site/flutter_bootstrap.js || {
+            echo "ERROR: production bootstrap differs. QA deploy aborted."
+            exit 1
+          }
+          curl --fail --location --silent --show-error --retry 3 --max-time 30 "$BASE/version.json" -o build/site/version.json
+
+      - name: Checkout Preview QA source from unmerged branch
+        if: github.ref_name == 'fix/admin-driver-review-simple-preview-zones-20261009'
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          path: preview-source
+
+      - name: Install Preview QA dependencies
+        if: github.ref_name == 'fix/admin-driver-review-simple-preview-zones-20261009'
+        working-directory: preview-source
+        run: flutter pub get
+
       - name: Build independent Admin Preview
+        working-directory: ${{ github.ref_name == 'fix/admin-driver-review-simple-preview-zones-20261009' && 'preview-source' || '.' }}
         run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
 
       - name: Bust Preview web cache
         shell: bash
         run: |
-          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${GITHUB_SHA}#g" build/web/index.html
-          if [ -f build/web/flutter_bootstrap.js ]; then
-            sed -i "s#main.dart.js#main.dart.js?v=${GITHUB_SHA}#g" build/web/flutter_bootstrap.js
+          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${GITHUB_SHA}#g" "$PREVIEW_BUILD_DIR/index.html"
+          if [ -f "$PREVIEW_BUILD_DIR/flutter_bootstrap.js" ]; then
+            sed -i "s#main.dart.js#main.dart.js?v=${GITHUB_SHA}#g" "$PREVIEW_BUILD_DIR/flutter_bootstrap.js"
           fi
 
       - name: Install Preview as separate site
         shell: bash
         run: |
           mkdir -p build/site/preview
-          cp -a build/web/. build/site/preview/
+          cp -a "$PREVIEW_BUILD_DIR/." build/site/preview/
           cp build/site/version.json build/site/preview/version.json
           python3 - <<'PY'
           import json
@@ -105,6 +143,8 @@ jobs:
               path = Path(name)
               data = json.loads(path.read_text())
               data['environment'] = label
+              if label == 'preview':
+                  data['commit'] = '${{ github.sha }}'
               data['supabase_project_ref'] = project
               path.write_text(json.dumps(data, indent=2))
           PY
