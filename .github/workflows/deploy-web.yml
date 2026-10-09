@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -34,9 +35,11 @@ jobs:
           channel: stable
 
       - name: Install dependencies
+        if: github.ref_name != 'fix/admin-driver-review-simple-preview-zones-20261009'
         run: flutter pub get
 
       - name: Analyze production-critical admin modules
+        if: github.ref_name != 'fix/admin-driver-review-simple-preview-zones-20261009'
         run: |
           flutter analyze --no-fatal-warnings --no-fatal-infos \
             lib/admin_panel.dart \
@@ -48,9 +51,11 @@ jobs:
             lib/admin_environment_store.dart
 
       - name: Build Flutter Web
+        if: github.ref_name != 'fix/admin-driver-review-simple-preview-zones-20261009'
         run: flutter build web --release --base-href / --dart-define=ADMIN_ENV=production
 
       - name: Bust Flutter web cache
+        if: github.ref_name != 'fix/admin-driver-review-simple-preview-zones-20261009'
         shell: bash
         run: |
           SOURCE_SHA="$(git rev-parse HEAD)"
@@ -60,6 +65,7 @@ jobs:
           fi
 
       - name: Write deployed version marker
+        if: github.ref_name != 'fix/admin-driver-review-simple-preview-zones-20261009'
         shell: bash
         run: |
           RAW_VERSION="$(grep '^version:' pubspec.yaml | awk '{print $2}')"
@@ -81,27 +87,42 @@ jobs:
       # GitHub Pages serves both builds from the SAME source commit but
       # different Supabase projects and different URLs.
       - name: Preserve production site
+        if: github.ref_name != 'fix/admin-driver-review-simple-preview-zones-20261009'
         run: |
           mkdir -p build/site
           cp -a build/web/. build/site/
 
-      - name: Prevent modifying production when testing Preview
+      # A staged Preview must not rebuild or modify ANY Production asset.
+      # Restore the last proven Production Pages artifact byte-for-byte,
+      # then replace only its preview/ subtree with this branch's build.
+      - name: Download known-good published Production bundle
+        if: github.ref_name == 'fix/admin-driver-review-simple-preview-zones-20261009'
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          run-id: 37890547971
+          github-token: ${{ github.token }}
+          path: /tmp/express-live-pages-bundle
+
+      - name: Preserve byte-identical Production and verify live website
         if: github.ref_name == 'fix/admin-driver-review-simple-preview-zones-20261009'
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p build/site
+          test -f /tmp/express-live-pages-bundle/artifact.tar
+          tar -xf /tmp/express-live-pages-bundle/artifact.tar -C build/site
+          test -f build/site/main.dart.js
+          test -f build/site/preview/index.html
           BASE="https://admin.expressviajes.online"
-          curl --fail --location --silent --show-error --retry 3 --max-time 100 "$BASE/main.dart.js" -o /tmp/express-live-main.js
-          cmp /tmp/express-live-main.js build/site/main.dart.js || {
-            echo "ERROR: production JS differs from currently published main. QA deploy aborted."
-            exit 1
-          }
-          curl --fail --location --silent --show-error --retry 3 --max-time 100 "$BASE/flutter_bootstrap.js" -o /tmp/express-live-bootstrap.js
-          cmp /tmp/express-live-bootstrap.js build/site/flutter_bootstrap.js || {
-            echo "ERROR: production bootstrap differs. QA deploy aborted."
-            exit 1
-          }
-          curl --fail --location --silent --show-error --retry 3 --max-time 30 "$BASE/version.json" -o build/site/version.json
+          for FILE in main.dart.js flutter_bootstrap.js index.html version.json; do
+            curl --fail --location --silent --show-error --retry 3 --max-time 100 "$BASE/$FILE" -o "/tmp/express-live-$FILE"
+            cmp "/tmp/express-live-$FILE" "build/site/$FILE" || {
+              echo "ERROR: archived production $FILE differs from published website. QA deploy aborted."
+              exit 1
+            }
+          done
+          echo "PASS: Production assets byte-identical to published GitHub Pages."
 
       - name: Checkout Preview QA source from unmerged branch
         if: github.ref_name == 'fix/admin-driver-review-simple-preview-zones-20261009'
@@ -131,6 +152,10 @@ jobs:
         shell: bash
         run: |
           mkdir -p build/site/preview
+          if [ "$GITHUB_REF_NAME" = "fix/admin-driver-review-simple-preview-zones-20261009" ]; then
+            rm -rf build/site/preview
+            mkdir -p build/site/preview
+          fi
           cp -a "$PREVIEW_BUILD_DIR/." build/site/preview/
           cp build/site/version.json build/site/preview/version.json
           python3 - <<'PY'
@@ -146,7 +171,8 @@ jobs:
               if label == 'preview':
                   data['commit'] = '${{ github.sha }}'
               data['supabase_project_ref'] = project
-              path.write_text(json.dumps(data, indent=2))
+              if label == 'preview' or not Path('preview-source').exists():
+                  path.write_text(json.dumps(data, indent=2))
           PY
 
       - name: Upload Pages artifact
