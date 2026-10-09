@@ -1,3 +1,14 @@
+## 2026-10-09 — Corrección segura de publicación exclusiva de Preview (rama PR #51)
+
+- La prueba desde una rama de trabajo generó un artefacto válido y conservó bytes de Producción, pero GitHub Pages bloqueó el job final por su entorno protegido. Se conserva la protección de GitHub Pages; **no** se abre a todas las ramas.
+- La vía existente de actualización Preview desde `main` se activa exclusivamente con el mensaje de merge `[deploy-preview-only]`. El build y el despliegue de Producción quedan omitidos; la compilación de QA usa ese mismo SHA de merge.
+- El workflow utiliza el último artefacto Prod probado contra el sitio real, run `37969274447` (SHA `30e60582a337be3911671742d780b240793497df`), y verifica la identidad **byte por byte** antes de preparar Preview. Si cambia Producción o falla algún hash, se aborta.
+- Tras la publicación, comprueba `version.json` de ambos sitios: Preview debe mostrar el SHA publicado y Producción el SHA estable anterior. No modifica Supabase, APK, AAB, Google Play ni el sistema de pagos.
+- Guía de aceptación y reversión: `docs/QA_PREVIEW_PRODUCTION_ACCEPTANCE_2026-10-09.md`.
+- **Aún NO equivale a certificar aislamiento de todas las RPC administrativas** ni permite promociones de datos de prueba a Producción.
+
+---
+
 ## 2026-10-09 — Prueba Preview-only de Pages, sin publicación
 
 - Se ensayó `Deploy Adminexpress Web to GitHub Pages` en rama QA, run `37990890621`, fuente exacta `a8a12585181d484d4767c03cb4aaed64c314a50e`.
