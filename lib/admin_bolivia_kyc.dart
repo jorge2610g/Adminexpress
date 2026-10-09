@@ -266,56 +266,21 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
           if (snapshot.hasError) return Card(child:Padding(
             padding:const EdgeInsets.all(14),
             child:Column(children:[
-              const Text('No se pudo consultar el método de Bolivia.'),
+              const Text('No se pudieron consultar los documentos.'),
               TextButton(onPressed:_reload,child:const Text('Reintentar')),
             ])));
           return const LinearProgressIndicator();
         }
         final data=snapshot.data!;
-        final cfg=_map(data['settings']);
         final docs=_list(data['documents']);
-        final mode=_text(cfg['preferred_method']).isEmpty
-            ? 'automatic':_text(cfg['preferred_method']);
-        final used=int.tryParse(_text(cfg['used']))??0;
-        final remaining=int.tryParse(_text(cfg['remaining']))??0;
-        return Card(
-          child:Padding(
-            padding:const EdgeInsets.all(16),
-            child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-              const Text('Bolivia · Control de reconocimiento de identidad',
-                style:TextStyle(fontWeight:FontWeight.w900,fontSize:18)),
-              const SizedBox(height:6),
-              Text('Didit: $used de 30 sesiones usadas este mes · '
-                '$remaining disponibles · Canal: ${widget.channel}',
-                style:const TextStyle(fontWeight:FontWeight.w700)),
-              const SizedBox(height:7),
-              LinearProgressIndicator(value:(used/30).clamp(0.0,1.0)),
-              const SizedBox(height:14),
-              DropdownButtonFormField<String>(
-                key:ValueKey('${widget.channel}-$mode'),
-                initialValue:mode,
-                decoration:const InputDecoration(
-                  labelText:'Método sugerido de verificación',
-                  border:OutlineInputBorder(),
-                ),
-                items:const [
-                  DropdownMenuItem(value:'automatic',
-                    child:Text('Automático · 30 Didit y luego manual')),
-                  DropdownMenuItem(value:'didit',
-                    child:Text('Preferir Didit (respetar límite)')),
-                  DropdownMenuItem(value:'manual',
-                    child:Text('Solo Express manual')),
-                ],
-                onChanged:_busy?null:(value) {
-                  if (value!=null) _setMethod(value);
-                },
-              ),
-              const SizedBox(height:8),
-              const Text('El contador utiliza el mes de Bolivia. '
-                'Al llegar a 30, el próximo registro usa capturas manuales. '
-                'Las verificaciones iniciadas mantienen su estado.',
-                style:TextStyle(fontSize:12)),
-              const SizedBox(height:18),
+        return Card(child:Padding(padding:const EdgeInsets.all(16),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+            const Text('Verificación manual de identidad',
+              style:TextStyle(fontWeight:FontWeight.w900,fontSize:18)),
+            const SizedBox(height:8),
+            const Text('Revisa cada fotografía del carné y la selfie '
+              'por separado. Puedes reactivar rechazos por error.'),
+            const SizedBox(height:18),
               Row(children:[
                 Expanded(child:Text(
                   'Identidades por revisar: ${docs.where((d) => d['status'] != 'verified').length}',
