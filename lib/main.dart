@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'admin_panel.dart';
 import 'core/supabase_client.dart';
+import 'core/admin_environment_navigation.dart';
 import 'partner_panel.dart';
 
 const adminExpressVersion = 'Adminexpress v1.0.1 · build 2';
@@ -329,6 +330,19 @@ class _AdminLoginState extends State<_AdminLogin> {
                               ),
                             ),
                           ],
+                          const SizedBox(height: 12),
+                          const Center(
+                            child: AdminEnvironmentLinkButton(),
+                          ),
+                          const SizedBox(height: 7),
+                          const Center(
+                            child: Text(
+                              'Cada entorno tiene su propia sesión y permisos.',
+                              style: TextStyle(
+                                fontSize: 11, color: Color(0xFF667085),
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 18),
                           const Center(
                             child: Text(
