@@ -8,6 +8,7 @@ import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
 import 'admin_driver_document_requirements.dart';
 import 'admin_country_coverage.dart';
+import 'admin_admob_settings.dart';
 
 const Color _blue = Color(0xFF2563EB);
 const Color _dark = Color(0xFF0F172A);
@@ -8012,6 +8013,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       'Tarifas',
       'Soporte',
       'Seguridad',
+      'Admin',
     ];
 
     Widget content;
@@ -8188,6 +8190,9 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           ],
         );
         break;
+      case 7:
+        content = AdminAdMobSettingsPage(channel: widget.channel);
+        break;
       default:
         content = Column(
           children: [
@@ -8231,7 +8236,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           title: 'Configuración',
           subtitle: 'Administra los parámetros generales de Express Delivery.',
           action: FilledButton.icon(
-            onPressed: loading || saving ? null : _save,
+            onPressed: loading || saving || settingsTab == 7 ? null : _save,
             icon: saving
                 ? const SizedBox.square(
                     dimension: 16,
