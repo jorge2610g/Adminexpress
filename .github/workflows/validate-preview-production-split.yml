@@ -180,6 +180,14 @@ jobs:
           assert '--dart-define=ADMIN_ENV=preview' in workflow
           assert '--base-href /preview/' in workflow
           assert 'path: build/site' in workflow
+          navigation = Path('lib/core/admin_environment_navigation.dart').read_text()
+          login = Path('lib/main.dart').read_text()
+          assert "adminIsPreview ? 'Ir a Producción' : 'Ir a Prueba'" in navigation
+          assert "Uri.base.resolve(adminIsPreview ? '../' : 'preview/')" in navigation
+          assert "webOnlyWindowName: '_self'" in navigation
+          assert 'supabase.auth' not in navigation and 'Supabase.initialize' not in navigation
+          assert 'AdminEnvironmentLinkButton()' in panel
+          assert 'AdminEnvironmentLinkButton()' in login
           print('PASS: deployed sites use separately pinned physical Supabase projects.')
           PY
 
@@ -193,6 +201,7 @@ jobs:
             lib/admin_control_sections.dart \
             lib/admin_driver_subscriptions.dart \
             lib/admin_environment_store.dart \
+            lib/core/admin_environment_navigation.dart \
             lib/admin_marketplace.dart \
             lib/admin_marketplace_phase2.dart \
             lib/admin_driver_priority.dart \
