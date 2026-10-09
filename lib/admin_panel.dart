@@ -17,7 +17,7 @@ import 'admin_dynamic_pricing.dart';
 import 'admin_detail_dialogs.dart';
 import 'admin_environment_reports.dart';
 import 'admin_environment_audit.dart';
-import 'admin_didit.dart';
+import 'admin_manual_identity.dart';
 
 const Color adminBlue = Color(0xFF2563EB);
 const Color adminDark = Color(0xFF0F172A);
@@ -286,7 +286,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Delivery Fase 2 / Express Plus', Icons.delivery_dining_rounded),
     ('Prioridad conductores', Icons.workspace_premium_outlined),
     ('Pedidos Delivery', Icons.receipt_long_rounded),
-    ('Didit', Icons.fingerprint_rounded),
+    ('Verificación manual', Icons.fact_check_outlined),
     ('Demanda y precios', Icons.trending_up_rounded),
   ];
 
@@ -1404,7 +1404,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 27:
-        return AdminDiditPage(
+        return AdminManualIdentityPage(
           channel: adminChannel,
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
