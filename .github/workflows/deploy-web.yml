@@ -83,8 +83,8 @@ jobs:
           }
           EOF
 
-      # GitHub Pages serves both builds from the SAME source commit but
-      # different Supabase projects and different URLs.
+      # GitHub Pages serves two URLs built with separate ADMIN_ENV values.
+      # Both share the main Supabase but Preview uses QA-only runtime scope.
       - name: Preserve production site
         run: |
           mkdir -p build/site
@@ -112,11 +112,12 @@ jobs:
           from pathlib import Path
           for name, label, project in [
               ('build/site/version.json', 'production', 'zgpijrznvaskgcmauwxx'),
-              ('build/site/preview/version.json', 'preview', 'xbphilqezmwfjfpdbwad'),
+              ('build/site/preview/version.json', 'preview', 'zgpijrznvaskgcmauwxx'),
           ]:
               path = Path(name)
               data = json.loads(path.read_text())
               data['environment'] = label
+              data['data_channel'] = label
               data['supabase_project_ref'] = project
               path.write_text(json.dumps(data, indent=2))
           PY
@@ -130,15 +131,17 @@ jobs:
     if: ${{ contains(github.event.head_commit.message, '[deploy-preview-only]') || inputs.preview_only == true }}
     runs-on: ubuntu-latest
     env:
-      PREVIEW_SHA: ${{ github.event_name == 'push' && '71ff9dfd476088dfaf04ac9f84b455fbb569c0d7' || inputs.preview_source_sha }}
+      PREVIEW_SHA: ${{ github.event_name == 'push' && github.sha || inputs.preview_source_sha }}
     steps:
       - name: Validate pinned QA source
         shell: bash
         run: |
           set -euo pipefail
           [[ "$PREVIEW_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Full Preview SHA is required"; exit 1; }
-          if [[ "$PREVIEW_SHA" = "${{ github.sha }}" ]]; then
-            echo "ERROR: Preview QA source cannot be the deployment workflow commit."
+          # A tagged main push builds exactly that commit for Preview only.
+          # Manual dispatch may instead pin an independent reviewed SHA.
+          if [[ "${{ github.event_name }}" != "push" && "$PREVIEW_SHA" = "${{ github.sha }}" ]]; then
+            echo "ERROR: manual QA SHA must differ from the workflow ref."
             exit 1
           fi
 
@@ -189,7 +192,12 @@ jobs:
           grep -q "admin_zone_list_scoped" preview-source/lib/admin_detail_dialogs.dart
           grep -q "Aprobar documento" preview-source/lib/admin_detail_dialogs.dart
           grep -q "AdminEnvironmentLinkButton" preview-source/lib/admin_panel.dart
-          grep -q "xbphilqezmwfjfpdbwad" preview-source/lib/core/supabase_client.dart
+          grep -q "const supabaseUrl = _productionUrl;" preview-source/lib/core/supabase_client.dart
+          grep -q "if (adminIsPreview && !_previewScopedModules.contains(value))" preview-source/lib/admin_panel.dart
+          if grep -q "xbphilqezmwfjfpdbwad" preview-source/lib/core/supabase_client.dart; then
+            echo "ERROR: Preview must not connect to the separate Supabase database."
+            exit 1
+          fi
           echo "PASS: tested, pinned Preview source and isolated Supabase config."
 
       - name: Setup Flutter
@@ -227,7 +235,8 @@ jobs:
           path = Path('build/site/preview/version.json')
           data = json.loads(path.read_text())
           data['environment'] = 'preview'
-          data['supabase_project_ref'] = 'xbphilqezmwfjfpdbwad'
+          data['supabase_project_ref'] = 'zgpijrznvaskgcmauwxx'
+          data['data_channel'] = 'preview'
           data['commit'] = os.environ['PREVIEW_SHA']
           data['deployed_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
           path.write_text(json.dumps(data, indent=2))
