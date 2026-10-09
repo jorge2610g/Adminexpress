@@ -171,7 +171,10 @@ jobs:
           assert 'xbphilqezmwfjfpdbwad' in config
           assert 'validateAdminDeployment()' in config
           assert "String adminChannel = adminIsPreview ? 'preview' : 'production';" in panel
-          assert 'SegmentedButton<String>(' not in panel.split('Widget _environmentSwitcher() {')[1].split('void _goTo(', 1)[0]\n          assert "allowPreview = adminIsPreview" in panel\n          assert "allowProduction = !adminIsPreview" in panel\n          assert "if (adminChannel == 'preview' && !adminIsPreview)" in panel
+          assert 'SegmentedButton<String>(' not in panel.split('Widget _environmentSwitcher() {')[1].split('void _goTo(', 1)[0]
+          assert "allowPreview = adminIsPreview" in panel
+          assert "allowProduction = !adminIsPreview" in panel
+          assert "if (adminChannel == 'preview' && !adminIsPreview)" in panel
           assert 'productionAccess: allowProduction && !adminIsPreview' in panel
           assert '--dart-define=ADMIN_ENV=production' in workflow
           assert '--dart-define=ADMIN_ENV=preview' in workflow
