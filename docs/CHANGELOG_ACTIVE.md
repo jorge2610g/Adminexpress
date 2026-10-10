@@ -1,3 +1,13 @@
+## 2026-10-10 — Google OAuth de Preview retornaba a la web de pasajeros
+
+- Vídeo de QA: seleccionar Google en `/preview/` termina en `https://expressviajes.online/` en vez del panel. No se confirmó ingreso administrativo; no retirar permisos del administrador anterior.
+- Se fijó el `redirectTo` a la URL exacta `https://admin.expressviajes.online/preview/` en el cliente Preview, con guard CI. El código anterior usaba `Uri.base`.
+- Queda **pendiente** validar/agregar esa URL exacta en Supabase principal **Authentication > URL Configuration > Redirect URLs**; el conector disponible no administra esa configuración. No tocar la Site URL global ni borrar retornos de la app de pasajeros.
+- No cambiar claves, permisos, identidad ni desplegar Producción.
+- Procedimiento en `docs/ADMIN_PREVIEW_GOOGLE_OAUTH_CALLBACK_2026-10-10.md`.
+
+---
+
 ## 2026-10-09 — Sesiones independientes y acceso administrativo por canal
 
 - Se detectó que las dos rutas del panel `/` (Producción) y
