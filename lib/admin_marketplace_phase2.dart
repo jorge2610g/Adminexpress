@@ -1307,7 +1307,12 @@ class _AdminMarketplacePhase2PageState
     required String countLabel,
     required VoidCallback onTap,
   }) {
-    return Card(
+    return Material(
+      color: AdminColors.surface,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AdminColors.border),
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
@@ -1690,9 +1695,9 @@ class _AdminMarketplacePhase2PageState
               const SizedBox(height: 22),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final columns = constraints.maxWidth >= 1050
+                  final columns = constraints.maxWidth >= 900
                       ? 3
-                      : constraints.maxWidth >= 680
+                      : constraints.maxWidth >= 600
                           ? 2
                           : 1;
                   final gap = 12.0;
@@ -1744,10 +1749,9 @@ class _AdminMarketplacePhase2PageState
                 },
               ),
               const SizedBox(height: 18),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
+              AdminCard(
+                padding: const EdgeInsets.all(16),
+                child: Row(
                     children: [
                       const CircleAvatar(
                         backgroundColor: AdminColors.blueSoft,
