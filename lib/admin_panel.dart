@@ -4785,7 +4785,7 @@ class _RecordsState extends State<_Records> {
           )
         else if (showDesktopTable)
           AdminRecordsTable(
-            kind: tableKind,
+            kind: tableKind!,
             rows: visible,
             detailBuilder: widget.item,
             tryOpen: (row) {
