@@ -288,6 +288,7 @@ jobs:
             lib/core/admin_widgets.dart \
             lib/core/admin_design_tokens.dart \
             lib/core/admin_records_table.dart \
+            lib/core/admin_delivery_row.dart \
             lib/core/supabase_client.dart \
             lib/admin_single_app_release.dart \
             lib/admin_environment_reports.dart \
@@ -308,6 +309,7 @@ jobs:
         run: |
           flutter test test/admin_mockup_widgets_test.dart
           flutter test test/admin_records_table_test.dart
+          flutter test test/admin_delivery_row_test.dart
       - name: Verify active polygon vs radio zone labels
         run: flutter test test/admin_zone_coverage_label_test.dart
       - name: Verify invalid environment channel fails closed in release and QA
