@@ -910,18 +910,24 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              AdminPageHero(
+              AdminPlainPageHeading(
                 title: 'Express Market',
                 subtitle: 'Administra el módulo para Preview y Producción desde un solo lugar.',
-                icon: Icons.storefront_rounded,
-                trailing: OutlinedButton.icon(
-                  onPressed: _refresh,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Actualizar'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white54),
-                  ),
+                trailing: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _refresh,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Actualizar'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () => _editSettings(settings),
+                      icon: const Icon(Icons.settings_outlined),
+                      label: const Text('Configuración'),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 14),
