@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'core/admin_design_tokens.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -44,7 +46,7 @@ class AdminZoneCoverageEditor extends StatelessWidget {
         )),
         const SizedBox(height: 5),
         const Text('Selecciona un solo método. El otro no tendrá efecto.',
-          style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+          style: TextStyle(color: AdminColors.muted, fontSize: 12),
         ),
         const SizedBox(height: 12),
         SegmentedButton<String>(
@@ -131,7 +133,7 @@ class AdminZoneCoverageEditor extends StatelessWidget {
                     radius: ((_radius ?? 0) * 1000).clamp(0, 1000000).toDouble(),
                     useRadiusInMeter: true,
                     color: const Color(0x202563EB),
-                    borderColor: const Color(0xFF2563EB),
+                    borderColor: AdminColors.blue,
                     borderStrokeWidth: 2,
                   ),
                 ]),
@@ -139,7 +141,7 @@ class AdminZoneCoverageEditor extends StatelessWidget {
                   Marker(
                     point: LatLng(_lat!, _lng!), width: 40, height: 40,
                     child: const Icon(Icons.location_pin,
-                      size: 37, color: Color(0xFF2563EB)),
+                      size: 37, color: AdminColors.blue),
                   ),
                 ]),
               ],
@@ -148,7 +150,7 @@ class AdminZoneCoverageEditor extends StatelessWidget {
                   Polygon(
                     points: polygonPoints,
                     color: const Color(0x202563EB),
-                    borderColor: const Color(0xFF2563EB),
+                    borderColor: AdminColors.blue,
                     borderStrokeWidth: 2,
                   ),
                 ]),
@@ -160,7 +162,7 @@ class AdminZoneCoverageEditor extends StatelessWidget {
                       child: Container(
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2563EB),
+                          color: AdminColors.blue,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
