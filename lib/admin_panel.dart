@@ -8,6 +8,7 @@ import 'core/admin_design_tokens.dart';
 import 'core/admin_widgets.dart';
 import 'core/admin_records_table.dart';
 import 'core/admin_delivery_row.dart';
+import 'core/admin_sos_row.dart';
 import 'admin_environment_store.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
@@ -2294,33 +2295,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               'Emergencias activas registradas desde Viajes y Delivery.',
           empty: 'No hay emergencias abiertas.',
           rows: rows,
-          item: (row) => Card(
-            margin: const EdgeInsets.only(bottom: 10),
-            elevation: 0,
-            child: ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFFFE4E8),
-                child: Icon(Icons.sos_rounded, color: Color(0xFFD92D20)),
-              ),
-              title: Text(
-                row['user_name']?.toString().trim().isNotEmpty == true
-                    ? row['user_name'].toString()
-                    : 'Usuario Express',
-              ),
-              subtitle: Text(
-                (row['status'] ?? 'open').toString() +
-                    ' · ' +
-                    _formatDate(row['created_at']),
-              ),
-              trailing: _isZoneMonitor
-                  ? null
-                  : FilledButton.icon(
-                      onPressed: () =>
-                          _resolveEmergency(row['id'].toString()),
-                      icon: const Icon(Icons.check_circle_outline_rounded),
-                      label: const Text('Resolver'),
-                    ),
-            ),
+          item: (row) => AdminSosRow(
+            row: row,
+            onResolve: _isZoneMonitor
+                ? null
+                : () => _resolveEmergency(row['id'].toString()),
           ),
         );
       },
