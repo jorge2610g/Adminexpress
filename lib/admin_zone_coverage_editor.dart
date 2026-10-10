@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_zone_coverage_mode_selector.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -49,15 +50,9 @@ class AdminZoneCoverageEditor extends StatelessWidget {
           style: TextStyle(color: AdminColors.muted, fontSize: 12),
         ),
         const SizedBox(height: 12),
-        SegmentedButton<String>(
-          segments: const [
-            ButtonSegment(value: 'radius', icon: Icon(Icons.radar_rounded),
-              label: Text('Radio')),
-            ButtonSegment(value: 'polygon', icon: Icon(Icons.polyline_rounded),
-              label: Text('Polígono')),
-          ],
-          selected: {mode},
-          onSelectionChanged: (s) => onModeChanged(s.first),
+        AdminZoneCoverageModeSelector(
+          mode: mode,
+          onChanged: onModeChanged,
         ),
         const SizedBox(height: 12),
         Text(
