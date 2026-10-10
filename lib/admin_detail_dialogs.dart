@@ -499,110 +499,61 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     }
   }
 
-  Future<void> _reviewDocument(
-    Map<String, dynamic> document,
-    String newStatus,
-  ) async {
-    if (saving) return;
-    final documentId = document['id']?.toString();
-    if (documentId == null || documentId.isEmpty) return;
-    final label = _friendlyDriverDocumentType(document['document_type']);
-    final rejecting = newStatus == 'rejected';
-    final note = TextEditingController();
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(rejecting ? 'Rechazar $label' :
-            newStatus == 'verified' ? 'Aprobar $label' :
-            'Volver a revisar $label'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(rejecting
-                ? 'Indica por qué se rechaza. El conductor podrá corregirlo.'
-                : 'Solo cambiará el estado de este documento. '
-                  'La aprobación general del conductor se hace por separado.'),
-            if (rejecting) ...[
-              const SizedBox(height: 12),
-              TextField(
-                controller: note,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Motivo del rechazo',
-                  hintText: 'Ej.: foto ilegible o documento incorrecto',
+  Future<void> _openDriverAsset(String? path) async {
+    final value = path?.trim() ?? '';
+    if (value.isEmpty) return;
+    try {
+      final signed = await supabase.storage
+          .from('driver-onboarding')
+          .createSignedUrl(value, 900);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          insetPadding: const EdgeInsets.all(16),
+          title: const Text('Fotografía del conductor'),
+          content: SizedBox(
+            width: 720,
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 540),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _detailSoft,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _detailBorder),
+              ),
+              child: Image.network(
+                signed,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const SizedBox(
+                  height: 260,
+                  child: Center(
+                    child: Text('No se pudo visualizar la fotografía.'),
+                  ),
                 ),
               ),
-            ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cerrar'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(rejecting ? 'Confirmar rechazo' :
-                newStatus == 'verified' ? 'Aprobar documento' :
-                'Reabrir revisión'),
-          ),
-        ],
-      ),
-    );
-    final reason = note.text.trim();
-    note.dispose();
-    if (accepted != true || !mounted) return;
-    if (rejecting && reason.length < 5) {
-      setState(() => error = 'Indica un motivo de rechazo de al menos cinco caracteres.');
-      return;
-    }
-
-    // Preserve all document metadata: admins only change its review status.
-    final oldNotes = (document['notes']?.toString() ?? '').trim();
-    final newNotes = rejecting
-        ? (oldNotes.isEmpty ? 'Motivo del rechazo: $reason'
-            : '$oldNotes\nMotivo del rechazo: $reason')
-        : oldNotes;
-    final expires = DateTime.tryParse(
-      document['expires_at']?.toString() ?? '',
-    );
-    setState(() {
-      saving = true;
-      error = null;
-    });
-    try {
-      await supabase.rpc(
-        'admin_upsert_driver_document_v2',
-        params: {
-          'p_document_id': documentId,
-          'p_driver_id': widget.userId,
-          'p_document_type': document['document_type']?.toString() ?? '',
-          'p_document_number': document['document_number']?.toString() ?? '',
-          'p_document_url': document['document_url']?.toString() ?? '',
-          'p_status': newStatus,
-          'p_expires_at': expires?.toUtc().toIso8601String(),
-          'p_notes': newNotes,
-          'p_channel': widget.channel,
-        },
       );
-      await _load();
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(
-            '$label: ${_friendlyDocumentStatus(newStatus)}.',
-          )),
+          SnackBar(
+            content: Text(
+              'No se pudo cargar la fotografía: ' + e.toString(),
+            ),
+          ),
         );
       }
-    } catch (e) {
-      if (mounted) setState(
-        () => error = 'No se pudo actualizar el documento. $e',
-      );
-    } finally {
-      if (mounted) setState(() => saving = false);
     }
   }
-
 
   bool _isIdentityRequirement(Map<String, dynamic> requirement) {
     final code = _text(
@@ -1194,7 +1145,6 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
         ? zoneId
         : null;
     final documents = _maps(detail['documents']);
-    final verifications = _maps(detail['identity_verifications']);
     final rating = _map(detail['rating_summary']);
     final subscription = _map(detail['subscription']);
     final qa = _map(detail['qa']);
