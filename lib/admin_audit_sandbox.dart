@@ -419,10 +419,12 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
 class _AuditHero extends StatelessWidget {
   final int groupCount;
   final int memberCount;
+  final VoidCallback? onCreate;
 
   const _AuditHero({
     required this.groupCount,
     required this.memberCount,
+    this.onCreate,
   });
 
   @override
@@ -434,9 +436,19 @@ class _AuditHero extends StatelessWidget {
       trailing: Wrap(
         spacing: 8,
         runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           _HeroStat(label: 'ENTORNOS', value: groupCount.toString()),
           _HeroStat(label: 'CUENTAS QA', value: memberCount.toString()),
+          FilledButton.icon(
+            onPressed: onCreate,
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Nuevo entorno'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AdminColors.blue,
+            ),
+          ),
         ],
       ),
     );
