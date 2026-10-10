@@ -310,12 +310,40 @@ class _AdminLoginState extends State<_AdminLogin> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Adminexpress',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                            ),
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Adminexpress',
+                                  style: TextStyle(
+                                    fontSize: 27,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              if (adminIsPreview)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 9,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AdminColors.previewSoft,
+                                    border: Border.all(
+                                      color: const Color(0xFFF5D58A),
+                                    ),
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                  child: const Text(
+                                    '● PREVIEW',
+                                    style: TextStyle(
+                                      color: AdminColors.previewInk,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -461,54 +489,108 @@ class _AdminBrandPanel extends StatelessWidget {
       decoration: const BoxDecoration(
         gradient: AdminGradients.hero,
       ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: Colors.white,
-                child: Icon(
-                  Icons.bolt_rounded,
-                  color: Color(0xFF0B57D0),
-                  size: 30,
+          const Positioned(
+            right: -175,
+            bottom: -215,
+            child: SizedBox(
+              width: 530,
+              height: 530,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.fromBorderSide(
+                    BorderSide(color: Color(0x1838BDF8), width: 1),
+                  ),
                 ),
               ),
-              SizedBox(width: 12),
-              Text(
-                'EXPRESS',
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 45,
+                    height: 45,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF2563EB), Color(0xFF22D3EE)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(13),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x4D22D3EE),
+                          blurRadius: 18,
+                          offset: Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.bolt_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'EXPRESS',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              const Text(
+                'Administra Express\ndesde un solo lugar.',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 28,
+                  fontSize: 42,
+                  height: 1.05,
                   fontWeight: FontWeight.w900,
                 ),
               ),
+              const SizedBox(height: 16),
+              const Text(
+                'Operación, conductores, seguridad, tarifas, builds y releases.',
+                style: TextStyle(
+                  color: Color(0xFFDCEAFF),
+                  fontSize: 17,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _AdminFeatureChip(
+                    icon: Icons.assessment_outlined,
+                    label: 'Operación',
+                  ),
+                  _AdminFeatureChip(
+                    icon: Icons.drive_eta_outlined,
+                    label: 'Conductores',
+                  ),
+                  _AdminFeatureChip(
+                    icon: Icons.shield_outlined,
+                    label: 'Seguridad',
+                  ),
+                ],
+              ),
+              const Spacer(),
+              const Text(
+                'Adminexpress · Solo web',
+                style: TextStyle(color: Color(0xFFBFD8FF)),
+              ),
             ],
-          ),
-          Spacer(),
-          Text(
-            'Administra Express\ndesde un solo lugar.',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 42,
-              height: 1.05,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          SizedBox(height: 16),
-          Text(
-            'Operación, conductores, seguridad, tarifas, builds y releases.',
-            style: TextStyle(
-              color: Color(0xFFDCEAFF),
-              fontSize: 17,
-              height: 1.45,
-            ),
-          ),
-          Spacer(),
-          Text(
-            'Adminexpress · Solo web',
-            style: TextStyle(color: Color(0xFFBFD8FF)),
           ),
         ],
       ),
@@ -516,6 +598,42 @@ class _AdminBrandPanel extends StatelessWidget {
   }
 }
 
+class _AdminFeatureChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _AdminFeatureChip({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .10),
+        border: Border.all(color: Colors.white.withValues(alpha: .19)),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AdminColors.cyan),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFFDCEAFF),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _AccessDenied extends StatelessWidget {
   final String title;
