@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
 import 'core/admin_widgets.dart';
+import 'core/admin_demand_stats_grid.dart';
 
 import 'core/supabase_client.dart';
 
@@ -332,23 +333,15 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
                 ),
               ),
               const SizedBox(height: 18),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _stat('Estado', enabled ? 'Activo' : 'Apagado'),
-                  _stat('Demanda baja', _pct(settings['low_multiplier'])),
-                  _stat('Elevada', _pct(settings['elevated_multiplier'])),
-                  _stat('Alta', _pct(settings['high_multiplier'])),
-                  _stat('Crítica', _pct(settings['max_multiplier'])),
-                  _stat(
-                    'Radio',
-                    (settings['radius_km']?.toString() ?? '-') + ' km',
-                  ),
-                  _stat(
-                    'Ventana',
-                    (settings['window_minutes']?.toString() ?? '-') + ' min',
-                  ),
+              AdminDemandStatsGrid(
+                items: [
+                  ('Estado', enabled ? 'Activo' : 'Apagado'),
+                  ('Demanda baja', _pct(settings['low_multiplier'])),
+                  ('Elevada', _pct(settings['elevated_multiplier'])),
+                  ('Alta', _pct(settings['high_multiplier'])),
+                  ('Crítica', _pct(settings['max_multiplier'])),
+                  ('Radio', '${settings['radius_km'] ?? '—'} km'),
+                  ('Ventana', '${settings['window_minutes'] ?? '—'} min'),
                 ],
               ),
               const SizedBox(height: 18),
@@ -424,26 +417,4 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
     );
   }
 
-  Widget _stat(String label, String value) {
-    return Container(
-      width: 150,
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: AdminColors.muted)),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
-          ),
-        ],
-      ),
-    );
-  }
 }
