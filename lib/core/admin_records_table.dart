@@ -13,14 +13,14 @@ class AdminRecordsTable extends StatefulWidget {
   final AdminRecordsKind kind;
   final List<Map<String, dynamic>> rows;
   final Widget Function(Map<String, dynamic>) detailBuilder;
-  final void Function(Map<String, dynamic>)? onOpen;
+  final bool Function(Map<String, dynamic>)? tryOpen;
 
   const AdminRecordsTable({
     super.key,
     required this.kind,
     required this.rows,
     required this.detailBuilder,
-    this.onOpen,
+    this.tryOpen,
   });
 
   @override
@@ -61,10 +61,7 @@ class _AdminRecordsTableState extends State<AdminRecordsTable> {
                   : 'id');
 
   void openRow(Map<String, dynamic> row) {
-    if (widget.onOpen != null) {
-      widget.onOpen!(row);
-      return;
-    }
+    if (widget.tryOpen?.call(row) == true) return;
     setState(() => selectedId = selectedId == id(row) ? null : id(row));
   }
 
@@ -333,7 +330,7 @@ class _AdminRecordsTableState extends State<AdminRecordsTable> {
               ],
             ),
           ),
-          if (selected != null && widget.onOpen == null) ...[
+          if (selected != null) ...[
             const Divider(height: 1, color: AdminColors.border),
             Container(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
