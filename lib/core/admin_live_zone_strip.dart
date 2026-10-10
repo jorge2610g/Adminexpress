@@ -61,7 +61,7 @@ class _AdminLiveZoneStripState extends State<AdminLiveZoneStrip> {
     final target = (current + (forward ? 210 : -210)).clamp(
       0.0,
       _controller.position.maxScrollExtent,
-    );
+    ).toDouble();
     _controller.animateTo(
       target,
       duration: const Duration(milliseconds: 260),
