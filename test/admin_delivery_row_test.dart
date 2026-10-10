@@ -35,7 +35,7 @@ void main() {
 
     await tester.tap(find.text('Recogido'));
     await tester.pump();
-    expect(find.textContaining('Cliente QA'), findsOneWidget);
+    expect(find.textContaining('Cliente QA', findRichText: true), findsOneWidget);
     expect(find.textContaining('Repartidor QA', findRichText: true), findsOneWidget);
     expect(find.textContaining('Efectivo', findRichText: true), findsOneWidget);
     expect(tester.takeException(), isNull);
