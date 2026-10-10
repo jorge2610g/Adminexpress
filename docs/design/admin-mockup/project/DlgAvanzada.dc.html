@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Diálogos avanzados</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1200px;box-sizing:border-box;background:#E9EEF5;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<div style="width:1280px;height:1200px;box-sizing:border-box;background:rgba(15,23,42,.06);padding:24px 32px;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;gap:16px;align-items:flex-start">
+<div style="width:620px;flex:none;background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column">
+<div style="padding:18px 22px 12px;font-size:19px;font-weight:800">Búsqueda y ofertas</div>
+<div style="padding:0 22px;display:flex;flex-direction:column;gap:12px">
+<div style="background:#F7F9FC;border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="{{ic.radar}}"/></svg><span style="font-size:11.5px;font-weight:600;color:#64748B;line-height:1.45">Estos valores controlan cuánto dura la búsqueda, cuántas solicitudes ve el conductor y el rango de ofertas.</span></div>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 12px">
+<sc-for list="{{searchFields}}" as="f" hint-placeholder-count="7">
+<label style="grid-column:span {{f.span}};display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#64748B">{{f.l}}<span style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;gap:6px;padding:0 12px;font-size:13px;font-weight:600;color:#0F172A"><span style="flex:1">{{f.v}}</span><span style="font-size:11.5px;font-weight:700;color:#64748B">{{f.u}}</span></span><span style="font-size:10.5px;font-weight:500;color:#64748B">{{f.h}}</span></label>
+</sc-for>
+</div>
+<div style="display:flex;flex-direction:column">
+<sc-for list="{{searchSwitches}}" as="s" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid #EEF1F5"><span style="flex:1;font-size:13px;font-weight:700">{{s.t}}</span><span style="width:40px;height:24px;border-radius:12px;background:{{s.bg}};position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:{{s.knob}}px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,.2)"></span></span></div>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;justify-content:flex-end;gap:10px;padding:12px 22px 18px">
+<button style="height:40px;padding:0 14px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 20px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Guardar</button>
+</div>
+</div>
+<div style="flex:1;min-width:0;background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column">
+<div style="padding:18px 22px 12px;font-size:19px;font-weight:800">Mantenimiento y versión mínima</div>
+<div style="padding:0 22px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:12px;padding:4px 0"><div style="flex:1"><div style="font-size:13px;font-weight:700">Modo mantenimiento</div><div style="font-size:11px;font-weight:500;color:#64748B">Úsalo solo cuando quieras bloquear temporalmente la operación.</div></div><span style="width:40px;height:24px;border-radius:12px;background:#C5CEDD;position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,.2)"></span></span></div>
+<label style="display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#64748B">Mensaje de mantenimiento<span style="height:74px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;padding:9px 12px;font-size:13px;font-weight:500;color:#98A2B3">Estamos actualizando Express. Vuelve en unos minutos.</span></label>
+<label style="display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#64748B">Versión mínima permitida<span style="height:40px;box-sizing:border-box;border:2px solid #2563EB;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;font-weight:700;color:#0F172A">v2.4.0 · build 41<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.4" stroke-linecap="round"><path d="M6 15l6-6 6 6"/></svg></span><span style="font-size:10.5px;font-weight:500;color:#64748B">Las versiones inferiores a la elegida quedan bloqueadas.</span></label>
+<div style="border:1px solid #DDE6F0;border-radius:12px;box-shadow:0 10px 24px rgba(15,23,42,.12);padding:6px;display:flex;flex-direction:column;gap:2px">
+<sc-for list="{{versions}}" as="o" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;background:{{o.bg}};font-size:13px;font-weight:{{o.w}};color:{{o.ink}}"><span style="flex:1">{{o.t}}</span><sc-if value="{{o.on}}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></sc-if></div>
+</sc-for>
+</div>
+<div style="background:#F4F8FF;border-radius:12px;padding:10px 12px;font-size:12px;font-weight:700;color:#1E3A8A">Solo podrán operar v2.4.0 o una versión superior.</div>
+</div>
+<div style="display:flex;justify-content:flex-end;gap:10px;padding:14px 22px 18px">
+<button style="height:40px;padding:0 14px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 20px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Guardar</button>
+</div>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start">
+<div style="background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column">
+<div style="padding:18px 20px 12px;font-size:18px;font-weight:800">Compatibilidad de pagos · legado</div>
+<div style="padding:0 20px;display:flex;flex-direction:column;gap:8px">
+<div style="background:#F7F9FC;border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="M2 6h20v12H2zM2 10h20M6 15h4"/></svg><span style="font-size:11px;font-weight:600;color:#64748B;line-height:1.45">Estos interruptores son solo respaldo para versiones antiguas de Express. Los métodos reales se administran por zona en Zonas y Pagos / Billetera. No uses esta pantalla para decidir qué método aparece en una ciudad.</span></div>
+<div style="display:flex;flex-direction:column">
+<sc-for list="{{legacy}}" as="s" hint-placeholder-count="5">
+<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #EEF1F5"><span style="flex:1;font-size:13px;font-weight:700">{{s.t}}</span><span style="width:40px;height:24px;border-radius:12px;background:{{s.bg}};position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:{{s.knob}}px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,.2)"></span></span></div>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;justify-content:flex-end;gap:10px;padding:14px 20px 18px">
+<button style="height:40px;padding:0 14px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 20px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Guardar</button>
+</div>
+</div>
+<div style="background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column">
+<div style="padding:18px 20px 12px;font-size:18px;font-weight:800">Funciones de seguridad y contacto</div>
+<div style="padding:0 20px;display:flex;flex-direction:column">
+<sc-for list="{{safety}}" as="s" hint-placeholder-count="5">
+<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #EEF1F5"><span style="width:34px;height:34px;border-radius:10px;background:#DDF5F1;display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0E9384" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{s.d}}"/></svg></span><span style="flex:1;font-size:13px;font-weight:700">{{s.t}}</span><span style="width:40px;height:24px;border-radius:12px;background:{{s.bg}};position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:{{s.knob}}px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,.2)"></span></span></div>
+</sc-for>
+</div>
+<div style="display:flex;justify-content:flex-end;gap:10px;padding:14px 20px 18px">
+<button style="height:40px;padding:0 14px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 20px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Guardar</button>
+</div>
+</div>
+<div style="background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column">
+<div style="padding:18px 20px 12px;font-size:18px;font-weight:800">Calificaciones</div>
+<div style="padding:0 20px;display:flex;flex-direction:column;gap:8px">
+<div style="background:#F7F9FC;border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2l3 6 6 .9-4.5 4.4 1 6.2L12 16.6 6.5 19.5l1-6.2L3 8.9 9 8z"/></svg><span style="font-size:11px;font-weight:600;color:#64748B;line-height:1.45">Las calificaciones continúan siendo privadas. Aquí solo controlas la política general.</span></div>
+<div style="display:flex;flex-direction:column">
+<sc-for list="{{ratings}}" as="s" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #EEF1F5"><span style="flex:1;font-size:13px;font-weight:700">{{s.t}}</span><span style="width:40px;height:24px;border-radius:12px;background:{{s.bg}};position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:{{s.knob}}px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,.2)"></span></span></div>
+</sc-for>
+</div>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;padding-top:4px">
+<sc-for list="{{ratingRange}}" as="f" hint-placeholder-count="2">
+<label style="display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#64748B">{{f.l}}<span style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;font-weight:700;color:#0F172A">{{f.v}}<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span style="font-size:10.5px;font-weight:500;color:#64748B">Opciones 1–5</span></label>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;justify-content:flex-end;gap:10px;padding:14px 20px 18px">
+<button style="height:40px;padding:0 14px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 20px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Guardar</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1200}}'>
+class Component extends DCLogic {
+renderVals() {
+const sw = (t, on, d) => ({ t, d: d || '', bg: on ? '#2563EB' : '#C5CEDD', knob: on ? 19 : 3 });
+const nf = (l, v, u, h, span) => ({ l, v, u, h, span: span || 1 });
+const opt = (t, on) => ({ t, on: !!on, bg: on ? '#EAF2FF' : 'transparent', ink: on ? '#2563EB' : '#0F172A', w: on ? 800 : 600 });
+return {
+ic: { radar: 'M12 12m-9 0a9 9 0 1018 0 9 9 0 10-18 0M12 12m-4 0a4 4 0 108 0 4 4 0 10-8 0M12 12l6-6' },
+searchFields: [
+nf('Búsqueda máxima · segundos', '180', 's', 'Entero · por defecto 180'),
+nf('Solicitud visible · segundos', '180', 's', 'Entero · por defecto 180'),
+nf('Radio máx. conductor · km', '15', 'km', 'Por defecto 15'),
+nf('Máx. solicitudes visibles', '20', '', 'Entero · por defecto 20'),
+nf('Oferta mínima', '1', 'Bs', 'Por defecto 1'),
+nf('Oferta máxima', '9999', 'Bs', 'Por defecto 9999'),
+nf('Publicar viaje programado antes · minutos', '30', 'min', 'Entero · por defecto 30', 2)
+],
+searchSwitches: [sw('Viajes programados', true), sw('Permitir contraofertas', true)],
+versions: [opt('Permitir todas las versiones'), opt('v2.4.1 · Bloquear todas las anteriores'), opt('v2.4.0 · build 41', true), opt('v2.3.7 · build 38'), opt('v2.3.2 · build 33')],
+legacy: [sw('QR Bolivia / PagoRUT · legado', true), sw('Mercado Pago', false), sw('Santander', false), sw('MACH', false), sw('Tenpo', false)],
+safety: [
+sw('Botón SOS', true, 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM12 8v5M12 16h.01'),
+sw('Compartir viaje', true, 'M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11zM9 10h6M13 8l2 2-2 2'),
+sw('Chat pasajero ↔ conductor', true, 'M4 4h16v12H8l-4 4z'),
+sw('Llamadas', true, 'M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z'),
+sw('Lugares guardados', true, 'M6 3h12v18l-6-4-6 4z')
+],
+ratings: [sw('Calificaciones habilitadas', true), sw('Permitir comentario', true)],
+ratingRange: [{ l: 'Mínimo', v: '1' }, { l: 'Máximo', v: '5' }]
+};
+}
+}
+</script>
+</body>
+</html>

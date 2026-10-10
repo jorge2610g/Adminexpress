@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Panel móvil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:390px;height:844px;display:flex;flex-direction:column;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<div style="height:56px;flex:none;box-sizing:border-box;background:#FFFFFF;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;gap:6px;padding:0 6px 0 14px">
+<div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#2563EB,#22D3EE);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(34,211,238,.25)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
+<span style="flex:1;font-size:14px;font-weight:800;letter-spacing:-.2px;margin-left:4px">Express Delivery</span>
+<button aria-label="Nuevo viaje" style="width:38px;height:38px;border-radius:10px;border:0;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 8v8M8 12h8"/></svg></button>
+<button aria-label="Actualizar" style="width:38px;height:38px;border-radius:10px;border:0;background:transparent;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg></button>
+<button aria-label="Cuenta" style="width:38px;height:38px;border-radius:10px;border:0;background:transparent;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="3" stroke-linecap="round"><path d="M12 5h.01M12 12h.01M12 19h.01"/></svg></button>
+</div>
+<div style="flex:none;box-sizing:border-box;background:#FFF7E6;border-bottom:1px solid #F5D58A;padding:9px 14px;display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:8px"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#B54708" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4 19a1.5 1.5 0 001.3 2h13.4a1.5 1.5 0 001.3-2L14 9V3"/></svg><span style="font-size:11.5px;font-weight:800;letter-spacing:.2px;color:#7A2E0E">EXPRESS PREVIEW · Solo registros de prueba</span></div>
+<div style="display:flex;justify-content:flex-end"><button style="height:28px;padding:0 11px;border-radius:8px;border:1px solid #9AD8B3;background:#FFFFFF;color:#0F6848;font-size:11px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F6848" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h13l-4-4M17 17H4l4 4"/></svg>Ir a Producción</button></div>
+</div>
+<div style="flex:1;min-height:0;position:relative;overflow:hidden">
+<div style="position:absolute;left:0;top:0;right:0;bottom:0;padding:14px;display:flex;flex-direction:column;gap:12px">
+<div style="height:46px;border-radius:12px;background:#F8FAFC;border:1px solid #E2E8F0"></div>
+<div style="height:110px;border-radius:18px;background:linear-gradient(120deg,#0F2854,#174B91 55%,#0D6B8D)"></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div style="height:110px;border-radius:16px;background:#FFFFFF;border:1px solid #DDE6F0"></div><div style="height:110px;border-radius:16px;background:#FFFFFF;border:1px solid #DDE6F0"></div><div style="height:110px;border-radius:16px;background:#FFFFFF;border:1px solid #DDE6F0"></div><div style="height:110px;border-radius:16px;background:#FFFFFF;border:1px solid #DDE6F0"></div></div>
+</div>
+<div style="position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(11,18,32,.45)"></div>
+<aside style="position:absolute;left:0;top:0;bottom:0;width:304px;box-sizing:border-box;background:#0B1220;color:#FFFFFF;padding:10px 10px 8px;display:flex;flex-direction:column;box-shadow:8px 0 24px rgba(11,18,32,.35)">
+<div style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:12px;background:#131D30;border:1px solid #263650;margin-bottom:4px">
+<div style="width:24px;height:24px;border-radius:12px;background:#1E3A5F;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22D3EE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg></div>
+<div style="flex:1"><div style="font-size:8px;font-weight:800;letter-spacing:.9px;color:#8FA3BF">EMPRESA ACTUAL</div><div style="font-size:11.5px;font-weight:800">Express Delivery</div></div>
+</div>
+<div style="flex:1;min-height:0;display:flex;flex-direction:column">
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="9">
+<div style="font-size:8.5px;font-weight:800;letter-spacing:1.05px;color:#71839D;padding:4px 10px 1px;height:13px;box-sizing:border-box">{{g.title}}</div>
+<sc-for list="{{g.items}}" as="n" hint-placeholder-count="3">
+<div style="height:18px;display:flex;align-items:center;gap:8px;padding:0 8px;border-radius:7px;background:{{n.bg}}">
+<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{n.icon}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{n.d}}"/></svg>
+<span style="flex:1;font-size:11px;font-weight:{{n.weight}};color:{{n.ink}};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{n.label}}</span>
+<span style="font-size:7.5px;font-weight:800;color:#FF8A8A;background:{{n.sosBg}};border-radius:6px;padding:1px 5px">{{n.sos}}</span>
+</div>
+</sc-for>
+</sc-for>
+</div>
+<div style="border-top:1px solid #1E2B41;padding-top:4px;display:flex;align-items:center;gap:9px;padding-left:8px;height:28px;font-size:11.5px;font-weight:700;color:#D9E2EF"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>Cerrar sesión</div>
+</aside>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const active = 'Dashboard';
+const I = {
+dash: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
+map: 'M9 3L3 5v16l6-2 6 2 6-2V3l-6 2zM9 3v16M15 5v16',
+taxi: 'M5 16l1.5-5h11L19 16M5 16v3M19 16v3M4 16h16M8 13h.01M16 13h.01',
+truck: 'M1 6h13v10H1zM14 10h4l3 3v3h-7M5 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z',
+car: 'M3 13l2-6h14l2 6v5H3zM7 18v2M17 18v2M3 13h18',
+people: 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8',
+shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
+hex: 'M12 2l9 5v10l-9 5-9-5V7z',
+pay: 'M2 6h20v12H2zM2 10h20M6 15h4',
+wallet: 'M3 7a2 2 0 012-2h14v4M3 7v10a2 2 0 002 2h16V9H5a2 2 0 01-2-2zM17 14h.01',
+chart: 'M4 20V10M10 20V4M16 20v-8M22 20H2',
+gear: 'M12 15a3 3 0 100-6 3 3 0 000 6zM12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1',
+build: 'M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z',
+route: 'M5 19a2 2 0 100-4 2 2 0 000 4zM19 9a2 2 0 100-4 2 2 0 000 4zM7 17h8a3 3 0 000-6H9a3 3 0 010-6h6',
+history: 'M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8M3 3v5h5M12 7v5l3 2',
+bell: 'M6 17V11a6 6 0 1112 0v6l2 2H4zM10 21h4',
+apps: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
+verified: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8.5 12l2.5 2.5 4.5-5',
+tune: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4',
+science: 'M9 3h6M10 3v6L4 19a1.5 1.5 0 001.3 2h13.4a1.5 1.5 0 001.3-2L14 9V3',
+speed: 'M12 14l4-4M3.5 18a10 10 0 1117 0',
+premium: 'M12 2l3 6 6 .9-4.5 4.4 1 6.2L12 16.6 6.5 19.5l1-6.2L3 8.9 9 8z',
+store: 'M3 9l1.5-5h15L21 9M3 9v11h18V9M3 9h18M9 20v-6h6v6',
+moto: 'M5 18a3 3 0 100-6 3 3 0 000 6zM19 18a3 3 0 100-6 3 3 0 000 6zM8 15h6l3-5h-4M13 7h3',
+receipt: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4'
+};
+const S = [['Dashboard', I.dash], ['Operación en vivo', I.map], ['Viajes', I.taxi], ['Delivery', I.truck], ['Conductores', I.car], ['Usuarios', I.people], ['Seguridad / SOS', I.shield], ['Zonas y cobertura', I.hex], ['Tarifas', I.pay], ['Pagos / Billetera', I.wallet], ['Reportes', I.chart], ['Configuración', I.gear], ['Builds', I.build], ['Despacho manual', I.route], ['Auditoría', I.history], ['Notificaciones / Avisos', I.bell], ['Servicios', I.apps], ['Cobertura y seguridad', I.verified], ['Verificación de identidad', I.verified], ['Configuración avanzada', I.tune], ['Entornos de prueba', I.science], ['Carga QA', I.speed], ['Suscripciones', I.premium], ['Express Market', I.store], ['Delivery Fase 2 / Express Plus', I.moto], ['Prioridad conductores', I.premium], ['Pedidos Delivery', I.receipt]];
+const item = (i) => {
+const on = S[i][0] === active;
+return { label: S[i][0], d: S[i][1], bg: on ? '#173A68' : 'transparent', icon: on ? '#22D3EE' : '#91A4BF', ink: on ? '#FFFFFF' : '#C5D0DF', weight: on ? 800 : 600, sos: i === 6 ? 'SOS' : '', sosBg: i === 6 ? '#4B1D26' : 'transparent' };
+};
+const grp = (title, idx) => ({ title, items: idx.map(item) });
+return {
+groups: [grp('GENERAL', [0]), grp('OPERACIONES', [1, 2, 13, 3, 26, 4, 5, 6]), grp('MÓDULOS', [23, 24, 25]), grp('FINANZAS', [9, 8, 22]), grp('ANÁLISIS', [10, 14]), grp('COMUNICACIÓN', [15]), grp('SEGURIDAD', [18]), grp('CONFIGURACIÓN', [16, 7, 11, 19, 12]), grp('HERRAMIENTAS QA', [20, 21])]
+};
+}
+}
+</script>
+</body>
+</html>

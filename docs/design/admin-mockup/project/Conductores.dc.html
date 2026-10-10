@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Conductores</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Conductores" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Conductores" env="preview" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="border-radius:20px;padding:20px 24px;background:linear-gradient(120deg,#0F2854,#174B91 55%,#0D6B8D);color:#FFFFFF;display:flex;align-items:center;gap:16px;box-shadow:0 10px 30px rgba(23,75,145,.25)">
+<div style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
+<div style="flex:1"><div style="font-size:24px;font-weight:800;letter-spacing:-.4px">Conductores</div><div style="font-size:13px;color:#D7E7FA;font-weight:600;margin-top:4px">Aprobación, estado, licencia, vehículo y control de conductores.</div></div>
+</div>
+<div style="background:#FFFFFF;border:1px solid #E7ECF3;border-radius:14px;padding:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+<label style="height:36px;width:240px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;display:flex;align-items:center;gap:8px;padding:0 11px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.2" stroke-linecap="round"><path d="M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-3.5-3.5"/></svg><input type="text" placeholder="Buscar" style="border:0;outline:0;flex:1;min-width:0;font-size:13px;color:#0F172A;background:transparent"></label>
+<button style="height:32px;padding:0 12px;border-radius:999px;border:1px solid #BFD3F9;background:#EAF2FF;color:#2563EB;font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>Todos (84)</button>
+<span style="flex:1"></span>
+<button style="height:36px;padding:0 14px;border-radius:10px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>Exportar</button>
+</div>
+<div style="flex:1;min-height:0;background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;overflow:hidden;display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:14px;padding:0 16px;height:40px;background:#F8FAFC;border-bottom:1px solid #EEF1F5;font-size:11px;font-weight:800;color:#64748B;letter-spacing:.4px">
+<span style="width:260px">CONDUCTOR</span><span style="flex:1">VEHÍCULO</span><span style="width:120px">CIUDAD</span><span style="width:118px">APROBACIÓN</span><span style="width:118px">ESTADO</span><span style="width:36px"></span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+<div style="position:relative;z-index:{{r.z}};display:flex;align-items:center;gap:14px;padding:0 16px;height:62px;flex:none;border-bottom:1px solid #F1F5F9;background:{{r.bg}};font-size:13px">
+<div style="width:260px;display:flex;align-items:center;gap:11px;min-width:0">
+<div style="width:36px;height:36px;flex:none;border-radius:18px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{r.icon}}"/></svg></div>
+<div style="min-width:0"><div style="font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.name}}</div><div style="font-size:12px;color:#64748B;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.email}}</div></div>
+</div>
+<span style="flex:1;min-width:0;font-weight:600;color:{{r.vehInk}};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.veh}}</span>
+<span style="width:120px;font-weight:600;color:#475467">{{r.city}}</span>
+<span style="width:118px"><span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:{{r.abg}};color:{{r.afg}};font-size:11.5px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{r.afg}}"></span>{{r.appr}}</span></span>
+<span style="width:118px"><span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:{{r.obg}};color:{{r.ofg}};font-size:11.5px;font-weight:800;white-space:nowrap"><span style="width:6px;height:6px;border-radius:3px;background:{{r.ofg}}"></span>{{r.onl}}</span></span>
+<button aria-label="Acciones" title="Acciones" style="width:36px;height:36px;border-radius:9px;border:1px solid {{r.btnLine}};background:{{r.btnBg}};display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{r.btnInk}}" stroke-width="3" stroke-linecap="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg></button>
+<sc-if value="{{r.menu}}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;right:16px;top:54px;width:230px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:11px;box-shadow:0 14px 34px rgba(15,23,42,.16);padding:6px 0">
+<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:13px;font-weight:700;background:#F8FAFC"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11a4 4 0 100-8 4 4 0 000 8zM3 21v-2a5 5 0 015-5h4M18 15a2 2 0 100 4 2 2 0 000-4zM18 12.5v1.5M18 20v1.5M21.5 17H20M16 17h-1.5"/></svg>Ver / editar ficha</div>
+<div style="height:1px;background:#EEF1F5;margin:4px 0"></div>
+<sc-for list="{{menu}}" as="m" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;font-size:13px;font-weight:600;color:{{m.ink}}"><span style="width:7px;height:7px;border-radius:4px;background:{{m.dot}}"></span>{{m.label}}</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const person = 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z';
+const online = 'M12 14a2 2 0 100-4 2 2 0 000 4zM7.8 7.8a6 6 0 000 8.4M16.2 7.8a6 6 0 010 8.4M4.9 4.9a10 10 0 000 14.2M19.1 4.9a10 10 0 010 14.2';
+const AP = { approved: ['Aprobado', '#14804A', '#E8F8EF'], pending: ['Pendiente', '#C76B16', '#FFF3E7'], rejected: ['Rechazado', '#D92D20', '#FFE4E8'], suspended: ['Suspendido', '#475467', '#F2F4F7'] };
+const ON = { online: ['En línea', '#14804A', '#E8F8EF'], offline: ['Fuera de línea', '#475467', '#F2F4F7'], busy: ['Ocupado', '#D97706', '#FFEED0'] };
+const row = (name, email, veh, city, ap, on, menu) => ({
+name, email, veh: veh || 'Sin vehículo', vehInk: veh ? '#0F172A' : '#98A2B3', city: city || '—', icon: on === 'online' ? online : person,
+appr: AP[ap][0], afg: AP[ap][1], abg: AP[ap][2], onl: ON[on][0], ofg: ON[on][1], obg: ON[on][2],
+menu, z: menu ? 5 : 1, bg: menu ? '#F8FBFF' : '#FFFFFF', btnBg: menu ? '#EAF2FF' : '#FFFFFF', btnLine: menu ? '#BFD3F9' : '#E4EAF2', btnInk: menu ? '#2563EB' : '#475467'
+});
+return {
+menu: [
+{ label: 'Aprobar', dot: '#14804A', ink: '#0F172A' },
+{ label: 'Marcar pendiente', dot: '#C76B16', ink: '#0F172A' },
+{ label: 'Rechazar', dot: '#D92D20', ink: '#D92D20' },
+{ label: 'Suspender', dot: '#475467', ink: '#0F172A' }
+],
+rows: [
+row('Carlos Méndez', 'carlos.mendez@gmail.com', 'Toyota Corolla 2016 · Blanco · 3456-KTB', 'Trinidad', 'approved', 'online', false),
+row('Luis Rivero', 'luisrivero.tdd@gmail.com', 'Honda XR150 2021 · Rojo · 2187-HPL', 'Trinidad', 'approved', 'busy', false),
+row('Ronald Parada', 'ronald.parada@hotmail.com', 'Suzuki Alto 2014 · Gris · 1984-GTR', 'Trinidad', 'pending', 'offline', true),
+row('Fernando Justiniano', 'fjustiniano@gmail.com', 'Yamaha YBR125 2020 · Negro · 4410-JKD', 'Trinidad', 'approved', 'online', false),
+row('Wilson Añez', 'wilson.anez@gmail.com', 'Toyota Noah 2012 · Plata · 3021-FXN', 'Trinidad', 'approved', 'online', false),
+row('Marco Antonio Roca', 'marcoroca77@gmail.com', 'Nissan Sunny 2015 · Azul · 2876-HBC', 'Trinidad', 'approved', 'offline', false),
+row('Jhonny Saucedo', 'jsaucedo@gmail.com', '', 'Trinidad', 'pending', 'offline', false),
+row('Ramiro Cuéllar', 'ramiro.cuellar@gmail.com', 'Honda CG125 2019 · Rojo · 1550-KLM', 'Trinidad', 'rejected', 'offline', false),
+row('Edwin Lijerón', 'edwinlijeron@gmail.com', 'Toyota Ipsum 2008 · Verde · 1127-CRT', '', 'suspended', 'offline', false),
+row('Gustavo Moreno', 'gmoreno.bo@gmail.com', 'Suzuki Swift 2017 · Blanco · 3398-PLD', 'Trinidad', 'approved', 'busy', false),
+row('Óscar Vargas', 'oscar.vargas@gmail.com', 'Bajaj Pulsar 2022 · Negro · 5012-MNB', 'Trinidad', 'approved', 'online', false),
+row('Henry Zabala', 'henryzabala@gmail.com', 'Toyota Vitz 2013 · Rojo · 2234-DFG', 'Trinidad', 'pending', 'offline', false)
+]
+};
+}
+}
+</script>
+</body>
+</html>

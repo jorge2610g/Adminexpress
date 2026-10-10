@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Pedidos Delivery</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Pedidos Delivery" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Pedidos Delivery" env="production" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:flex-start;gap:16px">
+<div style="flex:1"><div style="font-size:26px;font-weight:800;letter-spacing:-.3px">Pedidos Delivery · Producción</div><div style="font-size:13px;color:#64748B;font-weight:600;margin-top:4px">Pedidos recientes, estados, pagos, comisiones y liquidaciones.</div></div>
+<button style="height:40px;padding:0 15px;border-radius:10px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg>Actualizar</button>
+</div>
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;overflow:hidden">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+<div style="flex:none;display:flex;align-items:center;gap:14px;background:#FFFFFF;border:1px solid #DDE6F0;border-radius:14px;padding:12px 16px">
+<div style="width:40px;height:40px;flex:none;border-radius:11px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{r.icon}}"/></svg></div>
+<div style="flex:1;min-width:0">
+<div style="font-size:14px;font-weight:800">{{r.merchant}}</div>
+<div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:#64748B;font-weight:600">
+<span>{{r.zone}}</span><span style="color:#CBD5E1">·</span>
+<span style="display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;background:{{r.sbg}};color:{{r.sfg}};font-size:11px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{r.sfg}}"></span>{{r.status}}</span>
+<span style="color:#CBD5E1">·</span>
+<span style="display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;background:{{r.pbg}};color:{{r.pfg}};font-size:11px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{r.pfg}}"></span>{{r.pay}}</span>
+</div>
+</div>
+<span style="font-size:15px;font-weight:800;color:#2563EB">{{r.total}}</span>
+</div>
+</sc-for>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const IC = {
+transfer: 'M3 10l9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 21h18',
+cash: 'M2 7h20v10H2zM12 14a2 2 0 100-4 2 2 0 000 4zM6 12h.01M18 12h.01',
+card: 'M2 5h20v14H2zM2 10h20M6 15h4'
+};
+const ST = {
+pending: ['Pendiente', '#B54708', '#FFF7E6'],
+confirmed: ['Confirmado', '#2563EB', '#EAF2FF'],
+preparing: ['En preparación', '#7C3AED', '#EDE5FF'],
+ready: ['Listo para retiro', '#D97706', '#FFEED0'],
+delivered: ['Entregado', '#14804A', '#E8F8EF'],
+cancelled: ['Cancelado', '#D92D20', '#FFE4E8']
+};
+const PS = {
+pending: ['Pago pendiente', '#B54708', '#FFF7E6'],
+under_review: ['En revisión', '#7C3AED', '#EDE5FF'],
+paid: ['Pagado', '#14804A', '#E8F8EF'],
+rejected: ['Rechazado', '#D92D20', '#FFE4E8']
+};
+const row = (merchant, method, st, ps, total) => ({
+merchant, icon: IC[method], zone: 'trinidad', status: ST[st][0], sfg: ST[st][1], sbg: ST[st][2], pay: PS[ps][0], pfg: PS[ps][1], pbg: PS[ps][2], total
+});
+return {
+rows: [
+row('Restaurante Mojos', 'cash', 'pending', 'pending', 'Bs 85.00'),
+row('Farmacia Central', 'transfer', 'confirmed', 'under_review', 'Bs 46.50'),
+row('Pollos Kiki', 'card', 'preparing', 'paid', 'Bs 72.00'),
+row('Supermercado Fidalga', 'transfer', 'ready', 'paid', 'Bs 138.40'),
+row('Heladería Frutos del Beni', 'cash', 'delivered', 'paid', 'Bs 32.00'),
+row('Panadería La Trinitaria', 'cash', 'delivered', 'paid', 'Bs 24.00'),
+row('Restaurante El Tropero', 'card', 'delivered', 'paid', 'Bs 156.00'),
+row('Pizzería Don Camilo', 'transfer', 'cancelled', 'rejected', 'Bs 64.00'),
+row('Librería Don Bosco', 'cash', 'delivered', 'paid', 'Bs 41.00'),
+row('Sushi Mamoré', 'card', 'delivered', 'paid', 'Bs 118.00'),
+row('Pastelería Doña Tota', 'cash', 'delivered', 'paid', 'Bs 55.00'),
+row('Comercial Beni Express', 'transfer', 'delivered', 'paid', 'Bs 92.30')
+]
+};
+}
+}
+</script>
+</body>
+</html>
