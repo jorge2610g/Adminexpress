@@ -292,16 +292,19 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     }
   }
 
-  Widget _section(String title, Widget child) => Card(
-        color: Colors.white,
-        margin: const EdgeInsets.only(bottom: 12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+  Widget _section(String title, Widget child) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: AdminCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 17)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                ),
+              ),
               const SizedBox(height: 12),
               child,
             ],
@@ -352,12 +355,11 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     final approved = status['approved'] == true;
     final promoted = status['promoted'] == true;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(22),
       children: [
-        const AdminPageHero(
+        const AdminPlainPageHeading(
           title: 'Express · Una sola aplicación',
           subtitle: 'Desarrollo y pruebas compartidas: Web primero. Android se compila cuando hay una función nativa que verificar o una nueva publicación.',
-          icon: Icons.android_rounded,
         ),
         const SizedBox(height: 12),
         if (!canManage)
