@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+
 import 'admin_control_sections.dart';
 import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
@@ -1052,7 +1054,7 @@ class _AdminDriverSubscriptionsPageState
                     SizedBox(height: 4),
                     Text(
                       'Planes, vigencias y pagos por zona.',
-                      style: TextStyle(color: Color(0xFF64748B)),
+                      style: TextStyle(color: AdminColors.muted),
                     ),
                   ],
                 ),
@@ -1317,7 +1319,7 @@ class _AdminDriverSubscriptionsPageState
                 ? 'Los usuarios de prueba no se mezclan con los conductores reales.'
                 : qaDrivers.length.toString() +
                     ' conductores QA están separados y no cuentan como reales.',
-            style: const TextStyle(color: Color(0xFF64748B)),
+            style: const TextStyle(color: AdminColors.muted),
           ),
           const SizedBox(height: 10),
           if (realDrivers.isEmpty)
@@ -1659,7 +1661,7 @@ class _ProviderCard extends StatelessWidget {
           children: [
             CircleAvatar(
               backgroundColor: configured
-                  ? const Color(0xFFE8F8EF)
+                  ? AdminColors.okSoft
                   : const Color(0xFFFFF3E0),
               child: const Icon(Icons.qr_code_2_rounded),
             ),
@@ -1791,7 +1793,7 @@ class _AdminPlanCard extends StatelessWidget {
             Text(
               price + ' · ' + plan['days'].toString() + ' días',
               style: const TextStyle(
-                color: Color(0xFF2563EB),
+                color: AdminColors.blue,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -1845,7 +1847,7 @@ class _AdminSubNotice extends StatelessWidget {
               warning ? Icons.warning_amber_rounded : Icons.info_outline,
               color: warning
                   ? const Color(0xFFD97706)
-                  : const Color(0xFF2563EB),
+                  : AdminColors.blue,
             ),
             const SizedBox(width: 10),
             Expanded(child: Text(text)),
