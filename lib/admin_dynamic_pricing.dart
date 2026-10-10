@@ -310,31 +310,23 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              AdminPageHero(
+              AdminPlainPageHeading(
                 title: 'Demanda y precios',
                 subtitle: 'Precio recomendado autoritativo · ' +
                     (widget.channel == 'preview' ? 'Preview' : 'Producción'),
-                icon: Icons.trending_up_rounded,
                 trailing: Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: [
                     OutlinedButton.icon(
                       onPressed: _refresh,
                       icon: const Icon(Icons.refresh_rounded),
                       label: const Text('Actualizar'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white54),
-                      ),
                     ),
                     FilledButton.icon(
                       onPressed: () => _configure(settings),
                       icon: const Icon(Icons.tune_rounded),
                       label: const Text('Configurar'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AdminColors.blue,
-                      ),
                     ),
                   ],
                 ),
