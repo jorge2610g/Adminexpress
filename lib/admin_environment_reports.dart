@@ -64,12 +64,12 @@ class _AdminEnvironmentReportsPageState
     if (channels.isEmpty) return const {};
     // Exactly one query per accessible environment, concurrently; data for
     // production and test must never be merged or presented as one total.
-    final responses = await Future.wait(channels.map((channel) =>
-        supabase.rpc('admin_report_summary_v2', params: {
-          'p_channel': channel,
-          'p_from': from.toUtc().toIso8601String(),
-          'p_to': to.toUtc().toIso8601String(),
-        })));
+    final responses = await Future.wait(channels
+        .map((channel) => supabase.rpc('admin_report_summary_v2', params: {
+              'p_channel': channel,
+              'p_from': from.toUtc().toIso8601String(),
+              'p_to': to.toUtc().toIso8601String(),
+            })));
     return {
       for (var i = 0; i < channels.length; i++)
         channels[i]: responses[i] is Map
@@ -111,8 +111,12 @@ class _AdminEnvironmentReportsPageState
     }
   }
 
-  String _date(DateTime value) => value.day.toString().padLeft(2, '0') +
-      '/' + value.month.toString().padLeft(2, '0') + '/' + value.year.toString();
+  String _date(DateTime value) =>
+      value.day.toString().padLeft(2, '0') +
+      '/' +
+      value.month.toString().padLeft(2, '0') +
+      '/' +
+      value.year.toString();
 
   Widget _metrics(Map<String, dynamic> data) {
     final entries = <(String, Object?, IconData)>[
@@ -120,8 +124,16 @@ class _AdminEnvironmentReportsPageState
       ('Completados', data['trips_completed'], Icons.task_alt_rounded),
       ('Cancelados', data['trips_cancelled'], Icons.cancel_outlined),
       ('Delivery', data['delivery_total'], Icons.local_shipping_rounded),
-      ('Delivery completados', data['delivery_completed'], Icons.inventory_2_outlined),
-      ('Delivery cancelados', data['delivery_cancelled'], Icons.remove_shopping_cart_outlined),
+      (
+        'Delivery completados',
+        data['delivery_completed'],
+        Icons.inventory_2_outlined
+      ),
+      (
+        'Delivery cancelados',
+        data['delivery_cancelled'],
+        Icons.remove_shopping_cart_outlined
+      ),
       ('Cobrado', data['paid_volume'], Icons.payments_outlined),
       ('Usuarios nuevos', data['new_users'], Icons.person_add_alt_1_rounded),
       ('Emergencias', data['emergencies'], Icons.sos_rounded),
@@ -138,36 +150,37 @@ class _AdminEnvironmentReportsPageState
         return Wrap(
           spacing: 12,
           runSpacing: 12,
-          children: entries.map((item) => SizedBox(
-            width: cardWidth,
-            child: Card(
-              color: Colors.white,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: AdminColors.blueSoft,
-                      child: Icon(item.$3, color: _blue),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          children: entries
+              .map((item) => SizedBox(
+                    width: cardWidth,
+                    child: AdminCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
                         children: [
-                          Text((item.$2 ?? 0).toString(),
-                              style: const TextStyle(
-                                color: _ink, fontSize: 20,
-                                fontWeight: FontWeight.w900)),
-                          Text(item.$1, style: const TextStyle(color: _muted)),
+                          CircleAvatar(
+                            backgroundColor: AdminColors.blueSoft,
+                            child: Icon(item.$3, color: _blue),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text((item.$2 ?? 0).toString(),
+                                    style: const TextStyle(
+                                        color: _ink,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w900)),
+                                Text(item.$1,
+                                    style: const TextStyle(color: _muted)),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-          )).toList(),
+                  ))
+              .toList(),
         );
       },
     );
@@ -194,10 +207,14 @@ class _AdminEnvironmentReportsPageState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(isTest ? 'Actividad de pruebas internas'
-                              : 'Actividad real de Express',
-                      style: TextStyle(color: accent,
-                          fontSize: 15, fontWeight: FontWeight.w900)),
+                  Text(
+                      isTest
+                          ? 'Actividad de pruebas internas'
+                          : 'Actividad real de Express',
+                      style: TextStyle(
+                          color: accent,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900)),
                   Text(
                     isTest
                         ? 'Datos QA separados: no se suman a los resultados reales.'
@@ -237,18 +254,15 @@ class _AdminEnvironmentReportsPageState
               ),
             );
           }
-          final reports = snapshot.data ?? const <String, Map<String, dynamic>>{};
+          final reports =
+              snapshot.data ?? const <String, Map<String, dynamic>>{};
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              const Text(
-                'Reportes',
-                style: AdminText.pageTitle,
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Resumen general de Express. Una sola pantalla, sin cambiar el modo del panel ni seleccionar país o zona.',
-                style: AdminText.caption,
+              const AdminPlainPageHeading(
+                title: 'Reportes',
+                subtitle:
+                    'Resumen general de Express. Una sola pantalla, sin cambiar el modo del panel ni seleccionar país o zona.',
               ),
               const SizedBox(height: 14),
               Container(
@@ -284,9 +298,11 @@ class _AdminEnvironmentReportsPageState
               ),
               const SizedBox(height: 18),
               if (reports.isEmpty)
-                const Card(child: Padding(
+                const Card(
+                    child: Padding(
                   padding: EdgeInsets.all(20),
-                  child: Text('No hay entornos autorizados para consultar reportes.'),
+                  child: Text(
+                      'No hay entornos autorizados para consultar reportes.'),
                 )),
               for (final item in reports.entries)
                 _channelReport(item.key, item.value),

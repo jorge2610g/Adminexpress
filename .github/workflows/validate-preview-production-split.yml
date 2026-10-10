@@ -325,6 +325,7 @@ jobs:
           flutter test test/admin_detail_dialog_frame_test.dart
           flutter test test/admin_priority_metrics_test.dart
           flutter test test/admin_stage_edit_dialog_title_test.dart
+          flutter test test/admin_responsive_split_test.dart
           flutter test test/admin_sos_row_test.dart
           flutter test test/admin_plain_page_heading_test.dart
           flutter test test/admin_live_zone_strip_test.dart

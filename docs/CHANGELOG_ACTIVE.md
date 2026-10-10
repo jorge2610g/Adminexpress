@@ -332,3 +332,9 @@ El panel de países dispone de **Preparar países QA** exclusivamente cuando `AD
 - Pagos/Billetera respeta ahora el `channel` recibido por el panel: Preview usa únicamente la configuración QA/shadow y Producción conserva sus RPC existentes.
 - Se alinearon las cabeceras de Mercado Pago, VeriPagos, planes y asignaciones con los mockups de Finanzas; no se alteraron cobros, claves, permisos ni flujos de aprobación.
 - La validación visual real de E3, E4 y E5 sigue pendiente. No se publicó Preview ni se modificó Producción.
+
+### E6 Reportes, Auditoría y Avisos — 2026-10-10 (PR #63, sin despliegue)
+
+- Avisos usa dos paneles independientes en escritorio y una composición vertical responsive en móvil, conservando ámbito, RPC y confirmación de envío.
+- Auditoría presenta un único historial con leyendas QA/REAL; Reportes mantiene nueve indicadores sin sumar datos de pruebas a Producción.
+- Se añadieron pruebas de la composición a 390/1280 px. La comparación visual real y el QA de envíos continúan pendientes.

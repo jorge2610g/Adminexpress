@@ -6,7 +6,6 @@ import 'core/admin_widgets.dart';
 import 'core/supabase_client.dart';
 
 const _bg = AdminColors.bg;
-const _ink = AdminColors.ink;
 const _muted = AdminColors.muted;
 
 /// One chronological audit trail for Express. Entries retain their origin
@@ -60,11 +59,11 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
     if (channels.isEmpty) return const [];
     // Both streams are read only. The DB checks access for each environment.
     // Fetch in parallel and merge only for display, retaining origin.
-    final results = await Future.wait(channels.map((channel) =>
-        supabase.rpc('admin_audit_list_v2', params: {
-          'p_channel': channel,
-          'p_limit': 200,
-        })));
+    final results = await Future.wait(
+        channels.map((channel) => supabase.rpc('admin_audit_list_v2', params: {
+              'p_channel': channel,
+              'p_limit': 200,
+            })));
     final rows = <Map<String, dynamic>>[];
     for (var i = 0; i < channels.length; i++) {
       final result = results[i];
@@ -76,9 +75,8 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
         rows.add({...row, 'source_channel': channels[i]});
       }
     }
-    rows.sort((a, b) => (DateTime.tryParse(
-          b['created_at']?.toString() ?? '') ??
-        DateTime.fromMillisecondsSinceEpoch(0))
+    rows.sort((a, b) => (DateTime.tryParse(b['created_at']?.toString() ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0))
         .compareTo(DateTime.tryParse(a['created_at']?.toString() ?? '') ??
             DateTime.fromMillisecondsSinceEpoch(0)));
     return rows.take(300).toList(growable: false);
@@ -88,9 +86,15 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
     final value = DateTime.tryParse(raw?.toString() ?? '')?.toLocal();
     if (value == null) return '—';
     String two(int n) => n.toString().padLeft(2, '0');
-    return two(value.day) + '/' + two(value.month) + '/' +
-        value.year.toString() + ' · ' +
-        two(value.hour) + ':' + two(value.minute);
+    return two(value.day) +
+        '/' +
+        two(value.month) +
+        '/' +
+        value.year.toString() +
+        ' · ' +
+        two(value.hour) +
+        ':' +
+        two(value.minute);
   }
 
   String _label(Map<String, dynamic> row) {
@@ -100,6 +104,57 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
       return 'Configuración de pruebas internas actualizada';
     }
     return action.replaceAll('_', ' ') + ' · ' + entity.replaceAll('_', ' ');
+  }
+
+  Widget _auditRow(Map<String, dynamic> row, {required bool showDivider}) {
+    final isTest = row['source_channel'] == 'preview';
+    final color = isTest ? AdminColors.warn : AdminColors.ok;
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 18,
+            vertical: 5,
+          ),
+          leading: CircleAvatar(
+            backgroundColor:
+                isTest ? const Color(0xFFFFF1D6) : AdminColors.okSoft,
+            child: Icon(
+              isTest ? Icons.science_rounded : Icons.history_rounded,
+              color: color,
+            ),
+          ),
+          title: Text(
+            _label(row),
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          subtitle: Text(
+            (row['admin_name'] ?? 'Administrador').toString() +
+                ' · ' +
+                _date(row['created_at']) +
+                '\n' +
+                (row['entity_id'] ?? '—').toString(),
+          ),
+          isThreeLine: true,
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            decoration: BoxDecoration(
+              color: isTest ? AdminColors.warnSoft : AdminColors.okSoft,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              isTest ? 'QA' : 'REAL',
+              style: TextStyle(
+                color: color,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
+        if (showDivider) const Divider(height: 1, indent: 18, endIndent: 18),
+      ],
+    );
   }
 
   @override
@@ -169,60 +224,86 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
                 const Card(
                   child: Padding(
                     padding: EdgeInsets.all(24),
-                    child: Text('No hay acciones para los entornos autorizados.',
-                      style: TextStyle(color: _muted)),
+                    child: Text(
+                        'No hay acciones para los entornos autorizados.',
+                        style: TextStyle(color: _muted)),
                   ),
                 )
               else
-                for (final row in rows)
-                  Builder(builder: (context) {
-                    final isTest = row['source_channel'] == 'preview';
-                    final color = isTest
-                        ? AdminColors.warn
-                        : AdminColors.ok;
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      color: Colors.white,
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isTest
-                              ? const Color(0xFFFFF1D6)
-                              : AdminColors.okSoft,
-                          child: Icon(
-                            isTest ? Icons.science_rounded
-                                   : Icons.history_rounded,
-                            color: color,
-                          ),
-                        ),
-                        title: Text(_label(row),
-                          style: const TextStyle(fontWeight: FontWeight.w800)),
-                        subtitle: Text(
-                          (row['admin_name'] ?? 'Administrador').toString() +
-                          ' · ' + _date(row['created_at']) + '\n' +
-                          (row['entity_id'] ?? '—').toString(),
-                        ),
-                        isThreeLine: true,
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 9, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isTest ? AdminColors.warnSoft
-                                          : AdminColors.okSoft,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            isTest ? 'QA' : 'REAL',
-                            style: TextStyle(color: color, fontSize: 10,
-                              fontWeight: FontWeight.w900),
-                          ),
+                AdminCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Historial de acciones',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 9),
+                            const Wrap(
+                              spacing: 14,
+                              runSpacing: 7,
+                              children: [
+                                _AuditLegend(
+                                  label: 'QA · pruebas internas',
+                                  color: AdminColors.warn,
+                                ),
+                                _AuditLegend(
+                                  label: 'REAL · Producción',
+                                  color: AdminColors.ok,
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  }),
+                      const Divider(height: 1),
+                      for (var index = 0; index < rows.length; index++)
+                        _auditRow(
+                          rows[index],
+                          showDivider: index < rows.length - 1,
+                        ),
+                    ],
+                  ),
+                ),
             ],
           );
         },
       ),
+    );
+  }
+}
+
+class _AuditLegend extends StatelessWidget {
+  const _AuditLegend({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
     );
   }
 }

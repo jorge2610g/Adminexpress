@@ -90,7 +90,13 @@
 
 **Revisión del código**: `admin_environment_reports.dart` y `admin_environment_audit.dart` conservan la separación de consultas por canal y ya tienen títulos planos. `admin_control_sections.dart` concentra avisos.
 
-**Pendientes**: validar que conteos, fecha y origen de eventos no se mezclen; ajustar la composición de Avisos.
+**Avance de código E6 (10 oct 2026)**:
+- Reportes conserva sus nueve indicadores y la separación de resultados QA/REAL, usando la cabecera plana y tarjetas compartidas del sistema visual.
+- Auditoría agrupa el historial cronológico en una sola superficie con leyenda visible y etiquetas QA/REAL por registro; no se mezclan ni se ocultan sus canales de origen.
+- Avisos adopta la composición de dos columnas del mockup en escritorio (editor a la izquierda, historial/telemetría a la derecha) y vuelve a una lista única en móvil.
+- Se añadió una prueba responsive de la composición de Avisos a 390 y 1280 px. No se alteraron RPC, destinatarios, permisos, soporte ni envío push.
+
+**Pendientes**: capturas reales comparadas con PDF 31–33; validar conteos, fechas y origen de eventos con datos autorizados; probar el envío de Avisos únicamente en un entorno QA aislado. E6 no está certificada visualmente.
 
 ## E7 — Configuración y cobertura (13)
 
