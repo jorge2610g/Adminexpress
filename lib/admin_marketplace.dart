@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 
 import 'core/supabase_client.dart';
 
@@ -909,40 +910,19 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Express Market',
-                          style: TextStyle(
-                            color: _ink,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Administra el módulo para Preview y Producción desde un solo lugar.',
-                          style: TextStyle(color: _muted),
-                        ),
-                      ],
-                    ),
+              AdminPageHero(
+                title: 'Express Market',
+                subtitle: 'Administra el módulo para Preview y Producción desde un solo lugar.',
+                icon: Icons.storefront_rounded,
+                trailing: OutlinedButton.icon(
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Actualizar'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white54),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Actualizar'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: () => _editSettings(settings),
-                    icon: const Icon(Icons.tune_rounded),
-                    label: const Text('Configuración'),
-                  ),
-                ],
+                ),
               ),
               const SizedBox(height: 14),
               Wrap(
