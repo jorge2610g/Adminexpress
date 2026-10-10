@@ -130,9 +130,30 @@ jobs:
   preview_only:
     if: ${{ contains(github.event.head_commit.message, '[deploy-preview-only]') || inputs.preview_only == true }}
     runs-on: ubuntu-latest
-    env:
-      PREVIEW_SHA: ${{ github.event_name == 'push' && github.sha || inputs.preview_source_sha }}
+    outputs:
+      preview_sha: ${{ steps.resolve_preview.outputs.preview_sha }}
     steps:
+      - name: Resolve pinned Preview source
+        id: resolve_preview
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          PUSH_SHA: ${{ github.sha }}
+          INPUT_PREVIEW_SHA: ${{ inputs.preview_source_sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            RESOLVED_SHA="$PUSH_SHA"
+            if [[ "$COMMIT_MESSAGE" =~ preview-sha=([0-9a-f]{40}) ]]; then
+              RESOLVED_SHA="${BASH_REMATCH[1]}"
+            fi
+          else
+            RESOLVED_SHA="$INPUT_PREVIEW_SHA"
+          fi
+          echo "PREVIEW_SHA=$RESOLVED_SHA" >> "$GITHUB_ENV"
+          echo "preview_sha=$RESOLVED_SHA" >> "$GITHUB_OUTPUT"
+
       - name: Validate pinned QA source
         shell: bash
         run: |
@@ -267,7 +288,7 @@ jobs:
         if: ${{ needs.preview_only.result == 'success' }}
         shell: bash
         env:
-          EXPECTED_PREVIEW_SHA: ${{ github.sha }}
+          EXPECTED_PREVIEW_SHA: ${{ needs.preview_only.outputs.preview_sha }}
           EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df
         run: |
           set -euo pipefail
