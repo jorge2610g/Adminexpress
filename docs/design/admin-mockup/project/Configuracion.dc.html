@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Configuración</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Configuración" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Configuración" env="preview" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="border-radius:20px;padding:20px 22px;background:linear-gradient(120deg,#0F2854,#174B91 55%,#0D6B8D);color:#FFFFFF;display:flex;align-items:center;gap:14px;box-shadow:0 10px 30px rgba(23,75,145,.25);flex:none">
+<div style="width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM17.5 14v7M14 17.5h7"/></svg></div>
+<div style="flex:1"><div style="font-size:23px;font-weight:800;letter-spacing:-.3px">Configuración</div><div style="font-size:12.5px;color:#D7E7FA;font-weight:600;margin-top:3px">Administra los parámetros generales de Express Delivery.</div></div>
+<button style="height:42px;padding:0 18px;border-radius:11px;border:0;background:#FFFFFF;color:#174B91;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#174B91" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5zM8 3v6h8V3M8 21v-7h8v7"/></svg>Guardar configuración</button>
+</div>
+<div style="display:flex;gap:4px;background:#FFFFFF;border:1px solid #DDE6F0;border-radius:12px;padding:5px;flex:none">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="8">
+<span style="padding:8px 14px;border-radius:9px;background:{{t.bg}};color:{{t.ink}};font-size:12px;font-weight:{{t.w}}">{{t.l}}</span>
+</sc-for>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;overflow:hidden;flex:none">
+<div style="display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid #EEF1F5">
+<span style="width:40px;height:40px;border-radius:12px;background:#EAF2FF;display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg></span>
+<div><div style="font-size:15px;font-weight:800">Módulos</div><div style="font-size:12px;font-weight:600;color:#64748B;margin-top:2px">Configuración rápida de la plataforma.</div></div>
+</div>
+<sc-for list="{{modules}}" as="s" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid #F1F5F9">
+<span style="flex:1;font-size:13.5px;font-weight:700">{{s.t}}</span>
+<span style="width:40px;height:24px;border-radius:12px;background:{{s.bg}};position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:{{s.knob}}px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,.2)"></span></span>
+</div>
+</sc-for>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;overflow:hidden;flex:none">
+<div style="display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid #EEF1F5">
+<span style="width:40px;height:40px;border-radius:12px;background:#EAF2FF;display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4"/></svg></span>
+<div><div style="font-size:15px;font-weight:800">Resumen operativo</div><div style="font-size:12px;font-weight:600;color:#64748B;margin-top:2px">Parámetros principales de la empresa.</div></div>
+</div>
+<sc-for list="{{summary}}" as="r" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;padding:13px 18px;border-bottom:1px solid #F1F5F9"><span style="flex:1;font-size:12.5px;font-weight:600;color:#64748B">{{r.l}}</span><span style="font-size:13.5px;font-weight:800">{{r.v}}</span></div>
+</sc-for>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const tab = (l, on) => ({ l, bg: on ? '#EAF2FF' : 'transparent', ink: on ? '#2563EB' : '#64748B', w: on ? 800 : 700 });
+const sw = (t, on) => ({ t, bg: on ? '#2563EB' : '#C5CEDD', knob: on ? 19 : 3 });
+return {
+tabs: [tab('General', true), tab('Servicios'), tab('Pagos'), tab('Operación'), tab('Tarifas'), tab('Soporte'), tab('Seguridad'), tab('Admin')],
+modules: [sw('Taxi habilitado', true), sw('Delivery habilitado', true)],
+summary: [{ l: 'Empresa', v: 'Express Delivery' }, { l: 'País', v: 'Bolivia' }, { l: 'Moneda', v: 'BOB' }, { l: 'Dispatch', v: 'Progresivo' }]
+};
+}
+}
+</script>
+</body>
+</html>

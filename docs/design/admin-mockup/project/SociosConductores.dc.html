@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Socios · Conductores</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:900px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<aside style="width:270px;flex:none;box-sizing:border-box;background:#0B2C5B;color:#FFFFFF;display:flex;flex-direction:column;padding:22px 14px 14px">
+<div style="display:flex;align-items:center;gap:12px;padding:0 6px">
+<div style="width:44px;height:44px;border-radius:22px;background:#FFFFFF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="#2563EB"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
+<span style="font-size:20px;font-weight:800;letter-spacing:.4px">EXPRESS</span>
+</div>
+<div style="position:relative;margin:24px 4px 18px">
+<span style="position:absolute;left:10px;top:-7px;padding:0 5px;background:#0B2C5B;font-size:10.5px;font-weight:700;color:rgba(255,255,255,.7)">Organización</span>
+<div style="height:46px;box-sizing:border-box;border:1px solid rgba(255,255,255,.3);border-radius:12px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;font-weight:700"><span>{{org}}</span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></div>
+</div>
+<div style="height:1px;background:rgba(255,255,255,.12);margin:0 4px 12px"></div>
+<div style="display:flex;flex-direction:column;gap:4px;flex:1">
+<sc-for list="{{nav}}" as="n" hint-placeholder-count="5">
+<div style="display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;background:{{n.bg}}"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{{n.icon}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{n.d}}"/></svg><span style="font-size:13.5px;font-weight:{{n.w}};color:{{n.ink}}">{{n.t}}</span></div>
+</sc-for>
+</div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;font-size:13px;font-weight:700;color:rgba(255,255,255,.85)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg>Actualizar</div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;font-size:13px;font-weight:700;color:rgba(255,255,255,.85)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>Cerrar sesión</div>
+</div>
+</aside>
+<main style="flex:1;min-width:0;padding:28px 28px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start">
+<section style="display:flex;flex-direction:column;gap:16px">
+<div><div style="font-size:25px;font-weight:800;letter-spacing:-.3px">Conductores</div><div style="font-size:13px;font-weight:600;color:#64748B;margin-top:4px">Solo conductores vinculados a tu organización.</div></div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<sc-for list="{{drivers}}" as="r" hint-placeholder-count="6">
+<div style="position:relative;background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;padding:13px 10px 13px 14px;display:flex;align-items:flex-start;gap:12px">
+<div style="width:40px;height:40px;border-radius:20px;background:#EAF2FF;display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18a3 3 0 100-6 3 3 0 000 6zM19 18a3 3 0 100-6 3 3 0 000 6zM8 15h6l3-5h-4M13 7h3"/></svg></div>
+<div style="flex:1;min-width:0">
+<div style="font-size:14px;font-weight:800">{{r.n}}</div>
+<div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#64748B;margin-top:3px">{{r.p}} · <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="#F59E0B"><path d="M12 2l3 6 6 .9-4.5 4.4 1 6.2L12 16.6 6.5 19.5l1-6.2L3 8.9 9 8z"/></svg>{{r.rt}} · {{r.t}} viajes</div>
+<div style="display:flex;gap:6px;margin-top:7px">
+<span style="display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:{{r.as}};font-size:11px;font-weight:800;color:{{r.ai}}"><span style="width:6px;height:6px;border-radius:3px;background:{{r.ai}}"></span>{{r.a}}</span>
+<span style="display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:{{r.os}};font-size:11px;font-weight:800;color:{{r.oi}}"><span style="width:6px;height:6px;border-radius:3px;background:{{r.oi}}"></span>{{r.o}}</span>
+</div>
+</div>
+<button aria-label="Acciones" style="width:36px;height:36px;border-radius:9px;border:0;background:{{r.mb}};display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475467" stroke-width="3" stroke-linecap="round"><path d="M12 5h.01M12 12h.01M12 19h.01"/></svg></button>
+<sc-if value="{{r.menu}}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;right:12px;top:50px;z-index:2;width:200px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:11px;box-shadow:0 12px 30px rgba(15,23,42,.16);padding:6px 0">
+<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;font-size:13px;font-weight:600"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14804A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM8 12l3 3 5-6"/></svg>Aprobar</div>
+<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;font-size:13px;font-weight:600;background:#F8FAFC"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B54708" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2"/></svg>Marcar pendiente</div>
+<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;font-size:13px;font-weight:600;color:#D92D20"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D92D20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM5.6 5.6l12.8 12.8"/></svg>Suspender</div>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</section>
+<section style="display:flex;flex-direction:column;gap:16px">
+<div><div style="font-size:25px;font-weight:800;letter-spacing:-.3px">Solicitudes de afiliación</div><div style="font-size:13px;font-weight:600;color:#64748B;margin-top:4px">Aprueba o rechaza conductores que quieren pertenecer a tu organización.</div></div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;padding:4px 16px">
+<sc-for list="{{requests}}" as="q" hint-placeholder-count="4">
+<div style="display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid #EEF1F5">
+<div style="width:40px;height:40px;border-radius:12px;background:#EAF2FF;display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M8.5 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M16 11h6"/></svg></div>
+<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:800">{{q.n}}</div><div style="font-size:12px;font-weight:600;color:#64748B;margin-top:3px">Solicitado {{q.d}}</div><div style="font-size:12px;font-weight:600;color:#475467;margin-top:3px">{{q.note}}</div></div>
+<button aria-label="Rechazar" style="width:38px;height:38px;border-radius:10px;border:1px solid #F0B8BF;background:#FFFFFF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#D92D20" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+<button aria-label="Aprobar" style="width:38px;height:38px;border-radius:10px;border:1px solid #9AD8B3;background:#E8F8EF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#14804A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></button>
+</div>
+</sc-for>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+const active = 'Conductores';
+const N = [['Resumen', 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z'], ['Conductores', 'M5 18a3 3 0 100-6 3 3 0 000 6zM19 18a3 3 0 100-6 3 3 0 000 6zM8 15h6l3-5h-4M13 7h3'], ['Solicitudes', 'M15 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M8.5 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M16 11h6'], ['Pagos y comisiones', 'M2 6h20v12H2zM2 10h20M6 15h4'], ['Avisos push', 'M6 17V11a6 6 0 1112 0v6l2 2H4zM10 21h4']];
+const A = { Aprobado: ['#E8F8EF', '#14804A'], Pendiente: ['#FFF7E6', '#B54708'], Suspendido: ['#FFE4E8', '#D92D20'] };
+const O = { 'En línea': ['#EAF2FF', '#2563EB'], 'Fuera de línea': ['#F2F4F7', '#64748B'], Ocupado: ['#FFEED0', '#D97706'] };
+const d = (n, p, rt, t, a, o, menu) => ({ n, p, rt, t, a, o, as: A[a][0], ai: A[a][1], os: O[o][0], oi: O[o][1], menu: !!menu, mb: menu ? '#EEF2F7' : 'transparent' });
+return {
+org: 'Sindicato de Mototaxis Mamoré',
+nav: N.map((n) => ({ t: n[0], d: n[1], bg: n[0] === active ? 'rgba(255,255,255,.12)' : 'transparent', w: n[0] === active ? 800 : 600, ink: n[0] === active ? '#FFFFFF' : 'rgba(255,255,255,.85)', icon: n[0] === active ? '#FFFFFF' : 'rgba(255,255,255,.7)' })),
+drivers: [
+d('Carlos Méndez Rojas', '+591 71234567', '4.8', '326', 'Aprobado', 'En línea'),
+d('Juan Pablo Égüez', '+591 72891045', '4.6', '198', 'Pendiente', 'Fuera de línea', true),
+d('Rosa Melgar Noe', '+591 69023418', '4.9', '512', 'Aprobado', 'Ocupado'),
+d('Luis Fernando Cuéllar', 'Sin teléfono', '—', '0', 'Pendiente', 'Fuera de línea'),
+d('Mario Suárez Vaca', '+591 73345120', '4.2', '87', 'Suspendido', 'Fuera de línea'),
+d('Ana Lucía Parada', '+591 75561233', '4.7', '241', 'Aprobado', 'En línea')
+],
+requests: [
+{ n: 'Diego Roca Antelo', d: '09/10/2026 · 18:42', note: 'Tengo moto propia y licencia categoría M.' },
+{ n: 'Wilma Justiniano', d: '08/10/2026 · 10:05', note: 'Trabajo por la zona de Pompeya.' },
+{ n: 'Conductor', d: '07/10/2026 · 21:17', note: '' },
+{ n: 'Ernesto Guaji Moye', d: '05/10/2026 · 07:30', note: 'Recomendado por Carlos Méndez.' }
+]
+};
+}
+}
+</script>
+</body>
+</html>

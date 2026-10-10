@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Detalle del viaje</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:900px;height:1400px;box-sizing:border-box;padding:18px 40px;background:linear-gradient(rgba(15,23,42,.06),rgba(15,23,42,.06)),#E9EEF5;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<div style="width:820px;box-sizing:border-box;background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column">
+<div style="padding:20px 24px 14px;display:flex;align-items:flex-start;gap:12px;border-bottom:1px solid #EEF1F5">
+<div style="width:42px;height:42px;border-radius:12px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 16l1.5-5h11L19 16M5 16v3M19 16v3M4 16h16M8 13h.01M16 13h.01"/></svg></div>
+<div style="flex:1"><div style="font-size:20px;font-weight:800;letter-spacing:-.3px">Detalle del viaje</div><div style="font-size:12px;font-weight:600;color:#64748B;margin-top:2px">Información operativa, cobro, historial y participantes.</div></div>
+<span style="display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:#E8F8EF;font-size:11px;font-weight:800;color:#14804A"><span style="width:6px;height:6px;border-radius:3px;background:#14804A"></span>Completado</span>
+</div>
+<div style="padding:14px 24px;display:flex;flex-direction:column;gap:10px">
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:14px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19a2 2 0 100-4 2 2 0 000 4zM19 9a2 2 0 100-4 2 2 0 000 4zM7 17h8a3 3 0 000-6H9a3 3 0 010-6h6"/></svg><span style="font-size:13px;font-weight:800">Ruta</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:5px;background:#12B76A"></span><span style="font-size:13.5px;font-weight:800">Plaza principal José Ballivián, Trinidad</span></div>
+<div style="padding:2px 0 2px 0"><svg aria-hidden="true" width="10" height="20" viewBox="0 0 10 24" fill="none" stroke="#98A2B3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2v20M1 17l4 5 4-5"/></svg></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:5px;background:#D92D20"></span><span style="font-size:13.5px;font-weight:800">Terminal de buses, Av. Japón</span></div>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 18px;margin-top:14px;padding-top:12px;border-top:1px solid #E2E8F0">
+<sc-for list="{{route}}" as="s" hint-placeholder-count="4"><div><div style="font-size:10.5px;font-weight:700;color:#64748B">{{s.l}}</div><div style="font-size:13px;font-weight:700;margin-top:2px">{{s.v}}</div></div></sc-for>
+</div>
+</div>
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:14px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8"/></svg><span style="font-size:13px;font-weight:800">Participantes</span></div>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 18px">
+<sc-for list="{{people}}" as="s" hint-placeholder-count="4"><div><div style="font-size:10.5px;font-weight:700;color:#64748B">{{s.l}}</div><div style="font-size:13px;font-weight:700;margin-top:2px">{{s.v}}</div></div></sc-for>
+</div>
+</div>
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:14px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h20v12H2zM2 10h20M6 15h4"/></svg><span style="font-size:13px;font-weight:800">Tarifa y pago</span></div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 18px">
+<sc-for list="{{fare}}" as="s" hint-placeholder-count="6"><div><div style="font-size:10.5px;font-weight:700;color:#64748B">{{s.l}}</div><div style="font-size:13px;font-weight:700;margin-top:2px">{{s.v}}</div></div></sc-for>
+</div>
+<div style="margin-top:12px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;padding:4px 12px">
+<sc-for list="{{payments}}" as="p" hint-placeholder-count="1">
+<div style="display:flex;align-items:center;gap:12px;padding:9px 0">
+<div style="width:32px;height:32px;border-radius:10px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4"/></svg></div>
+<div style="flex:1"><div style="font-size:13px;font-weight:800">{{p.t}}</div><div style="font-size:11.5px;font-weight:600;color:#64748B;margin-top:1px">{{p.s}}</div></div>
+</div>
+</sc-for>
+</div>
+<div style="font-size:12px;font-weight:800;margin:12px 0 4px">Movimientos de billetera: 2</div>
+<sc-for list="{{wallet}}" as="w" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #EEF1F5;font-size:12.5px"><span style="flex:1;font-weight:700;color:#475467">{{w.r}}</span><span style="font-weight:800">{{w.a}}</span></div>
+</sc-for>
+</div>
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:14px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2"/></svg><span style="font-size:13px;font-weight:800">Fechas y estado</span></div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 18px">
+<sc-for list="{{dates}}" as="s" hint-placeholder-count="6"><div><div style="font-size:10.5px;font-weight:700;color:#64748B">{{s.l}}</div><div style="font-size:13px;font-weight:700;margin-top:2px">{{s.v}}</div></div></sc-for>
+</div>
+</div>
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:14px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span style="font-size:13px;font-weight:800">Historial del viaje</span></div>
+<sc-for list="{{history}}" as="h" hint-placeholder-count="6">
+<div style="display:flex;align-items:center;gap:12px;padding:5px 0;border-bottom:1px solid #EEF1F5">
+<span style="width:10px;height:10px;border-radius:5px;background:#2563EB;flex:none;margin:0 4px"></span>
+<div style="flex:1"><div style="font-size:13px;font-weight:800">{{h.t}}</div><div style="font-size:11.5px;font-weight:600;color:#64748B">{{h.s}}</div></div>
+</div>
+</sc-for>
+</div>
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:14px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 6 6 .9-4.5 4.4 1 6.2L12 16.6 6.5 19.5l1-6.2L3 8.9 9 8z"/></svg><span style="font-size:13px;font-weight:800">Calificaciones</span></div>
+<sc-for list="{{ratings}}" as="r" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #EEF1F5">
+<div style="width:32px;height:32px;border-radius:10px;background:#FFF4D6;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2l3 6 6 .9-4.5 4.4 1 6.2L12 16.6 6.5 19.5l1-6.2L3 8.9 9 8z"/></svg></div>
+<div style="flex:1"><div style="font-size:13px;font-weight:800">{{r.t}}</div><div style="font-size:11.5px;font-weight:600;color:#64748B">{{r.s}}</div></div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="padding:12px 24px 18px;border-top:1px solid #EEF1F5;display:flex;justify-content:flex-end">
+<button style="height:40px;padding:0 14px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cerrar</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":900,"height":1400}}'>
+class Component extends DCLogic {
+renderVals() {
+return {
+route: [{ l: 'Zona', v: 'Trinidad' }, { l: 'Servicio', v: 'Moto' }, { l: 'Distancia', v: '4.2 km' }, { l: 'Duración estimada', v: '11 min' }],
+people: [{ l: 'Pasajero', v: 'María Vaca Suárez' }, { l: 'Teléfono pasajero', v: '+591 76543210' }, { l: 'Conductor', v: 'Carlos Méndez Rojas' }, { l: 'Teléfono conductor', v: '+591 71234567' }],
+fare: [{ l: 'Tarifa propuesta', v: 'BOB 15.00' }, { l: 'Tarifa final', v: 'BOB 15.00' }, { l: 'Método solicitado', v: 'Efectivo' }, { l: 'Estado de pago', v: 'Pagado' }, { l: 'Modo de precio', v: 'Tarifa fija' }, { l: 'Demanda', v: 'Alta · x1.2' }],
+payments: [{ t: 'BOB 15.00 · Efectivo', s: 'Pagado · comisión BOB 1.50 · 10/10/2026 · 08:55' }],
+wallet: [{ r: 'COM-A2041F3', a: '-1.50 · Completado' }, { r: 'BON-A2041F3', a: '0.50 · Completado' }],
+dates: [{ l: 'Estado actual', v: 'Completado' }, { l: 'Creado', v: '10/10/2026 · 08:42' }, { l: 'Programado', v: '—' }, { l: 'Completado', v: '10/10/2026 · 08:55' }, { l: 'Cancelación', v: '—' }, { l: 'ID viaje', v: 'a2041f3c-7b19-4d2e-9c51-0e8a6f13b27d' }],
+history: [
+{ t: 'Buscando conductor', s: '10/10/2026 · 08:42 · Sistema' },
+{ t: 'Aceptado', s: '10/10/2026 · 08:43 · Carlos Méndez Rojas' },
+{ t: 'Conductor llegando', s: '10/10/2026 · 08:43 · Carlos Méndez Rojas' },
+{ t: 'Conductor en el punto', s: '10/10/2026 · 08:46 · Carlos Méndez Rojas' },
+{ t: 'En curso', s: '10/10/2026 · 08:47 · Carlos Méndez Rojas' },
+{ t: 'Completado', s: '10/10/2026 · 08:55 · Carlos Méndez Rojas' }
+],
+ratings: [
+{ t: '5 / 5', s: 'Muy amable y puntual. · 10/10/2026 · 08:57' },
+{ t: '5 / 5', s: 'Sin comentario · 10/10/2026 · 08:58' }
+]
+};
+}
+}
+</script>
+</body>
+</html>

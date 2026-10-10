@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Estados del panel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;box-sizing:border-box;padding:24px;display:flex;flex-direction:column;gap:18px;background:#E9EEF5;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:18px">
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:#64748B">RESOLVIENDO ACCESO · VERIFICANDO ADMINISTRADOR</div>
+<div style="height:239px;box-sizing:border-box;background:#F1F5F9;border:1px solid #DDE6F0;border-radius:16px;display:flex;align-items:center;justify-content:center">
+<svg aria-hidden="true" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" fill="none" stroke="#DCE6F5" stroke-width="4"/><path d="M20 4a16 16 0 0116 16" fill="none" stroke="#2563EB" stroke-width="4" stroke-linecap="round"/></svg>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:#64748B">CARGANDO MÓDULO · _LOADING</div>
+<div style="height:239px;box-sizing:border-box;background:#F1F5F9;border:1px solid #DDE6F0;border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:18px">
+<div style="border-radius:20px;padding:22px 24px;background:linear-gradient(120deg,#0F2854,#174B91 55%,#0D6B8D);color:#FFFFFF;display:flex;align-items:center;gap:16px;box-shadow:0 10px 30px rgba(23,75,145,.25)">
+<div style="width:50px;height:50px;border-radius:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
+<div style="flex:1"><div style="font-size:24px;font-weight:800;letter-spacing:-.4px">Cargando operación</div><div style="font-size:13px;color:#D7E7FA;font-weight:600;margin-top:4px">Sincronizando datos administrativos con Express.</div></div>
+</div>
+<div style="height:4px;border-radius:2px;background:#DCE6F5;overflow:hidden"><div style="width:42%;height:4px;border-radius:2px;background:#2563EB;margin-left:18%"></div></div>
+</div>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="6">
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:#64748B">{{c.cap}}</div>
+<div style="height:239px;box-sizing:border-box;background:#F1F5F9;border:1px solid #DDE6F0;border-radius:16px;display:flex;align-items:center;justify-content:center;padding:14px">
+<div style="width:100%;box-sizing:border-box;background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;align-items:center;text-align:center">
+<div style="width:52px;height:52px;border-radius:16px;background:{{c.soft}};display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="{{c.ink}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{c.d}}"/></svg></div>
+<div style="font-size:16.5px;font-weight:800;margin-top:10px;letter-spacing:-.2px">{{c.title}}</div>
+<div style="font-size:12px;font-weight:600;color:#64748B;margin-top:5px;line-height:1.4">{{c.msg}}</div>
+<sc-if value="{{c.btn}}" hint-placeholder-val="{{ true }}"><button style="height:36px;margin-top:12px;padding:0 14px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="{{c.bd}}"/></svg>{{c.bl}}</button></sc-if>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px">
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:#64748B">ÁMBITO PENDIENTE · _SCOPESELECTIONREQUIRED</div>
+<div style="height:239px;box-sizing:border-box;background:#F1F5F9;border:1px solid #DDE6F0;border-radius:16px;display:flex;align-items:center;justify-content:center;padding:14px">
+<div style="width:100%;box-sizing:border-box;background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;padding:22px 20px;display:flex;flex-direction:column;align-items:center;text-align:center">
+<div style="width:56px;height:56px;border-radius:16px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg></div>
+<div style="font-size:18px;font-weight:800;margin-top:12px">Selecciona país y zona</div>
+<div style="font-size:12px;font-weight:600;color:#64748B;margin-top:6px;line-height:1.45">No se cargarán usuarios, viajes, conductores ni métricas hasta elegir el ámbito.</div>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:#64748B">MÓDULO BLOQUEADO EN PREVIEW</div>
+<div style="height:239px;box-sizing:border-box;background:#F1F5F9;border:1px solid #DDE6F0;border-radius:16px;display:flex;align-items:center;justify-content:center;padding:14px">
+<div style="width:100%;box-sizing:border-box;background:#FFF7E6;border:1px solid #F5D58A;border-radius:16px;padding:20px;display:flex;flex-direction:column;align-items:center;text-align:center">
+<div style="width:52px;height:52px;border-radius:16px;background:#FFFFFF;border:1px solid #F5D58A;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#B54708" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4 19a1.5 1.5 0 001.3 2h13.4a1.5 1.5 0 001.3-2L14 9V3"/></svg></div>
+<div style="font-size:12.5px;font-weight:700;color:#7A2E0E;margin-top:12px;line-height:1.5">Este módulo todavía no tiene aislamiento seguro por canal. Está bloqueado en Prueba para proteger los datos reales. Puedes gestionar conductores, documentos, viajes y configuración QA desde sus secciones.</div>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:#64748B">MONITOR DE ZONA · _ZONEMONITORRESTRICTED</div>
+<div style="height:239px;box-sizing:border-box;background:#F1F5F9;border:1px solid #DDE6F0;border-radius:16px;display:flex;align-items:center;justify-content:center;padding:14px">
+<div style="width:100%;box-sizing:border-box;background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;padding:22px 20px;display:flex;flex-direction:column;align-items:center;text-align:center">
+<div style="width:56px;height:56px;border-radius:16px;background:#F1F5F9;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14v10H5zM8 11V7a4 4 0 018 0v4"/></svg></div>
+<div style="font-size:16.5px;font-weight:800;margin-top:12px">Módulo reservado al administrador global</div>
+<div style="font-size:12px;font-weight:600;color:#64748B;margin-top:6px;line-height:1.45">El monitor de zona tiene acceso operativo de solo lectura.</div>
+<span style="display:flex;align-items:center;gap:6px;margin-top:12px;padding:4px 10px;border-radius:999px;background:#E8F8EF;font-size:11px;font-weight:800;color:#14804A"><span style="width:6px;height:6px;border-radius:3px;background:#14804A"></span>Solo lectura</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const shield = 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9.5 10.5a2.5 2.5 0 105 0 2.5 2.5 0 10-5 0M8 17a4 4 0 018 0';
+const lock = 'M5 11h14v10H5zM8 11V7a4 4 0 018 0v4';
+const err = 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 8v5M12 16h.01';
+const logout = 'M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9';
+const refresh = 'M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5';
+const red = { soft: '#FFE4E8', ink: '#D92D20' };
+return {
+cards: [
+{ cap: 'ACCESO DENEGADO · PRUEBA', title: 'Cuenta sin acceso a Prueba', msg: 'La cuenta ingresada no está autorizada para Preview. Cierra sesión y utiliza las credenciales de prueba.', d: shield, soft: red.soft, ink: red.ink, btn: true, bl: 'Cerrar sesión', bd: logout },
+{ cap: 'ACCESO DENEGADO · PRODUCCIÓN', title: 'Cuenta sin acceso a Producción', msg: 'Esta cuenta no tiene acceso administrativo a Producción ni una organización asignada.', d: shield, soft: red.soft, ink: red.ink, btn: true, bl: 'Cerrar sesión', bd: logout },
+{ cap: 'ACCESO · ERROR AL VALIDAR', title: 'No se pudo validar tu acceso', msg: 'AuthRetryableFetchException: Failed to fetch (status 0)', d: shield, soft: red.soft, ink: red.ink, btn: true, bl: 'Cerrar sesión', bd: logout },
+{ cap: 'PANEL · _UNAUTHORIZED', title: 'Acceso de administrador', msg: 'Esta cuenta no está autorizada para administrar Express.', d: lock, soft: '#EAF2FF', ink: '#2563EB', btn: true, bl: 'Cerrar sesión', bd: logout },
+{ cap: 'INICIO · _STARTUPERROR', title: 'Adminexpress no pudo iniciar', msg: 'Exception: No se pudo conectar con Supabase. Revisa la conexión e inténtalo de nuevo.', d: err, soft: red.soft, ink: red.ink, btn: false, bl: '', bd: '' },
+{ cap: 'MÓDULO · _ERRORVIEW', title: 'No se pudo cargar el módulo', msg: 'PostgrestException: permission denied for function admin_dashboard_state_v2 (42501)', d: err, soft: red.soft, ink: red.ink, btn: true, bl: 'Reintentar', bd: refresh }
+]
+};
+}
+}
+</script>
+</body>
+</html>

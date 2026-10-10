@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Operación en vivo</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Operación en vivo" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Operación en vivo" env="preview" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:16px 24px 22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:8px;align-items:center;background:#FFFFFF;border:1px solid #E4EAF2;border-radius:14px;padding:10px 12px">
+<span style="display:flex;align-items:center;gap:7px;padding:9px 13px;border-radius:10px;background:#2563EB;color:#FFFFFF;font-size:12px;font-weight:800"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>Todas las zonas</span>
+<sc-for list="{{zones}}" as="z" hint-placeholder-count="4">
+<span style="display:flex;align-items:center;gap:7px;padding:9px 13px;border-radius:10px;background:#F8FAFD;border:1px solid #E4EAF2;font-size:12px;font-weight:800"><span style="width:9px;height:9px;border-radius:5px;background:{{z.c}}"></span>{{z.n}}</span>
+</sc-for>
+</div>
+<div style="display:flex;gap:14px;flex:1;min-height:0">
+<div style="width:390px;flex:none;background:#FFFFFF;border:1px solid #E4EAF2;border-radius:16px;display:flex;flex-direction:column;overflow:hidden">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px">
+<div style="background:#FDFEFF;border:1px solid #E9EDF3;border-radius:12px;padding:12px;min-height:104px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between">
+<div style="display:flex;justify-content:space-between"><span style="width:34px;height:34px;border-radius:10px;background:#E5F8F1;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#12A66A" stroke-width="2" stroke-linecap="round"><path d="M5 19a2 2 0 100-4 2 2 0 000 4zM19 9a2 2 0 100-4 2 2 0 000 4zM7 17h8a3 3 0 000-6H9a3 3 0 010-6h6"/></svg></span><span style="font-size:24px;font-weight:800">12</span></div>
+<div><div style="font-size:12.5px;font-weight:800">Viajes activos</div><div style="font-size:10.5px;font-weight:700;color:#12A66A">En tiempo real</div></div>
+</div>
+<div style="background:#FDFEFF;border:1px solid #E9EDF3;border-radius:12px;padding:12px;min-height:104px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between">
+<div style="display:flex;justify-content:space-between"><span style="width:34px;height:34px;border-radius:10px;background:#F0E8FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7A2CF3" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8"/></svg></span><span style="font-size:24px;font-weight:800">51</span></div>
+<div><div style="font-size:12.5px;font-weight:800">Conductores</div><div style="font-size:10.5px;font-weight:700;color:#7A2CF3">Conectados ahora</div></div>
+</div>
+</div>
+<div style="display:flex;border-top:1px solid #EEF1F5;border-bottom:1px solid #EEF1F5">
+<div style="flex:1;text-align:center;padding:12px 0;font-size:12.5px;font-weight:800;color:#2563EB;border-bottom:2px solid #2563EB">Viajes (12)</div>
+<div style="flex:1;text-align:center;padding:12px 0;font-size:12.5px;font-weight:700;color:#64748B">Conductores (51)</div>
+</div>
+<div style="flex:1;min-height:0;overflow:hidden;padding:4px 14px">
+<sc-for list="{{trips}}" as="t" hint-placeholder-count="6">
+<div style="display:flex;gap:10px;padding:11px 0;border-bottom:1px solid #F1F5F9">
+<span style="width:9px;height:9px;border-radius:5px;background:#246BFD;margin-top:5px;flex:none"></span>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:12.5px;font-weight:800">{{t.id}}</span><span style="font-size:10px;font-weight:800;color:#B54708;background:#FFF7E6;border-radius:999px;padding:2px 8px">Prueba</span><span style="font-size:10px;font-weight:800;color:#2563EB;background:#E8F0FF;border-radius:999px;padding:2px 8px">{{t.s}}</span></div>
+<div style="font-size:11.5px;color:#64748B;font-weight:600;margin-top:3px">{{t.r}}</div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="flex:1;min-width:0;position:relative;border-radius:16px;overflow:hidden;border:1px solid #E4EAF2">
+<svg aria-hidden="true" width="100%" height="100%" viewBox="0 0 600 760" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0"><rect width="600" height="760" fill="#E8EDF3"/><path d="M0 430 C140 400 220 470 330 410 S500 330 600 360" stroke="#FFFFFF" stroke-width="18" fill="none"/><path d="M120 0 C140 200 90 420 150 760" stroke="#FFFFFF" stroke-width="13" fill="none"/><path d="M430 0 C410 180 480 380 450 760" stroke="#FFFFFF" stroke-width="13" fill="none"/><path d="M0 200 L600 170" stroke="#FFFFFF" stroke-width="9"/><path d="M0 620 L600 590" stroke="#FFFFFF" stroke-width="9"/><rect x="200" y="60" width="140" height="90" rx="10" fill="#DCE7D3"/><rect x="480" y="470" width="100" height="110" rx="10" fill="#DCE7D3"/><circle cx="300" cy="390" r="250" fill="rgba(11,87,208,.12)" stroke="#2563EB" stroke-width="2"/></svg>
+<sc-for list="{{dots}}" as="d" hint-placeholder-count="8">
+<div style="position:absolute;left:{{d.x}}%;top:{{d.y}}%;width:40px;height:40px;border-radius:20px;background:{{d.c}};border:3px solid #FFFFFF;box-shadow:0 3px 8px rgba(15,23,42,.25);display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="{{d.d}}"/></svg></div>
+</sc-for>
+<span style="position:absolute;left:14px;top:14px;background:rgba(255,255,255,.94);border-radius:9px;padding:6px 11px;font-size:11.5px;font-weight:800">Trinidad</span>
+<div style="position:absolute;left:14px;bottom:14px;width:200px;background:rgba(255,255,255,.96);border:1px solid #E4EAF2;border-radius:12px;padding:12px 14px">
+<div style="font-size:12px;font-weight:800;margin-bottom:6px">Conductores</div>
+<sc-for list="{{legend}}" as="l" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:600;padding:3px 0"><span style="width:9px;height:9px;border-radius:5px;background:{{l.c}}"></span><span style="flex:1">{{l.t}}</span><span style="font-weight:800">{{l.n}}</span></div>
+</sc-for>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const car = 'M3 13l2-6h14l2 6v5H3zM7 18v2M17 18v2M3 13h18';
+const taxi = 'M5 16l1.5-5h11L19 16M5 16v3M19 16v3M4 16h16';
+const truck = 'M1 6h13v10H1zM14 10h4l3 3v3h-7';
+const sos = 'M12 8v5M12 16h.01';
+return {
+zones: [{ n: 'Trinidad', c: '#0B57D0' }, { n: 'Iquique', c: '#12B76A' }, { n: 'Santa Cruz', c: '#F79009' }, { n: 'Riberalta', c: '#7A2CF3' }],
+trips: [
+{ id: '#A2041F3', s: 'in_progress', r: 'Plaza principal  →  Terminal de buses' },
+{ id: '#A2042B1', s: 'accepted', r: 'Mercado Pompeya  →  Hospital Materno' },
+{ id: '#A2043C9', s: 'searching', r: 'Centro  →  Aeropuerto Tte. Jorge Henrich' },
+{ id: '#A2044D2', s: 'arriving', r: 'Av. Bolívar  →  Universidad Autónoma' },
+{ id: '#A2045E7', s: 'in_progress', r: 'Barrio Fátima  →  Plaza principal' },
+{ id: '#A2046A0', s: 'accepted', r: 'Terminal  →  Barrio San Antonio' }
+],
+dots: [
+{ x: 30, y: 40, c: '#12B76A', d: car }, { x: 55, y: 30, c: '#12B76A', d: car }, { x: 62, y: 55, c: '#F79009', d: car },
+{ x: 40, y: 62, c: '#246BFD', d: car }, { x: 72, y: 42, c: '#E5484D', d: car }, { x: 48, y: 48, c: '#2563EB', d: taxi },
+{ x: 35, y: 25, c: '#0F172A', d: truck }, { x: 66, y: 68, c: '#D92D20', d: sos }
+],
+legend: [{ t: 'Disponibles', c: '#12B76A', n: '24' }, { t: 'En línea, sin señal', c: '#246BFD', n: '3' }, { t: 'En viaje', c: '#F79009', n: '12' }, { t: 'Desconectados', c: '#E5484D', n: '33' }]
+};
+}
+}
+</script>
+</body>
+</html>

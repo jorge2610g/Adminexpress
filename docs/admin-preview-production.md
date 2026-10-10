@@ -209,3 +209,8 @@ Reglas:
 - nuevas RPC operativas sensibles deben incluir entorno explícito o quedar bloqueadas por el validador CI.
 
 El objetivo es que un bug del frontend no pueda convertir una operación Preview en una mutación silenciosa de Producción.
+
+
+## Garantías de servidor (2026-10-10)
+
+La separación ya no depende solo de la UI: el servidor rechaza a un admin sin `allow_production` en cualquier RPC administrativa sin `p_channel` (lectura y escritura) y en las Edge Functions de credenciales de pago. Cualquier módulo nuevo en Preview debe usar RPC con `p_channel` o el almacén `admin_environment_config`. Ver `jorge2610g/Expressdelivery` → `docs/AI_HANDOFF_2026-10-10_SECURITY_AUDIT.md`.
