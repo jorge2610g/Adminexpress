@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 
 import 'core/supabase_client.dart';
 
@@ -127,28 +128,20 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              Row(children: [
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Auditoría',
-                        style: TextStyle(color: _ink, fontSize: 24,
-                            fontWeight: FontWeight.w900)),
-                      SizedBox(height: 4),
-                      Text('Historial general de Express, ordenado por fecha. '
-                           'Las acciones reales y de pruebas están identificadas '
-                           'en una misma pantalla.',
-                        style: TextStyle(color: _muted)),
-                    ],
-                  ),
-                ),
-                OutlinedButton.icon(
+              AdminPageHero(
+                title: 'Auditoría',
+                subtitle: 'Historial general de Express, ordenado por fecha. Las acciones reales y de pruebas están identificadas en una misma pantalla.',
+                icon: Icons.history_rounded,
+                trailing: OutlinedButton.icon(
                   onPressed: _refresh,
                   icon: const Icon(Icons.refresh_rounded),
                   label: const Text('Actualizar'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white54),
+                  ),
                 ),
-              ]),
+              ),
               const SizedBox(height: 14),
               if (rows.isEmpty)
                 const Card(
