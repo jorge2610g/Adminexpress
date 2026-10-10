@@ -9,6 +9,7 @@ import 'core/admin_widgets.dart';
 import 'core/admin_records_table.dart';
 import 'core/admin_delivery_row.dart';
 import 'core/admin_sos_row.dart';
+import 'core/admin_live_zone_strip.dart';
 import 'admin_environment_store.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
@@ -1671,7 +1672,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _LiveZoneStrip(
+              AdminLiveZoneStrip(
                 zones: zones,
                 selectedZoneId: liveZoneId,
                 onSelected: (value) {
@@ -3407,117 +3408,6 @@ class _Surface extends StatelessWidget {
         ],
       ),
       child: child,
-    );
-  }
-}
-
-class _LiveZoneStrip extends StatelessWidget {
-  final List<Map<String, dynamic>> zones;
-  final String? selectedZoneId;
-  final ValueChanged<String?> onSelected;
-
-  const _LiveZoneStrip({
-    required this.zones,
-    required this.selectedZoneId,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = <Color>[
-      const Color(0xFF0B57D0),
-      const Color(0xFF12B76A),
-      const Color(0xFFF79009),
-      const Color(0xFF7A2CF3),
-      const Color(0xFF06AED4),
-      const Color(0xFFEF4444),
-    ];
-
-    Widget chip({
-      required String label,
-      required bool selected,
-      required VoidCallback onTap,
-      Color? dot,
-      IconData? icon,
-    }) {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? adminBlue : const Color(0xFFF8FAFD),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected ? adminBlue : const Color(0xFFE4EAF2),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null)
-                Icon(
-                  icon,
-                  size: 15,
-                  color: selected ? Colors.white : adminMuted,
-                )
-              else if (dot != null)
-                Container(
-                  width: 9,
-                  height: 9,
-                  decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-                ),
-              const SizedBox(width: 7),
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected ? Colors.white : adminDark,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      height: 68,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE4EAF2)),
-      ),
-      child: Row(
-        children: [
-          chip(
-            label: 'Todas las zonas',
-            selected: selectedZoneId == null,
-            icon: Icons.grid_view_rounded,
-            onTap: () => onSelected(null),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: zones.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final zone = zones[index];
-                final id = (zone['id'] ?? '').toString();
-                return chip(
-                  label: (zone['name'] ?? 'Zona').toString(),
-                  selected: id.isNotEmpty && id == selectedZoneId,
-                  dot: palette[index % palette.length],
-                  onTap: () => onSelected(id.isEmpty ? null : id),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
