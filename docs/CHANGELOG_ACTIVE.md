@@ -326,3 +326,9 @@ El panel de países dispone de **Preparar países QA** exclusivamente cuando `AD
 
 - Express v1.5.20 · build 60;
 - incluye limpieza del repositorio Express y corrección reforzada de cancelación.
+
+### E5 Finanzas — 2026-10-10 (PR #63, sin despliegue)
+
+- Pagos/Billetera respeta ahora el `channel` recibido por el panel: Preview usa únicamente la configuración QA/shadow y Producción conserva sus RPC existentes.
+- Se alinearon las cabeceras de Mercado Pago, VeriPagos, planes y asignaciones con los mockups de Finanzas; no se alteraron cobros, claves, permisos ni flujos de aprobación.
+- La validación visual real de E3, E4 y E5 sigue pendiente. No se publicó Preview ni se modificó Producción.

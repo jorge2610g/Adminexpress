@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_stage_edit_dialog_title.dart';
 import 'core/admin_widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -5429,7 +5430,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      const AdminEnvironmentStore('production');
+      AdminEnvironmentStore(widget.channel);
   String paymentPeriod = 'today';
   DateTimeRange? paymentCustomRange;
   String? selectedPaymentZoneId;
@@ -5760,8 +5761,12 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(
-          'Mercado Pago · ${zone['name'] ?? 'Zona'}',
+        title: AdminStageEditDialogTitle(
+          title: 'Mercado Pago · ${zone['name'] ?? 'Zona'}',
+          subtitle: _environment.isPreview
+              ? 'Credenciales simuladas y aisladas en Preview.'
+              : 'Credenciales por zona y verificación protegida.',
+          icon: Icons.account_balance_wallet_rounded,
         ),
         content: SizedBox(
           width: 540,
@@ -5790,9 +5795,10 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const _AdminPaymentNotice(
-                  text:
-                      'Usa las credenciales de producción de Mercado Pago Chile. Al guardar, Express verificará la cuenta antes de marcarlas como conectadas.',
+                _AdminPaymentNotice(
+                  text: _environment.isPreview
+                      ? 'Preview guarda solo una configuración QA aislada. No se envía un cobro ni se modifica una cuenta real.'
+                      : 'Usa las credenciales de producción de Mercado Pago Chile. Al guardar, Express verificará la cuenta antes de marcarlas como conectadas.',
                 ),
               ],
             ),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_stage_edit_dialog_title.dart';
 import 'core/admin_widgets.dart';
 
 import 'admin_control_sections.dart';
@@ -451,7 +452,11 @@ class _AdminDriverSubscriptionsPageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(plan == null ? 'Nuevo plan' : 'Editar plan'),
+          title: AdminStageEditDialogTitle(
+            title: plan == null ? 'Nuevo plan' : 'Editar plan',
+            subtitle: 'Planes · ${settings['zone_name'] ?? selectedZoneKey ?? 'Zona'}',
+            icon: Icons.workspace_premium_rounded,
+          ),
           content: SizedBox(
             width: 520,
             child: SingleChildScrollView(
@@ -717,11 +722,13 @@ class _AdminDriverSubscriptionsPageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            'Asignar plan · ' +
+          title: AdminStageEditDialogTitle(
+            title: 'Asignar plan · ' +
                 (driver['full_name']?.toString().trim().isNotEmpty == true
                     ? driver['full_name'].toString()
                     : driver['email']?.toString() ?? 'Conductor'),
+            subtitle: '${settings['zone_name'] ?? selectedZoneKey ?? 'Zona'} · ${settings['currency_code'] ?? 'BOB'}',
+            icon: Icons.two_wheeler_rounded,
           ),
           content: SizedBox(
             width: 480,
@@ -828,7 +835,11 @@ class _AdminDriverSubscriptionsPageState
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Conectar VeriPagos'),
+        title: AdminStageEditDialogTitle(
+          title: 'Conectar VeriPagos',
+          subtitle: 'QR Bolivia · ${settings['zone_name'] ?? selectedZoneKey ?? 'Zona'}',
+          icon: Icons.qr_code_2_rounded,
+        ),
         content: SizedBox(
           width: 520,
           child: SingleChildScrollView(

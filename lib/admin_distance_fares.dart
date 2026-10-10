@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
@@ -215,13 +216,11 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
   @override
   Widget build(BuildContext context) {
     final currency = (widget.zone['currency_code'] ?? 'BOB').toString();
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return AdminCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             const Row(
               children: [
                 Icon(Icons.stacked_line_chart_rounded,
@@ -346,8 +345,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
               const SizedBox(height: 12),
               Text(_error!, style: const TextStyle(color: Colors.red)),
             ],
-          ],
-        ),
+        ],
       ),
     );
   }

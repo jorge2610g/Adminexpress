@@ -76,7 +76,13 @@
 
 **Revisión del código**: `admin_control_sections.dart`, `admin_distance_fares.dart`, `admin_driver_subscriptions.dart`. Se corrigió una regresión previa que había truncado el módulo de suscripciones; la lógica original fue restaurada. 
 
-**Pendientes**: validación del estado/moneda por zona (Bs/CLP), permisos y cancelaciones; no realizar compras/cobros de prueba en Producción.
+**Avance de código E5 (10 oct 2026)**:
+- Pagos/Billetera vuelve a tomar el canal recibido por la pantalla en vez de asumir Producción; las recargas, métodos y credenciales de Preview permanecen en su almacenamiento QA aislado.
+- Los formularios de Mercado Pago, planes, asignación de planes y VeriPagos adoptan cabeceras claras con icono, zona y contexto, como los diálogos de referencia.
+- La tarjeta de tarifa escalonada adopta el contenedor visual compartido del panel; su lectura/escritura Preview sigue limitada a `admin_environment_config`.
+- Se añadieron pruebas de widget de las cabeceras financieras a 390 y 1280 px. No se cambiaron RPCs, cobros, algoritmos de tarifa, permisos ni credenciales.
+
+**Pendientes**: capturas reales comparadas con PDF 25–30; validación del estado/moneda por zona (Bs/CLP), permisos y cancelaciones; no realizar compras/cobros de prueba en Producción. E5 no está certificada visualmente.
 
 ## E6 — Informes y avisos (3)
 
