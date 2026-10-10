@@ -50,6 +50,7 @@ class AdminExpressApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        fontFamily: 'PlusJakartaSans',
         colorScheme: ColorScheme.fromSeed(
           seedColor: AdminColors.blue,
           surface: AdminColors.surface,
