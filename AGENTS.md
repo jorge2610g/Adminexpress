@@ -1,3 +1,17 @@
+> **Backend endurecido 2026-10-10 (leer antes de tocar RPC):** en Supabase
+> `zgpijrznvaskgcmauwxx`, toda RPC `admin_*` **sin `p_channel`** (lectura o
+> escritura) exige ahora `allow_production` → un admin Preview-only recibe
+> `No autorizado para el entorno production`. Funciones internas
+> (`admin_set_driver_approval`, `admin_user_detail`, `admin_driver_detail`,
+> `admin_trip_detail`, `admin_upsert_zone_v3`, …) ya no se llaman desde el
+> cliente: usar `*_v2` con `p_channel`. En Preview, escribir solo vía
+> `AdminEnvironmentStore.previewUpsert` (`admin_environment_config_upsert`, que
+> valida el entorno). Edge Functions `zone-payment-admin` y
+> `driver-subscription-admin` exigen permiso de Producción. Aprobar las 3 fotos
+> de identidad aprueba al conductor automáticamente (respuesta
+> `driver_auto_approved`). Nuevos admins nacen con `allow_production=false`.
+> Detalle: `jorge2610g/Expressdelivery` → `docs/AI_HANDOFF_2026-10-10_SECURITY_AUDIT.md`.
+>
 ## Arquitectura obligatoria — 2026-10-09: dos páginas en Supabase principal
 - Producción (`/`): Supabase `zgpijrznvaskgcmauwxx`, canal `production`.
 - Preview (`/preview/`): **el mismo** Supabase `zgpijrznvaskgcmauwxx`, canal `preview`.

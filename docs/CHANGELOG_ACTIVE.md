@@ -1,3 +1,14 @@
+## 2026-10-10 — Cambios de backend que afectan al panel (sin cambios de código Admin)
+
+- **E1/E1b (Supabase Producción):** RPC `admin_*` sin `p_channel` requieren `allow_production`; internas revocadas a clientes; `admin_environment_config_upsert` valida `p_environment`; `allow_production DEFAULT false`. Verificado que el panel en Preview usa `previewUpsert` y versiones `_v2`, así que no se rompe.
+- **E4:** `admin_driver_kyc_bolivia_manual_review_part` y `admin_upsert_driver_document_v2` devuelven `driver_auto_approved` y aprueban al conductor cuando todos sus documentos obligatorios están verificados. (Mejora opcional en UI: mostrar "Conductor aprobado automáticamente").
+- **E6:** `anon` sin permisos de escritura; `admin_*_v2` ya no ejecutables por `anon`.
+- **Edge Functions:** `zone-payment-admin` v17 y `driver-subscription-admin` v20 exigen permiso de Producción.
+- Pendiente del propietario: Redirect URL `https://admin.expressviajes.online/preview/` en Supabase Auth y prueba de login Google Preview; cuenta Google solo-Preview que no sea conductor (E2).
+- Fuente: `jorge2610g/Expressdelivery` PR #148 y `docs/AI_HANDOFF_2026-10-10_SECURITY_AUDIT.md`.
+
+---
+
 ## 2026-10-10 — Google OAuth de Preview retornaba a la web de pasajeros
 
 - Vídeo de QA: seleccionar Google en `/preview/` termina en `https://expressviajes.online/` en vez del panel. No se confirmó ingreso administrativo; no retirar permisos del administrador anterior.
