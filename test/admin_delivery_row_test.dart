@@ -31,13 +31,13 @@ void main() {
     expect(find.text('Recogido'), findsOneWidget);
     expect(find.text('Medicamentos'), findsOneWidget);
     expect(find.text('Bs 12.00'), findsOneWidget);
-    expect(find.textContaining('Cliente QA'), findsNothing);
+    expect(find.textContaining('Cliente QA', findRichText: true), findsNothing);
 
     await tester.tap(find.text('Recogido'));
     await tester.pump();
     expect(find.textContaining('Cliente QA'), findsOneWidget);
-    expect(find.textContaining('Repartidor QA'), findsOneWidget);
-    expect(find.textContaining('Efectivo'), findsOneWidget);
+    expect(find.textContaining('Repartidor QA', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Efectivo', findRichText: true), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
