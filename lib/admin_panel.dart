@@ -16,6 +16,7 @@ import 'admin_marketplace_phase2.dart';
 import 'admin_driver_priority.dart';
 import 'admin_dynamic_pricing.dart';
 import 'admin_detail_dialogs.dart';
+import 'admin_driver_document_requirements.dart';
 import 'admin_environment_reports.dart';
 import 'admin_environment_audit.dart';
 import 'admin_manual_identity.dart';
@@ -1023,6 +1024,70 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       SnackBar(content: Text('Error: ' + error.toString())),
     );
   }
+
+  Future<void> _showDriverRequirements() async {
+    if (!_scopeReady) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(18),
+        child: SizedBox(
+          width: 920,
+          height: 720,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 14, 10, 10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.tune_rounded, color: adminBlue),
+                    const SizedBox(width: 9),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ajuste de requisitos',
+                            style: TextStyle(
+                              color: adminDark,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          Text(
+                            'Define los documentos solicitados para el país y zona seleccionados.',
+                            style: TextStyle(
+                              color: adminMuted,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Cerrar',
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: AdminDriverDocumentRequirementsPanel(
+                  channel: adminChannel,
+                  countryCode: adminCountryCode,
+                  zoneId: adminZoneId,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (mounted) _refresh();
+  }
+
   Future<void> _resolveEmergency(String id) async {
     try {
       await supabase.rpc(
@@ -1789,6 +1854,18 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           empty: 'Todavía no hay conductores registrados.',
           rows: snapshot.data ?? const [],
           showQaFilter: false,
+          statusField: 'approval_status',
+          statusLabels: const {
+            'approved': 'Activos',
+            'pending': 'Pendientes',
+            'rejected': 'Rechazados',
+            'suspended': 'Suspendidos',
+          },
+          serverFilters: FilledButton.icon(
+            onPressed: _isZoneMonitor ? null : _showDriverRequirements,
+            icon: const Icon(Icons.tune_rounded, size: 17),
+            label: const Text('Ajuste de requisitos'),
+          ),
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
             final online = (row['online_status'] ?? 'offline').toString();
@@ -2250,7 +2327,6 @@ class _Navigation extends StatelessWidget {
           ('FINANZAS', [9, 8, 22]),
           ('ANÁLISIS', [10, 14]),
           ('COMUNICACIÓN', [15]),
-          ('SEGURIDAD', [18]),
           ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
           ('HERRAMIENTAS QA', [20, 21]),
         ];
@@ -4510,6 +4586,8 @@ class _Records extends StatefulWidget {
   final Widget Function(Map<String, dynamic>) item;
   final bool showQaFilter;
   final Widget? serverFilters;
+  final String statusField;
+  final Map<String, String> statusLabels;
 
   const _Records({
     required this.title,
@@ -4519,6 +4597,8 @@ class _Records extends StatefulWidget {
     required this.item,
     this.showQaFilter = false,
     this.serverFilters,
+    this.statusField = 'status',
+    this.statusLabels = const {},
   });
 
   @override
@@ -4540,7 +4620,7 @@ class _RecordsState extends State<_Records> {
   @override
   Widget build(BuildContext context) {
     final statuses = widget.rows
-        .map((row) => row['status']?.toString())
+        .map((row) => row[widget.statusField]?.toString())
         .whereType<String>()
         .where((value) => value.isNotEmpty)
         .toSet()
@@ -4554,7 +4634,7 @@ class _RecordsState extends State<_Records> {
               .join(' ')
               .contains(query.toLowerCase());
       final matchesStatus =
-          status == null || row['status']?.toString() == status;
+          status == null || row[widget.statusField]?.toString() == status;
       final isQa = row['is_qa'] == true;
       final matchesQa = !widget.showQaFilter ||
           qaFilter == 'all' ||
@@ -4601,7 +4681,7 @@ class _RecordsState extends State<_Records> {
               ),
               for (final value in statuses.take(5))
                 ChoiceChip(
-                  label: Text(value),
+                  label: Text(widget.statusLabels[value] ?? value),
                   selected: status == value,
                   onSelected: (_) => setState(() => status = value),
                 ),
