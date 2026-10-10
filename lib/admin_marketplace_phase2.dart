@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+
 import 'core/supabase_client.dart';
 
-const _blue = Color(0xFF2563EB);
-const _ink = Color(0xFF0F172A);
-const _muted = Color(0xFF64748B);
-const _bg = Color(0xFFF1F5F9);
+const _blue = AdminColors.blue;
+const _ink = AdminColors.ink;
+const _muted = AdminColors.muted;
+const _bg = AdminColors.bg;
 
 class AdminMarketplacePhase2Page extends StatefulWidget {
   final bool ordersOnly;
@@ -1282,14 +1284,14 @@ class _AdminMarketplacePhase2PageState
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: active
-            ? const Color(0xFFE8F8EF)
+            ? AdminColors.okSoft
             : const Color(0xFFF2F4F7),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: active ? const Color(0xFF14804A) : _muted,
+          color: active ? AdminColors.ok : _muted,
           fontSize: 10,
           fontWeight: FontWeight.w800,
         ),
@@ -1314,7 +1316,7 @@ class _AdminMarketplacePhase2PageState
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: const Color(0xFFEAF2FF),
+                backgroundColor: AdminColors.blueSoft,
                 child: Icon(icon, color: _blue),
               ),
               const SizedBox(width: 14),
@@ -1767,7 +1769,7 @@ class _AdminMarketplacePhase2PageState
                   child: Row(
                     children: [
                       const CircleAvatar(
-                        backgroundColor: Color(0xFFEAF2FF),
+                        backgroundColor: AdminColors.blueSoft,
                         child: Icon(Icons.receipt_long_rounded, color: _blue),
                       ),
                       const SizedBox(width: 12),
