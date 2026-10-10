@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'core/admin_design_tokens.dart';
 import 'core/admin_widgets.dart';
 import 'core/admin_priority_metrics.dart';
+import 'core/admin_stage_edit_dialog_title.dart';
 
 import 'core/supabase_client.dart';
 
@@ -149,7 +150,13 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: const Text('Configurar prioridad de conductores'),
+          title: AdminStageEditDialogTitle(
+            title: 'Configurar prioridad de conductores',
+            subtitle: widget.channel == 'preview'
+                ? 'Preview · Ajustes de clasificación'
+                : 'Producción · Ajustes de clasificación',
+            icon: Icons.tune_rounded,
+          ),
           content: SizedBox(
             width: 650,
             child: SingleChildScrollView(
