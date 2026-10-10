@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
 import 'core/admin_widgets.dart';
+import 'core/admin_stage_edit_dialog_title.dart';
 
 import 'core/supabase_client.dart';
 
@@ -110,7 +111,13 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: const Text('Configuración de Express Market'),
+          title: AdminStageEditDialogTitle(
+            title: 'Configuración de Express Market',
+            subtitle: widget.channel == 'preview'
+                ? 'Express Market · Preview'
+                : 'Express Market · Producción',
+            icon: Icons.settings_outlined,
+          ),
           content: SizedBox(
             width: 560,
             child: SingleChildScrollView(
@@ -237,7 +244,11 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Nueva categoría' : 'Editar categoría'),
+          title: AdminStageEditDialogTitle(
+            title: row == null ? 'Nueva categoría' : 'Editar categoría',
+            subtitle: 'Express Market · ${widget.channel == 'preview' ? 'Preview' : 'Producción'}',
+            icon: Icons.category_outlined,
+          ),
           content: SizedBox(
             width: 520,
             child: SingleChildScrollView(
@@ -369,7 +380,11 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Nuevo banner' : 'Editar banner'),
+          title: AdminStageEditDialogTitle(
+            title: row == null ? 'Nuevo banner' : 'Editar banner',
+            subtitle: 'Express Market · ${widget.channel == 'preview' ? 'Preview' : 'Producción'}',
+            icon: Icons.campaign_outlined,
+          ),
           content: SizedBox(
             width: 520,
             child: SingleChildScrollView(
@@ -536,7 +551,11 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Nuevo comercio' : 'Editar comercio'),
+          title: AdminStageEditDialogTitle(
+            title: row == null ? 'Nuevo comercio' : 'Editar comercio',
+            subtitle: 'Express Market · ${widget.channel == 'preview' ? 'Preview' : 'Producción'}',
+            icon: Icons.storefront_outlined,
+          ),
           content: SizedBox(
             width: 600,
             child: SingleChildScrollView(
