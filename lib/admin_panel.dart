@@ -1724,7 +1724,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                         SizedBox(
                           // The Claude E2 artboard uses a 390px operational
                           // rail on the standard 1280px desktop canvas.
-                          width: constraints.maxWidth >= 1020 ? 390 : 350,
+                          width: constraints.maxWidth >= 970 ? 390 : 350,
                           child: side,
                         ),
                         const SizedBox(width: 12),
