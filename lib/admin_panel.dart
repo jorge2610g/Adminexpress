@@ -1667,7 +1667,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         }
 
         return Padding(
-          padding: const EdgeInsets.fromLTRB(22, 10, 22, 22),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 22),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1721,7 +1721,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         SizedBox(
-                          width: constraints.maxWidth > 1300 ? 330 : 286,
+                          // The Claude E2 artboard uses a 390px operational
+                          // rail on the standard 1280px desktop canvas.
+                          width: constraints.maxWidth >= 1020 ? 390 : 350,
                           child: side,
                         ),
                         const SizedBox(width: 12),
@@ -3183,24 +3185,33 @@ class _QuickActions extends StatelessWidget {
                 Text(
                   action.$1,
                   style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
                     color: adminDark,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  action.$2,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: adminMuted,
-                    height: 1.3,
-                    fontSize: 9,
-                  ),
+                const SizedBox(height: 4),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        action.$2,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF475467),
+                          height: 1.3,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(Icons.arrow_forward_rounded,
+                      color: action.$5, size: 17),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                Icon(Icons.arrow_forward_rounded, color: action.$5, size: 18),
               ],
             ),
           ),
@@ -3243,7 +3254,7 @@ class _QuickActions extends StatelessWidget {
                   for (var i = 0; i < actions.length; i++) ...[
                     Expanded(
                       child: SizedBox(
-                        height: 166,
+                        height: 158,
                         child: actionCard(actions[i]),
                       ),
                     ),
@@ -3661,7 +3672,7 @@ class _LiveMetricCard extends StatelessWidget {
               Text(
                 value.toString(),
                 style: const TextStyle(
-                  fontSize: 22,
+                  fontSize: 24,
                   fontWeight: FontWeight.w900,
                   color: adminDark,
                 ),
@@ -3672,7 +3683,7 @@ class _LiveMetricCard extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              fontSize: 10,
+              fontSize: 12.5,
               fontWeight: FontWeight.w800,
               color: adminDark,
             ),
@@ -3682,7 +3693,7 @@ class _LiveMetricCard extends StatelessWidget {
             note,
             style: TextStyle(
               color: accent,
-              fontSize: 8,
+              fontSize: 10.5,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -3715,7 +3726,7 @@ class _LiveTab extends StatelessWidget {
               label,
               style: TextStyle(
                 color: selected ? adminBlue : adminMuted,
-                fontSize: 10,
+                fontSize: 12.5,
                 fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
               ),
             ),
