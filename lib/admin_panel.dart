@@ -1854,6 +1854,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           rows: snapshot.data ?? const [],
           showQaFilter: false,
           statusField: 'approval_status',
+          statusOptions: const [
+            'approved',
+            'pending',
+            'rejected',
+            'suspended',
+          ],
           headerAction: _isZoneMonitor
               ? null
               : FilledButton.icon(
@@ -4586,6 +4592,7 @@ class _Records extends StatefulWidget {
   final bool showQaFilter;
   final Widget? serverFilters;
   final String statusField;
+  final List<String>? statusOptions;
   final Widget? headerAction;
 
   const _Records({
@@ -4597,6 +4604,7 @@ class _Records extends StatefulWidget {
     this.showQaFilter = false,
     this.serverFilters,
     this.statusField = 'status',
+    this.statusOptions,
     this.headerAction,
   });
 
@@ -4618,13 +4626,15 @@ class _RecordsState extends State<_Records> {
 
   @override
   Widget build(BuildContext context) {
-    final statuses = widget.rows
-        .map((row) => row[widget.statusField]?.toString())
-        .whereType<String>()
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final statuses = widget.statusOptions != null
+        ? List<String>.from(widget.statusOptions!)
+        : (widget.rows
+            .map((row) => row[widget.statusField]?.toString())
+            .whereType<String>()
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort());
 
     final visible = widget.rows.where((row) {
       final matchesText = query.isEmpty ||
