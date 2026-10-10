@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
 
@@ -159,45 +160,105 @@ class _DialogFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final maxWidth = width < 900 ? width - 28 : 820.0;
-    return AlertDialog(
+    final size = MediaQuery.sizeOf(context);
+    final width = size.width < 920 ? size.width - 28 : 900.0;
+    final height = size.height * .88;
+
+    return Dialog(
       insetPadding: const EdgeInsets.all(14),
-      titlePadding: const EdgeInsets.fromLTRB(22, 20, 22, 8),
-      contentPadding: const EdgeInsets.fromLTRB(22, 6, 22, 6),
-      actionsPadding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: _detailDark,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-            ),
+      backgroundColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: width,
+          maxHeight: height,
+        ),
+        child: Material(
+          color: AdminColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(22, 18, 18, 18),
+                decoration: const BoxDecoration(
+                  gradient: AdminGradients.hero,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: .16),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.admin_panel_settings_rounded,
+                        color: Colors.white,
+                        size: 21,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -.25,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            subtitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AdminColors.headerMuted,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+                  child: child,
+                ),
+              ),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
+                decoration: const BoxDecoration(
+                  color: AdminColors.surfaceSoft,
+                  border: Border(
+                    top: BorderSide(color: AdminColors.border),
+                  ),
+                ),
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: actions,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: _detailMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-      content: SizedBox(
-        width: maxWidth,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * .72,
-          ),
-          child: child,
         ),
       ),
-      actions: actions,
     );
   }
 }
@@ -215,35 +276,22 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _detailSoft,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _detailBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: _detailBlue),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: _detailDark,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          child,
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: AdminCard(
+        color: AdminColors.surfaceSoft,
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AdminSectionHeading(
+              title: title,
+              icon: icon,
+            ),
+            const SizedBox(height: 12),
+            child,
+          ],
+        ),
       ),
     );
   }
@@ -810,9 +858,9 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                               ? Icons.cancel_rounded
                               : Icons.hourglass_top_rounded,
                       color: status == 'approved'
-                          ? const Color(0xFF067647)
+                          ? AdminColors.ok
                           : status == 'rejected'
-                              ? const Color(0xFFB42318)
+                              ? AdminColors.danger
                               : AdminColors.warn,
                     ),
                     const SizedBox(width: 8),
@@ -908,9 +956,9 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
       final status = _text(part['status'], 'pending');
       final path = _text(part['path'], '');
       final statusColor = status == 'approved'
-          ? const Color(0xFF067647)
+          ? AdminColors.ok
           : status == 'rejected'
-              ? const Color(0xFFB42318)
+              ? AdminColors.danger
               : _detailMuted;
       return OutlinedButton.icon(
         onPressed: document == null || path.isEmpty
@@ -932,11 +980,18 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     return SizedBox(
       width: 430,
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _detailBorder),
+          color: AdminColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AdminColors.border),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0D0F172A),
+              blurRadius: 16,
+              offset: Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -952,7 +1007,14 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                     ),
                   ),
                 ),
-                Chip(label: Text(_friendlyDocumentStatus(overallStatus))),
+                AdminStatusChip(
+                  _friendlyDocumentStatus(overallStatus),
+                  tone: overallStatus == 'verified' || overallStatus == 'approved'
+                      ? AdminStatusTone.success
+                      : overallStatus == 'rejected'
+                          ? AdminStatusTone.danger
+                          : AdminStatusTone.warning,
+                ),
               ],
             ),
             if (number.isNotEmpty) ...[
@@ -1488,7 +1550,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                 ),
                                 const SizedBox(height: 12),
                                 SizedBox(
-                                  height: 255,
+                                  height: 272,
                                   child: ListView.separated(
                                     scrollDirection: Axis.horizontal,
                                     itemCount: scopedRequirements.length,
