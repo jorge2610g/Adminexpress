@@ -1720,7 +1720,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        SizedBox(width: 405, child: side),
+                        SizedBox(
+                          width: constraints.maxWidth > 1300 ? 330 : 286,
+                          child: side,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(child: map),
                       ],
