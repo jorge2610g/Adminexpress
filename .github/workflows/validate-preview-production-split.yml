@@ -29,6 +29,9 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
+      - name: Verify 54 Claude designs and eight staged gates
+        run: python3 .github/scripts/verify_admin_mockup_stages.py
+
       - name: Enforce identical Preview and Production panel tree
         run: |
           if grep -q "AdminPreviewModulePage" lib/admin_panel.dart; then
