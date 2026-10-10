@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+
 import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
 
@@ -145,12 +147,12 @@ class _AdminDriverDocumentRequirementsPanelState
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEAF2FF),
+                        color: AdminColors.blueSoft,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.info_outline_rounded, color: Color(0xFF2563EB)),
+                          Icon(Icons.info_outline_rounded, color: AdminColors.blue),
                           SizedBox(width: 9),
                           Expanded(
                             child: Text(
@@ -412,7 +414,7 @@ class _AdminDriverDocumentRequirementsPanelState
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD92D20)),
+            style: FilledButton.styleFrom(backgroundColor: AdminColors.danger),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Eliminar'),
           ),
@@ -477,7 +479,7 @@ class _AdminDriverDocumentRequirementsPanelState
               padding: const EdgeInsets.all(18),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline_rounded, color: Color(0xFFD92D20)),
+                  const Icon(Icons.error_outline_rounded, color: AdminColors.danger),
                   const SizedBox(width: 10),
                   Expanded(child: Text(snapshot.error.toString())),
                   TextButton(
@@ -503,8 +505,8 @@ class _AdminDriverDocumentRequirementsPanelState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const CircleAvatar(
-                      backgroundColor: Color(0xFFEAF2FF),
-                      child: Icon(Icons.folder_shared_outlined, color: Color(0xFF2563EB)),
+                      backgroundColor: AdminColors.blueSoft,
+                      child: Icon(Icons.folder_shared_outlined, color: AdminColors.blue),
                     ),
                     const SizedBox(width: 11),
                     const Expanded(
@@ -518,7 +520,7 @@ class _AdminDriverDocumentRequirementsPanelState
                           SizedBox(height: 3),
                           Text(
                             'Crea, edita o elimina los documentos que debe cargar cada conductor según país o ciudad.',
-                            style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            style: TextStyle(fontSize: 11, color: AdminColors.muted),
                           ),
                         ],
                       ),
@@ -543,7 +545,7 @@ class _AdminDriverDocumentRequirementsPanelState
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: row['active'] == false
-                            ? const Color(0xFFF8FAFC)
+                            ? AdminColors.surfaceSoft
                             : Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFE4E7EC)),
@@ -554,7 +556,7 @@ class _AdminDriverDocumentRequirementsPanelState
                             row['require_selfie'] == true
                                 ? Icons.face_retouching_natural_rounded
                                 : Icons.badge_outlined,
-                            color: const Color(0xFF2563EB),
+                            color: AdminColors.blue,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
