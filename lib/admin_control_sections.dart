@@ -9255,8 +9255,6 @@ class _SettingsCard extends StatelessWidget {
   }
 }
 
-IconData _settingsIcon
-
 IconData _settingsIcon(String title) {
   final value = title.toLowerCase();
   if (value.contains('pago')) return Icons.account_balance_wallet_outlined;
@@ -9557,8 +9555,6 @@ class _Error extends StatelessWidget {
     );
   }
 }
-
-Map<String, dynamic> _map
 
 Map<String, dynamic> _map(Object? value) {
   if (value is Map) return Map<String, dynamic>.from(value);
