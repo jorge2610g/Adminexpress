@@ -1,12 +1,3 @@
-## 2026-10-10 — Activación manual de conductores por zona (PR #57, pendiente de fusión)
-
-- El diálogo de revisión muestra la zona registrada, permite elegirla cuando falta y activa al conductor únicamente después de verificar el documento y aprobar todas las fotografías.
-- La activación usa la RPC `admin_driver_activate`; los textos de estado están traducidos y el diálogo bloquea envíos duplicados mientras la RPC está en curso.
-- El cambio acompaña la corrección de causa raíz del trigger de zona, las notificaciones solo al rechazar y la activación manual que reemplaza la autoaprobación E4 desde revisión de fotos.
-- No hay cambios de backend en este repositorio. La reparación de perfiles sin zona es manual y requiere autorización explícita en el repositorio de la app.
-
----
-
 ## 2026-10-10 — Google OAuth de Preview retornaba a la web de pasajeros
 
 - Vídeo de QA: seleccionar Google en `/preview/` termina en `https://expressviajes.online/` en vez del panel. No se confirmó ingreso administrativo; no retirar permisos del administrador anterior.
