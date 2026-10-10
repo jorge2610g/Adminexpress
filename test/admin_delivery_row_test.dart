@@ -38,7 +38,17 @@ void main() {
     expect(find.textContaining('Cliente QA', findRichText: true), findsOneWidget);
     expect(find.textContaining('Repartidor QA', findRichText: true), findsOneWidget);
     expect(find.textContaining('Efectivo', findRichText: true), findsOneWidget);
+    expect(find.text('Ver detalle del pedido'), findsOneWidget);
+    await tester.tap(find.text('Ver detalle del pedido'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Detalle del pedido'), findsOneWidget);
+    expect(find.text('Ruta y participantes'), findsOneWidget);
+    expect(find.text('Operación y pago'), findsOneWidget);
+    expect(find.text('Cliente QA'), findsOneWidget);
     expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Cerrar'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Detalle del pedido'), findsNothing);
   });
 
   testWidgets('Chile delivery correctly shows CLP', (tester) async {
