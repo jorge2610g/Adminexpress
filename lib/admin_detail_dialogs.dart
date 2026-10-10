@@ -593,6 +593,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
           decoration: const InputDecoration(
             labelText: 'Motivo del rechazo',
             hintText: 'Indica claramente qué debe corregir el conductor.',
+            helperText: 'Mínimo cinco caracteres.',
           ),
         ),
         actions: [
@@ -600,13 +601,14 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancelar'),
           ),
-          FilledButton(
-            onPressed: () {
-              final reason = controller.text.trim();
-              if (reason.length < 5) return;
-              Navigator.pop(dialogContext, reason);
-            },
-            child: const Text('Confirmar rechazo'),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (_, value, __) => FilledButton(
+              onPressed: value.text.trim().length < 5
+                  ? null
+                  : () => Navigator.pop(dialogContext, value.text.trim()),
+              child: const Text('Confirmar rechazo'),
+            ),
           ),
         ],
       ),
@@ -1004,6 +1006,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                 decoration: const InputDecoration(
                   labelText: 'Motivo del rechazo',
                   hintText: 'Ej.: foto ilegible o documento incorrecto',
+                  helperText: 'Mínimo cinco caracteres.',
                 ),
               ),
             ],
@@ -1014,11 +1017,16 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancelar'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(rejecting ? 'Confirmar rechazo' :
-                newStatus == 'verified' ? 'Aprobar documento' :
-                'Reabrir revisión'),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: note,
+            builder: (_, value, __) => FilledButton(
+              onPressed: rejecting && value.text.trim().length < 5
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
+              child: Text(rejecting ? 'Confirmar rechazo' :
+                  newStatus == 'verified' ? 'Aprobar documento' :
+                  'Reabrir revisión'),
+            ),
           ),
         ],
       ),
