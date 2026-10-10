@@ -1,3 +1,5 @@
+> **ROLES 2026-10-10:** Claude = arquitecto, controlador y revisor (**no programa**, ver `CLAUDE.md`); Codex/ChatGPT/otra IA = programador. Flujo: `jorge2610g/Expressdelivery` → `docs/AI_ROLES_WORKFLOW.md`.
+>
 > **Backend endurecido 2026-10-10 (leer antes de tocar RPC):** en Supabase
 > `zgpijrznvaskgcmauwxx`, toda RPC `admin_*` **sin `p_channel`** (lectura o
 > escritura) exige ahora `allow_production` → un admin Preview-only recibe
