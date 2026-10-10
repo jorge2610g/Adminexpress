@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
 import 'core/admin_widgets.dart';
+import 'core/admin_priority_metrics.dart';
 
 import 'core/supabase_client.dart';
 
@@ -404,52 +405,6 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
     );
   }
 
-  Widget _metric(String label, double value) {
-    final clamped = value.clamp(0, 100).toDouble();
-    final color = clamped >= 75
-        ? _green
-        : clamped >= 50
-            ? _orange
-            : _red;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: _muted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            Text(
-              clamped.toStringAsFixed(0),
-              style: TextStyle(
-                color: color,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: LinearProgressIndicator(
-            value: clamped / 100,
-            minHeight: 6,
-            backgroundColor: const Color(0xFFE2E8F0),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -587,89 +542,80 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AdminColors.surface,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: AdminColors.border),
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: color.withValues(alpha: .10),
-                          child: Icon(
-                            Icons.local_taxi_rounded,
-                            color: color,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                row['name']?.toString() ?? 'Conductor',
-                                style: const TextStyle(
-                                  color: _ink,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final summary = Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            CircleAvatar(
+                              radius: 21,
+                              backgroundColor: color.withValues(alpha: .10),
+                              child: Icon(Icons.local_taxi_rounded, color: color),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _pill(_label(level), color),
-                                  _pill(
-                                    'Puntaje ' +
-                                        _num(priority['score'])
-                                            .toStringAsFixed(1),
-                                    _blue,
+                                  Text(
+                                    row['name']?.toString() ?? 'Conductor',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: _ink,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
-                                  _pill(
-                                    (priority['completed_trips'] ?? 0)
-                                            .toString() +
-                                        ' viajes',
-                                    _muted,
-                                  ),
-                                  _pill(
-                                    (priority['review_count'] ?? 0).toString() +
-                                        ' reseñas',
-                                    _muted,
+                                  const SizedBox(height: 6),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: [
+                                      _pill(_label(level), color),
+                                      _pill(
+                                        'Puntaje ${_num(priority['score']).toStringAsFixed(1)}',
+                                        _blue,
+                                      ),
+                                      _pill(
+                                        '${priority['completed_trips'] ?? 0} viajes',
+                                        _muted,
+                                      ),
+                                      _pill(
+                                        '${priority['review_count'] ?? 0} reseñas',
+                                        _muted,
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          flex: 3,
-                          child: Column(
+                            ),
+                          ],
+                        );
+                        final meters = AdminPriorityMetrics(metrics: metrics);
+                        if (constraints.maxWidth < 650) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _metric(
-                                'Reputación',
-                                _num(metrics['rating']),
-                              ),
-                              const SizedBox(height: 8),
-                              _metric(
-                                'Reseñas',
-                                _num(metrics['reviews']),
-                              ),
-                              const SizedBox(height: 8),
-                              _metric(
-                                'Experiencia',
-                                _num(metrics['experience']),
-                              ),
-                              const SizedBox(height: 8),
-                              _metric(
-                                'Frecuencia',
-                                _num(metrics['frequency']),
-                              ),
+                              summary,
+                              const SizedBox(height: 16),
+                              meters,
                             ],
-                          ),
-                        ),
-                      ],
+                          );
+                        }
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(flex: 2, child: summary),
+                            const SizedBox(width: 18),
+                            Expanded(flex: 3, child: meters),
+                          ],
+                        );
+                      },
                     ),
                   );
                 }),
