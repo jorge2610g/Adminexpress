@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+
 import 'core/supabase_client.dart';
 
-const _bg = Color(0xFFF1F5F9);
-const _ink = Color(0xFF0F172A);
-const _muted = Color(0xFF64748B);
+const _bg = AdminColors.bg;
+const _ink = AdminColors.ink;
+const _muted = AdminColors.muted;
 
 /// One chronological audit trail for Express. Entries retain their origin
 /// so QA actions are never mistaken for real Production operations.
@@ -161,8 +163,8 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
                   Builder(builder: (context) {
                     final isTest = row['source_channel'] == 'preview';
                     final color = isTest
-                        ? const Color(0xFFB54708)
-                        : const Color(0xFF14804A);
+                        ? AdminColors.warn
+                        : AdminColors.ok;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
                       color: Colors.white,
@@ -170,7 +172,7 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
                         leading: CircleAvatar(
                           backgroundColor: isTest
                               ? const Color(0xFFFFF1D6)
-                              : const Color(0xFFE8F8EF),
+                              : AdminColors.okSoft,
                           child: Icon(
                             isTest ? Icons.science_rounded
                                    : Icons.history_rounded,
@@ -189,8 +191,8 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 9, vertical: 6),
                           decoration: BoxDecoration(
-                            color: isTest ? const Color(0xFFFFF7E6)
-                                          : const Color(0xFFE8F8EF),
+                            color: isTest ? AdminColors.warnSoft
+                                          : AdminColors.okSoft,
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
