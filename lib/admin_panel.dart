@@ -4,6 +4,12 @@ import 'package:latlong2/latlong.dart';
 
 import 'core/supabase_client.dart';
 import 'core/admin_environment_navigation.dart';
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
+import 'core/admin_records_table.dart';
+import 'core/admin_delivery_row.dart';
+import 'core/admin_sos_row.dart';
+import 'core/admin_live_zone_strip.dart';
 import 'admin_environment_store.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
@@ -19,14 +25,15 @@ import 'admin_detail_dialogs.dart';
 import 'admin_environment_reports.dart';
 import 'admin_environment_audit.dart';
 import 'admin_manual_identity.dart';
+import 'admin_driver_document_requirements.dart';
 
-const Color adminBlue = Color(0xFF2563EB);
-const Color adminDark = Color(0xFF0F172A);
-const Color adminMuted = Color(0xFF64748B);
-const Color adminBg = Color(0xFFF1F5F9);
-const Color adminNavy = Color(0xFF0B1220);
-const Color adminNavySoft = Color(0xFF111C31);
-const Color adminCyan = Color(0xFF22D3EE);
+const Color adminBlue = AdminColors.blue;
+const Color adminDark = AdminColors.ink;
+const Color adminMuted = AdminColors.muted;
+const Color adminBg = AdminColors.bg;
+const Color adminNavy = AdminColors.sidebar;
+const Color adminNavySoft = AdminColors.sidebarSoft;
+const Color adminCyan = AdminColors.cyan;
 
 
 ThemeData _expressAdminTheme(BuildContext context) {
@@ -45,9 +52,76 @@ ThemeData _expressAdminTheme(BuildContext context) {
   return base.copyWith(
     colorScheme: scheme,
     scaffoldBackgroundColor: adminBg,
-    canvasColor: Colors.white,
-    dividerColor: const Color(0xFFEAECF0),
-    cardColor: Colors.white,
+    canvasColor: AdminColors.surface,
+    dividerColor: AdminColors.border,
+    dividerTheme: const DividerThemeData(
+      color: AdminColors.border,
+      thickness: 1,
+      space: 1,
+    ),
+    cardColor: AdminColors.surface,
+    textTheme: base.textTheme.copyWith(
+      headlineSmall: const TextStyle(
+        color: AdminColors.ink,
+        fontSize: 24,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -.35,
+      ),
+      titleLarge: const TextStyle(
+        color: AdminColors.ink,
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
+      ),
+      titleMedium: const TextStyle(
+        color: AdminColors.ink,
+        fontSize: 15,
+        fontWeight: FontWeight.w800,
+      ),
+      bodyMedium: const TextStyle(
+        color: AdminColors.ink,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+      ),
+      bodySmall: const TextStyle(
+        color: AdminColors.muted,
+        fontSize: 11.5,
+        fontWeight: FontWeight.w600,
+      ),
+      labelLarge: const TextStyle(
+        color: AdminColors.ink,
+        fontSize: 13,
+        fontWeight: FontWeight.w800,
+      ),
+    ),
+    tabBarTheme: const TabBarThemeData(
+      labelColor: AdminColors.blue,
+      unselectedLabelColor: AdminColors.muted,
+      indicatorColor: AdminColors.blue,
+      dividerColor: AdminColors.border,
+      labelStyle: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+      unselectedLabelStyle: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+    ),
+    dataTableTheme: const DataTableThemeData(
+      headingRowColor: WidgetStatePropertyAll(AdminColors.surfaceSoft),
+      dataRowColor: WidgetStatePropertyAll(AdminColors.surface),
+      headingTextStyle: TextStyle(
+        color: AdminColors.muted,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: .4,
+      ),
+      dataTextStyle: TextStyle(
+        color: AdminColors.ink,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+      ),
+      dividerThickness: 1,
+      headingRowHeight: 44,
+      dataRowMinHeight: 48,
+      dataRowMaxHeight: 64,
+      horizontalMargin: 16,
+      columnSpacing: 16,
+    ),
     cardTheme: CardThemeData(
       color: Colors.white,
       surfaceTintColor: Colors.white,
@@ -1071,6 +1145,20 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                   ? AppBar(
                       title: const _Brand(compact: true),
                       actions: [
+                        if (adminIsPreview)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4),
+                            child: Center(
+                              child: Text(
+                                'UI QA',
+                                style: TextStyle(
+                                  color: AdminColors.previewInk,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ),
                         if (!_isZoneMonitor)
                           IconButton(
                             tooltip: 'Nuevo viaje',
@@ -1407,56 +1495,30 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(22, 20, 22, 30),
             children: [
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final header = const _Header(
-                    title: 'Express Delivery',
-                    subtitle: 'Bienvenido al panel de control de tu empresa.',
-                    badge: 'Activa',
-                  );
-                  final liveButton = FilledButton.icon(
-                    onPressed: () => _goTo(1),
-                    icon: const Icon(Icons.bolt_rounded, size: 17),
-                    label: const Text('Ver en vivo'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(0, 38),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                    ),
-                  );
-
-                  if (constraints.maxWidth < 680) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        header,
-                        const SizedBox(height: 12),
-                        liveButton,
-                      ],
-                    );
-                  }
-
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Expanded(child: _Header(
-                        title: 'Express Delivery',
-                        subtitle: 'Bienvenido al panel de control de tu empresa.',
-                        badge: 'Activa',
-                      )),
-                      const SizedBox(width: 16),
-                      liveButton,
-                    ],
-                  );
-                },
+              _Header(
+                title: 'Express',
+                subtitle: 'Bienvenido al panel de control de tu empresa.',
+                badge: 'Activa',
+                trailing: FilledButton.icon(
+                  onPressed: () => _goTo(1),
+                  icon: const Icon(Icons.bolt_rounded, size: 18),
+                  label: const Text('Ver en vivo'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AdminColors.surface,
+                    foregroundColor: AdminColors.headerMid,
+                    minimumSize: const Size(0, 42),
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
-                  final cardWidth = width < 700
+                  final cardWidth = width < 340
                       ? width
                       : width < 1100
-                          ? (width - 12) / 2
+                          ? (width - 14) / 2
                           : (width - 42) / 4;
                   return Wrap(
                     spacing: 14,
@@ -1606,11 +1668,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         }
 
         return Padding(
-          padding: const EdgeInsets.fromLTRB(22, 10, 22, 22),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 22),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _LiveZoneStrip(
+              AdminLiveZoneStrip(
                 zones: zones,
                 selectedZoneId: liveZoneId,
                 onSelected: (value) {
@@ -1659,7 +1721,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        SizedBox(width: 405, child: side),
+                        SizedBox(
+                          // The Claude E2 artboard uses a 390px operational
+                          // rail on the standard 1280px desktop canvas.
+                          width: constraints.maxWidth >= 970 ? 390 : 350,
+                          child: side,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(child: map),
                       ],
@@ -1745,28 +1812,73 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           empty: 'Todavía no hay delivery.',
           rows: rows,
           serverFilters: _periodFilter('delivery'),
-          item: (row) => _OperationCard(
-            icon: Icons.local_shipping_rounded,
-            title:
-                (row['pickup_address'] ?? 'Origen').toString() +
-                ' → ' +
-                (row['dropoff_address'] ?? 'Destino').toString(),
-            subtitle:
-                (row['status'] ?? '—').toString() +
-                ' · ' +
-                (row['package_type'] ?? 'Paquete').toString() +
-                ' · Bs ' +
-                (row['proposed_fare'] ?? '—').toString(),
-            details: [
-              'Cliente: ' + (row['customer_name'] ?? '—').toString(),
-              'Repartidor: ' + (row['courier_name'] ?? '—').toString(),
-              'Pago: ' + (row['payment_method'] ?? '—').toString(),
-              'Creado: ' + _formatDate(row['created_at']),
-            ],
-          ),
+          item: (row) => AdminDeliveryRow(row: row),
         );
       },
     );
+  }
+
+  Future<void> _openDriverRequirements() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(18),
+        child: SizedBox(
+          width: 940,
+          height: 720,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.rule_folder_outlined, color: adminBlue),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ajuste de requisitos',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: adminDark,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Configura los documentos exigidos para el país y la zona seleccionados.',
+                            style: TextStyle(color: adminMuted, fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Cerrar',
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(18),
+                  child: AdminDriverDocumentRequirementsPanel(
+                    channel: adminChannel,
+                    countryCode: adminCountryCode,
+                    zoneId: adminZoneId,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (mounted) _refresh();
   }
 
   Widget _driverList() {
@@ -1789,6 +1901,58 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           empty: 'Todavía no hay conductores registrados.',
           rows: snapshot.data ?? const [],
           showQaFilter: false,
+          statusField: 'approval_status',
+          statusOptions: const [
+            'approved',
+            'pending',
+            'rejected',
+            'suspended',
+          ],
+          headerAction: _isZoneMonitor
+              ? null
+              : FilledButton.icon(
+                  onPressed: _openDriverRequirements,
+                  icon: const Icon(Icons.rule_folder_outlined, size: 17),
+                  label: const Text('Ajuste de requisitos'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: adminBlue,
+                  ),
+                ),
+          rowAction: _isZoneMonitor
+              ? null
+              : (row) => PopupMenuButton<String>(
+                    tooltip: 'Acciones',
+                    icon: const Icon(Icons.more_horiz_rounded,
+                        color: adminBlue),
+                    onSelected: (value) async {
+                      if (value == 'edit') {
+                        final changed = await showAdminDriverEditor(
+                          context,
+                          row['user_id'].toString(),
+                          channel: adminChannel,
+                        );
+                        if (changed && mounted) _refresh();
+                        return;
+                      }
+                      await _driverStatus(row['user_id'].toString(), value);
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Text('Ver / editar ficha'),
+                      ),
+                      PopupMenuDivider(),
+                      PopupMenuItem(value: 'approved', child: Text('Aprobar')),
+                      PopupMenuItem(
+                        value: 'pending', child: Text('Marcar pendiente'),
+                      ),
+                      PopupMenuItem(value: 'rejected', child: Text('Rechazar')),
+                      PopupMenuItem(
+                        value: 'suspended', child: Text('Suspender'),
+                      ),
+                    ],
+                  ),
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
             final online = (row['online_status'] ?? 'offline').toString();
@@ -2002,6 +2166,35 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           rows: snapshot.data ?? const [],
           serverFilters: _userGeoFilters(),
           showQaFilter: true,
+          rowAction: _isZoneMonitor
+              ? null
+              : (row) => PopupMenuButton<String>(
+                    tooltip: 'Acciones',
+                    icon: const Icon(Icons.more_vert_rounded,
+                        color: adminBlue),
+                    onSelected: (value) async {
+                      if (value == 'edit') {
+                        final changed = await showAdminUserEditor(
+                          context,
+                          row['user_id'].toString(),
+                          channel: adminChannel,
+                        );
+                        if (changed && mounted) _refresh();
+                        return;
+                      }
+                      await _accountStatus(row['user_id'].toString(), value);
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Text('Ver / editar perfil'),
+                      ),
+                      PopupMenuDivider(),
+                      PopupMenuItem(value: 'active', child: Text('Activar')),
+                      PopupMenuItem(value: 'suspended', child: Text('Suspender')),
+                      PopupMenuItem(value: 'blocked', child: Text('Bloquear')),
+                    ],
+                  ),
           item: (row) => Container(
             margin: const EdgeInsets.only(bottom: 7),
             decoration: BoxDecoration(
@@ -2108,33 +2301,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               'Emergencias activas registradas desde Viajes y Delivery.',
           empty: 'No hay emergencias abiertas.',
           rows: rows,
-          item: (row) => Card(
-            margin: const EdgeInsets.only(bottom: 10),
-            elevation: 0,
-            child: ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFFFE4E8),
-                child: Icon(Icons.sos_rounded, color: Color(0xFFD92D20)),
-              ),
-              title: Text(
-                row['user_name']?.toString().trim().isNotEmpty == true
-                    ? row['user_name'].toString()
-                    : 'Usuario Express',
-              ),
-              subtitle: Text(
-                (row['status'] ?? 'open').toString() +
-                    ' · ' +
-                    _formatDate(row['created_at']),
-              ),
-              trailing: _isZoneMonitor
-                  ? null
-                  : FilledButton.icon(
-                      onPressed: () =>
-                          _resolveEmergency(row['id'].toString()),
-                      icon: const Icon(Icons.check_circle_outline_rounded),
-                      label: const Text('Resolver'),
-                    ),
-            ),
+          item: (row) => AdminSosRow(
+            row: row,
+            onResolve: _isZoneMonitor
+                ? null
+                : () => _resolveEmergency(row['id'].toString()),
           ),
         );
       },
@@ -2250,7 +2421,6 @@ class _Navigation extends StatelessWidget {
           ('FINANZAS', [9, 8, 22]),
           ('ANÁLISIS', [10, 14]),
           ('COMUNICACIÓN', [15]),
-          ('SEGURIDAD', [18]),
           ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
           ('HERRAMIENTAS QA', [20, 21]),
         ];
@@ -2280,9 +2450,9 @@ class _Navigation extends StatelessWidget {
                   borderRadius: BorderRadius.circular(15),
                   border: Border.all(color: const Color(0xFF263650)),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 17,
                       backgroundColor: Color(0xFF1E3A5F),
                       child: Icon(
@@ -2315,6 +2485,8 @@ class _Navigation extends StatelessWidget {
                               fontWeight: FontWeight.w900,
                             ),
                           ),
+                          SizedBox(height: 5),
+                          _EnvironmentMiniBadge(channel: channel),
                         ],
                       ),
                     ),
@@ -2575,20 +2747,13 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 70,
-      margin: const EdgeInsets.fromLTRB(18, 14, 18, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFDDE6F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 22,
-            offset: Offset(0, 8),
-          ),
-        ],
+      height: 72,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: const BoxDecoration(
+        color: AdminColors.surface,
+        border: Border(
+          bottom: BorderSide(color: AdminColors.border),
+        ),
       ),
       child: Row(
         children: [
@@ -2626,16 +2791,37 @@ class _TopBar extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          FilledButton.icon(
-            onPressed: onNewTrip,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Nuevo viaje'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 40),
-              padding: const EdgeInsets.symmetric(horizontal: 15),
+          if (adminIsPreview) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+              decoration: BoxDecoration(
+                color: AdminColors.previewSoft,
+                border: Border.all(color: const Color(0xFFF5D58A)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'NUEVA UI · QA',
+                style: TextStyle(
+                  color: AdminColors.previewInk,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: 7),
+            const SizedBox(width: 10),
+          ],
+          if (showNewTrip) ...[
+            FilledButton.icon(
+              onPressed: onNewTrip,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Nuevo viaje'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsets.symmetric(horizontal: 15),
+              ),
+            ),
+            const SizedBox(width: 7),
+          ],
           IconButton(
             tooltip: 'Actualizar',
             onPressed: onRefresh,
@@ -2671,7 +2857,7 @@ class _TopBar extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: AdminColors.surfaceSoft,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
@@ -2706,117 +2892,56 @@ class _Header extends StatelessWidget {
   final String title;
   final String subtitle;
   final String? badge;
+  final Widget? trailing;
 
   const _Header({
     required this.title,
     required this.subtitle,
     this.badge,
+    this.trailing,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0F2854), Color(0xFF174B91), Color(0xFF0D6B8D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return AdminPageHero(
+      title: title,
+      subtitle: subtitle,
+      badge: badge,
+      trailing: trailing,
+    );
+  }
+}
+
+class _EnvironmentMiniBadge extends StatelessWidget {
+  final String channel;
+  const _EnvironmentMiniBadge({required this.channel});
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = channel == 'preview';
+    final ink = preview
+        ? const Color(0xFFFFD9A2)
+        : const Color(0xFFBBF7D0);
+    final bg = preview
+        ? const Color(0xFF4A3415)
+        : const Color(0xFF153A2B);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(999),
         ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x33174B91),
-            blurRadius: 26,
-            offset: Offset(0, 10),
+        child: Text(
+          preview ? 'VISTA PREVIA' : 'PRODUCCIÓN',
+          style: TextStyle(
+            color: ink,
+            fontSize: 8,
+            fontWeight: FontWeight.w900,
+            letterSpacing: .7,
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.12),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withOpacity(.18)),
-            ),
-            child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 25),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 9,
-                  runSpacing: 6,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: -.4,
-                      ),
-                    ),
-                    if (badge != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF16A34A),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x3316A34A),
-                              blurRadius: 10,
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const SizedBox(
-                              width: 6,
-                              height: 6,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFBBF7D0),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              badge!,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Color(0xFFD7E7FA),
-                    height: 1.35,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -2918,7 +3043,7 @@ class _Metric extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: AdminColors.surfaceSoft,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
@@ -3061,24 +3186,33 @@ class _QuickActions extends StatelessWidget {
                 Text(
                   action.$1,
                   style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
                     color: adminDark,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  action.$2,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: adminMuted,
-                    height: 1.3,
-                    fontSize: 9,
-                  ),
+                const SizedBox(height: 4),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        action.$2,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF475467),
+                          height: 1.3,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(Icons.arrow_forward_rounded,
+                      color: action.$5, size: 17),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                Icon(Icons.arrow_forward_rounded, color: action.$5, size: 18),
               ],
             ),
           ),
@@ -3121,7 +3255,7 @@ class _QuickActions extends StatelessWidget {
                   for (var i = 0; i < actions.length; i++) ...[
                     Expanded(
                       child: SizedBox(
-                        height: 166,
+                        height: 158,
                         child: actionCard(actions[i]),
                       ),
                     ),
@@ -3264,7 +3398,7 @@ class _Surface extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(19),
-        border: Border.all(color: const Color(0xFFDDE6F0)),
+        border: Border.all(color: AdminColors.border),
         boxShadow: const [
           BoxShadow(
             color: Color(0x120F172A),
@@ -3274,117 +3408,6 @@ class _Surface extends StatelessWidget {
         ],
       ),
       child: child,
-    );
-  }
-}
-
-class _LiveZoneStrip extends StatelessWidget {
-  final List<Map<String, dynamic>> zones;
-  final String? selectedZoneId;
-  final ValueChanged<String?> onSelected;
-
-  const _LiveZoneStrip({
-    required this.zones,
-    required this.selectedZoneId,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = <Color>[
-      const Color(0xFF0B57D0),
-      const Color(0xFF12B76A),
-      const Color(0xFFF79009),
-      const Color(0xFF7A2CF3),
-      const Color(0xFF06AED4),
-      const Color(0xFFEF4444),
-    ];
-
-    Widget chip({
-      required String label,
-      required bool selected,
-      required VoidCallback onTap,
-      Color? dot,
-      IconData? icon,
-    }) {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? adminBlue : const Color(0xFFF8FAFD),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected ? adminBlue : const Color(0xFFE4EAF2),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null)
-                Icon(
-                  icon,
-                  size: 15,
-                  color: selected ? Colors.white : adminMuted,
-                )
-              else if (dot != null)
-                Container(
-                  width: 9,
-                  height: 9,
-                  decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-                ),
-              const SizedBox(width: 7),
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected ? Colors.white : adminDark,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      height: 68,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE4EAF2)),
-      ),
-      child: Row(
-        children: [
-          chip(
-            label: 'Todas las zonas',
-            selected: selectedZoneId == null,
-            icon: Icons.grid_view_rounded,
-            onTap: () => onSelected(null),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: zones.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final zone = zones[index];
-                final id = (zone['id'] ?? '').toString();
-                return chip(
-                  label: (zone['name'] ?? 'Zona').toString(),
-                  selected: id.isNotEmpty && id == selectedZoneId,
-                  dot: palette[index % palette.length],
-                  onTap: () => onSelected(id.isEmpty ? null : id),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -3539,7 +3562,7 @@ class _LiveMetricCard extends StatelessWidget {
               Text(
                 value.toString(),
                 style: const TextStyle(
-                  fontSize: 22,
+                  fontSize: 24,
                   fontWeight: FontWeight.w900,
                   color: adminDark,
                 ),
@@ -3550,7 +3573,7 @@ class _LiveMetricCard extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              fontSize: 10,
+              fontSize: 12.5,
               fontWeight: FontWeight.w800,
               color: adminDark,
             ),
@@ -3560,7 +3583,7 @@ class _LiveMetricCard extends StatelessWidget {
             note,
             style: TextStyle(
               color: accent,
-              fontSize: 8,
+              fontSize: 10.5,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -3593,7 +3616,7 @@ class _LiveTab extends StatelessWidget {
               label,
               style: TextStyle(
                 color: selected ? adminBlue : adminMuted,
-                fontSize: 10,
+                fontSize: 12.5,
                 fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
               ),
             ),
@@ -4510,6 +4533,10 @@ class _Records extends StatefulWidget {
   final Widget Function(Map<String, dynamic>) item;
   final bool showQaFilter;
   final Widget? serverFilters;
+  final String statusField;
+  final List<String>? statusOptions;
+  final Widget? headerAction;
+  final Widget Function(Map<String, dynamic>)? rowAction;
 
   const _Records({
     required this.title,
@@ -4519,6 +4546,10 @@ class _Records extends StatefulWidget {
     required this.item,
     this.showQaFilter = false,
     this.serverFilters,
+    this.statusField = 'status',
+    this.statusOptions,
+    this.headerAction,
+    this.rowAction,
   });
 
   @override
@@ -4539,13 +4570,15 @@ class _RecordsState extends State<_Records> {
 
   @override
   Widget build(BuildContext context) {
-    final statuses = widget.rows
-        .map((row) => row['status']?.toString())
-        .whereType<String>()
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final statuses = widget.statusOptions != null
+        ? List<String>.from(widget.statusOptions!)
+        : (widget.rows
+            .map((row) => row[widget.statusField]?.toString())
+            .whereType<String>()
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort());
 
     final visible = widget.rows.where((row) {
       final matchesText = query.isEmpty ||
@@ -4554,7 +4587,7 @@ class _RecordsState extends State<_Records> {
               .join(' ')
               .contains(query.toLowerCase());
       final matchesStatus =
-          status == null || row['status']?.toString() == status;
+          status == null || row[widget.statusField]?.toString() == status;
       final isQa = row['is_qa'] == true;
       final matchesQa = !widget.showQaFilter ||
           qaFilter == 'all' ||
@@ -4563,69 +4596,70 @@ class _RecordsState extends State<_Records> {
       return matchesText && matchesStatus && matchesQa;
     }).toList();
 
+    final tableKind = switch (widget.title) {
+      'Viajes' => AdminRecordsKind.trips,
+      'Conductores' => AdminRecordsKind.drivers,
+      'Usuarios' => AdminRecordsKind.users,
+      _ => null,
+    };
+    // Both desktop tables and responsive cards are drawn from the same
+    // scoped rows, preserving the original RPC filters and detail actions.
+    final showMockupRecords = tableKind != null;
+
+    String statusLabel(String value) => switch (value.toLowerCase()) {
+      'approved' => 'Activos',
+      'pending' => 'Pendientes',
+      'rejected' => 'Rechazados',
+      'suspended' => 'Suspendidos',
+      'active' => 'Activos',
+      'blocked' => 'Bloqueados',
+      'accepted' => 'Aceptados',
+      'searching' => 'Buscando',
+      'cancelled' || 'canceled' => 'Cancelados',
+      'completed' => 'Completados',
+      'in_progress' => 'En curso',
+      'delivered' => 'Entregados',
+      'picked_up' => 'Recogidos',
+      'open' => 'Abiertas',
+      'acknowledged' => 'Atendidas',
+      _ => value,
+    };
+
     return ListView(
       padding: const EdgeInsets.all(22),
       children: [
-        _Header(title: widget.title, subtitle: widget.subtitle),
+        _Header(
+          title: widget.title,
+          subtitle: widget.subtitle,
+          trailing: widget.headerAction,
+        ),
         const SizedBox(height: 16),
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE7ECF3)),
+            color: AdminColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AdminColors.borderSoft),
           ),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              if (widget.serverFilters != null) widget.serverFilters!,
-              SizedBox(
-                width: 240,
-                child: TextField(
-                  controller: search,
-                  onChanged: (value) => setState(() => query = value),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    prefixIcon: Icon(Icons.search_rounded, size: 18),
-                    hintText: 'Buscar',
-                    border: OutlineInputBorder(),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final primaryFilters = <Widget>[
+                if (widget.serverFilters != null) widget.serverFilters!,
+                SizedBox(
+                  width: constraints.maxWidth < 480 ? 190 : 235,
+                  child: TextField(
+                    controller: search,
+                    onChanged: (value) => setState(() => query = value),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      prefixIcon: Icon(Icons.search_rounded, size: 18),
+                      hintText: 'Buscar',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                 ),
-              ),
-              ChoiceChip(
-                label: Text('Todos (' + widget.rows.length.toString() + ')'),
-                selected: status == null,
-                onSelected: (_) => setState(() => status = null),
-              ),
-              for (final value in statuses.take(5))
-                ChoiceChip(
-                  label: Text(value),
-                  selected: status == value,
-                  onSelected: (_) => setState(() => status = value),
-                ),
-              if (widget.showQaFilter) ...[
-                const SizedBox(width: 4),
-                ChoiceChip(
-                  avatar: const Icon(Icons.people_alt_outlined, size: 15),
-                  label: const Text('Reales'),
-                  selected: qaFilter == 'real',
-                  onSelected: (_) => setState(() => qaFilter = 'real'),
-                ),
-                ChoiceChip(
-                  avatar: const Icon(Icons.science_outlined, size: 15),
-                  label: const Text('QA / pruebas'),
-                  selected: qaFilter == 'qa',
-                  onSelected: (_) => setState(() => qaFilter = 'qa'),
-                ),
-                if (qaFilter != 'all')
-                  TextButton(
-                    onPressed: () => setState(() => qaFilter = 'all'),
-                    child: const Text('Quitar filtro QA'),
-                  ),
-              ],
-              OutlinedButton.icon(
+              ];
+              final exportButton = OutlinedButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -4637,8 +4671,78 @@ class _RecordsState extends State<_Records> {
                 },
                 icon: const Icon(Icons.download_rounded, size: 17),
                 label: const Text('Exportar'),
-              ),
-            ],
+              );
+              final statusesRow = Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ChoiceChip(
+                    label: Text('Todos (${widget.rows.length})'),
+                    selected: status == null,
+                    onSelected: (_) => setState(() => status = null),
+                  ),
+                  for (final value in statuses.take(5))
+                    ChoiceChip(
+                      label: Text(statusLabel(value)),
+                      selected: status == value,
+                      onSelected: (_) => setState(() => status = value),
+                    ),
+                  if (widget.showQaFilter) ...[
+                    const SizedBox(width: 4),
+                    ChoiceChip(
+                      avatar: const Icon(Icons.people_alt_outlined, size: 15),
+                      label: const Text('Reales'),
+                      selected: qaFilter == 'real',
+                      onSelected: (_) => setState(() => qaFilter = 'real'),
+                    ),
+                    ChoiceChip(
+                      avatar: const Icon(Icons.science_outlined, size: 15),
+                      label: const Text('QA / pruebas'),
+                      selected: qaFilter == 'qa',
+                      onSelected: (_) => setState(() => qaFilter = 'qa'),
+                    ),
+                    if (qaFilter != 'all')
+                      TextButton(
+                        onPressed: () => setState(() => qaFilter = 'all'),
+                        child: const Text('Quitar filtro QA'),
+                      ),
+                  ],
+                ],
+              );
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (constraints.maxWidth >= 740)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: primaryFilters,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        exportButton,
+                      ],
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [...primaryFilters, exportButton],
+                    ),
+                  const SizedBox(height: 9),
+                  const Divider(height: 1, color: AdminColors.borderSoft),
+                  const SizedBox(height: 9),
+                  statusesRow,
+                ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 12),
@@ -4656,6 +4760,21 @@ class _RecordsState extends State<_Records> {
                   : widget.empty,
               style: const TextStyle(color: adminMuted),
             ),
+          )
+        else if (showMockupRecords)
+          AdminRecordsTable(
+            kind: tableKind!,
+            rows: visible,
+            detailBuilder: widget.item,
+            rowAction: widget.rowAction,
+            tryOpen: (row) {
+              final item = widget.item(row);
+              if (item is _OperationCard && item.onTap != null) {
+                item.onTap!();
+                return true;
+              }
+              return false;
+            },
           )
         else
           ...visible.map(widget.item),

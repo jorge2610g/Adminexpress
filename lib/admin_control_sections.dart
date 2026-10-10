@@ -1,6 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import 'core/admin_design_tokens.dart';
+import 'core/admin_responsive_split.dart';
+import 'core/admin_stage_edit_dialog_title.dart';
+import 'core/admin_widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -11,11 +16,11 @@ import 'admin_country_coverage.dart';
 import 'admin_admob_settings.dart';
 import 'admin_distance_fares.dart';
 import 'admin_zone_coverage_editor.dart';
-import 'core/admin_zone_coverage_label.dart';
+import 'core/admin_zone_summary_card.dart';
 
-const Color _blue = Color(0xFF2563EB);
-const Color _dark = Color(0xFF0F172A);
-const Color _muted = Color(0xFF64748B);
+const Color _blue = AdminColors.blue;
+const Color _dark = AdminColors.ink;
+const Color _muted = AdminColors.muted;
 
 class AdminDispatchPage extends StatefulWidget {
   final String channel;
@@ -51,9 +56,8 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
   ) {
     final category = ride['category']?.toString() ?? '';
     final raw = driver['vehicle_types'];
-    final vehicleTypes = raw is List
-        ? raw.map((value) => value.toString()).toSet()
-        : <String>{};
+    final vehicleTypes =
+        raw is List ? raw.map((value) => value.toString()).toSet() : <String>{};
     if (vehicleTypes.isEmpty) return false;
     switch (category) {
       case 'motorcycle':
@@ -83,11 +87,12 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
     }).toList();
   }
 
-  Future<({
-    List<Map<String, dynamic>> rides,
-    List<Map<String, dynamic>> deliveries,
-    List<Map<String, dynamic>> drivers,
-  })> _load() async {
+  Future<
+      ({
+        List<Map<String, dynamic>> rides,
+        List<Map<String, dynamic>> deliveries,
+        List<Map<String, dynamic>> drivers,
+      })> _load() async {
     final values = await Future.wait([
       supabase.rpc(
         'admin_open_service_requests_v2',
@@ -108,8 +113,7 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
 
     if (widget.zoneId != null && widget.zoneId!.isNotEmpty) {
       scopedZoneIds.add(widget.zoneId!);
-    } else if (widget.countryCode != null &&
-        widget.countryCode!.isNotEmpty) {
+    } else if (widget.countryCode != null && widget.countryCode!.isNotEmpty) {
       scopedZoneIds.addAll(
         zones
             .where((row) => _countryCode(row) == widget.countryCode)
@@ -377,7 +381,7 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
             ),
             const SizedBox(height: 14),
             Card(
-              color: const Color(0xFFEAF2FF),
+              color: AdminColors.blueSoft,
               elevation: 0,
               child: Padding(
                 padding: const EdgeInsets.all(14),
@@ -403,12 +407,10 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
               ...data.rides.map(
                 (row) => _DispatchItem(
                   icon: Icons.local_taxi_rounded,
-                  title:
-                      (row['pickup_address'] ?? 'Origen').toString() +
+                  title: (row['pickup_address'] ?? 'Origen').toString() +
                       ' → ' +
                       (row['destination_address'] ?? 'Destino').toString(),
-                  subtitle:
-                      (row['passenger_name'] ?? 'Pasajero').toString() +
+                  subtitle: (row['passenger_name'] ?? 'Pasajero').toString() +
                       ' · Bs ' +
                       (row['proposed_fare'] ?? '—').toString(),
                   onAssign: () => _assignRide(row, data.drivers),
@@ -426,12 +428,10 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
               ...data.deliveries.map(
                 (row) => _DispatchItem(
                   icon: Icons.local_shipping_rounded,
-                  title:
-                      (row['pickup_address'] ?? 'Origen').toString() +
+                  title: (row['pickup_address'] ?? 'Origen').toString() +
                       ' → ' +
                       (row['dropoff_address'] ?? 'Destino').toString(),
-                  subtitle:
-                      (row['customer_name'] ?? 'Cliente').toString() +
+                  subtitle: (row['customer_name'] ?? 'Cliente').toString() +
                       ' · Bs ' +
                       (row['proposed_fare'] ?? '—').toString(),
                   onAssign: () => _assignDelivery(row, data.drivers),
@@ -511,21 +511,17 @@ class _AdminAuditPageState extends State<AdminAuditPage> {
   List<String> _detailLines(Object? raw) {
     if (raw is! Map || raw.isEmpty) return const [];
     final map = Map<String, dynamic>.from(raw);
-    return map.entries
-        .map((entry) {
-          final key = entry.key
-              .replaceAll('_', ' ')
-              .replaceFirstMapped(
-                RegExp(r'^[a-z]'),
-                (m) => m.group(0)!.toUpperCase(),
-              );
-          final value = entry.value;
-          final rendered = value is Map || value is List
-              ? value.toString()
-              : (value?.toString() ?? '—');
-          return '$key: $rendered';
-        })
-        .toList();
+    return map.entries.map((entry) {
+      final key = entry.key.replaceAll('_', ' ').replaceFirstMapped(
+            RegExp(r'^[a-z]'),
+            (m) => m.group(0)!.toUpperCase(),
+          );
+      final value = entry.value;
+      final rendered = value is Map || value is List
+          ? value.toString()
+          : (value?.toString() ?? '—');
+      return '$key: $rendered';
+    }).toList();
   }
 
   Future<void> _showDetail(Map<String, dynamic> row) async {
@@ -633,8 +629,7 @@ class _AdminAuditPageState extends State<AdminAuditPage> {
                   elevation: 0,
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
-                    leading:
-                        const Icon(Icons.history_rounded, color: _blue),
+                    leading: const Icon(Icons.history_rounded, color: _blue),
                     title: Text(
                       _actionLabel(row['action'], row['entity_type']),
                       style: const TextStyle(fontWeight: FontWeight.w900),
@@ -768,8 +763,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         TextEditingController(text: row?['contact_phone']?.toString() ?? '');
     final contactEmail =
         TextEditingController(text: row?['contact_email']?.toString() ?? '');
-    final notes =
-        TextEditingController(text: row?['notes']?.toString() ?? '');
+    final notes = TextEditingController(text: row?['notes']?.toString() ?? '');
     var type = row?['organization_type']?.toString() ?? 'syndicate';
     var status = row?['status']?.toString() ?? 'active';
 
@@ -805,8 +799,8 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     initialValue: type,
-                    decoration:
-                        const InputDecoration(labelText: 'Tipo de organización'),
+                    decoration: const InputDecoration(
+                        labelText: 'Tipo de organización'),
                     items: const [
                       DropdownMenuItem(
                         value: 'syndicate',
@@ -858,8 +852,8 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                   const SizedBox(height: 10),
                   TextField(
                     controller: contactName,
-                    decoration:
-                        const InputDecoration(labelText: 'Responsable / presidente'),
+                    decoration: const InputDecoration(
+                        labelText: 'Responsable / presidente'),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -1136,8 +1130,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     onRetry: () => setLocal(() => localRevision++),
                   );
                 }
-                final rows =
-                    snapshot.data ?? const <Map<String, dynamic>>[];
+                final rows = snapshot.data ?? const <Map<String, dynamic>>[];
                 if (rows.isEmpty) {
                   return const _Empty(
                     text:
@@ -1162,7 +1155,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                       elevation: 0,
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: const Color(0xFFEAF2FF),
+                          backgroundColor: AdminColors.blueSoft,
                           child: Icon(
                             active
                                 ? Icons.verified_user_outlined
@@ -1181,9 +1174,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           ),
                         ),
                         subtitle: Text(
-                          (row['email'] ?? '—').toString() +
-                              ' · ' +
-                              roleLabel,
+                          (row['email'] ?? '—').toString() + ' · ' + roleLabel,
                         ),
                         trailing: Switch.adaptive(
                           value: active,
@@ -1269,8 +1260,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
             'drivers_online': 0,
             'payments_count': payments.length,
             'gross_amount': sum('amount', payments),
-            'commission_generated':
-                sum('partner_commission_amount', payments),
+            'commission_generated': sum('partner_commission_amount', payments),
             'commission_pending': sum('commission_amount', pending),
             'commission_paid': sum('commission_amount', paid),
           },
@@ -1485,15 +1475,14 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                 final metrics = _map(data['metrics']);
                 final payments = _list(data['payments']);
                 final settlements = _list(data['settlements']);
-                final currency =
-                    (info['currency_code'] ?? '').toString();
+                final currency = (info['currency_code'] ?? '').toString();
 
                 Widget metric(String label, Object? value) {
                   return Container(
                     width: 180,
                     padding: const EdgeInsets.all(13),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: AdminColors.surfaceSoft,
                       border: Border.all(color: const Color(0xFFE7ECF3)),
                       borderRadius: BorderRadius.circular(11),
                     ),
@@ -1695,8 +1684,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     onRetry: () => setLocal(() => localRevision++),
                   );
                 }
-                final rows =
-                    snapshot.data ?? const <Map<String, dynamic>>[];
+                final rows = snapshot.data ?? const <Map<String, dynamic>>[];
                 if (rows.isEmpty) {
                   return const _Empty(
                     text:
@@ -1722,7 +1710,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             CircleAvatar(
-                              backgroundColor: const Color(0xFFEAF2FF),
+                              backgroundColor: AdminColors.blueSoft,
                               child: Icon(
                                 row['organization_type'] == 'syndicate'
                                     ? Icons.groups_2_rounded
@@ -1830,15 +1818,20 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     }
 
     // Read the actual persisted mode and polygon before editing other fields.
-    var coverageMode = row?['coverage_mode'] == 'polygon' ? 'polygon' : 'radius';
+    var coverageMode =
+        row?['coverage_mode'] == 'polygon' ? 'polygon' : 'radius';
     var polygonPoints = <LatLng>[];
     if (_environment.isPreview && row?['polygon'] is List) {
       final rawPoints = row!['polygon'] as List;
-      polygonPoints = rawPoints.whereType<Map>().map((point) {
-        final y = double.tryParse(point['lat']?.toString() ?? '');
-        final x = double.tryParse(point['lng']?.toString() ?? '');
-        return y == null || x == null ? null : LatLng(y, x);
-      }).whereType<LatLng>().toList();
+      polygonPoints = rawPoints
+          .whereType<Map>()
+          .map((point) {
+            final y = double.tryParse(point['lat']?.toString() ?? '');
+            final x = double.tryParse(point['lng']?.toString() ?? '');
+            return y == null || x == null ? null : LatLng(y, x);
+          })
+          .whereType<LatLng>()
+          .toList();
     }
     if (row?['id'] != null && !_environment.isPreview) {
       try {
@@ -1849,14 +1842,19 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         if (!mounted) return;
         if (raw is Map) {
           final data = Map<String, dynamic>.from(raw);
-          coverageMode = data['coverage_mode'] == 'polygon' ? 'polygon' : 'radius';
+          coverageMode =
+              data['coverage_mode'] == 'polygon' ? 'polygon' : 'radius';
           final rawPoints = data['polygon'];
           if (rawPoints is List) {
-            polygonPoints = rawPoints.whereType<Map>().map((point) {
-              final y = double.tryParse(point['lat']?.toString() ?? '');
-              final x = double.tryParse(point['lng']?.toString() ?? '');
-              return y == null || x == null ? null : LatLng(y, x);
-            }).whereType<LatLng>().toList();
+            polygonPoints = rawPoints
+                .whereType<Map>()
+                .map((point) {
+                  final y = double.tryParse(point['lat']?.toString() ?? '');
+                  final x = double.tryParse(point['lng']?.toString() ?? '');
+                  return y == null || x == null ? null : LatLng(y, x);
+                })
+                .whereType<LatLng>()
+                .toList();
           }
         }
       } catch (error) {
@@ -1866,8 +1864,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     }
 
     final name = TextEditingController(text: row?['name']?.toString() ?? '');
-    final city =
-        TextEditingController(text: row?['city']?.toString() ?? '');
+    final city = TextEditingController(text: row?['city']?.toString() ?? '');
     final regionDepartment = TextEditingController(
       text: row?['region_department']?.toString() ?? '',
     );
@@ -1886,8 +1883,8 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
       text: row?['radius_km']?.toString() ?? '25',
     );
     final landingTitle = TextEditingController(
-      text: row?['passenger_landing_title']?.toString() ??
-          '¿Qué necesitas hoy?',
+      text:
+          row?['passenger_landing_title']?.toString() ?? '¿Qué necesitas hoy?',
     );
     final landingSubtitle = TextEditingController(
       text: row?['passenger_landing_subtitle']?.toString() ??
@@ -1910,8 +1907,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         TextEditingController(text: landingPosition('market').toString());
     var landingMode = row?['passenger_landing_mode']?.toString() ??
         (row == null ? 'auto' : 'direct');
-    var landingDefault =
-        row?['passenger_default_module']?.toString() ?? 'ride';
+    var landingDefault = row?['passenger_default_module']?.toString() ?? 'ride';
     var active = row?['active'] != false;
     var driverRegistrationEnabled =
         row?['driver_registration_enabled'] != false;
@@ -1924,11 +1920,9 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         )) {
       final activeCountries =
           countries.where((countryRow) => countryRow['active'] == true);
-      final selected = activeCountries.isNotEmpty
-          ? activeCountries.first
-          : countries.first;
-      selectedCountryCode =
-          selected['country_code']?.toString().toUpperCase();
+      final selected =
+          activeCountries.isNotEmpty ? activeCountries.first : countries.first;
+      selectedCountryCode = selected['country_code']?.toString().toUpperCase();
     }
 
     Map<String, dynamic>? selectedCountry() {
@@ -1950,7 +1944,13 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Nueva zona' : 'Editar zona'),
+          title: AdminStageEditDialogTitle(
+            title: row == null ? 'Nueva zona' : 'Editar zona',
+            subtitle: widget.channel == 'preview'
+                ? 'Preview · Cobertura y ubicación'
+                : 'Producción · Cobertura y ubicación',
+            icon: Icons.location_on_outlined,
+          ),
           content: SizedBox(
             width: 500,
             child: SingleChildScrollView(
@@ -1960,7 +1960,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Row(
@@ -2058,7 +2058,8 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                                 selectedCountryCode,
                           );
                           if (!stillExists) {
-                            selectedCountryCode = countries.first['country_code']
+                            selectedCountryCode = countries
+                                .first['country_code']
                                 ?.toString()
                                 .toUpperCase();
                             currency.text = countries.first['currency_code']
@@ -2096,7 +2097,8 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     longitude: lng,
                     radiusKm: radius,
                     polygonPoints: polygonPoints,
-                    onModeChanged: (mode) => setLocal(() => coverageMode = mode),
+                    onModeChanged: (mode) =>
+                        setLocal(() => coverageMode = mode),
                     onPositionChanged: () => setLocal(() {}),
                     onPolygonChanged: (points) => setLocal(() {
                       polygonPoints = points;
@@ -2107,7 +2109,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: AdminColors.surfaceSoft,
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -2309,8 +2311,9 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         return;
       }
       if (coverageMode == 'radius' &&
-          (_num(lat.text) == null || _num(lng.text) == null ||
-           (_num(radius.text) ?? 0) <= 0)) {
+          (_num(lat.text) == null ||
+              _num(lng.text) == null ||
+              (_num(radius.text) ?? 0) <= 0)) {
         _snack(context, 'Selecciona un centro y un radio válido.');
         return;
       }
@@ -2328,9 +2331,12 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'p_channel': widget.channel,
               'p_coverage_mode': coverageMode,
               'p_polygon': coverageMode == 'polygon'
-                  ? polygonPoints.map((point) => <String, double>{
-                      'lat': point.latitude, 'lng': point.longitude,
-                    }).toList()
+                  ? polygonPoints
+                      .map((point) => <String, double>{
+                            'lat': point.latitude,
+                            'lng': point.longitude,
+                          })
+                      .toList()
                   : null,
               'p_id': row?['id'],
               'p_name': name.text.trim(),
@@ -2338,13 +2344,11 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'p_region_department': regionDepartment.text.trim(),
               'p_country_code': selectedCountryCode,
               'p_active': active,
-              'p_driver_registration_enabled':
-                  driverRegistrationEnabled,
+              'p_driver_registration_enabled': driverRegistrationEnabled,
               'p_center_latitude': _num(lat.text),
               'p_center_longitude': _num(lng.text),
               'p_radius_km': _num(radius.text) ?? 25,
-              'p_zone_key':
-                  row?['zone_key']?.toString() ?? zoneKey.text.trim(),
+              'p_zone_key': row?['zone_key']?.toString() ?? zoneKey.text.trim(),
               'p_currency_code': currency.text.trim().toUpperCase(),
             },
           );
@@ -2363,8 +2367,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
             'order': int.tryParse(marketLandingOrder.text.trim()) ?? 3,
           },
         ]..sort(
-            (a, b) =>
-                (a['order'] as int).compareTo(b['order'] as int),
+            (a, b) => (a['order'] as int).compareTo(b['order'] as int),
           );
 
         if (_environment.isPreview) {
@@ -2380,17 +2383,18 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'country': selectedCountry()?['name']?.toString() ?? '',
               'country_code': selectedCountryCode,
               'active': active,
-              'driver_registration_enabled':
-                  driverRegistrationEnabled,
+              'driver_registration_enabled': driverRegistrationEnabled,
               'center_latitude': _num(lat.text),
               'center_longitude': _num(lng.text),
               'radius_km': _num(radius.text) ?? 25,
               'coverage_mode': coverageMode,
               'polygon': coverageMode == 'polygon'
-                  ? polygonPoints.map((point) => <String, double>{
-                      'lat': point.latitude,
-                      'lng': point.longitude,
-                    }).toList()
+                  ? polygonPoints
+                      .map((point) => <String, double>{
+                            'lat': point.latitude,
+                            'lng': point.longitude,
+                          })
+                      .toList()
                   : null,
               'zone_key': row?['zone_key']?.toString() ?? zoneKey.text.trim(),
               'currency_code': currency.text.trim().toUpperCase(),
@@ -2398,9 +2402,8 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'passenger_default_module': landingDefault,
               'passenger_landing_title': landingTitle.text.trim(),
               'passenger_landing_subtitle': landingSubtitle.text.trim(),
-              'passenger_landing_order': landingModules
-                  .map((item) => item['key'].toString())
-                  .toList(),
+              'passenger_landing_order':
+                  landingModules.map((item) => item['key'].toString()).toList(),
             },
           );
         } else {
@@ -2412,9 +2415,8 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'p_default_module': landingDefault,
               'p_title': landingTitle.text.trim(),
               'p_subtitle': landingSubtitle.text.trim(),
-              'p_order': landingModules
-                  .map((item) => item['key'].toString())
-                  .toList(),
+              'p_order':
+                  landingModules.map((item) => item['key'].toString()).toList(),
             },
           );
         }
@@ -2438,7 +2440,8 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
             'country_code': selectedCountryCode,
             'currency_code': currency.text.trim().toUpperCase(),
           };
-          await showAdminZonePaymentMethodsEditor(context, zoneForPayments, channel: widget.channel);
+          await showAdminZonePaymentMethodsEditor(context, zoneForPayments,
+              channel: widget.channel);
           if (mounted) setState(() => revision++);
         }
       } catch (e) {
@@ -2482,8 +2485,28 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         return ListView(
           padding: const EdgeInsets.all(22),
           children: [
-            _Header(
+            _AdminHero(
+              icon: Icons.map_outlined,
               title: 'Zonas de operación',
+              subtitle: 'Países, ciudades y áreas de servicio de Express.',
+              stats: [
+                ('Zonas', rows.length.toString()),
+                (
+                  'Activas',
+                  rows.where((row) =>
+                    row['active'] == true && row['country_active'] != false)
+                    .length.toString(),
+                ),
+                (
+                  'Polígonos',
+                  rows.where((row) => row['coverage_mode'] == 'polygon')
+                    .length.toString(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _Header(
+              title: 'Ciudades y cobertura',
               subtitle:
                   'Cada ciudad funciona como una unidad independiente de servicios, tarifas y suscripciones.',
               action: Wrap(
@@ -2517,103 +2540,20 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               const _Empty(text: 'No hay zonas configuradas.')
             else
               ...rows.map(
-                (row) => Container(
-                  margin: const EdgeInsets.only(bottom: 7),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: const Color(0xFFE7ECF3)),
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 5,
-                    ),
-                    leading: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: const Color(0xFFEAF2FF),
-                      child: Icon(
-                        row['active'] == true
-                            ? Icons.location_on_rounded
-                            : Icons.location_off_outlined,
-                        color: _blue,
-                      ),
-                    ),
-                    title: Text(
-                      row['name']?.toString() ?? 'Zona',
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    subtitle: Text(
-                      (row['city'] ?? '—').toString() +
-                          ' · ' +
-                          (row['country'] ?? '—').toString() +
-                          ' · ' +
-                          (row['currency_code'] ?? 'BOB').toString() +
-                          ' · Cobertura: ' +
-                          adminZoneCoverageSummary(row) +
-                          '\nClave: ' +
-                          (row['zone_key'] ?? '—').toString() +
-                          ' · Registro: ' +
-                          (row['driver_registration_enabled'] == false
-                              ? 'OFF'
-                              : 'ON') +
-                          ' · Inicio: ' +
-                          ((row['passenger_landing_mode'] ?? 'direct')
-                                      .toString() ==
-                                  'auto'
-                              ? 'Automático'
-                              : (row['passenger_landing_mode'] ?? 'direct')
-                                          .toString() ==
-                                      'always'
-                                  ? 'Panel'
-                                  : 'Directo'),
-                    ),
-                    isThreeLine: true,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _MiniStatus(
-                          text: row['country_active'] == false
-                              ? 'País OFF'
-                              : row['active'] == true
-                                  ? 'Activa'
-                                  : 'Inactiva',
-                          positive: row['active'] == true &&
-                              row['country_active'] != false,
-                        ),
-                        const SizedBox(width: 4),
-                        IconButton(
-                          tooltip: 'Aliados / sindicatos',
-                          onPressed: () => _showPartners(row),
-                          icon: const Icon(Icons.groups_2_outlined, size: 19),
-                        ),
-                        IconButton(
-                          tooltip: 'Métodos de pago',
-                          onPressed: () async {
-                            final changed =
-                                await showAdminZonePaymentMethodsEditor(
-                              context,
-                              row,
-                              channel: widget.channel,
-                            );
-                            if (changed && mounted) {
-                              setState(() => revision++);
-                            }
-                          },
-                          icon: const Icon(
-                            Icons.account_balance_wallet_outlined,
-                            size: 18,
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Editar zona',
-                          onPressed: () => _edit(row),
-                          icon: const Icon(Icons.edit_outlined, size: 18),
-                        ),
-                      ],
-                    ),
-                  ),
+                (row) => AdminZoneSummaryCard(
+                  zone: row,
+                  onPartners: () => _showPartners(row),
+                  onPayments: () async {
+                    final changed = await showAdminZonePaymentMethodsEditor(
+                      context,
+                      row,
+                      channel: widget.channel,
+                    );
+                    if (changed && mounted) {
+                      setState(() => revision++);
+                    }
+                  },
+                  onEdit: () => _edit(row),
                 ),
               ),
           ],
@@ -2622,7 +2562,6 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     );
   }
 }
-
 
 class AdminServicesPage extends StatefulWidget {
   final String channel;
@@ -2647,11 +2586,12 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
       AdminEnvironmentStore(widget.channel);
   String? selectedZoneId;
 
-  Future<({
-    List<Map<String, dynamic>> zones,
-    List<Map<String, dynamic>> services,
-    Map<String, dynamic>? zone,
-  })> _load() async {
+  Future<
+      ({
+        List<Map<String, dynamic>> zones,
+        List<Map<String, dynamic>> services,
+        Map<String, dynamic>? zone,
+      })> _load() async {
     final selectedScopeZoneId = widget.zoneId;
     final countryCode = widget.countryCode;
     if (selectedScopeZoneId == null ||
@@ -2711,9 +2651,8 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
         };
       }
       serviceRows = byKey.values.toList()
-        ..sort((a, b) =>
-            ((a['sort_order'] as num?)?.toInt() ?? 100)
-                .compareTo((b['sort_order'] as num?)?.toInt() ?? 100));
+        ..sort((a, b) => ((a['sort_order'] as num?)?.toInt() ?? 100)
+            .compareTo((b['sort_order'] as num?)?.toInt() ?? 100));
     } else {
       serviceRows = _list(
         await supabase.rpc(
@@ -2760,10 +2699,10 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            (row == null ? 'Crear servicio' : 'Editar servicio') +
-                ' · ' +
-                zoneName,
+          title: AdminStageEditDialogTitle(
+            title: row == null ? 'Crear servicio' : 'Editar servicio',
+            subtitle: zoneName,
+            icon: Icons.apps_outlined,
           ),
           content: SizedBox(
             width: 580,
@@ -2773,14 +2712,15 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
                       children: [
                         const CircleAvatar(
                           backgroundColor: Colors.white,
-                          child: Icon(Icons.location_city_rounded, color: _blue),
+                          child:
+                              Icon(Icons.location_city_rounded, color: _blue),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -2870,8 +2810,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: driverVisible,
-                    onChanged: (value) =>
-                        setLocal(() => driverVisible = value),
+                    onChanged: (value) => setLocal(() => driverVisible = value),
                     title: const Text('Visible para conductores'),
                     subtitle: const Text(
                       'Controla si el servicio aparece en la interfaz del conductor.',
@@ -3120,11 +3059,19 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
               LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
-                  final cardWidth = width < 680
+                  // Claude artboard 37 uses three catalog cards across
+                  // the 1032px administrator viewport.
+                  final cardWidth = width < 640
                       ? width
-                      : width < 1050
+                      : width < 900
                           ? (width - 12) / 2
                           : (width - 24) / 3;
+                  if (rows.isEmpty) {
+                    return const _Empty(
+                      text:
+                          'Esta zona todavía no tiene servicios configurados.',
+                    );
+                  }
                   return Wrap(
                     spacing: 12,
                     runSpacing: 12,
@@ -3144,7 +3091,13 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                             enabled
                                 ? 'Disponible en $zoneName'
                                 : 'No disponible',
-                            row['vehicle_type']?.toString() ?? 'car',
+                            switch (row['vehicle_type']?.toString()) {
+                              'motorcycle' => 'Moto',
+                              'car' => 'Auto',
+                              'xl' => 'XL',
+                              'any' => 'Cualquiera',
+                              _ => row['vehicle_type']?.toString() ?? 'Auto',
+                            },
                             if (row['allow_bidding'] == true) 'Ofertas',
                             if (row['allow_fixed_price'] == true) 'Precio fijo',
                             if (row['passenger_visible'] == true)
@@ -3168,7 +3121,6 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
   }
 }
 
-
 class AdminGeoSafetyPage extends StatefulWidget {
   final String channel;
   final String? countryCode;
@@ -3191,11 +3143,12 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
   AdminEnvironmentStore get _environment =>
       AdminEnvironmentStore(widget.channel);
 
-  Future<({
-    List<Map<String, dynamic>> zones,
-    List<Map<String, dynamic>> coverage,
-    List<Map<String, dynamic>> safety,
-  })> _load() async {
+  Future<
+      ({
+        List<Map<String, dynamic>> zones,
+        List<Map<String, dynamic>> coverage,
+        List<Map<String, dynamic>> safety,
+      })> _load() async {
     final selectedZoneId = widget.zoneId;
     final countryCode = widget.countryCode;
     if (selectedZoneId == null ||
@@ -3302,7 +3255,8 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
                               .map(
                                 (zone) => DropdownMenuItem(
                                   value: zone['id'].toString(),
-                                  child: Text(zone['name']?.toString() ?? 'Zona'),
+                                  child:
+                                      Text(zone['name']?.toString() ?? 'Zona'),
                                 ),
                               )
                               .toList(),
@@ -3315,7 +3269,8 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
                       Expanded(
                         child: TextField(
                           controller: name,
-                          decoration: const InputDecoration(labelText: 'Nombre del polígono'),
+                          decoration: const InputDecoration(
+                              labelText: 'Nombre del polígono'),
                         ),
                       ),
                     ],
@@ -3325,10 +3280,12 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
                     points: points,
                     tone: _blue,
                     title: 'Toca el mapa para marcar la cobertura',
-                    onAdd: (point) => setLocal(() => points = [...points, point]),
+                    onAdd: (point) =>
+                        setLocal(() => points = [...points, point]),
                     onUndo: () {
                       if (points.isNotEmpty) {
-                        setLocal(() => points = points.sublist(0, points.length - 1));
+                        setLocal(() =>
+                            points = points.sublist(0, points.length - 1));
                       }
                     },
                     onClear: () => setLocal(() => points = <LatLng>[]),
@@ -3404,15 +3361,26 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
     var active = row?['active'] != false;
     var points = _points(row?['polygon']);
     final name = TextEditingController(text: row?['name']?.toString() ?? '');
-    final message = TextEditingController(text: row?['message']?.toString() ?? '');
-    final city = TextEditingController(text: row?['city']?.toString() ?? 'Trinidad');
-    final country = TextEditingController(text: row?['country']?.toString() ?? 'Bolivia');
+    final message =
+        TextEditingController(text: row?['message']?.toString() ?? '');
+    final city =
+        TextEditingController(text: row?['city']?.toString() ?? 'Trinidad');
+    final country =
+        TextEditingController(text: row?['country']?.toString() ?? 'Bolivia');
 
     final save = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Crear zona de seguridad' : 'Editar zona de seguridad'),
+          title: AdminStageEditDialogTitle(
+            title: row == null
+                ? 'Crear zona de seguridad'
+                : 'Editar zona de seguridad',
+            subtitle: widget.channel == 'preview'
+                ? 'Preview · Sectores de prevención'
+                : 'Producción · Sectores de prevención',
+            icon: Icons.shield_outlined,
+          ),
           content: SizedBox(
             width: 780,
             child: SingleChildScrollView(
@@ -3433,9 +3401,12 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
                           initialValue: type,
                           decoration: const InputDecoration(labelText: 'Tipo'),
                           items: const [
-                            DropdownMenuItem(value: 'red', child: Text('Zona roja')),
-                            DropdownMenuItem(value: 'caution', child: Text('Precaución')),
-                            DropdownMenuItem(value: 'safe', child: Text('Zona segura')),
+                            DropdownMenuItem(
+                                value: 'red', child: Text('Zona roja')),
+                            DropdownMenuItem(
+                                value: 'caution', child: Text('Precaución')),
+                            DropdownMenuItem(
+                                value: 'safe', child: Text('Zona segura')),
                           ],
                           onChanged: (value) {
                             if (value != null) setLocal(() => type = value);
@@ -3446,11 +3417,17 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: applies,
-                          decoration: const InputDecoration(labelText: 'Aplica a'),
+                          decoration:
+                              const InputDecoration(labelText: 'Aplica a'),
                           items: const [
-                            DropdownMenuItem(value: 'both', child: Text('Pasajero y conductor')),
-                            DropdownMenuItem(value: 'driver', child: Text('Solo conductor')),
-                            DropdownMenuItem(value: 'passenger', child: Text('Solo pasajero')),
+                            DropdownMenuItem(
+                                value: 'both',
+                                child: Text('Pasajero y conductor')),
+                            DropdownMenuItem(
+                                value: 'driver', child: Text('Solo conductor')),
+                            DropdownMenuItem(
+                                value: 'passenger',
+                                child: Text('Solo pasajero')),
                           ],
                           onChanged: (value) {
                             if (value != null) setLocal(() => applies = value);
@@ -3465,7 +3442,8 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
                       Expanded(
                         child: TextField(
                           controller: city,
-                          decoration: const InputDecoration(labelText: 'Ciudad'),
+                          decoration:
+                              const InputDecoration(labelText: 'Ciudad'),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -3489,7 +3467,8 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Text('Nivel de riesgo', style: TextStyle(fontWeight: FontWeight.w800)),
+                      const Text('Nivel de riesgo',
+                          style: TextStyle(fontWeight: FontWeight.w800)),
                       Expanded(
                         child: Slider(
                           value: severity.toDouble(),
@@ -3497,7 +3476,8 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
                           max: 5,
                           divisions: 4,
                           label: severity.toString(),
-                          onChanged: (value) => setLocal(() => severity = value.round()),
+                          onChanged: (value) =>
+                              setLocal(() => severity = value.round()),
                         ),
                       ),
                       CircleAvatar(
@@ -3517,10 +3497,12 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
                     points: points,
                     tone: _securityTone(type),
                     title: 'Dibuja el perímetro de seguridad',
-                    onAdd: (point) => setLocal(() => points = [...points, point]),
+                    onAdd: (point) =>
+                        setLocal(() => points = [...points, point]),
                     onUndo: () {
                       if (points.isNotEmpty) {
-                        setLocal(() => points = points.sublist(0, points.length - 1));
+                        setLocal(() =>
+                            points = points.sublist(0, points.length - 1));
                       }
                     },
                     onClear: () => setLocal(() => points = <LatLng>[]),
@@ -3614,11 +3596,13 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
       key: ValueKey(revision),
       future: _load(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const _Loading(title: 'Cargando cobertura y seguridad');
         }
         if (snapshot.hasError) {
-          return _Error(error: snapshot.error, onRetry: () => setState(() => revision++));
+          return _Error(
+              error: snapshot.error, onRetry: () => setState(() => revision++));
         }
         final data = snapshot.data ??
             (
@@ -3657,17 +3641,17 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
               const _Empty(text: 'Todavía no hay sectores de seguridad.')
             else
               ...data.safety.map((row) => _GeoRow(
-                tone: _securityTone(row['zone_type']?.toString()),
-                icon: row['zone_type'] == 'safe'
-                    ? Icons.verified_user_outlined
-                    : Icons.warning_amber_rounded,
-                title: row['name']?.toString() ?? 'Zona de seguridad',
-                subtitle:
-                    _securityLabel(row['zone_type']?.toString()) +
-                    ' · nivel ' + (row['severity'] ?? 3).toString(),
-                badge: row['active'] == true ? 'Activa' : 'Inactiva',
-                onTap: () => _editSafety(row),
-              )),
+                    tone: _securityTone(row['zone_type']?.toString()),
+                    icon: row['zone_type'] == 'safe'
+                        ? Icons.verified_user_outlined
+                        : Icons.warning_amber_rounded,
+                    title: row['name']?.toString() ?? 'Zona de seguridad',
+                    subtitle: _securityLabel(row['zone_type']?.toString()) +
+                        ' · nivel ' +
+                        (row['severity'] ?? 3).toString(),
+                    badge: row['active'] == true ? 'Activa' : 'Inactiva',
+                    onTap: () => _editSafety(row),
+                  )),
           ],
         );
       },
@@ -3700,7 +3684,8 @@ class AdminIdentitySecurityPage extends StatelessWidget {
       children: [
         const _Header(
           title: 'Verificación de identidad',
-          subtitle: 'Documentos de conductores y revisión manual de fotografías. '
+          subtitle:
+              'Documentos de conductores y revisión manual de fotografías. '
               'Los servicios de identidad automáticos y la verificación por SMS '
               'están deshabilitados.',
         ),
@@ -3839,7 +3824,9 @@ class _PolygonEditor extends StatelessWidget {
                   ],
                 ),
               const RichAttributionWidget(
-                attributions: [TextSourceAttribution('OpenStreetMap contributors')],
+                attributions: [
+                  TextSourceAttribution('OpenStreetMap contributors')
+                ],
               ),
             ],
           ),
@@ -3853,7 +3840,10 @@ class _PolygonEditor extends StatelessWidget {
                 color: Colors.white.withOpacity(.95),
                 borderRadius: BorderRadius.circular(11),
                 boxShadow: const [
-                  BoxShadow(color: Color(0x1A101828), blurRadius: 12, offset: Offset(0, 4)),
+                  BoxShadow(
+                      color: Color(0x1A101828),
+                      blurRadius: 12,
+                      offset: Offset(0, 4)),
                 ],
               ),
               child: Row(
@@ -3863,7 +3853,8 @@ class _PolygonEditor extends StatelessWidget {
                   Expanded(
                     child: Text(
                       title + ' · ' + points.length.toString() + ' puntos',
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                          fontSize: 10, fontWeight: FontWeight.w800),
                     ),
                   ),
                   TextButton.icon(
@@ -3901,110 +3892,49 @@ class _AdminHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0B57D0), Color(0xFF5B74F5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
-          BoxShadow(color: Color(0x2A0B57D0), blurRadius: 24, offset: Offset(0, 10)),
-        ],
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final info = Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.16),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFFE7EEFF),
-                        fontSize: 11,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-
-          final statRow = Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: stats
-                .map(
-                  (stat) => Container(
-                    constraints: const BoxConstraints(minWidth: 105),
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(.13),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(.14)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          stat.$2,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        Text(
-                          stat.$1,
-                          style: const TextStyle(color: Color(0xFFE7EEFF), fontSize: 9),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-                .toList(),
-          );
-
-          if (constraints.maxWidth < 780) {
-            return Column(
+    final statRow = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final stat in stats)
+          Container(
+            constraints: const BoxConstraints(minWidth: 98),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: .15)),
+            ),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [info, const SizedBox(height: 14), statRow],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(child: info),
-              const SizedBox(width: 20),
-              statRow,
-            ],
-          );
-        },
-      ),
+              children: [
+                Text(
+                  stat.$2,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  stat.$1,
+                  style: const TextStyle(
+                    color: AdminColors.headerMuted,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    return AdminPageHero(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      trailing: stats.isEmpty ? null : statRow,
     );
   }
 }
@@ -4030,17 +3960,10 @@ class _AdminModuleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Ink(
+      borderRadius: BorderRadius.circular(AdminRadius.card),
+      child: AdminCard(
+        elevated: true,
         padding: const EdgeInsets.all(17),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE4EAF2)),
-          boxShadow: const [
-            BoxShadow(color: Color(0x0D101828), blurRadius: 18, offset: Offset(0, 7)),
-          ],
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -4050,52 +3973,43 @@ class _AdminModuleCard extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: accent.withOpacity(.10),
+                    color: accent.withValues(alpha: .10),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: accent, size: 22),
                 ),
                 const Spacer(),
                 if (onTap != null)
-                  const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: _muted),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                    color: AdminColors.muted,
+                  ),
               ],
             ),
             const SizedBox(height: 14),
             Text(
               title,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: _dark),
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: AdminColors.ink,
+              ),
             ),
             const SizedBox(height: 5),
             Text(
               subtitle,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10, color: _muted, height: 1.4),
+              style: AdminText.caption,
             ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: chips
-                  .map(
-                    (chip) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F7FA),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: const Color(0xFFE7ECF3)),
-                      ),
-                      child: Text(
-                        chip,
-                        style: const TextStyle(
-                          color: _dark,
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
+              children: [
+                for (final chip in chips) AdminStatusChip(chip, dot: false),
+              ],
             ),
           ],
         ),
@@ -4143,9 +4057,11 @@ class _GeoRow extends StatelessWidget {
         ),
         title: Text(
           title,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: _dark),
+          style: const TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w900, color: _dark),
         ),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 9, color: _muted)),
+        subtitle:
+            Text(subtitle, style: const TextStyle(fontSize: 9, color: _muted)),
         trailing: Wrap(
           spacing: 7,
           crossAxisAlignment: WrapCrossAlignment.center,
@@ -4158,7 +4074,8 @@ class _GeoRow extends StatelessWidget {
               ),
               child: Text(
                 badge,
-                style: TextStyle(color: tone, fontSize: 8.5, fontWeight: FontWeight.w900),
+                style: TextStyle(
+                    color: tone, fontSize: 8.5, fontWeight: FontWeight.w900),
               ),
             ),
             if (onTap != null)
@@ -4192,7 +4109,7 @@ Color _securityTone(String? type) {
     case 'caution':
       return const Color(0xFFF79009);
     default:
-      return const Color(0xFFD92D20);
+      return AdminColors.danger;
   }
 }
 
@@ -4211,7 +4128,6 @@ double? _double(Object? value) {
   if (value is num) return value.toDouble();
   return double.tryParse(value?.toString() ?? '');
 }
-
 
 class AdminFaresPage extends StatefulWidget {
   final String channel;
@@ -4236,12 +4152,13 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
       AdminEnvironmentStore(widget.channel);
   String? selectedZoneId;
 
-  Future<({
-    List<Map<String, dynamic>> fares,
-    List<Map<String, dynamic>> zones,
-    List<Map<String, dynamic>> services,
-    Map<String, dynamic>? zone,
-  })> _load() async {
+  Future<
+      ({
+        List<Map<String, dynamic>> fares,
+        List<Map<String, dynamic>> zones,
+        List<Map<String, dynamic>> services,
+        Map<String, dynamic>? zone,
+      })> _load() async {
     final selectedScopeZoneId = widget.zoneId;
     final countryCode = widget.countryCode;
     if (selectedScopeZoneId == null ||
@@ -4321,8 +4238,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
         (services.isNotEmpty
             ? services.first['service_key']?.toString() ?? 'motorcycle'
             : 'motorcycle');
-    String? zoneId =
-        row?['zone_id']?.toString() ?? selectedZoneId;
+    String? zoneId = row?['zone_id']?.toString() ?? selectedZoneId;
     var active = row?['active'] != false;
 
     final base = TextEditingController(
@@ -4357,7 +4273,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
@@ -4391,8 +4307,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       initialValue: service,
-                      decoration:
-                          const InputDecoration(labelText: 'Servicio'),
+                      decoration: const InputDecoration(labelText: 'Servicio'),
                       items: services
                           .map(
                             (item) => DropdownMenuItem<String>(
@@ -4533,7 +4448,6 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     commission.dispose();
   }
 
-
   List<LatLng> _specialPoints(Object? raw) {
     if (raw is! List) return <LatLng>[];
     return raw
@@ -4548,15 +4462,14 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
         .toList();
   }
 
-  List<Map<String, double>> _specialJsonPoints(List<LatLng> points) =>
-      points
-          .map(
-            (point) => {
-              'lat': point.latitude,
-              'lng': point.longitude,
-            },
-          )
-          .toList();
+  List<Map<String, double>> _specialJsonPoints(List<LatLng> points) => points
+      .map(
+        (point) => {
+          'lat': point.latitude,
+          'lng': point.longitude,
+        },
+      )
+      .toList();
 
   Future<bool> _editSpecialFare(
     Map<String, dynamic> zone,
@@ -4600,7 +4513,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -4615,8 +4528,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                     controller: name,
                     decoration: const InputDecoration(
                       labelText: 'Nombre',
-                      hintText:
-                          'Ej. Aeropuerto Teniente Jorge Henrich Arauz',
+                      hintText: 'Ej. Aeropuerto Teniente Jorge Henrich Arauz',
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -4704,8 +4616,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                         : type == 'terminal'
                             ? const Color(0xFF0E9384)
                             : _blue,
-                    title:
-                        'Dibuja el perímetro de ' +
+                    title: 'Dibuja el perímetro de ' +
                         (type == 'airport'
                             ? 'aeropuerto'
                             : type == 'terminal'
@@ -4719,19 +4630,16 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                     onUndo: () {
                       if (points.isNotEmpty) {
                         setLocal(
-                          () => points =
-                              points.sublist(0, points.length - 1),
+                          () => points = points.sublist(0, points.length - 1),
                         );
                       }
                     },
-                    onClear: () =>
-                        setLocal(() => points = <LatLng>[]),
+                    onClear: () => setLocal(() => points = <LatLng>[]),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: active,
-                    onChanged: (value) =>
-                        setLocal(() => active = value),
+                    onChanged: (value) => setLocal(() => active = value),
                     title: const Text('Tarifa especial activa'),
                   ),
                 ],
@@ -4823,8 +4731,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
               const SizedBox(width: 9),
               Expanded(
                 child: Text(
-                  'Tarifas fijas · ' +
-                      (zone['name'] ?? 'Zona').toString(),
+                  'Tarifas fijas · ' + (zone['name'] ?? 'Zona').toString(),
                 ),
               ),
               FilledButton.icon(
@@ -4859,8 +4766,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                 return _list(value);
               }(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState ==
-                        ConnectionState.waiting &&
+                if (snapshot.connectionState == ConnectionState.waiting &&
                     !snapshot.hasData) {
                   return const _Loading(
                     title: 'Cargando tarifas especiales',
@@ -4869,12 +4775,10 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                 if (snapshot.hasError) {
                   return _Error(
                     error: snapshot.error,
-                    onRetry: () =>
-                        setLocal(() => localRevision++),
+                    onRetry: () => setLocal(() => localRevision++),
                   );
                 }
-                final rows =
-                    snapshot.data ?? const <Map<String, dynamic>>[];
+                final rows = snapshot.data ?? const <Map<String, dynamic>>[];
                 if (rows.isEmpty) {
                   return const _Empty(
                     text:
@@ -4884,8 +4788,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
 
                 return ListView.separated(
                   itemCount: rows.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: 8),
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final row = rows[index];
                     final type = row['zone_type']?.toString();
@@ -4898,7 +4801,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                       elevation: 0,
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: const Color(0xFFEAF2FF),
+                          backgroundColor: AdminColors.blueSoft,
                           child: Icon(
                             type == 'airport'
                                 ? Icons.flight_rounded
@@ -4917,8 +4820,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                         subtitle: Text(
                           label +
                               ' · ' +
-                              (row['service_key'] ?? 'servicio')
-                                  .toString() +
+                              (row['service_key'] ?? 'servicio').toString() +
                               ' · ' +
                               (zone['currency_code'] ?? '').toString() +
                               ' ' +
@@ -4930,9 +4832,8 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _MiniStatus(
-                              text: row['active'] == true
-                                  ? 'Activa'
-                                  : 'Inactiva',
+                              text:
+                                  row['active'] == true ? 'Activa' : 'Inactiva',
                               positive: row['active'] == true,
                             ),
                             IconButton(
@@ -5029,8 +4930,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                           ),
                         const SizedBox(width: 8),
                         FilledButton.icon(
-                          onPressed: () =>
-                              _edit(data.zones, data.services),
+                          onPressed: () => _edit(data.zones, data.services),
                           icon: const Icon(Icons.add_rounded),
                           label: const Text('Nueva tarifa'),
                         ),
@@ -5039,7 +4939,8 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
             ),
             if (data.zone != null)
               AdminDistanceFaresEditor(
-                key: ValueKey('distance-steps-${data.zone!['id']}-${widget.channel}'),
+                key: ValueKey(
+                    'distance-steps-${data.zone!['id']}-${widget.channel}'),
                 channel: widget.channel,
                 zone: data.zone!,
                 services: data.services,
@@ -5108,7 +5009,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                       vertical: 4,
                     ),
                     leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFEAF2FF),
+                      backgroundColor: AdminColors.blueSoft,
                       child: Icon(Icons.payments_outlined, color: _blue),
                     ),
                     title: Text(
@@ -5129,8 +5030,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                           '%',
                     ),
                     trailing: IconButton(
-                      onPressed: () =>
-                          _edit(data.zones, data.services, row),
+                      onPressed: () => _edit(data.zones, data.services, row),
                       icon: const Icon(Icons.edit_outlined),
                     ),
                   ),
@@ -5142,7 +5042,6 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     );
   }
 }
-
 
 Future<bool> showAdminZonePaymentMethodsEditor(
   BuildContext context,
@@ -5225,8 +5124,7 @@ Future<bool> showAdminZonePaymentMethodsEditor(
                       final key = provider['provider_key']?.toString() ?? '';
                       final row = state[key]!;
                       final selected = row['selected'] == true;
-                      final supportedRides =
-                          provider['supports_rides'] == true;
+                      final supportedRides = provider['supports_rides'] == true;
                       final supportedDelivery =
                           provider['supports_delivery'] == true;
                       final supportedSubscriptions =
@@ -5241,9 +5139,8 @@ Future<bool> showAdminZonePaymentMethodsEditor(
                       return Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: selected
-                              ? const Color(0xFFF8FAFF)
-                              : Colors.white,
+                          color:
+                              selected ? const Color(0xFFF8FAFF) : Colors.white,
                           border: Border.all(
                             color: selected
                                 ? const Color(0xFFB8CDF8)
@@ -5489,7 +5386,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      const AdminEnvironmentStore('production');
+      AdminEnvironmentStore(widget.channel);
   String paymentPeriod = 'today';
   DateTimeRange? paymentCustomRange;
   String? selectedPaymentZoneId;
@@ -5553,12 +5450,13 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     );
   }
 
-  Future<({
-    Map<String, dynamic> overview,
-    List<Map<String, dynamic>> topups,
-    List<Map<String, dynamic>> zones,
-    Map<String, Map<String, dynamic>> mercadoPago,
-  })> _load() async {
+  Future<
+      ({
+        Map<String, dynamic> overview,
+        List<Map<String, dynamic>> topups,
+        List<Map<String, dynamic>> zones,
+        Map<String, Map<String, dynamic>> mercadoPago,
+      })> _load() async {
     final range = _paymentBounds();
 
     if (_environment.isPreview) {
@@ -5581,8 +5479,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
           .where((row) => (row['status'] ?? 'pending') == 'pending')
           .toList();
 
-      final allRecent =
-          await _environment.previewList('payment_transactions');
+      final allRecent = await _environment.previewList('payment_transactions');
       final recent = allRecent.where((row) {
         final created = DateTime.tryParse(row['created_at']?.toString() ?? '');
         if (created == null) return true;
@@ -5598,8 +5495,8 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
       var paidCount = 0;
       var pendingCount = 0;
       for (final row in recent) {
-        final currency = (row['currency'] ?? row['currency_code'] ?? 'BOB')
-            .toString();
+        final currency =
+            (row['currency'] ?? row['currency_code'] ?? 'BOB').toString();
         final amount = (row['amount'] as num?) ?? 0;
         totals[currency] = (totals[currency] ?? 0) + amount;
         if (row['status'] == 'paid' || row['status'] == 'approved') {
@@ -5628,8 +5525,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
           mercadoPago[zoneId] = <String, dynamic>{
             'ok': true,
             'configured': stored['configured'] == true,
-            'credentials_configured':
-                stored['credentials_configured'] == true,
+            'credentials_configured': stored['credentials_configured'] == true,
             'settings': <String, dynamic>{
               'public_key': stored['public_key'] ?? '',
               'has_access_token': stored['has_access_token'] == true,
@@ -5693,8 +5589,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
           body: {'action': 'get', 'zone_id': zoneId},
         );
         if (response.data is Map) {
-          mercadoPago[zoneId] =
-              Map<String, dynamic>.from(response.data as Map);
+          mercadoPago[zoneId] = Map<String, dynamic>.from(response.data as Map);
         }
       } catch (e) {
         mercadoPago[zoneId] = {
@@ -5820,8 +5715,12 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(
-          'Mercado Pago · ${zone['name'] ?? 'Zona'}',
+        title: AdminStageEditDialogTitle(
+          title: 'Mercado Pago · ${zone['name'] ?? 'Zona'}',
+          subtitle: _environment.isPreview
+              ? 'Credenciales simuladas y aisladas en Preview.'
+              : 'Credenciales por zona y verificación protegida.',
+          icon: Icons.account_balance_wallet_rounded,
         ),
         content: SizedBox(
           width: 540,
@@ -5850,9 +5749,10 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const _AdminPaymentNotice(
-                  text:
-                      'Usa las credenciales de producción de Mercado Pago Chile. Al guardar, Express verificará la cuenta antes de marcarlas como conectadas.',
+                _AdminPaymentNotice(
+                  text: _environment.isPreview
+                      ? 'Preview guarda solo una configuración QA aislada. No se envía un cobro ni se modifica una cuenta real.'
+                      : 'Usa las credenciales de producción de Mercado Pago Chile. Al guardar, Express verificará la cuenta antes de marcarlas como conectadas.',
                 ),
               ],
             ),
@@ -5890,8 +5790,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
             'configured': true,
             'credentials_configured': true,
             'public_key': publicKey.text.trim(),
-            'has_access_token':
-                accessToken.text.trim().isNotEmpty || hasToken,
+            'has_access_token': accessToken.text.trim().isNotEmpty || hasToken,
             'verified': true,
             'nickname': 'Mercado Pago Preview',
           },
@@ -5994,9 +5893,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
       builder: (dialogContext) => AlertDialog(
         title: Text(approved ? 'Aprobar recarga' : 'Rechazar recarga'),
         content: Text(
-          (approved
-                  ? 'Se acreditará '
-                  : 'Se rechazará la solicitud de ') +
+          (approved ? 'Se acreditará ' : 'Se rechazará la solicitud de ') +
               'Bs ' +
               (row['amount'] ?? 0).toString() +
               ' para ' +
@@ -6013,7 +5910,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
             style: approved
                 ? null
                 : FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFD92D20),
+                    backgroundColor: AdminColors.danger,
                   ),
             child: Text(approved ? 'Aprobar' : 'Rechazar'),
           ),
@@ -6102,8 +5999,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
             children: [
               const _Header(
                 title: 'Pagos y Billetera',
-                subtitle:
-                    'Cobros, recargas pendientes, saldos y movimientos.',
+                subtitle: 'Cobros, recargas pendientes, saldos y movimientos.',
               ),
               const SizedBox(height: 18),
               const Text(
@@ -6130,10 +6026,10 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                     final busy = savingZonePayments.contains(id);
                     final zoneMethods = _list(zone['payment_methods']);
                     final enabled = zoneMethods.isNotEmpty
-                        ? zoneMethods.any((method) => method['enabled'] != false)
+                        ? zoneMethods
+                            .any((method) => method['enabled'] != false)
                         : zone['payment_enabled'] != false;
-                    final currency =
-                        (zone['currency_code'] ?? '—').toString();
+                    final currency = (zone['currency_code'] ?? '—').toString();
                     final country = (zone['country'] ?? '—').toString();
                     final provider = _zonePaymentProvider(zone);
                     final mpState =
@@ -6214,11 +6110,10 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                                 for (final method
                                     in _list(zone['payment_methods']))
                                   _MiniStatus(
-                                    text:
-                                        (method['display_name'] ??
-                                                method['provider_key'] ??
-                                                'Método')
-                                            .toString(),
+                                    text: (method['display_name'] ??
+                                            method['provider_key'] ??
+                                            'Método')
+                                        .toString(),
                                     positive: method['enabled'] != false,
                                   ),
                                 OutlinedButton.icon(
@@ -6299,8 +6194,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                                           : 'Conectar Mercado Pago',
                                     ),
                                   ),
-                                  if (mpState['credentials_configured'] ==
-                                      true)
+                                  if (mpState['credentials_configured'] == true)
                                     OutlinedButton.icon(
                                       onPressed: mpBusy
                                           ? null
@@ -6419,8 +6313,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                       },
                       icon: const Icon(Icons.date_range_outlined, size: 17),
                       label: Text(
-                        paymentPeriod == 'custom' &&
-                                paymentCustomRange != null
+                        paymentPeriod == 'custom' && paymentCustomRange != null
                             ? paymentCustomRange!.start.day.toString() +
                                 '/' +
                                 paymentCustomRange!.start.month.toString() +
@@ -6496,7 +6389,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                         backgroundColor: Color(0xFFFFF4E5),
                         child: Icon(
                           Icons.account_balance_wallet_outlined,
-                          color: Color(0xFFB54708),
+                          color: AdminColors.warn,
                         ),
                       ),
                       title: Text(
@@ -6590,7 +6483,6 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
   }
 }
 
-
 class _AdminPaymentNotice extends StatelessWidget {
   final String text;
   const _AdminPaymentNotice({required this.text});
@@ -6601,7 +6493,7 @@ class _AdminPaymentNotice extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: AdminColors.surfaceSoft,
         border: Border.all(color: const Color(0xFFE2E8F0)),
         borderRadius: BorderRadius.circular(10),
       ),
@@ -6634,8 +6526,7 @@ class AdminCommunicationsPage extends StatefulWidget {
       _AdminCommunicationsPageState();
 }
 
-class _AdminCommunicationsPageState
-    extends State<AdminCommunicationsPage> {
+class _AdminCommunicationsPageState extends State<AdminCommunicationsPage> {
   int revision = 0;
   String? selectedUserId;
   String? selectedUserName;
@@ -6794,7 +6685,9 @@ class _AdminCommunicationsPageState
       }
     }
     final targetLabel = partner != null
-        ? audienceLabel + ' de ' + (partner['name'] ?? 'la organización').toString()
+        ? audienceLabel +
+            ' de ' +
+            (partner['name'] ?? 'la organización').toString()
         : zone != null
             ? audienceLabel + ' de ' + (zone['name'] ?? 'la zona').toString()
             : audienceLabel;
@@ -6862,9 +6755,7 @@ class _AdminCommunicationsPageState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Aviso push enviado a ' +
-                recipients.toString() +
-                ' destinatarios.',
+            'Aviso push enviado a ' + recipients.toString() + ' destinatarios.',
           ),
         ),
       );
@@ -6900,8 +6791,8 @@ class _AdminCommunicationsPageState
           );
         }
 
-        final currentId = selectedUserId ??
-            threads.first['user_id']?.toString();
+        final currentId =
+            selectedUserId ?? threads.first['user_id']?.toString();
         final current = threads.firstWhere(
           (row) => row['user_id']?.toString() == currentId,
           orElse: () => threads.first,
@@ -6928,14 +6819,11 @@ class _AdminCommunicationsPageState
               children: threads.map((row) {
                 final userId = row['user_id']?.toString();
                 final selected = userId == currentId;
-                final unread =
-                    (row['unread_count'] as num?)?.toInt() ?? 0;
+                final unread = (row['unread_count'] as num?)?.toInt() ?? 0;
                 return Container(
                   margin: const EdgeInsets.only(bottom: 7),
                   decoration: BoxDecoration(
-                    color: selected
-                        ? const Color(0xFFF4F8FF)
-                        : Colors.white,
+                    color: selected ? const Color(0xFFF4F8FF) : Colors.white,
                     borderRadius: BorderRadius.circular(11),
                     border: Border.all(
                       color: selected
@@ -6986,10 +6874,7 @@ class _AdminCommunicationsPageState
                 ? const Center(child: Text('Selecciona una conversación.'))
                 : FutureBuilder<List<Map<String, dynamic>>>(
                     key: ValueKey(
-                      'messages-' +
-                          effectiveId +
-                          '-' +
-                          revision.toString(),
+                      'messages-' + effectiveId + '-' + revision.toString(),
                     ),
                     future: _messages(effectiveId),
                     builder: (context, messagesSnapshot) {
@@ -7003,8 +6888,7 @@ class _AdminCommunicationsPageState
                       if (messagesSnapshot.hasError) {
                         return _Error(
                           error: messagesSnapshot.error,
-                          onRetry: () =>
-                              setState(() => revision++),
+                          onRetry: () => setState(() => revision++),
                         );
                       }
                       final messages = messagesSnapshot.data ??
@@ -7052,21 +6936,19 @@ class _AdminCommunicationsPageState
                                             ? Alignment.centerRight
                                             : Alignment.centerLeft,
                                         child: Container(
-                                          constraints:
-                                              const BoxConstraints(
+                                          constraints: const BoxConstraints(
                                             maxWidth: 430,
                                           ),
                                           margin: const EdgeInsets.only(
                                             bottom: 8,
                                           ),
-                                          padding:
-                                              const EdgeInsets.symmetric(
+                                          padding: const EdgeInsets.symmetric(
                                             horizontal: 13,
                                             vertical: 9,
                                           ),
                                           decoration: BoxDecoration(
                                             color: admin
-                                                ? const Color(0xFFEAF2FF)
+                                                ? AdminColors.blueSoft
                                                 : const Color(0xFFF2F4F7),
                                             borderRadius:
                                                 BorderRadius.circular(14),
@@ -7076,8 +6958,7 @@ class _AdminCommunicationsPageState
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                row['body']?.toString() ??
-                                                    '',
+                                                row['body']?.toString() ?? '',
                                               ),
                                               const SizedBox(height: 3),
                                               Text(
@@ -7106,21 +6987,18 @@ class _AdminCommunicationsPageState
                                     minLines: 1,
                                     maxLines: 4,
                                     decoration: const InputDecoration(
-                                      hintText:
-                                          'Responder desde soporte...',
+                                      hintText: 'Responder desde soporte...',
                                     ),
                                     onSubmitted: (_) => _reply(),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 IconButton.filled(
-                                  onPressed:
-                                      sendingReply ? null : _reply,
+                                  onPressed: sendingReply ? null : _reply,
                                   icon: sendingReply
                                       ? const SizedBox.square(
                                           dimension: 18,
-                                          child:
-                                              CircularProgressIndicator(
+                                          child: CircularProgressIndicator(
                                             strokeWidth: 2,
                                           ),
                                         )
@@ -7158,354 +7036,353 @@ class _AdminCommunicationsPageState
   }
 
   Widget _announcementsTab() {
-    return ListView(
-      padding: const EdgeInsets.all(22),
-      children: [
-        const _Header(
-          title: 'Enviar avisos',
-          subtitle:
-              'Estos son los únicos mensajes que aparecen en “Avisos” dentro de la app.',
+    final composer = <Widget>[
+      const AdminPageHero(
+        title: 'Enviar avisos',
+        subtitle:
+            'Estos son los únicos mensajes que aparecen en “Avisos” dentro de la app.',
+        icon: Icons.campaign_rounded,
+      ),
+      const SizedBox(height: 18),
+      Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: const Color(0xFFE7ECF3)),
+          borderRadius: BorderRadius.circular(12),
         ),
-        const SizedBox(height: 18),
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: const Color(0xFFE7ECF3)),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              DropdownButtonFormField<String>(
-                initialValue: audience,
-                decoration: const InputDecoration(
-                  labelText: 'Destinatarios',
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'drivers',
-                    child: Text('Conductores'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'passengers',
-                    child: Text('Pasajeros'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'all',
-                    child: Text('Todos'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      audience = value;
-                      if (value != 'drivers') campaignPartnerId = null;
-                    });
-                  }
-                },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropdownButtonFormField<String>(
+              initialValue: audience,
+              decoration: const InputDecoration(
+                labelText: 'Destinatarios',
               ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'drivers',
+                  child: Text('Conductores'),
+                ),
+                DropdownMenuItem(
+                  value: 'passengers',
+                  child: Text('Pasajeros'),
+                ),
+                DropdownMenuItem(
+                  value: 'all',
+                  child: Text('Todos'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    audience = value;
+                    if (value != 'drivers') campaignPartnerId = null;
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String?>(
+              initialValue: campaignZoneId,
+              decoration: const InputDecoration(
+                labelText: 'Zona',
+                helperText:
+                    'Bloqueada al ámbito seleccionado en la barra superior.',
+              ),
+              items: [
+                ...campaignZones.map(
+                  (zone) => DropdownMenuItem<String?>(
+                    value: zone['id']?.toString(),
+                    child: Text(
+                      (zone['name'] ?? 'Zona').toString() +
+                          ' · ' +
+                          (zone['currency_code'] ?? '').toString(),
+                    ),
+                  ),
+                ),
+              ],
+              onChanged: null,
+            ),
+            if (audience == 'drivers' && campaignPartners.isNotEmpty) ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<String?>(
-                initialValue: campaignZoneId,
+                initialValue: campaignPartnerId,
                 decoration: const InputDecoration(
-                  labelText: 'Zona',
+                  labelText: 'Empresa / sindicato / cooperativa',
                   helperText:
-                      'Bloqueada al ámbito seleccionado en la barra superior.',
+                      'Opcional: limita el aviso a los conductores afiliados.',
                 ),
                 items: [
-                  ...campaignZones.map(
-                    (zone) => DropdownMenuItem<String?>(
-                      value: zone['id']?.toString(),
-                      child: Text(
-                        (zone['name'] ?? 'Zona').toString() +
-                            ' · ' +
-                            (zone['currency_code'] ?? '').toString(),
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Todas las organizaciones'),
+                  ),
+                  ...campaignPartners
+                      .where(
+                        (partner) =>
+                            campaignZoneId == null ||
+                            partner['zone_id']?.toString() == campaignZoneId,
+                      )
+                      .map(
+                        (partner) => DropdownMenuItem<String?>(
+                          value: partner['id']?.toString(),
+                          child: Text(
+                            (partner['name'] ?? 'Organización').toString() +
+                                ' · ' +
+                                (partner['organization_type'] ?? '').toString(),
+                          ),
+                        ),
+                      ),
+                ],
+                onChanged: (value) => setState(() => campaignPartnerId = value),
+              ),
+            ],
+            const SizedBox(height: 12),
+            FutureBuilder<Map<String, dynamic>>(
+              key: ValueKey(
+                'push-estimate-' +
+                    audience +
+                    '-' +
+                    (campaignZoneId ?? 'all') +
+                    '-' +
+                    (campaignPartnerId ?? 'all'),
+              ),
+              future: _estimateAnnouncementAudience(),
+              builder: (context, snapshot) {
+                final estimate = snapshot.data ?? const <String, dynamic>{};
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AdminColors.surfaceSoft,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Wrap(
+                    spacing: 18,
+                    runSpacing: 8,
+                    children: [
+                      _MiniStatus(
+                        text: 'Destinatarios ' +
+                            (estimate['recipients'] ?? '…').toString(),
+                        positive: true,
+                      ),
+                      _MiniStatus(
+                        text: 'Push activo ' +
+                            (estimate['push_enabled'] ?? '…').toString(),
+                        positive: true,
+                      ),
+                      _MiniStatus(
+                        text: 'Android ' +
+                            (estimate['native_enabled'] ?? '…').toString(),
+                        positive: true,
+                      ),
+                      _MiniStatus(
+                        text: 'Web ' +
+                            (estimate['web_enabled'] ?? '…').toString(),
+                        positive: true,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F8FF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFD5E3FF)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.notifications_active_outlined, color: _blue),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Este aviso se guarda en la bandeja de la app y también se despacha como notificación push.',
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 ],
-                onChanged: null,
               ),
-              if (audience == 'drivers' && campaignPartners.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String?>(
-                  initialValue: campaignPartnerId,
-                  decoration: const InputDecoration(
-                    labelText: 'Empresa / sindicato / cooperativa',
-                    helperText:
-                        'Opcional: limita el aviso a los conductores afiliados.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: announcementTitle,
+              maxLength: 90,
+              decoration: const InputDecoration(
+                labelText: 'Título',
+                hintText: 'Ej. Actualización de Express',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: announcementBody,
+              maxLength: 1000,
+              minLines: 4,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                labelText: 'Mensaje',
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: sendingAnnouncement ? null : _sendAnnouncement,
+              icon: sendingAnnouncement
+                  ? const SizedBox.square(
+                      dimension: 17,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.campaign_rounded),
+              label: const Text('Enviar aviso'),
+            ),
+          ],
+        ),
+      ),
+    ];
+    final history = <Widget>[
+      const Text(
+        'Historial y telemetría push',
+        style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+      ),
+      const SizedBox(height: 6),
+      const Text(
+        '“Aceptados” son envíos aceptados por Web Push/FCM. “Abiertos” requiere que la app reporte el toque de la notificación.',
+        style: TextStyle(color: _muted, fontSize: 11),
+      ),
+      const SizedBox(height: 10),
+      FutureBuilder<List<Map<String, dynamic>>>(
+        key: ValueKey('campaigns-' + revision.toString()),
+        future: _campaignHistory(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
+            return const LinearProgressIndicator();
+          }
+          if (snapshot.hasError) {
+            return _AdminPaymentNotice(
+              text: 'No se pudo cargar la telemetría: ' +
+                  snapshot.error.toString(),
+            );
+          }
+          final campaigns = snapshot.data ?? const <Map<String, dynamic>>[];
+          if (campaigns.isEmpty) {
+            return const _Empty(
+              text: 'Todavía no hay campañas con telemetría.',
+            );
+          }
+          return Column(
+            children: [
+              for (final campaign in campaigns)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: const Color(0xFFE7ECF3)),
+                    borderRadius: BorderRadius.circular(11),
                   ),
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('Todas las organizaciones'),
-                    ),
-                    ...campaignPartners
-                        .where(
-                          (partner) =>
-                              campaignZoneId == null ||
-                              partner['zone_id']?.toString() ==
-                                  campaignZoneId,
-                        )
-                        .map(
-                          (partner) => DropdownMenuItem<String?>(
-                            value: partner['id']?.toString(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
                             child: Text(
-                              (partner['name'] ?? 'Organización').toString() +
-                                  ' · ' +
-                                  (partner['organization_type'] ?? '')
-                                      .toString(),
+                              campaign['title']?.toString() ?? 'Aviso',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                           ),
-                        ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => campaignPartnerId = value),
-                ),
-              ],
-              const SizedBox(height: 12),
-              FutureBuilder<Map<String, dynamic>>(
-                key: ValueKey(
-                  'push-estimate-' +
-                      audience +
-                      '-' +
-                      (campaignZoneId ?? 'all') +
-                      '-' +
-                      (campaignPartnerId ?? 'all'),
-                ),
-                future: _estimateAnnouncementAudience(),
-                builder: (context, snapshot) {
-                  final estimate = snapshot.data ?? const <String, dynamic>{};
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Wrap(
-                      spacing: 18,
-                      runSpacing: 8,
-                      children: [
-                        _MiniStatus(
-                          text: 'Destinatarios ' +
-                              (estimate['recipients'] ?? '…').toString(),
-                          positive: true,
-                        ),
-                        _MiniStatus(
-                          text: 'Push activo ' +
-                              (estimate['push_enabled'] ?? '…').toString(),
-                          positive: true,
-                        ),
-                        _MiniStatus(
-                          text: 'Android ' +
-                              (estimate['native_enabled'] ?? '…').toString(),
-                          positive: true,
-                        ),
-                        _MiniStatus(
-                          text: 'Web ' +
-                              (estimate['web_enabled'] ?? '…').toString(),
-                          positive: true,
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF4F8FF),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFD5E3FF)),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.notifications_active_outlined, color: _blue),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Este aviso se guarda en la bandeja de la app y también se despacha como notificación push.',
-                        style: TextStyle(
+                          Text(
+                            _formatDate(campaign['created_at']),
+                            style: const TextStyle(
+                              color: _muted,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        (campaign['zone_name'] ??
+                                campaign['partner_name'] ??
+                                campaign['audience'] ??
+                                'Todos')
+                            .toString(),
+                        style: const TextStyle(
                           color: _muted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 10,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: announcementTitle,
-                maxLength: 90,
-                decoration: const InputDecoration(
-                  labelText: 'Título',
-                  hintText: 'Ej. Actualización de Express',
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: announcementBody,
-                maxLength: 1000,
-                minLines: 4,
-                maxLines: 8,
-                decoration: const InputDecoration(
-                  labelText: 'Mensaje',
-                ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed:
-                    sendingAnnouncement ? null : _sendAnnouncement,
-                icon: sendingAnnouncement
-                    ? const SizedBox.square(
-                        dimension: 17,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Icon(Icons.campaign_rounded),
-                label: const Text('Enviar aviso'),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 22),
-        const Text(
-          'Historial y telemetría push',
-          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          '“Aceptados” son envíos aceptados por Web Push/FCM. “Abiertos” requiere que la app reporte el toque de la notificación.',
-          style: TextStyle(color: _muted, fontSize: 11),
-        ),
-        const SizedBox(height: 10),
-        FutureBuilder<List<Map<String, dynamic>>>(
-          key: ValueKey('campaigns-' + revision.toString()),
-          future: _campaignHistory(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting &&
-                !snapshot.hasData) {
-              return const LinearProgressIndicator();
-            }
-            if (snapshot.hasError) {
-              return _AdminPaymentNotice(
-                text: 'No se pudo cargar la telemetría: ' +
-                    snapshot.error.toString(),
-              );
-            }
-            final campaigns =
-                snapshot.data ?? const <Map<String, dynamic>>[];
-            if (campaigns.isEmpty) {
-              return const _Empty(
-                text: 'Todavía no hay campañas con telemetría.',
-              );
-            }
-            return Column(
-              children: [
-                for (final campaign in campaigns)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: const Color(0xFFE7ECF3)),
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                campaign['title']?.toString() ?? 'Aviso',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              _formatDate(campaign['created_at']),
-                              style: const TextStyle(
-                                color: _muted,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          (campaign['zone_name'] ??
-                                  campaign['partner_name'] ??
-                                  campaign['audience'] ??
-                                  'Todos')
-                              .toString(),
-                          style: const TextStyle(
-                            color: _muted,
-                            fontSize: 10,
+                      const SizedBox(height: 9),
+                      Wrap(
+                        spacing: 7,
+                        runSpacing: 7,
+                        children: [
+                          _MiniStatus(
+                            text: 'Destinatarios ' +
+                                (campaign['recipients_targeted'] ?? 0)
+                                    .toString(),
+                            positive: true,
                           ),
-                        ),
-                        const SizedBox(height: 9),
-                        Wrap(
-                          spacing: 7,
-                          runSpacing: 7,
-                          children: [
+                          _MiniStatus(
+                            text: 'Push activo ' +
+                                (campaign['push_enabled_recipients'] ?? 0)
+                                    .toString(),
+                            positive: true,
+                          ),
+                          _MiniStatus(
+                            text: 'Aceptados ' +
+                                (campaign['provider_accepted_users'] ?? 0)
+                                    .toString(),
+                            positive:
+                                (campaign['provider_accepted_users'] ?? 0) != 0,
+                          ),
+                          _MiniStatus(
+                            text: 'Abiertos ' +
+                                (campaign['opened_users'] ?? 0).toString(),
+                            positive: (campaign['opened_users'] ?? 0) != 0,
+                          ),
+                          _MiniStatus(
+                            text: 'Leídos ' +
+                                (campaign['read_users'] ?? 0).toString(),
+                            positive: (campaign['read_users'] ?? 0) != 0,
+                          ),
+                          if ((campaign['provider_invalid_attempts'] ?? 0) != 0)
                             _MiniStatus(
-                              text: 'Destinatarios ' +
-                                  (campaign['recipients_targeted'] ?? 0)
+                              text: 'Tokens inválidos ' +
+                                  (campaign['provider_invalid_attempts'] ?? 0)
                                       .toString(),
-                              positive: true,
+                              positive: false,
                             ),
-                            _MiniStatus(
-                              text: 'Push activo ' +
-                                  (campaign['push_enabled_recipients'] ?? 0)
-                                      .toString(),
-                              positive: true,
-                            ),
-                            _MiniStatus(
-                              text: 'Aceptados ' +
-                                  (campaign['provider_accepted_users'] ?? 0)
-                                      .toString(),
-                              positive:
-                                  (campaign['provider_accepted_users'] ?? 0) !=
-                                      0,
-                            ),
-                            _MiniStatus(
-                              text: 'Abiertos ' +
-                                  (campaign['opened_users'] ?? 0).toString(),
-                              positive: (campaign['opened_users'] ?? 0) != 0,
-                            ),
-                            _MiniStatus(
-                              text: 'Leídos ' +
-                                  (campaign['read_users'] ?? 0).toString(),
-                              positive: (campaign['read_users'] ?? 0) != 0,
-                            ),
-                            if ((campaign['provider_invalid_attempts'] ?? 0) !=
-                                0)
-                              _MiniStatus(
-                                text: 'Tokens inválidos ' +
-                                    (campaign['provider_invalid_attempts'] ?? 0)
-                                        .toString(),
-                                positive: false,
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ),
-              ],
-            );
-          },
-        ),
-      ],
+                ),
+            ],
+          );
+        },
+      ),
+    ];
+
+    return AdminResponsiveSplit(
+      primary: composer,
+      secondary: history,
+      gap: 14,
+      padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
     );
   }
 
@@ -7543,7 +7420,6 @@ class _AdminCommunicationsPageState
     );
   }
 }
-
 
 class AdminReportsPage extends StatefulWidget {
   const AdminReportsPage({super.key});
@@ -7594,7 +7470,8 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
           return const _Loading(title: 'Generando reporte');
         }
         if (snapshot.hasError) {
-          return _Error(error: snapshot.error, onRetry: () => setState(() => revision++));
+          return _Error(
+              error: snapshot.error, onRetry: () => setState(() => revision++));
         }
 
         final data = snapshot.data ?? const {};
@@ -7749,20 +7626,16 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       radius.text = (row['service_radius_km'] ?? 30).toString();
       dispatchRadius.text = (row['dispatch_radius_km'] ?? 5).toString();
       timeout.text = (row['offer_timeout_seconds'] ?? 45).toString();
-      radiusStep.text =
-          (row['progressive_radius_step_km'] ?? 2).toString();
-      timezone.text =
-          (row['timezone'] ?? 'America/Santiago').toString();
+      radiusStep.text = (row['progressive_radius_step_km'] ?? 2).toString();
+      timezone.text = (row['timezone'] ?? 'America/Santiago').toString();
       country.text = (row['default_country'] ?? 'Chile').toString();
       supportPhone.text = row['support_phone']?.toString() ?? '';
       supportWhatsapp.text = row['support_whatsapp']?.toString() ?? '';
       cash = row['allow_cash'] != false;
       card = row['allow_card'] == true;
       wallet = row['allow_wallet'] == true;
-      smsPassengerEnabled =
-          row['sms_verification_passenger_enabled'] == true;
-      smsDriverEnabled =
-          row['sms_verification_driver_enabled'] == true;
+      smsPassengerEnabled = row['sms_verification_passenger_enabled'] == true;
+      smsDriverEnabled = row['sms_verification_driver_enabled'] == true;
       rideEnabled = row['ride_enabled'] != false;
       deliveryEnabled = row['delivery_enabled'] != false;
       dispatchMode = (row['dispatch_mode'] ?? 'broadcast').toString();
@@ -7844,10 +7717,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
         final phoneSettings = await supabase.rpc(
           'admin_phone_verification_settings_update',
           params: {
-            'p_passenger_enabled':
-                next['sms_verification_passenger_enabled'],
-            'p_driver_enabled':
-                next['sms_verification_driver_enabled'],
+            'p_passenger_enabled': next['sms_verification_passenger_enabled'],
+            'p_driver_enabled': next['sms_verification_driver_enabled'],
           },
         );
         settings = _map(phoneSettings);
@@ -7922,7 +7793,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
               value: rideEnabled,
               onChanged: (value) => setState(() => rideEnabled = value),
               title: const Text('Taxi / Viajes habilitados'),
-              subtitle: const Text('Permite solicitar viajes desde Express Rider.'),
+              subtitle:
+                  const Text('Permite solicitar viajes desde Express Rider.'),
             ),
             const Divider(height: 1),
             SwitchListTile(
@@ -7973,7 +7845,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
               decoration: const InputDecoration(labelText: 'Modo de dispatch'),
               items: const [
                 DropdownMenuItem(value: 'broadcast', child: Text('Broadcast')),
-                DropdownMenuItem(value: 'progressive', child: Text('Progresivo')),
+                DropdownMenuItem(
+                    value: 'progressive', child: Text('Progresivo')),
                 DropdownMenuItem(value: 'manual', child: Text('Manual')),
               ],
               onChanged: (value) {
@@ -8001,7 +7874,8 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       case 4:
         content = _SettingsCard(
           title: 'Tarifas globales y alcance',
-          subtitle: 'Valores generales antes de aplicar reglas por servicio o zona.',
+          subtitle:
+              'Valores generales antes de aplicar reglas por servicio o zona.',
           children: [
             _NumberField(controller: rideMin, label: 'Mínimo Viaje'),
             const SizedBox(height: 12),
@@ -8035,12 +7909,14 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
             const SizedBox(height: 12),
             TextField(
               controller: supportPhone,
-              decoration: const InputDecoration(labelText: 'Teléfono de soporte'),
+              decoration:
+                  const InputDecoration(labelText: 'Teléfono de soporte'),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: supportWhatsapp,
-              decoration: const InputDecoration(labelText: 'WhatsApp de soporte'),
+              decoration:
+                  const InputDecoration(labelText: 'WhatsApp de soporte'),
             ),
           ],
         );
@@ -8063,8 +7939,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               value: smsPassengerEnabled,
-              onChanged: (value) =>
-                  setState(() => smsPassengerEnabled = value),
+              onChanged: (value) => setState(() => smsPassengerEnabled = value),
               title: const Text('Verificación SMS · Pasajeros'),
               subtitle: const Text(
                 'Exige teléfono verificado antes de solicitar viajes.',
@@ -8074,8 +7949,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               value: smsDriverEnabled,
-              onChanged: (value) =>
-                  setState(() => smsDriverEnabled = value),
+              onChanged: (value) => setState(() => smsDriverEnabled = value),
               title: const Text('Verificación SMS · Conductores'),
               subtitle: const Text(
                 'Exige teléfono verificado para conectarse y enviar ofertas.',
@@ -8116,7 +7990,15 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                 _ReadOnlyRow(label: 'Empresa', value: 'Express Delivery'),
                 _ReadOnlyRow(label: 'País', value: country.text),
                 _ReadOnlyRow(label: 'Moneda', value: currency.text),
-                _ReadOnlyRow(label: 'Dispatch', value: dispatchMode),
+                _ReadOnlyRow(
+                  label: 'Dispatch',
+                  value: switch (dispatchMode) {
+                    'broadcast' => 'Broadcast',
+                    'progressive' => 'Progresivo',
+                    'manual' => 'Manual',
+                    _ => dispatchMode,
+                  },
+                ),
               ],
             ),
           ],
@@ -8165,7 +8047,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                       ),
                       decoration: BoxDecoration(
                         color: selected
-                            ? const Color(0xFFEAF2FF)
+                            ? AdminColors.blueSoft
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(9),
                       ),
@@ -8192,7 +8074,6 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
   }
 }
 
-
 class AdminAdvancedSettingsPage extends StatefulWidget {
   final String channel;
 
@@ -8202,7 +8083,8 @@ class AdminAdvancedSettingsPage extends StatefulWidget {
   });
 
   @override
-  State<AdminAdvancedSettingsPage> createState() => _AdminAdvancedSettingsPageState();
+  State<AdminAdvancedSettingsPage> createState() =>
+      _AdminAdvancedSettingsPageState();
 }
 
 class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
@@ -8219,7 +8101,8 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
     return _map(value);
   }
 
-  Future<void> _save(Map<String, dynamic> current, Map<String, dynamic> patch) async {
+  Future<void> _save(
+      Map<String, dynamic> current, Map<String, dynamic> patch) async {
     final next = <String, dynamic>{...current, ...patch};
     if (_environment.isPreview) {
       await _environment.previewUpsert('app_settings', 'default', next);
@@ -8227,33 +8110,36 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
       await supabase.rpc(
         'admin_advanced_settings_update',
         params: {
-        'p_allow_pagorut': next['allow_pagorut'] == true,
-        'p_allow_mercadopago': next['allow_mercadopago'] == true,
-        'p_allow_santander': next['allow_santander'] == true,
-        'p_allow_mach': next['allow_mach'] == true,
-        'p_allow_tenpo': next['allow_tenpo'] == true,
-        'p_search_timeout_seconds': (next['search_timeout_seconds'] as num?)?.toInt() ?? 180,
-        'p_request_visible_seconds': (next['request_visible_seconds'] as num?)?.toInt() ?? 180,
-        'p_scheduled_rides_enabled': next['scheduled_rides_enabled'] != false,
-        'p_scheduled_publish_before_minutes':
-            (next['scheduled_publish_before_minutes'] as num?)?.toInt() ?? 30,
-        'p_max_driver_request_radius_km': next['max_driver_request_radius_km'] ?? 15,
-        'p_max_visible_requests_driver':
-            (next['max_visible_requests_driver'] as num?)?.toInt() ?? 20,
-        'p_allow_counteroffers': next['allow_counteroffers'] != false,
-        'p_min_driver_offer': next['min_driver_offer'] ?? 1,
-        'p_max_driver_offer': next['max_driver_offer'] ?? 9999,
-        'p_chat_enabled': next['chat_enabled'] != false,
-        'p_calls_enabled': next['calls_enabled'] != false,
-        'p_share_trip_enabled': next['share_trip_enabled'] != false,
-        'p_sos_enabled': next['sos_enabled'] != false,
-        'p_saved_places_enabled': next['saved_places_enabled'] != false,
-        'p_ratings_enabled': next['ratings_enabled'] != false,
-        'p_rating_comment_enabled': next['rating_comment_enabled'] != false,
-        'p_rating_min': (next['rating_min'] as num?)?.toInt() ?? 1,
-        'p_rating_max': (next['rating_max'] as num?)?.toInt() ?? 5,
-        'p_maintenance_mode': next['maintenance_mode'] == true,
-        'p_maintenance_message': next['maintenance_message']?.toString(),
+          'p_allow_pagorut': next['allow_pagorut'] == true,
+          'p_allow_mercadopago': next['allow_mercadopago'] == true,
+          'p_allow_santander': next['allow_santander'] == true,
+          'p_allow_mach': next['allow_mach'] == true,
+          'p_allow_tenpo': next['allow_tenpo'] == true,
+          'p_search_timeout_seconds':
+              (next['search_timeout_seconds'] as num?)?.toInt() ?? 180,
+          'p_request_visible_seconds':
+              (next['request_visible_seconds'] as num?)?.toInt() ?? 180,
+          'p_scheduled_rides_enabled': next['scheduled_rides_enabled'] != false,
+          'p_scheduled_publish_before_minutes':
+              (next['scheduled_publish_before_minutes'] as num?)?.toInt() ?? 30,
+          'p_max_driver_request_radius_km':
+              next['max_driver_request_radius_km'] ?? 15,
+          'p_max_visible_requests_driver':
+              (next['max_visible_requests_driver'] as num?)?.toInt() ?? 20,
+          'p_allow_counteroffers': next['allow_counteroffers'] != false,
+          'p_min_driver_offer': next['min_driver_offer'] ?? 1,
+          'p_max_driver_offer': next['max_driver_offer'] ?? 9999,
+          'p_chat_enabled': next['chat_enabled'] != false,
+          'p_calls_enabled': next['calls_enabled'] != false,
+          'p_share_trip_enabled': next['share_trip_enabled'] != false,
+          'p_sos_enabled': next['sos_enabled'] != false,
+          'p_saved_places_enabled': next['saved_places_enabled'] != false,
+          'p_ratings_enabled': next['ratings_enabled'] != false,
+          'p_rating_comment_enabled': next['rating_comment_enabled'] != false,
+          'p_rating_min': (next['rating_min'] as num?)?.toInt() ?? 1,
+          'p_rating_max': (next['rating_max'] as num?)?.toInt() ?? 5,
+          'p_maintenance_mode': next['maintenance_mode'] == true,
+          'p_maintenance_message': next['maintenance_message']?.toString(),
           'p_minimum_app_version': next['minimum_app_version']?.toString(),
         },
       );
@@ -8347,8 +8233,10 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
   }
 
   Future<void> _offers(Map<String, dynamic> row) async {
-    final search = TextEditingController(text: (row['search_timeout_seconds'] ?? 180).toString());
-    final visible = TextEditingController(text: (row['request_visible_seconds'] ?? 180).toString());
+    final search = TextEditingController(
+        text: (row['search_timeout_seconds'] ?? 180).toString());
+    final visible = TextEditingController(
+        text: (row['request_visible_seconds'] ?? 180).toString());
     final before = TextEditingController(
       text: (row['scheduled_publish_before_minutes'] ?? 30).toString(),
     );
@@ -8358,8 +8246,10 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
     final maxVisible = TextEditingController(
       text: (row['max_visible_requests_driver'] ?? 20).toString(),
     );
-    final minOffer = TextEditingController(text: (row['min_driver_offer'] ?? 1).toString());
-    final maxOffer = TextEditingController(text: (row['max_driver_offer'] ?? 9999).toString());
+    final minOffer =
+        TextEditingController(text: (row['min_driver_offer'] ?? 1).toString());
+    final maxOffer = TextEditingController(
+        text: (row['max_driver_offer'] ?? 9999).toString());
     var scheduled = row['scheduled_rides_enabled'] != false;
     var counteroffers = row['allow_counteroffers'] != false;
 
@@ -8381,25 +8271,41 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _NumberField(controller: search, label: 'Búsqueda máxima · segundos')),
+                      Expanded(
+                          child: _NumberField(
+                              controller: search,
+                              label: 'Búsqueda máxima · segundos')),
                       const SizedBox(width: 10),
-                      Expanded(child: _NumberField(controller: visible, label: 'Solicitud visible · segundos')),
+                      Expanded(
+                          child: _NumberField(
+                              controller: visible,
+                              label: 'Solicitud visible · segundos')),
                     ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(child: _NumberField(controller: radius, label: 'Radio máx. conductor · km')),
+                      Expanded(
+                          child: _NumberField(
+                              controller: radius,
+                              label: 'Radio máx. conductor · km')),
                       const SizedBox(width: 10),
-                      Expanded(child: _NumberField(controller: maxVisible, label: 'Máx. solicitudes visibles')),
+                      Expanded(
+                          child: _NumberField(
+                              controller: maxVisible,
+                              label: 'Máx. solicitudes visibles')),
                     ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(child: _NumberField(controller: minOffer, label: 'Oferta mínima')),
+                      Expanded(
+                          child: _NumberField(
+                              controller: minOffer, label: 'Oferta mínima')),
                       const SizedBox(width: 10),
-                      Expanded(child: _NumberField(controller: maxOffer, label: 'Oferta máxima')),
+                      Expanded(
+                          child: _NumberField(
+                              controller: maxOffer, label: 'Oferta máxima')),
                     ],
                   ),
                   const SizedBox(height: 10),
@@ -8441,9 +8347,11 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
       await _save(row, {
         'search_timeout_seconds': int.tryParse(search.text.trim()) ?? 180,
         'request_visible_seconds': int.tryParse(visible.text.trim()) ?? 180,
-        'scheduled_publish_before_minutes': int.tryParse(before.text.trim()) ?? 30,
+        'scheduled_publish_before_minutes':
+            int.tryParse(before.text.trim()) ?? 30,
         'max_driver_request_radius_km': _num(radius.text) ?? 15,
-        'max_visible_requests_driver': int.tryParse(maxVisible.text.trim()) ?? 20,
+        'max_visible_requests_driver':
+            int.tryParse(maxVisible.text.trim()) ?? 20,
         'min_driver_offer': _num(minOffer.text) ?? 1,
         'max_driver_offer': _num(maxOffer.text) ?? 9999,
         'scheduled_rides_enabled': scheduled,
@@ -8451,7 +8359,15 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
       });
     }
 
-    for (final c in [search, visible, before, radius, maxVisible, minOffer, maxOffer]) {
+    for (final c in [
+      search,
+      visible,
+      before,
+      radius,
+      maxVisible,
+      minOffer,
+      maxOffer
+    ]) {
       c.dispose();
     }
   }
@@ -8577,7 +8493,8 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                         initialValue: min,
                         decoration: const InputDecoration(labelText: 'Mínimo'),
                         items: [1, 2, 3, 4, 5]
-                            .map((v) => DropdownMenuItem(value: v, child: Text(v.toString())))
+                            .map((v) => DropdownMenuItem(
+                                value: v, child: Text(v.toString())))
                             .toList(),
                         onChanged: (v) {
                           if (v != null) setLocal(() => min = v);
@@ -8590,7 +8507,8 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                         initialValue: max,
                         decoration: const InputDecoration(labelText: 'Máximo'),
                         items: [1, 2, 3, 4, 5]
-                            .map((v) => DropdownMenuItem(value: v, child: Text(v.toString())))
+                            .map((v) => DropdownMenuItem(
+                                value: v, child: Text(v.toString())))
                             .toList(),
                         onChanged: (v) {
                           if (v != null) setLocal(() => max = v);
@@ -8660,8 +8578,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
       return bBuild.compareTo(aBuild);
     });
 
-    final currentMinimum =
-        row['minimum_app_version']?.toString().trim() ?? '';
+    final currentMinimum = row['minimum_app_version']?.toString().trim() ?? '';
     if (currentMinimum.isNotEmpty &&
         !versions.any((v) => v['version'] == currentMinimum)) {
       versions.add({
@@ -8768,7 +8685,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                     const Text(
                       'Todavía no hay builds Android listos registrados en el panel.',
                       style: TextStyle(
-                        color: Color(0xFFB54708),
+                        color: AdminColors.warn,
                         fontSize: 11,
                       ),
                     ),
@@ -8807,11 +8724,13 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
       key: ValueKey(revision),
       future: _load(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const _Loading(title: 'Cargando configuración avanzada');
         }
         if (snapshot.hasError) {
-          return _Error(error: snapshot.error, onRetry: () => setState(() => revision++));
+          return _Error(
+              error: snapshot.error, onRetry: () => setState(() => revision++));
         }
         final row = snapshot.data ?? const <String, dynamic>{};
         final paymentCount = [
@@ -8838,17 +8757,23 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                   'Cambios operativos centralizados para pasajero, conductor y administración.',
               stats: [
                 ('Respaldo pagos', paymentCount.toString()),
-                ('Ofertas', row['allow_counteroffers'] != false ? 'Activas' : 'Off'),
-                ('Mantenimiento', row['maintenance_mode'] == true ? 'Activo' : 'Normal'),
+                (
+                  'Ofertas',
+                  row['allow_counteroffers'] != false ? 'Activas' : 'Inactivas'
+                ),
+                (
+                  'Mantenimiento',
+                  row['maintenance_mode'] == true ? 'Activo' : 'Normal'
+                ),
               ],
             ),
             const SizedBox(height: 16),
             LayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.maxWidth;
-                final cardWidth = width < 720
+                final cardWidth = width < 660
                     ? width
-                    : width < 1120
+                    : width < 900
                         ? (width - 12) / 2
                         : (width - 24) / 3;
                 final cards = <Widget>[
@@ -8859,7 +8784,9 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                         'Respaldo global para versiones antiguas. La configuración vigente está en Zonas y Pagos / Billetera.',
                     accent: const Color(0xFF6941C6),
                     chips: [
-                      '$paymentCount respaldos activos',
+                      paymentCount == 1
+                          ? '1 respaldo activo'
+                          : '$paymentCount respaldos activos',
                       'No define la zona',
                     ],
                     onTap: () => _payments(row),
@@ -8867,22 +8794,29 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                   _AdminModuleCard(
                     icon: Icons.radar_rounded,
                     title: 'Búsqueda y ofertas',
-                    subtitle: 'Tiempos, radio, viajes programados y contraofertas.',
+                    subtitle:
+                        'Tiempos, radio, viajes programados y contraofertas.',
                     accent: _blue,
                     chips: [
                       (row['search_timeout_seconds'] ?? 180).toString() + ' s',
-                      (row['max_driver_request_radius_km'] ?? 15).toString() + ' km',
+                      (row['max_driver_request_radius_km'] ?? 15).toString() +
+                          ' km',
                     ],
                     onTap: () => _offers(row),
                   ),
                   _AdminModuleCard(
                     icon: Icons.health_and_safety_outlined,
                     title: 'Seguridad del viaje',
-                    subtitle: 'SOS, compartir viaje, chat, llamadas y lugares guardados.',
+                    subtitle:
+                        'SOS, compartir viaje, chat, llamadas y lugares guardados.',
                     accent: const Color(0xFF0E9384),
                     chips: [
-                      row['sos_enabled'] != false ? 'SOS activo' : 'SOS off',
-                      row['share_trip_enabled'] != false ? 'Compartir activo' : 'Compartir off',
+                      row['sos_enabled'] != false
+                          ? 'SOS activo'
+                          : 'SOS inactivo',
+                      row['share_trip_enabled'] != false
+                          ? 'Compartir activo'
+                          : 'Compartir inactivo',
                     ],
                     onTap: () => _safety(row),
                   ),
@@ -8893,7 +8827,10 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                     accent: const Color(0xFFF79009),
                     chips: [
                       row['ratings_enabled'] != false ? 'Activas' : 'Inactivas',
-                      (row['rating_min'] ?? 1).toString() + '–' + (row['rating_max'] ?? 5).toString() + ' ★',
+                      (row['rating_min'] ?? 1).toString() +
+                          '–' +
+                          (row['rating_max'] ?? 5).toString() +
+                          ' ★',
                     ],
                     onTap: () => _ratings(row),
                   ),
@@ -8902,10 +8839,12 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                     title: 'Mantenimiento',
                     subtitle: 'Bloqueo temporal y versión mínima permitida.',
                     accent: row['maintenance_mode'] == true
-                        ? const Color(0xFFD92D20)
+                        ? AdminColors.danger
                         : const Color(0xFF667085),
                     chips: [
-                      row['maintenance_mode'] == true ? 'Mantenimiento activo' : 'Operación normal',
+                      row['maintenance_mode'] == true
+                          ? 'Mantenimiento activo'
+                          : 'Operación normal',
                       row['minimum_app_version']?.toString().isNotEmpty == true
                           ? 'Min v' + row['minimum_app_version'].toString()
                           : 'Sin versión mínima',
@@ -8916,7 +8855,9 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                 return Wrap(
                   spacing: 12,
                   runSpacing: 12,
-                  children: cards.map((card) => SizedBox(width: cardWidth, child: card)).toList(),
+                  children: cards
+                      .map((card) => SizedBox(width: cardWidth, child: card))
+                      .toList(),
                 );
               },
             ),
@@ -8926,7 +8867,6 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
     );
   }
 }
-
 
 class _InlineNotice extends StatelessWidget {
   final IconData icon;
@@ -8958,7 +8898,6 @@ class _InlineNotice extends StatelessWidget {
   }
 }
 
-
 class _Header extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -8972,110 +8911,11 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final copy = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 23,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            letterSpacing: -.35,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: Color(0xFFD7E7FA),
-            height: 1.4,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF102A56), Color(0xFF174B91), Color(0xFF0D6B8D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x2B174B91),
-            blurRadius: 24,
-            offset: Offset(0, 9),
-          ),
-        ],
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (action == null) {
-            return Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(.12),
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(color: Colors.white.withOpacity(.16)),
-                  ),
-                  child: const Icon(
-                    Icons.dashboard_customize_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 13),
-                Expanded(child: copy),
-              ],
-            );
-          }
-
-          if (constraints.maxWidth < 680) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                copy,
-                const SizedBox(height: 14),
-                action!,
-              ],
-            );
-          }
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.12),
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(color: Colors.white.withOpacity(.16)),
-                ),
-                child: const Icon(
-                  Icons.dashboard_customize_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 13),
-              Expanded(child: copy),
-              const SizedBox(width: 16),
-              action!,
-            ],
-          );
-        },
-      ),
+    return AdminPageHero(
+      title: title,
+      subtitle: subtitle,
+      icon: Icons.dashboard_customize_rounded,
+      trailing: action,
     );
   }
 }
@@ -9094,7 +8934,7 @@ class _Kpi extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFDDE6F0)),
+        border: Border.all(color: AdminColors.border),
         boxShadow: const [
           BoxShadow(
             color: Color(0x120F172A),
@@ -9186,70 +9026,25 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D101828),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(_settingsIcon(title), color: _blue, size: 20),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: _dark,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        subtitle!,
-                        style: const TextStyle(
-                          color: _muted,
-                          fontSize: 10,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          const Divider(height: 1, color: Color(0xFFEEF1F5)),
-          const SizedBox(height: 8),
-          ...children,
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: AdminCard(
+        elevated: true,
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AdminSectionHeading(
+              title: title,
+              subtitle: subtitle,
+              icon: _settingsIcon(title),
+            ),
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: Color(0xFFEEF1F5)),
+            const SizedBox(height: 8),
+            ...children,
+          ],
+        ),
       ),
     );
   }
@@ -9258,10 +9053,14 @@ class _SettingsCard extends StatelessWidget {
 IconData _settingsIcon(String title) {
   final value = title.toLowerCase();
   if (value.contains('pago')) return Icons.account_balance_wallet_outlined;
-  if (value.contains('servicio') || value.contains('módulo')) return Icons.apps_rounded;
-  if (value.contains('operación') || value.contains('dispatch')) return Icons.alt_route_rounded;
-  if (value.contains('tarifa') || value.contains('alcance')) return Icons.payments_outlined;
-  if (value.contains('soporte') || value.contains('localización')) return Icons.support_agent_rounded;
+  if (value.contains('servicio') || value.contains('módulo'))
+    return Icons.apps_rounded;
+  if (value.contains('operación') || value.contains('dispatch'))
+    return Icons.alt_route_rounded;
+  if (value.contains('tarifa') || value.contains('alcance'))
+    return Icons.payments_outlined;
+  if (value.contains('soporte') || value.contains('localización'))
+    return Icons.support_agent_rounded;
   return Icons.tune_rounded;
 }
 
@@ -9336,7 +9135,7 @@ class _DispatchItem extends StatelessWidget {
                 height: 36,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
+                  color: AdminColors.blueSoft,
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: Icon(icon, color: _blue, size: 18),
@@ -9412,10 +9211,8 @@ class _MiniStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg =
-        positive ? const Color(0xFFE8F8EF) : const Color(0xFFF2F4F7);
-    final fg =
-        positive ? const Color(0xFF14804A) : const Color(0xFF667085);
+    final bg = positive ? AdminColors.okSoft : const Color(0xFFF2F4F7);
+    final fg = positive ? AdminColors.ok : const Color(0xFF667085);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -9440,12 +9237,9 @@ class _Empty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Text(text, style: const TextStyle(color: _muted)),
-      ),
+    return AdminEmptyState(
+      title: 'Sin información',
+      message: text,
     );
   }
 }
@@ -9484,26 +9278,9 @@ class _Error extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline_rounded, size: 46),
-              const SizedBox(height: 10),
-              Text(error.toString()),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return AdminErrorState(
+      message: error.toString(),
+      onRetry: onRetry,
     );
   }
 }

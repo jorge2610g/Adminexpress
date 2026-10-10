@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Diálogos de pagos</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1000px;box-sizing:border-box;padding:20px;display:flex;gap:20px;align-items:flex-start;background:linear-gradient(rgba(15,23,42,.06),rgba(15,23,42,.06)),#E9EEF5;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<div style="width:720px;flex:none;background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column">
+<div style="padding:20px 22px 14px;display:flex;align-items:center;gap:12px">
+<div style="width:40px;height:40px;border-radius:12px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h14v4M3 7v10a2 2 0 002 2h16V9H5a2 2 0 01-2-2zM17 14h.01"/></svg></div>
+<div style="flex:1"><div style="font-size:19px;font-weight:800">Métodos de pago · Trinidad</div><div style="font-size:12px;color:#64748B;font-weight:600;margin-top:2px">Bolivia · BOB</div></div>
+</div>
+<div style="padding:0 22px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;gap:10px;background:#F7F9FC;border-radius:12px;padding:11px 12px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8h.01"/></svg><span style="font-size:11.5px;color:#64748B;font-weight:600;line-height:1.5">Puedes habilitar varios métodos en una misma zona y decidir si cada uno se usa en Viajes, Delivery, Suscripciones y/o Billetera. “Principal” mantiene compatibilidad con la app móvil publicada.</span></div>
+<sc-for list="{{providers}}" as="p" hint-placeholder-count="5">
+<div style="border:1px solid {{p.line}};background:{{p.bg}};border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:12px">
+<span style="width:20px;height:20px;border-radius:5px;box-sizing:border-box;border:2px solid {{p.boxLine}};background:{{p.box}};display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>
+<div style="flex:1"><div style="font-size:14px;font-weight:800">{{p.n}}</div><div style="font-size:11.5px;color:#64748B;font-weight:600">{{p.s}}</div></div>
+<span style="font-size:11px;font-weight:700;color:#64748B">{{p.swLabel}}</span>
+<button role="switch" aria-checked="{{p.swOn}}" aria-label="Habilitado" style="width:40px;height:24px;border-radius:12px;border:0;padding:0;background:{{p.sw}};position:relative;opacity:{{p.swOp}}"><span style="position:absolute;top:3px;left:{{p.knob}};width:18px;height:18px;border-radius:9px;background:#FFFFFF"></span></button>
+</div>
+<sc-if value="{{p.checked}}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-wrap:wrap;gap:7px;padding-left:32px">
+<sc-for list="{{p.chips}}" as="c" hint-placeholder-count="4">
+<span style="height:30px;box-sizing:border-box;display:flex;align-items:center;gap:5px;padding:0 11px;border-radius:9px;border:1px solid {{c.line}};background:{{c.bg}};color:{{c.ink}};font-size:12px;font-weight:800"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="{{c.ink}}" stroke-width="{{c.tick}}" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>{{c.t}}</span>
+</sc-for>
+<span style="height:30px;box-sizing:border-box;display:flex;align-items:center;gap:5px;padding:0 11px;border-radius:9px;border:1px solid {{p.prLine}};background:{{p.prBg}};color:{{p.prInk}};font-size:12px;font-weight:800"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="{{p.prFill}}" stroke="{{p.prInk}}" stroke-width="2" stroke-linejoin="round"><path d="M12 2l3 6 6 .9-4.5 4.4 1 6.2L12 16.6 6.5 19.5l1-6.2L3 8.9 9 8z"/></svg>Principal</span>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<div style="padding:16px 22px 18px;display:flex;justify-content:flex-end;gap:10px">
+<button style="height:40px;padding:0 14px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 18px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5zM8 3v5h7M8 21v-7h8v7"/></svg>Guardar métodos</button>
+</div>
+</div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:20px">
+<div style="background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18)">
+<div style="padding:20px 22px 12px;display:flex;align-items:center;gap:12px">
+<div style="width:40px;height:40px;border-radius:12px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M10 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6"/></svg></div>
+<div style="font-size:19px;font-weight:800">Mercado Pago · Trinidad</div>
+</div>
+<div style="padding:0 22px;display:flex;flex-direction:column;gap:12px">
+<div style="font-size:12.5px;color:#475467;font-weight:600;line-height:1.5">Las credenciales se verifican desde el backend y el Access Token no se expone en la aplicación.</div>
+<label style="display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#64748B">Public Key<input placeholder="APP_USR-xxxxxxxx-xxxx-xxxx" style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;color:#0F172A"/></label>
+<label style="display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#64748B">Access Token<span style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;display:flex;align-items:center;padding:0 12px;gap:8px"><input type="password" placeholder="APP_USR-…" style="flex:1;min-width:0;border:0;outline:0;padding:0;font-size:13px;font-weight:600;color:#0F172A;background:transparent"/><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#98A2B3" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z"/></svg></span></label>
+<div style="display:flex;gap:10px;background:#F7F9FC;border-radius:12px;padding:11px 12px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8h.01"/></svg><span style="font-size:11.5px;color:#64748B;font-weight:600;line-height:1.5">Usa las credenciales de producción de Mercado Pago Chile. Al guardar, Express verificará la cuenta antes de marcarlas como conectadas.</span></div>
+</div>
+<div style="padding:16px 22px 18px;display:flex;justify-content:flex-end;gap:10px">
+<button style="height:40px;padding:0 14px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 18px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8.5 12l2.5 2.5 4.5-5"/></svg>Guardar y verificar</button>
+</div>
+</div>
+<div style="background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18)">
+<div style="padding:20px 22px 0;display:flex;align-items:center;gap:12px"><div style="width:40px;height:40px;border-radius:12px;background:#E8F8EF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14804A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM8 12l3 3 5-6"/></svg></div><div style="font-size:19px;font-weight:800">Aprobar recarga</div></div>
+<div style="padding:12px 22px 0;font-size:13px;color:#475467;font-weight:600;line-height:1.5">Se acreditará Bs 50 para María Fernanda Suárez.</div>
+<div style="padding:16px 22px 18px;display:flex;justify-content:flex-end;gap:10px">
+<button style="height:40px;padding:0 14px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 20px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Aprobar</button>
+</div>
+</div>
+<div style="background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18)">
+<div style="padding:20px 22px 0;display:flex;align-items:center;gap:12px"><div style="width:40px;height:40px;border-radius:12px;background:#FFE4E8;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D92D20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM9 9l6 6M15 9l-6 6"/></svg></div><div style="font-size:19px;font-weight:800">Rechazar recarga</div></div>
+<div style="padding:12px 22px 0;font-size:13px;color:#475467;font-weight:600;line-height:1.5">Se rechazará la solicitud de Bs 100 para José Luis Vaca.</div>
+<div style="padding:16px 22px 18px;display:flex;justify-content:flex-end;gap:10px">
+<button style="height:40px;padding:0 14px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 20px;border-radius:10px;border:0;background:#D92D20;color:#FFFFFF;font-size:13px;font-weight:800">Rechazar</button>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+const sel = (t) => ({ t, bg: '#EAF2FF', line: '#2563EB', ink: '#2563EB', tick: '3' });
+const uns = (t) => ({ t, bg: '#FFFFFF', line: '#D0D5DD', ink: '#344054', tick: '0' });
+const dis = (t) => ({ t, bg: '#F2F4F7', line: '#EAECF0', ink: '#98A2B3', tick: '0' });
+const prOn = { prBg: '#FFF7E6', prLine: '#F5C36A', prInk: '#B54708', prFill: '#F5C36A' };
+const prOff = { prBg: '#FFFFFF', prLine: '#D0D5DD', prInk: '#344054', prFill: 'none' };
+const checked = { checked: true, bg: '#F8FAFF', line: '#B8CDF8', box: '#2563EB', boxLine: '#2563EB', swLabel: 'Habilitado', swOn: 'true', sw: '#2563EB', knob: '19px', swOp: '1' };
+const unchecked = { checked: false, bg: '#FFFFFF', line: '#DDE6F0', box: '#FFFFFF', boxLine: '#98A2B3', swLabel: 'Habilitado', swOn: 'false', sw: '#C5CEDD', knob: '3px', swOp: '.45' };
+return {
+providers: [
+Object.assign({ n: 'VeriPagos QR', s: 'Pasarela · credenciales por zona', chips: [sel('Viajes'), sel('Delivery'), sel('Suscripciones'), sel('Billetera')] }, checked, prOn),
+Object.assign({ n: 'Efectivo', s: 'Manual · credenciales globales', chips: [sel('Viajes'), sel('Delivery'), dis('Suscripciones'), dis('Billetera')] }, checked, prOff),
+Object.assign({ n: 'Billetera Express', s: 'Interno · credenciales globales', chips: [sel('Viajes'), uns('Delivery'), sel('Suscripciones'), dis('Billetera')] }, checked, prOff),
+Object.assign({ n: 'Mercado Pago', s: 'Pasarela · credenciales por zona', chips: [] }, unchecked, prOff),
+Object.assign({ n: 'Transferencia bancaria', s: 'Manual · credenciales por zona', chips: [] }, unchecked, prOff)
+]
+};
+}
+}
+</script>
+</body>
+</html>

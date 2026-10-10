@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <base href="/preview/">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <title>Actualizar Preview · Express</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center;
+      background: #F1F5F9; color: #0F172A; font-family: Arial, sans-serif; }
+    main { max-width: 410px; margin: 24px; background: #fff; padding: 28px;
+      border: 1px solid #DDE6F0; border-radius: 18px; box-shadow: 0 12px 36px #0F172A12; }
+    strong { color: #2563EB; font-size: 19px; }
+    p { line-height: 1.5; font-size: 14px; }
+    a { color: #2563EB; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <strong>Express · Actualizando Preview</strong>
+    <p id="status">Comprobando la versión de prueba del panel.</p>
+    <a href="/preview/?source=refresh-preview">Entrar a Preview</a>
+  </main>
+  <script>
+    async function start() {
+      const status = document.getElementById('status');
+      try {
+        // Unregister only QA-scoped workers; Production is on the same origin.
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.filter((registration) => {
+            try {
+              return new URL(registration.scope).pathname.startsWith('/preview/');
+            } catch (_) { return false; }
+          }).map((registration) => registration.unregister()));
+        }
+        if ('caches' in window) {
+          const names = await caches.keys();
+          await Promise.all(names.filter((name) =>
+            /preview|adminexpress-qa/i.test(name)
+          ).map((name) => caches.delete(name)));
+        }
+        const version = await fetch('/preview/version.json?fresh=' + Date.now(), {
+          cache: 'no-store',
+        }).then((res) => res.ok ? res.json() : null);
+        const marker = version && typeof version.commit === 'string'
+          ? version.commit.slice(0, 10) : String(Date.now());
+        status.textContent = 'Abriendo el panel Preview actualizado…';
+        location.replace('/preview/?qa_version=' + encodeURIComponent(marker));
+      } catch (e) {
+        status.textContent = 'No se pudo comprobar la actualización automática. Usa el enlace para entrar a Preview.';
+      }
+    }
+    start();
+  </script>
+</body>
+</html>

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
+import 'core/admin_stage_edit_dialog_title.dart';
+
 import 'core/supabase_client.dart';
 
-const _blue = Color(0xFF2563EB);
-const _ink = Color(0xFF0F172A);
-const _muted = Color(0xFF64748B);
-const _bg = Color(0xFFF1F5F9);
+const _blue = AdminColors.blue;
+const _ink = AdminColors.ink;
+const _muted = AdminColors.muted;
+const _bg = AdminColors.bg;
 
 class AdminMarketplacePage extends StatefulWidget {
   final String channel;
@@ -107,7 +111,13 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: const Text('Configuración de Express Market'),
+          title: AdminStageEditDialogTitle(
+            title: 'Configuración de Express Market',
+            subtitle: widget.channel == 'preview'
+                ? 'Express Market · Preview'
+                : 'Express Market · Producción',
+            icon: Icons.settings_outlined,
+          ),
           content: SizedBox(
             width: 560,
             child: SingleChildScrollView(
@@ -234,7 +244,11 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Nueva categoría' : 'Editar categoría'),
+          title: AdminStageEditDialogTitle(
+            title: row == null ? 'Nueva categoría' : 'Editar categoría',
+            subtitle: 'Express Market · ${widget.channel == 'preview' ? 'Preview' : 'Producción'}',
+            icon: Icons.category_outlined,
+          ),
           content: SizedBox(
             width: 520,
             child: SingleChildScrollView(
@@ -366,7 +380,11 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Nuevo banner' : 'Editar banner'),
+          title: AdminStageEditDialogTitle(
+            title: row == null ? 'Nuevo banner' : 'Editar banner',
+            subtitle: 'Express Market · ${widget.channel == 'preview' ? 'Preview' : 'Producción'}',
+            icon: Icons.campaign_outlined,
+          ),
           content: SizedBox(
             width: 520,
             child: SingleChildScrollView(
@@ -533,7 +551,11 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Nuevo comercio' : 'Editar comercio'),
+          title: AdminStageEditDialogTitle(
+            title: row == null ? 'Nuevo comercio' : 'Editar comercio',
+            subtitle: 'Express Market · ${widget.channel == 'preview' ? 'Preview' : 'Producción'}',
+            icon: Icons.storefront_outlined,
+          ),
           content: SizedBox(
             width: 600,
             child: SingleChildScrollView(
@@ -734,13 +756,13 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: active ? const Color(0xFFE8F8EF) : const Color(0xFFF2F4F7),
+        color: active ? AdminColors.okSoft : const Color(0xFFF2F4F7),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: active ? const Color(0xFF14804A) : _muted,
+          color: active ? AdminColors.ok : _muted,
           fontSize: 10,
           fontWeight: FontWeight.w800,
         ),
@@ -754,10 +776,14 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     required List<Widget> chips,
     required VoidCallback onTap,
     Widget? trailing,
+    IconData icon = Icons.storefront_rounded,
   }) {
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      color: AdminColors.surface,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AdminColors.border),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
@@ -769,10 +795,10 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
+                  color: AdminColors.blueSoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.storefront_rounded, color: _blue),
+                child: Icon(icon, color: _blue),
               ),
               const SizedBox(width: 11),
               Expanded(
@@ -811,9 +837,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
   Widget _grid(List<Widget> children) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1100
+        final columns = constraints.maxWidth >= 900
             ? 3
-            : constraints.maxWidth >= 700
+            : constraints.maxWidth >= 600
                 ? 2
                 : 1;
         final width =
@@ -839,35 +865,49 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: _ink,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final heading = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: _ink,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: _muted, fontSize: 12),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: _muted,
+                    fontSize: 12,
                   ),
-                ],
-              ),
-            ),
-            FilledButton.icon(
+                ),
+              ],
+            );
+            final button = FilledButton.icon(
               onPressed: action,
               icon: const Icon(Icons.add_rounded, size: 18),
               label: Text(actionLabel),
-            ),
-          ],
+            );
+            if (constraints.maxWidth < 560) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [heading, const SizedBox(height: 10), button],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(child: heading),
+                const SizedBox(width: 12),
+                button,
+              ],
+            );
+          },
         ),
         const SizedBox(height: 10),
         _grid(children),
@@ -907,40 +947,25 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Express Market',
-                          style: TextStyle(
-                            color: _ink,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Administra el módulo para Preview y Producción desde un solo lugar.',
-                          style: TextStyle(color: _muted),
-                        ),
-                      ],
+              AdminPlainPageHeading(
+                title: 'Express Market',
+                subtitle: 'Administra el módulo para Preview y Producción desde un solo lugar.',
+                trailing: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _refresh,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Actualizar'),
                     ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Actualizar'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: () => _editSettings(settings),
-                    icon: const Icon(Icons.tune_rounded),
-                    label: const Text('Configuración'),
-                  ),
-                ],
+                    FilledButton.icon(
+                      onPressed: () => _editSettings(settings),
+                      icon: const Icon(Icons.settings_outlined),
+                      label: const Text('Configuración'),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
               Wrap(
@@ -964,6 +989,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                     .map(
                       (row) => _card(
                         title: row['name']?.toString() ?? 'Categoría',
+                        icon: Icons.category_outlined,
                         subtitle: row['category_key']?.toString() ?? '',
                         chips: [
                           _tag('Activa', row['active'] == true),
@@ -985,6 +1011,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                     .map(
                       (row) => _card(
                         title: row['title']?.toString() ?? 'Banner',
+                        icon: Icons.campaign_outlined,
                         subtitle: row['subtitle']?.toString() ?? '',
                         chips: [
                           _tag('Activo', row['active'] == true),
@@ -1256,7 +1283,7 @@ class _MerchantProductsPageState extends State<_MerchantProductsPage> {
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: row['active'] == true
-                        ? const Color(0xFFE8F8EF)
+                        ? AdminColors.okSoft
                         : const Color(0xFFF2F4F7),
                     child: const Icon(Icons.inventory_2_outlined),
                   ),

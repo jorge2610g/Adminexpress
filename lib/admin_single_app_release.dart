@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'core/admin_widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
@@ -290,16 +292,19 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     }
   }
 
-  Widget _section(String title, Widget child) => Card(
-        color: Colors.white,
-        margin: const EdgeInsets.only(bottom: 12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+  Widget _section(String title, Widget child) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: AdminCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 17)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                ),
+              ),
               const SizedBox(height: 12),
               child,
             ],
@@ -350,14 +355,12 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     final approved = status['approved'] == true;
     final promoted = status['promoted'] == true;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(22),
       children: [
-        const Text('Express · Una sola aplicación', style: TextStyle(
-          fontSize: 23, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 8),
-        const Text('Desarrollo y pruebas compartidas: Web primero. '
-            'Android usa lib/mobile_main.dart y se compila cuando hay '
-            'una función nativa que verificar o una nueva publicación.'),
+        const AdminPlainPageHeading(
+          title: 'Express · Una sola aplicación',
+          subtitle: 'Desarrollo y pruebas compartidas: Web primero. Android se compila cuando hay una función nativa que verificar o una nueva publicación.',
+        ),
         const SizedBox(height: 12),
         if (!canManage)
           _section('Solo lectura',

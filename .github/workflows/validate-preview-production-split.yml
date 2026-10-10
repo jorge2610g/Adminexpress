@@ -29,6 +29,9 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
+      - name: Verify 54 Claude designs and eight staged gates
+        run: python3 .github/scripts/verify_admin_mockup_stages.py
+
       - name: Enforce identical Preview and Production panel tree
         run: |
           if grep -q "AdminPreviewModulePage" lib/admin_panel.dart; then
@@ -284,6 +287,20 @@ jobs:
           flutter analyze --no-fatal-warnings --no-fatal-infos \
             lib/admin_panel.dart \
             lib/main.dart \
+            lib/partner_panel.dart \
+            lib/core/admin_widgets.dart \
+            lib/core/admin_design_tokens.dart \
+            lib/core/admin_records_table.dart \
+            lib/core/admin_delivery_row.dart \
+            lib/core/admin_sos_row.dart \
+            lib/core/admin_live_zone_strip.dart \
+            lib/admin_environment_reports.dart \
+            lib/admin_environment_audit.dart \
+            lib/admin_marketplace.dart \
+            lib/admin_marketplace_phase2.dart \
+            lib/admin_driver_priority.dart \
+            lib/admin_dynamic_pricing.dart \
+            lib/admin_driver_subscriptions.dart \
             lib/core/supabase_client.dart \
             lib/admin_single_app_release.dart \
             lib/admin_environment_reports.dart \
@@ -300,6 +317,22 @@ jobs:
             lib/admin_driver_document_requirements.dart \
             lib/admin_country_coverage.dart \
             lib/admin_distance_fares.dart
+      - name: Verify responsive mockup components
+        run: |
+          flutter test test/admin_mockup_widgets_test.dart
+          flutter test test/admin_records_table_test.dart
+          flutter test test/admin_delivery_row_test.dart
+          flutter test test/admin_detail_dialog_frame_test.dart
+          flutter test test/admin_priority_metrics_test.dart
+          flutter test test/admin_stage_edit_dialog_title_test.dart
+          flutter test test/admin_zone_coverage_mode_selector_test.dart
+          flutter test test/admin_demand_stats_grid_test.dart
+          flutter test test/admin_zone_summary_card_test.dart
+          flutter test test/admin_responsive_form_grid_test.dart
+          flutter test test/admin_responsive_split_test.dart
+          flutter test test/admin_sos_row_test.dart
+          flutter test test/admin_plain_page_heading_test.dart
+          flutter test test/admin_live_zone_strip_test.dart
       - name: Verify active polygon vs radio zone labels
         run: flutter test test/admin_zone_coverage_label_test.dart
       - name: Verify invalid environment channel fails closed in release and QA

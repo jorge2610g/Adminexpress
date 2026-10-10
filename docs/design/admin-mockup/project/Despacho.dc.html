@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Despacho manual</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Despacho manual" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Despacho manual" env="production" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="border-radius:20px;padding:20px 24px;background:linear-gradient(120deg,#0F2854,#174B91 55%,#0D6B8D);color:#FFFFFF;display:flex;align-items:center;gap:16px;box-shadow:0 10px 30px rgba(23,75,145,.25)">
+<div style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM17.5 14v7M14 17.5h7"/></svg></div>
+<div style="flex:1"><div style="font-size:24px;font-weight:800;letter-spacing:-.4px">Despacho manual · Producción</div><div style="font-size:13px;color:#D7E7FA;font-weight:600;margin-top:4px">Solo servicios reales de clientes en Producción.</div></div>
+</div>
+<div style="display:flex;gap:16px;flex:1;min-height:0">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px;overflow:hidden">
+<div style="display:flex;align-items:center;gap:10px;background:#EAF2FF;border:1px solid #CFDCF7;border-radius:14px;padding:13px 16px">
+<span style="width:34px;height:34px;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l2-6h14l2 6v5H3zM7 18v2M17 18v2M3 13h18"/></svg></span>
+<span style="font-size:14px;font-weight:800;color:#2563EB">Conductores disponibles ahora: 7</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;margin-top:4px"><span style="font-size:19px;font-weight:800;letter-spacing:-.2px">Solicitudes de viaje</span></div>
+<sc-for list="{{trips}}" as="t" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:12px;background:#FFFFFF;border:{{t.border}};border-radius:12px;padding:12px 14px">
+<div style="width:38px;height:38px;flex:none;border-radius:10px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 16l1.5-5h11L19 16M5 16v3M19 16v3M4 16h16M8 13h.01M16 13h.01"/></svg></div>
+<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{t.title}}</div><div style="font-size:12px;color:#64748B;font-weight:600;margin-top:2px">{{t.sub}}</div></div>
+<button style="height:38px;padding:0 18px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Asignar</button>
+</div>
+</sc-for>
+<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><span style="font-size:19px;font-weight:800;letter-spacing:-.2px">Delivery esperando</span></div>
+<sc-for list="{{deliveries}}" as="t" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:12px;background:#FFFFFF;border:{{t.border}};border-radius:12px;padding:12px 14px">
+<div style="width:38px;height:38px;flex:none;border-radius:10px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6h13v10H1zM14 10h4l3 3v3h-7M5 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z"/></svg></div>
+<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{t.title}}</div><div style="font-size:12px;color:#64748B;font-weight:600;margin-top:2px">{{t.sub}}</div></div>
+<button style="height:38px;padding:0 18px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Asignar</button>
+</div>
+</sc-for>
+</div>
+<div style="width:372px;flex:none;display:flex;flex-direction:column;gap:16px">
+<div style="background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);border:1px solid #E2E8F0;padding:20px">
+<div style="font-size:19px;font-weight:800">Asignar viaje</div>
+<div style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:13px;font-weight:700;color:#475467"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px"><path d="M5 19a2 2 0 100-4 2 2 0 000 4zM19 9a2 2 0 100-4 2 2 0 000 4zM7 17h8a3 3 0 000-6H9a3 3 0 010-6h6"/></svg><span>Mercado Pompeya → Hospital Materno Infantil</span></div>
+<label style="display:block;margin-top:16px;font-size:11px;font-weight:700;color:#64748B">Conductor disponible
+<span style="margin-top:5px;height:40px;box-sizing:border-box;border:1.5px solid #2563EB;border-radius:10px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;font-weight:700;color:#0F172A">Luis Rivero · ★ 4.9<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></label>
+<div style="margin-top:6px;border:1px solid #E2E8F0;border-radius:11px;box-shadow:0 10px 24px rgba(15,23,42,.10);padding:4px 0">
+<sc-for list="{{options}}" as="o" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:{{o.bg}};font-size:12.5px;font-weight:{{o.w}}"><span style="flex:1">{{o.label}}</span></div>
+</sc-for>
+</div>
+<label style="display:block;margin-top:14px;font-size:11px;font-weight:700;color:#64748B">Tarifa final
+<input type="text" value="8" style="margin-top:5px;width:100%;height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:700;color:#0F172A"></label>
+<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">
+<button style="height:40px;padding:0 14px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 18px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Asignar</button>
+</div>
+</div>
+<div style="background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);border:1px solid #E2E8F0;padding:20px">
+<div style="font-size:19px;font-weight:800">Asignar delivery</div>
+<div style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:13px;font-weight:700;color:#475467"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px"><path d="M5 19a2 2 0 100-4 2 2 0 000 4zM19 9a2 2 0 100-4 2 2 0 000 4zM7 17h8a3 3 0 000-6H9a3 3 0 010-6h6"/></svg><span>Farmacia Central → Calle Nicolás Suárez 418</span></div>
+<label style="display:block;margin-top:16px;font-size:11px;font-weight:700;color:#64748B">Repartidor disponible
+<span style="margin-top:5px;height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;font-weight:700;color:#0F172A">Fernando Justiniano · ★ 4.8<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></label>
+<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">
+<button style="height:40px;padding:0 14px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 18px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Asignar</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const idle = '1px solid #E7ECF3';
+const on = '2px solid #2563EB';
+return {
+trips: [
+{ title: 'Plaza principal José Ballivián → Terminal de buses', sub: 'María F. Suárez · Bs 15.00', border: idle },
+{ title: 'Mercado Pompeya → Hospital Materno Infantil', sub: 'Jorge Vaca · Bs 8.00', border: on },
+{ title: 'Av. Bolívar y La Paz → Aeropuerto Tte. Jorge Henrich', sub: 'Ana Lucía Cuéllar · Bs 25.00', border: idle },
+{ title: 'Barrio Fátima → Universidad Autónoma del Beni', sub: 'Pasajero · Bs —', border: idle }
+],
+deliveries: [
+{ title: 'Farmacia Central → Calle Nicolás Suárez 418', sub: 'Claudia Rivera · Bs 12.00', border: on },
+{ title: 'Restaurante Mojos → Av. 6 de Agosto 1020', sub: 'Pedro Arteaga · Bs 15.00', border: idle },
+{ title: 'Supermercado Fidalga → Barrio San Vicente', sub: 'Cliente · Bs 18.00', border: idle }
+],
+options: [
+{ label: 'Luis Rivero · ★ 4.9', bg: '#EAF2FF', w: 800 },
+{ label: 'Wilson Añez · ★ 4.7', bg: '#FFFFFF', w: 600 },
+{ label: 'Ronald Parada · ★ —', bg: '#FFFFFF', w: 600 }
+]
+};
+}
+}
+</script>
+</body>
+</html>

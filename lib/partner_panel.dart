@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 
-const Color _partnerBlue = Color(0xFF2563EB);
-const Color _partnerDark = Color(0xFF0F172A);
-const Color _partnerMuted = Color(0xFF64748B);
-const Color _partnerSoft = Color(0xFFF8FAFC);
+const Color _partnerBlue = AdminColors.blue;
+const Color _partnerDark = AdminColors.ink;
+const Color _partnerMuted = AdminColors.muted;
+const Color _partnerSoft = AdminColors.surfaceSoft;
 
 List<Map<String, dynamic>> _partnerList(Object? value) {
   if (value is! List) return const [];
@@ -267,11 +269,12 @@ class _PartnerShell extends StatelessWidget {
     }
 
     return Scaffold(
+      backgroundColor: AdminColors.bg,
       body: Row(
         children: [
           Container(
-            width: 270,
-            color: const Color(0xFF0B2C5B),
+            width: 248,
+            color: AdminColors.sidebar,
             child: SafeArea(
               child: Column(
                 children: [
@@ -374,7 +377,10 @@ class _PartnerShell extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(child: body),
+          Expanded(child: ColoredBox(
+            color: AdminColors.bg,
+            child: body,
+          )),
         ],
       ),
     );
@@ -396,23 +402,62 @@ class _PartnerNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-      decoration: BoxDecoration(
-        color: selected ? Colors.white.withOpacity(.12) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        dense: true,
-        leading: Icon(icon, color: selected ? Colors.white : Colors.white70),
-        title: Text(
-          label,
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected ? AdminColors.sidebarActive : Colors.transparent,
+              border: Border.all(
+                color: selected
+                    ? AdminColors.sidebarActiveBorder
+                    : Colors.transparent,
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? const Color(0xFF1E4E83)
+                        : AdminColors.sidebarTile,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 17,
+                    color: selected ? AdminColors.cyan : AdminColors.sidebarMuted,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: selected ? Colors.white : const Color(0xFFC5D0DF),
+                      fontSize: 12,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (selected)
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AdminColors.cyan,
+                    size: 17,
+                  ),
+              ],
+            ),
           ),
         ),
-        onTap: onTap,
       ),
     );
   }
@@ -436,31 +481,11 @@ class _PartnerPageFrame extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(22),
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: _partnerDark,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: _partnerMuted),
-                  ),
-                ],
-              ),
-            ),
-            if (action != null) action!,
-          ],
+        AdminPageHero(
+          title: title,
+          subtitle: subtitle,
+          icon: Icons.handshake_rounded,
+          trailing: action,
         ),
         const SizedBox(height: 18),
         child,
@@ -486,10 +511,14 @@ class _PartnerOverview extends StatelessWidget {
       title: partner['name']?.toString() ?? 'Mi organización',
       subtitle:
           'Panel restringido de empresa, sindicato o cooperativa asociada a Express.',
-      action: IconButton(
-        tooltip: 'Actualizar',
+      action: FilledButton.icon(
         onPressed: onRefresh,
-        icon: const Icon(Icons.refresh_rounded),
+        icon: const Icon(Icons.refresh_rounded, size: 17),
+        label: const Text('Actualizar'),
+        style: FilledButton.styleFrom(
+          backgroundColor: AdminColors.surface,
+          foregroundColor: AdminColors.headerMid,
+        ),
       ),
       child: Column(
         children: [
@@ -575,10 +604,10 @@ class _PartnerMetric extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
-      child: Card(
-        elevation: 0,
+      child: AdminCard(
+        padding: const EdgeInsets.all(17),
         child: Padding(
-          padding: const EdgeInsets.all(17),
+          padding: EdgeInsets.zero,
           child: Row(
             children: [
               CircleAvatar(

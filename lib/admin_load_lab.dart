@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -292,18 +295,10 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 20, 22, 30),
       children: [
-        const Text(
-          'Laboratorio de carga QA',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF0F172A),
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Genera conductores y solicitudes sintéticas en la ciudad QA que elijas y permite simular demanda para Express Preview. La operación real sigue centrada en Trinidad; LOADTEST y la demanda QA no alteran la tarifa real de producción.',
-          style: TextStyle(color: Color(0xFF64748B), height: 1.45),
+        const AdminPageHero(
+          title: 'Laboratorio de carga QA',
+          subtitle: 'Genera conductores y solicitudes sintéticas en la ciudad QA que elijas y permite simular demanda para Express Preview. LOADTEST no altera la tarifa real de producción.',
+          icon: Icons.speed_rounded,
         ),
         const SizedBox(height: 12),
         _scopeBanner(),
@@ -603,7 +598,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                             height: 18,
                             child: const DecoratedBox(
                               decoration: BoxDecoration(
-                                color: Color(0xFF2563EB),
+                                color: AdminColors.blue,
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -656,7 +651,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                           requests.length.toString() +
                           ' solicitudes',
                       style: const TextStyle(
-                        color: Color(0xFF0F172A),
+                        color: AdminColors.ink,
                         fontSize: 11,
                         fontWeight: FontWeight.w900,
                       ),
@@ -720,8 +715,8 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
           Icon(
             production ? Icons.warning_amber_rounded : Icons.science_rounded,
             color: production
-                ? const Color(0xFFB54708)
-                : const Color(0xFF2563EB),
+                ? AdminColors.warn
+                : AdminColors.blue,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -774,7 +769,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(icon, color: const Color(0xFF2563EB)),
+              Icon(icon, color: AdminColors.blue),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -783,7 +778,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                     Text(
                       label,
                       style: const TextStyle(
-                        color: Color(0xFF64748B),
+                        color: AdminColors.muted,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -792,7 +787,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                     Text(
                       value,
                       style: const TextStyle(
-                        color: Color(0xFF0F172A),
+                        color: AdminColors.ink,
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
                       ),

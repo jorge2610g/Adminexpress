@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
+
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
 
@@ -213,17 +216,15 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
   @override
   Widget build(BuildContext context) {
     final currency = (widget.zone['currency_code'] ?? 'BOB').toString();
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return AdminCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             const Row(
               children: [
                 Icon(Icons.stacked_line_chart_rounded,
-                    color: Color(0xFF2563EB)),
+                    color: AdminColors.blue),
                 SizedBox(width: 10),
                 Expanded(child: Text('Tarifa escalonada por distancia',
                   style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17))),
@@ -235,7 +236,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7E6),
+                  color: AdminColors.warnSoft,
                   border: Border.all(color: const Color(0xFFF5D58A)),
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -252,7 +253,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
                 'más de 3 km = siguiente tramo. '
                 'Para distancias superiores al último escalón se prolonga '
                 'el incremento final. Sin escalones se conserva la tarifa actual.',
-              style: const TextStyle(color: Color(0xFF64748B))),
+              style: const TextStyle(color: AdminColors.muted)),
             const SizedBox(height: 12),
             if (_services.isEmpty)
               const Text('No hay servicios configurados en esta zona.')
@@ -344,8 +345,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
               const SizedBox(height: 12),
               Text(_error!, style: const TextStyle(color: Colors.red)),
             ],
-          ],
-        ),
+        ],
       ),
     );
   }

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Servicios por zona</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Servicios" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Servicios" env="preview" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="border-radius:20px;padding:20px 22px;background:linear-gradient(120deg,#0F2854,#174B91 55%,#0D6B8D);color:#FFFFFF;display:flex;align-items:center;gap:14px;box-shadow:0 10px 30px rgba(23,75,145,.25);flex:none">
+<div style="width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM17.5 14v7M14 17.5h7"/></svg></div>
+<div style="flex:1"><div style="font-size:23px;font-weight:800;letter-spacing:-.3px">Servicios por zona</div><div style="font-size:12.5px;color:#D7E7FA;font-weight:600;margin-top:3px">Decide qué servicios verá cada ciudad sin afectar a las demás.</div></div>
+<button style="height:42px;padding:0 18px;border-radius:11px;border:0;background:#FFFFFF;color:#174B91;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#174B91" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Crear servicio</button>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;padding:14px 18px;display:flex;align-items:center;gap:12px;flex:none">
+<span style="width:38px;height:38px;border-radius:11px;background:#EAF2FF;display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11zM12 12a2 2 0 100-4 2 2 0 000 4z"/></svg></span>
+<span style="flex:1;font-size:14px;font-weight:800">Zona que estás editando</span>
+<label style="display:flex;flex-direction:column;gap:3px;font-size:10.5px;font-weight:700;color:#64748B">Zona<span style="height:36px;width:300px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;font-weight:700;color:#0F172A">Trinidad · Trinidad<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></label>
+</div>
+<div style="border-radius:18px;padding:18px 20px;background:linear-gradient(120deg,#0B57D0,#5B74F5);color:#FFFFFF;display:flex;align-items:center;gap:14px;flex:none">
+<div style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg></div>
+<div style="flex:1"><div style="font-size:19px;font-weight:800">Catálogo · Trinidad</div><div style="font-size:11.5px;font-weight:600;color:#E0E7FF;margin-top:3px">Disponibilidad y visibilidad se controlan por separado y se sincronizan con las apps.</div></div>
+<div style="display:flex;gap:8px">
+<sc-for list="{{stats}}" as="s" hint-placeholder-count="3">
+<div style="background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:8px 14px;min-width:84px"><div style="font-size:16px;font-weight:800">{{s.v}}</div><div style="font-size:9.5px;font-weight:700;color:#E0E7FF">{{s.l}}</div></div>
+</sc-for>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+<sc-for list="{{services}}" as="c" hint-placeholder-count="6">
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:196px;box-sizing:border-box">
+<div style="display:flex;align-items:flex-start;gap:12px">
+<span style="width:42px;height:42px;border-radius:12px;background:{{c.soft}};display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="{{c.accent}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{c.d}}"/></svg></span>
+<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800">{{c.name}}</div><div style="font-size:11.5px;font-weight:600;color:#64748B;margin-top:3px;line-height:1.4">{{c.desc}}</div></div>
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#98A2B3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:4px"><path d="M9 5l7 7-7 7"/></svg>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:auto">
+<sc-for list="{{c.chips}}" as="h" hint-placeholder-count="5">
+<span style="display:flex;align-items:center;gap:5px;background:{{h.bg}};color:{{h.ink}};border-radius:999px;padding:3px 9px;font-size:11px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{h.ink}}"></span>{{h.t}}</span>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const IC = {
+car: 'M5 16l1.5-5h11L19 16M5 16v3M19 16v3M4 16h16M8 13h.01M16 13h.01M9 8h6l-1-3h-4z',
+moto: 'M5 18a3 3 0 100-6 3 3 0 000 6zM19 18a3 3 0 100-6 3 3 0 000 6zM8 15h6l3-5h-4M13 7h3',
+any: 'M3 13l2-6h14l2 6v5H3zM7 18v2M17 18v2M3 13h18M9 3h6'
+};
+const V = { car: 'Auto', motorcycle: 'Moto', xl: 'XL', any: 'Cualquiera' };
+const g = (t) => ({ t, bg: '#E8F8EF', ink: '#14804A' });
+const b = (t) => ({ t, bg: '#EAF2FF', ink: '#2563EB' });
+const m = (t) => ({ t, bg: '#F2F4F7', ink: '#667085' });
+const svc = (name, desc, vt, f) => {
+const chips = [f.on ? g('Disponible en Trinidad') : m('No disponible'), m(V[vt])];
+if (f.bid) chips.push(b('Ofertas'));
+if (f.fix) chips.push(b('Precio fijo'));
+if (f.pv) chips.push(b('Visible pasajero'));
+if (f.dv) chips.push(b('Visible conductor'));
+if (f.sch) chips.push(b('Programados'));
+return { name, desc, chips, d: vt === 'motorcycle' ? IC.moto : (vt === 'any' ? IC.any : IC.car), soft: f.on ? '#EAF2FF' : '#F2F4F7', accent: f.on ? '#2563EB' : '#98A2B3' };
+};
+return {
+stats: [{ l: 'Servicios', v: '6' }, { l: 'Disponibles', v: '4' }, { l: 'Con ofertas', v: '5' }],
+services: [
+svc('Moto Express', 'Viajes rápidos en mototaxi dentro de la ciudad.', 'motorcycle', { on: true, bid: true, fix: true, pv: true, dv: true, sch: false }),
+svc('Taxi Express', 'Auto con aire acondicionado para hasta 4 pasajeros.', 'car', { on: true, bid: true, fix: true, pv: true, dv: true, sch: true }),
+svc('Express XL', 'Camioneta para grupos de hasta 6 personas o equipaje.', 'xl', { on: true, bid: true, fix: false, pv: true, dv: true, sch: true }),
+svc('Delivery Express', 'Envío de paquetes y compras con cualquier vehículo.', 'any', { on: true, bid: false, fix: true, pv: true, dv: true, sch: false }),
+svc('Taxi Ejecutivo', 'Sin descripción', 'car', { on: false, bid: true, fix: true, pv: true, dv: false, sch: true }),
+svc('Moto Carga', 'Traslado de bultos pequeños en moto con canasta.', 'motorcycle', { on: false, bid: true, fix: false, pv: false, dv: false, sch: false })
+]
+};
+}
+}
+</script>
+</body>
+</html>

@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
+import 'core/admin_demand_stats_grid.dart';
+import 'core/admin_responsive_form_grid.dart';
+import 'core/admin_stage_edit_dialog_title.dart';
+
 import 'core/supabase_client.dart';
 
 class AdminDynamicPricingPage extends StatefulWidget {
@@ -106,9 +112,12 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            'Demanda dinámica · ' +
-                (channel == 'preview' ? 'Preview' : 'Producción'),
+          title: AdminStageEditDialogTitle(
+            title: 'Demanda dinámica',
+            subtitle: channel == 'preview'
+                ? 'Preview · Parámetros de demanda'
+                : 'Producción · Parámetros de demanda',
+            icon: Icons.tune_rounded,
           ),
           content: SizedBox(
             width: 720,
@@ -125,45 +134,36 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
                     ),
                   ),
                   const Divider(),
-                  Row(
+                  AdminResponsiveFormGrid(
                     children: [
-                      Expanded(child: _field(lowRatio, 'Ratio demanda baja')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(lowMultiplier, 'Multiplicador baja')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(lowMinDrivers, 'Conductores mín. baja')),
+                      _field(lowRatio, 'Ratio demanda baja'),
+                      _field(lowMultiplier, 'Multiplicador baja'),
+                      _field(lowMinDrivers, 'Conductores mín. baja'),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Row(
+                  AdminResponsiveFormGrid(
                     children: [
-                      Expanded(child: _field(radius, 'Radio km')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(window, 'Ventana minutos')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(minRequests, 'Solicitudes mín.')),
+                      _field(radius, 'Radio km'),
+                      _field(window, 'Ventana minutos'),
+                      _field(minRequests, 'Solicitudes mín.'),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Row(
+                  AdminResponsiveFormGrid(
                     children: [
-                      Expanded(child: _field(elevatedRatio, 'Ratio elevada')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(highRatio, 'Ratio alta')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(criticalRatio, 'Ratio crítica')),
+                      _field(elevatedRatio, 'Ratio elevada'),
+                      _field(highRatio, 'Ratio alta'),
+                      _field(criticalRatio, 'Ratio crítica'),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Row(
+                  AdminResponsiveFormGrid(
                     children: [
-                      Expanded(child: _field(elevatedMultiplier, 'Mult. elevada')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(highMultiplier, 'Mult. alta')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(criticalMultiplier, 'Mult. crítica')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(maxMultiplier, 'Máximo')),
+                      _field(elevatedMultiplier, 'Mult. elevada'),
+                      _field(highMultiplier, 'Mult. alta'),
+                      _field(criticalMultiplier, 'Mult. crítica'),
+                      _field(maxMultiplier, 'Máximo'),
                     ],
                   ),
                 ],
@@ -307,60 +307,37 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Demanda y precios',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Precio recomendado autoritativo · ' +
-                              (widget.channel == 'preview'
-                                  ? 'Preview'
-                                  : 'Producción'),
-                        ),
-                      ],
+              AdminPlainPageHeading(
+                title: 'Demanda y precios',
+                subtitle: 'Precio recomendado autoritativo · ' +
+                    (widget.channel == 'preview' ? 'Preview' : 'Producción'),
+                trailing: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _refresh,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Actualizar'),
                     ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Actualizar'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: () => _configure(settings),
-                    icon: const Icon(Icons.tune_rounded),
-                    label: const Text('Configurar'),
-                  ),
-                ],
+                    FilledButton.icon(
+                      onPressed: () => _configure(settings),
+                      icon: const Icon(Icons.tune_rounded),
+                      label: const Text('Configurar'),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 18),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _stat('Estado', enabled ? 'Activo' : 'Apagado'),
-                  _stat('Demanda baja', _pct(settings['low_multiplier'])),
-                  _stat('Elevada', _pct(settings['elevated_multiplier'])),
-                  _stat('Alta', _pct(settings['high_multiplier'])),
-                  _stat('Crítica', _pct(settings['max_multiplier'])),
-                  _stat(
-                    'Radio',
-                    (settings['radius_km']?.toString() ?? '-') + ' km',
-                  ),
-                  _stat(
-                    'Ventana',
-                    (settings['window_minutes']?.toString() ?? '-') + ' min',
-                  ),
+              AdminDemandStatsGrid(
+                items: [
+                  ('Estado', enabled ? 'Activo' : 'Apagado'),
+                  ('Demanda baja', _pct(settings['low_multiplier'])),
+                  ('Elevada', _pct(settings['elevated_multiplier'])),
+                  ('Alta', _pct(settings['high_multiplier'])),
+                  ('Crítica', _pct(settings['max_multiplier'])),
+                  ('Radio', '${settings['radius_km'] ?? '—'} km'),
+                  ('Ventana', '${settings['window_minutes'] ?? '—'} min'),
                 ],
               ),
               const SizedBox(height: 18),
@@ -436,26 +413,4 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
     );
   }
 
-  Widget _stat(String label, String value) {
-    return Container(
-      width: 150,
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: Color(0xFF64748B))),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
-          ),
-        ],
-      ),
-    );
-  }
 }

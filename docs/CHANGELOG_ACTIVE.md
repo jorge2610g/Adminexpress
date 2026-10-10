@@ -1,3 +1,14 @@
+## 2026-10-10 — Rediseño visual integral Admin + Conductores unificado (PR #63)
+
+- Se aplicó el sistema visual de `docs/design/admin-mockup` al panel Flutter mediante tokens y componentes reutilizables: fondo, superficies, bordes, estados, cabeceras, navegación, login, diálogos y tarjetas.
+- Se conservan RPC, consultas, permisos, filtros de seguridad y lógica `ADMIN_ENV`; el rediseño no modifica Supabase, Edge Functions ni datos.
+- Conductores es la excepción intencional al mockup original: la revisión de identidad y los requisitos configurables se consolidan en **Conductores** para evitar dos flujos administrativos duplicados.
+- La ficha del conductor conserva tarjetas dinámicas según país/zona, carrusel de requisitos y revisión de frente/reverso/selfie dentro del panel.
+- `Verificación de identidad` no se vuelve a exponer como opción separada de navegación.
+- Los cambios permanecen en `chatgpt/admin-redesign-full`; **no se autoriza merge ni despliegue a Producción**. La siguiente etapa es CI + publicación exclusiva en Preview para revisión visual.
+
+---
+
 ## 2026-10-10 — Google OAuth de Preview retornaba a la web de pasajeros
 
 - Vídeo de QA: seleccionar Google en `/preview/` termina en `https://expressviajes.online/` en vez del panel. No se confirmó ingreso administrativo; no retirar permisos del administrador anterior.
@@ -315,3 +326,15 @@ El panel de países dispone de **Preparar países QA** exclusivamente cuando `AD
 
 - Express v1.5.20 · build 60;
 - incluye limpieza del repositorio Express y corrección reforzada de cancelación.
+
+### E5 Finanzas — 2026-10-10 (PR #63, sin despliegue)
+
+- Pagos/Billetera respeta ahora el `channel` recibido por el panel: Preview usa únicamente la configuración QA/shadow y Producción conserva sus RPC existentes.
+- Se alinearon las cabeceras de Mercado Pago, VeriPagos, planes y asignaciones con los mockups de Finanzas; no se alteraron cobros, claves, permisos ni flujos de aprobación.
+- La validación visual real de E3, E4 y E5 sigue pendiente. No se publicó Preview ni se modificó Producción.
+
+### E6 Reportes, Auditoría y Avisos — 2026-10-10 (PR #63, sin despliegue)
+
+- Avisos usa dos paneles independientes en escritorio y una composición vertical responsive en móvil, conservando ámbito, RPC y confirmación de envío.
+- Auditoría presenta un único historial con leyendas QA/REAL; Reportes mantiene nueve indicadores sin sumar datos de pruebas a Producción.
+- Se añadieron pruebas de la composición a 390/1280 px. La comparación visual real y el QA de envíos continúan pendientes.

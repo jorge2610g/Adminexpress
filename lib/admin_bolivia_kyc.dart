@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+
 import 'core/supabase_client.dart';
 
 /// Manual document moderation for all supported regions.
