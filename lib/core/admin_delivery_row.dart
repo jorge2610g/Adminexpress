@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'admin_design_tokens.dart';
+import 'admin_detail_dialog_frame.dart';
+import 'admin_widgets.dart';
 
 /// Accordion for the Delivery artboard (page 5 of Mockups-Admin-Express).
 /// Uses the existing, already-authorized delivery RPC row; no new backend
@@ -118,6 +120,123 @@ class _AdminDeliveryRowState extends State<AdminDeliveryRow> {
           ],
         ),
       );
+
+  Widget _detailField(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: LayoutBuilder(
+        builder: (context, constraints) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: constraints.maxWidth < 520 ? 116 : 184,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: AdminColors.muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SelectableText(
+                value,
+                style: const TextStyle(
+                  color: AdminColors.ink,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openOrderDetail() async {
+    final id = read('id', '');
+    final shortId = id.isEmpty
+        ? 'Sin identificador'
+        : id.length > 8
+            ? id.substring(0, 8)
+            : id;
+    final tone = switch (read('status').toLowerCase()) {
+      'delivered' || 'completed' => AdminStatusTone.success,
+      'cancelled' || 'canceled' => AdminStatusTone.danger,
+      'pending' => AdminStatusTone.warning,
+      _ => AdminStatusTone.info,
+    };
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AdminDetailDialogFrame(
+        title: 'Detalle del pedido · $shortId',
+        subtitle: 'Información disponible del pedido de Delivery.',
+        icon: Icons.local_shipping_outlined,
+        status: state.label,
+        statusTone: tone,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cerrar'),
+          ),
+        ],
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AdminCard(
+                color: AdminColors.surfaceSoft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const AdminSectionHeading(
+                      title: 'Ruta y participantes',
+                      icon: Icons.route_outlined,
+                    ),
+                    const SizedBox(height: 8),
+                    _detailField('Origen', read('pickup_address')),
+                    _detailField('Destino', read('dropoff_address')),
+                    _detailField('Cliente', read('customer_name')),
+                    _detailField('Repartidor', read('courier_name')),
+                    _detailField('Tipo de paquete', read('package_type')),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              AdminCard(
+                color: AdminColors.surfaceSoft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const AdminSectionHeading(
+                      title: 'Operación y pago',
+                      icon: Icons.receipt_long_outlined,
+                    ),
+                    const SizedBox(height: 8),
+                    _detailField('Estado', state.label),
+                    _detailField('Total registrado', formattedFare),
+                    _detailField('Método de pago', paymentLabel),
+                    _detailField('Fecha', formattedFullTime),
+                    _detailField('Identificador', id.isEmpty ? '—' : id),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Los comprobantes, liquidaciones y cambios de estado se '
+                'administran únicamente desde sus módulos autorizados. '
+                'Esta ficha no modifica pagos ni pedidos.',
+                style: TextStyle(color: AdminColors.muted, fontSize: 11.5),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -283,6 +402,11 @@ class _AdminDeliveryRowState extends State<AdminDeliveryRow> {
                   detail('Repartidor', read('courier_name')),
                   detail('Pago', paymentLabel),
                   detail('Creado', formattedFullTime),
+                  OutlinedButton.icon(
+                    onPressed: _openOrderDetail,
+                    icon: const Icon(Icons.open_in_new_rounded, size: 17),
+                    label: const Text('Ver detalle del pedido'),
+                  ),
                 ],
               ),
             ),
