@@ -214,7 +214,23 @@ jobs:
           grep -q "admin_driver_kyc_bolivia_manual_review_part" preview-source/lib/admin_bolivia_kyc.dart
           grep -q "AdminEnvironmentLinkButton" preview-source/lib/admin_panel.dart
           grep -q "const supabaseUrl = _productionUrl;" preview-source/lib/core/supabase_client.dart
-          grep -q "if (adminIsPreview && !_previewScopedModules.contains(value))" preview-source/lib/admin_panel.dart
+          # Keep ordinary Preview fail-closed. A temporary all-modules
+          # prelaunch UI review is permitted only when its SHA belongs to the
+          # dedicated, owner-approved QA branch; Production remains unchanged.
+          if grep -Fq "if (adminIsPreview && !_previewScopedModules.contains(value))" preview-source/lib/admin_panel.dart; then
+            echo "PASS: Preview retains audited-module guard."
+          elif grep -Fq "static const bool _previewUnlockAllModules = true;" preview-source/lib/admin_panel.dart \
+            && grep -Fq "!_previewUnlockAllModules &&" preview-source/lib/admin_panel.dart; then
+            git -C preview-source fetch --no-tags origin refs/heads/claude/admin-preview-unlock-2026-10-10:refs/remotes/origin/claude/admin-preview-unlock-2026-10-10
+            git -C preview-source merge-base --is-ancestor "$PREVIEW_SHA" refs/remotes/origin/claude/admin-preview-unlock-2026-10-10 || {
+              echo "ERROR: Preview-unlock SHA is not on approved QA branch."
+              exit 1
+            }
+            echo "WARNING: all Preview module UIs unlocked for owner-approved QA; RPC isolation must be checked before any operational testing."
+          else
+            echo "ERROR: Preview module guard is missing or unapproved."
+            exit 1
+          fi
           if grep -q "xbphilqezmwfjfpdbwad" preview-source/lib/core/supabase_client.dart; then
             echo "ERROR: Preview must not connect to the separate Supabase database."
             exit 1
