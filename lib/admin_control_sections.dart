@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import 'core/admin_design_tokens.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -13,9 +15,9 @@ import 'admin_distance_fares.dart';
 import 'admin_zone_coverage_editor.dart';
 import 'core/admin_zone_coverage_label.dart';
 
-const Color _blue = Color(0xFF2563EB);
-const Color _dark = Color(0xFF0F172A);
-const Color _muted = Color(0xFF64748B);
+const Color _blue = AdminColors.blue;
+const Color _dark = AdminColors.ink;
+const Color _muted = AdminColors.muted;
 
 class AdminDispatchPage extends StatefulWidget {
   final String channel;
@@ -377,7 +379,7 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
             ),
             const SizedBox(height: 14),
             Card(
-              color: const Color(0xFFEAF2FF),
+              color: AdminColors.blueSoft,
               elevation: 0,
               child: Padding(
                 padding: const EdgeInsets.all(14),
@@ -1162,7 +1164,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                       elevation: 0,
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: const Color(0xFFEAF2FF),
+                          backgroundColor: AdminColors.blueSoft,
                           child: Icon(
                             active
                                 ? Icons.verified_user_outlined
@@ -1493,7 +1495,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     width: 180,
                     padding: const EdgeInsets.all(13),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: AdminColors.surfaceSoft,
                       border: Border.all(color: const Color(0xFFE7ECF3)),
                       borderRadius: BorderRadius.circular(11),
                     ),
@@ -1722,7 +1724,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             CircleAvatar(
-                              backgroundColor: const Color(0xFFEAF2FF),
+                              backgroundColor: AdminColors.blueSoft,
                               child: Icon(
                                 row['organization_type'] == 'syndicate'
                                     ? Icons.groups_2_rounded
@@ -1960,7 +1962,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Row(
@@ -2107,7 +2109,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: AdminColors.surfaceSoft,
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -2532,7 +2534,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     ),
                     leading: CircleAvatar(
                       radius: 18,
-                      backgroundColor: const Color(0xFFEAF2FF),
+                      backgroundColor: AdminColors.blueSoft,
                       child: Icon(
                         row['active'] == true
                             ? Icons.location_on_rounded
@@ -2773,7 +2775,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
@@ -4192,7 +4194,7 @@ Color _securityTone(String? type) {
     case 'caution':
       return const Color(0xFFF79009);
     default:
-      return const Color(0xFFD92D20);
+      return AdminColors.danger;
   }
 }
 
@@ -4357,7 +4359,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
@@ -4600,7 +4602,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -4898,7 +4900,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                       elevation: 0,
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: const Color(0xFFEAF2FF),
+                          backgroundColor: AdminColors.blueSoft,
                           child: Icon(
                             type == 'airport'
                                 ? Icons.flight_rounded
@@ -5108,7 +5110,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                       vertical: 4,
                     ),
                     leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFEAF2FF),
+                      backgroundColor: AdminColors.blueSoft,
                       child: Icon(Icons.payments_outlined, color: _blue),
                     ),
                     title: Text(
@@ -6013,7 +6015,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
             style: approved
                 ? null
                 : FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFD92D20),
+                    backgroundColor: AdminColors.danger,
                   ),
             child: Text(approved ? 'Aprobar' : 'Rechazar'),
           ),
@@ -6496,7 +6498,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                         backgroundColor: Color(0xFFFFF4E5),
                         child: Icon(
                           Icons.account_balance_wallet_outlined,
-                          color: Color(0xFFB54708),
+                          color: AdminColors.warn,
                         ),
                       ),
                       title: Text(
@@ -6601,7 +6603,7 @@ class _AdminPaymentNotice extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: AdminColors.surfaceSoft,
         border: Border.all(color: const Color(0xFFE2E8F0)),
         borderRadius: BorderRadius.circular(10),
       ),
@@ -7066,7 +7068,7 @@ class _AdminCommunicationsPageState
                                           ),
                                           decoration: BoxDecoration(
                                             color: admin
-                                                ? const Color(0xFFEAF2FF)
+                                                ? AdminColors.blueSoft
                                                 : const Color(0xFFF2F4F7),
                                             borderRadius:
                                                 BorderRadius.circular(14),
@@ -7281,7 +7283,7 @@ class _AdminCommunicationsPageState
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: AdminColors.surfaceSoft,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
@@ -8165,7 +8167,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                       ),
                       decoration: BoxDecoration(
                         color: selected
-                            ? const Color(0xFFEAF2FF)
+                            ? AdminColors.blueSoft
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(9),
                       ),
@@ -8768,7 +8770,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                     const Text(
                       'Todavía no hay builds Android listos registrados en el panel.',
                       style: TextStyle(
-                        color: Color(0xFFB54708),
+                        color: AdminColors.warn,
                         fontSize: 11,
                       ),
                     ),
@@ -8902,7 +8904,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                     title: 'Mantenimiento',
                     subtitle: 'Bloqueo temporal y versión mínima permitida.',
                     accent: row['maintenance_mode'] == true
-                        ? const Color(0xFFD92D20)
+                        ? AdminColors.danger
                         : const Color(0xFF667085),
                     chips: [
                       row['maintenance_mode'] == true ? 'Mantenimiento activo' : 'Operación normal',
@@ -9094,7 +9096,7 @@ class _Kpi extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFDDE6F0)),
+        border: Border.all(color: AdminColors.border),
         boxShadow: const [
           BoxShadow(
             color: Color(0x120F172A),
@@ -9211,7 +9213,7 @@ class _SettingsCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
+                  color: AdminColors.blueSoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(_settingsIcon(title), color: _blue, size: 20),
@@ -9336,7 +9338,7 @@ class _DispatchItem extends StatelessWidget {
                 height: 36,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
+                  color: AdminColors.blueSoft,
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: Icon(icon, color: _blue, size: 18),
@@ -9413,9 +9415,9 @@ class _MiniStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg =
-        positive ? const Color(0xFFE8F8EF) : const Color(0xFFF2F4F7);
+        positive ? AdminColors.okSoft : const Color(0xFFF2F4F7);
     final fg =
-        positive ? const Color(0xFF14804A) : const Color(0xFF667085);
+        positive ? AdminColors.ok : const Color(0xFF667085);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
