@@ -45,7 +45,14 @@
 
 **Revisión del código**: `_DialogFrame` pasó a cabecera/pie blanco; `lib/admin_detail_dialogs.dart`, `admin_driver_document_requirements.dart` y `admin_bolivia_kyc.dart` participan. **Decisión explícita del propietario**: las páginas 34–36 se integran en Conductores, sin pantalla paralela de identidad; eso prevalece sobre la ubicación mostrada en el PDF. La aprobación genérica de nuevos requisitos requiere el backend QA correspondiente antes de declarar el flujo operativo.
 
-**Pendientes**: permisos por país/zona, foto de cada lado, aprobar/rechazar/suspender con validación, conservación de cambios y errores.
+**Avance de código E3 (10 oct 2026)**:
+- Fichas de conductor, usuario y viaje con cabecera blanca compartida (820 px en escritorio, adaptable a móvil), icono identificativo y estado donde el registro lo informa.
+- Documentos e identidad del conductor en lista vertical, con botones independientes frente/reverso/selfie, motivo de rechazo y fecha de vencimiento cuando existan; se conserva la revisión por requisito dentro de Conductores.
+- Nuevo detalle de Pedido, **solo lectura**, desde el acordeón Delivery; usa exclusivamente datos que ya devuelve `admin_delivery_list_v4`. La referencia de Claude incluye operaciones financieras que aquí **no se habilitan** sin RPCs y permisos auditados.
+- En el editor de requisitos los errores de nombre, código y alcance se muestran sin cerrar la ficha. Los rechazos documentales no se pueden confirmar con motivos inferiores a cinco caracteres.
+- Pruebas de widget agregadas para cabecera/modal de fichas en 390 y 1280 px y acceso al detalle de pedidos. Ningún cambio en Supabase, roles, operaciones productivas ni parámetros de canal.
+
+**Pendientes para aprobar E3**: capturas reales comparadas contra PDF páginas 15–18 y 34–36; pruebas end-to-end con permisos por país/zona, fotos (frente/reverso/selfie), aprobaciones y suspensiones con QA real; validar backend complementario de revisión genérica (#155). **E3 no está certificada visualmente**.
 
 ## E4 — Market, Delivery avanzado y prioridad (6)
 
