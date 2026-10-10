@@ -247,7 +247,7 @@ class _AdminLoginState extends State<_AdminLogin> {
     try {
       final started = await supabase.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: Uri.base.toString(),
+        redirectTo: adminPreviewGoogleOAuthRedirectUrl,
       );
       if (!started && mounted) {
         setState(() => error = 'No se pudo iniciar sesión con Google.');
