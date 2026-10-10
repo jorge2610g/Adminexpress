@@ -171,7 +171,7 @@ class _AdminRecordsTableState extends State<AdminRecordsTable> {
     final lower = raw.toLowerCase();
     final success = ['approved', 'active', 'completed', 'online']
         .contains(lower);
-    final warning = ['pending', 'in_progress', 'searching'].contains(lower);
+    final warning = ['pending', 'in_progress', 'searching', 'busy'].contains(lower);
     final danger = [
       'rejected', 'blocked', 'cancelled', 'canceled', 'suspended',
     ].contains(lower);
