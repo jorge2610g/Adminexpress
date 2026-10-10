@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+
 import 'core/supabase_client.dart';
 
 class AdminDynamicPricingPage extends StatefulWidget {
@@ -448,7 +450,7 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Color(0xFF64748B))),
+          Text(label, style: const TextStyle(color: AdminColors.muted)),
           const SizedBox(height: 4),
           Text(
             value,
