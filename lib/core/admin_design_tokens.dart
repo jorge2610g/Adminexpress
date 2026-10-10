@@ -65,6 +65,7 @@ abstract final class AdminRadius {
 abstract final class AdminBreakpoints {
   static const phone = 600.0;
   static const tablet = 1024.0;
+  static const desktop = 1024.0;
   static const compactMenu = 1180.0;
   static const maxContent = 1280.0;
 }
