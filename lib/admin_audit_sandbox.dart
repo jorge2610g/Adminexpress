@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 
 import 'core/supabase_client.dart';
 
@@ -418,134 +419,26 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
 class _AuditHero extends StatelessWidget {
   final int groupCount;
   final int memberCount;
-  final VoidCallback? onCreate;
 
   const _AuditHero({
     required this.groupCount,
     required this.memberCount,
-    required this.onCreate,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF102A56), Color(0xFF174B91), Color(0xFF0D6B8D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x2B174B91),
-            blurRadius: 24,
-            offset: Offset(0, 9),
-          ),
+    return AdminPageHero(
+      title: 'Entornos de prueba',
+      subtitle: 'Prueba la aplicación real sin enviar solicitudes, ofertas ni notificaciones a usuarios de producción.',
+      icon: Icons.science_outlined,
+      trailing: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _HeroStat(label: 'ENTORNOS', value: groupCount.toString()),
+          _HeroStat(label: 'CUENTAS QA', value: memberCount.toString()),
         ],
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final summary = Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _HeroStat(label: 'ENTORNOS', value: groupCount.toString()),
-              const SizedBox(width: 10),
-              _HeroStat(label: 'CUENTAS QA', value: memberCount.toString()),
-            ],
-          );
-
-          final copy = const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Entornos de prueba',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 23,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -.4,
-                ),
-              ),
-              SizedBox(height: 5),
-              Text(
-                'Prueba la aplicación real sin enviar solicitudes, ofertas ni notificaciones a usuarios de producción.',
-                style: TextStyle(
-                  color: Color(0xFFD7E7FA),
-                  fontSize: 11,
-                  height: 1.4,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          );
-
-          if (constraints.maxWidth < 760) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const _AuditIcon(),
-                    const SizedBox(width: 13),
-                    Expanded(child: copy),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                summary,
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: onCreate,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Nuevo entorno'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: _auditBlue,
-                  ),
-                ),
-              ],
-            );
-          }
-
-          return Row(
-            children: [
-              const _AuditIcon(),
-              const SizedBox(width: 13),
-              Expanded(child: copy),
-              summary,
-              const SizedBox(width: 14),
-              FilledButton.icon(
-                onPressed: onCreate,
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Nuevo entorno'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: _auditBlue,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _AuditIcon extends StatelessWidget {
-  const _AuditIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.12),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(.16)),
-      ),
-      child: const Icon(Icons.science_rounded, color: Colors.white, size: 23),
     );
   }
 }
