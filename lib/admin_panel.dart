@@ -4730,6 +4730,15 @@ class _RecordsState extends State<_Records> {
       'suspended' => 'Suspendidos',
       'active' => 'Activos',
       'blocked' => 'Bloqueados',
+      'accepted' => 'Aceptados',
+      'searching' => 'Buscando',
+      'cancelled' || 'canceled' => 'Cancelados',
+      'completed' => 'Completados',
+      'in_progress' => 'En curso',
+      'delivered' => 'Entregados',
+      'picked_up' => 'Recogidos',
+      'open' => 'Abiertas',
+      'acknowledged' => 'Atendidas',
       _ => value,
     };
 
@@ -4743,63 +4752,31 @@ class _RecordsState extends State<_Records> {
         ),
         const SizedBox(height: 16),
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE7ECF3)),
+            color: AdminColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AdminColors.borderSoft),
           ),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              if (widget.serverFilters != null) widget.serverFilters!,
-              SizedBox(
-                width: 240,
-                child: TextField(
-                  controller: search,
-                  onChanged: (value) => setState(() => query = value),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    prefixIcon: Icon(Icons.search_rounded, size: 18),
-                    hintText: 'Buscar',
-                    border: OutlineInputBorder(),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final primaryFilters = <Widget>[
+                if (widget.serverFilters != null) widget.serverFilters!,
+                SizedBox(
+                  width: constraints.maxWidth < 480 ? 190 : 235,
+                  child: TextField(
+                    controller: search,
+                    onChanged: (value) => setState(() => query = value),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      prefixIcon: Icon(Icons.search_rounded, size: 18),
+                      hintText: 'Buscar',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                 ),
-              ),
-              ChoiceChip(
-                label: Text('Todos (' + widget.rows.length.toString() + ')'),
-                selected: status == null,
-                onSelected: (_) => setState(() => status = null),
-              ),
-              for (final value in statuses.take(5))
-                ChoiceChip(
-                  label: Text(statusLabel(value)),
-                  selected: status == value,
-                  onSelected: (_) => setState(() => status = value),
-                ),
-              if (widget.showQaFilter) ...[
-                const SizedBox(width: 4),
-                ChoiceChip(
-                  avatar: const Icon(Icons.people_alt_outlined, size: 15),
-                  label: const Text('Reales'),
-                  selected: qaFilter == 'real',
-                  onSelected: (_) => setState(() => qaFilter = 'real'),
-                ),
-                ChoiceChip(
-                  avatar: const Icon(Icons.science_outlined, size: 15),
-                  label: const Text('QA / pruebas'),
-                  selected: qaFilter == 'qa',
-                  onSelected: (_) => setState(() => qaFilter = 'qa'),
-                ),
-                if (qaFilter != 'all')
-                  TextButton(
-                    onPressed: () => setState(() => qaFilter = 'all'),
-                    child: const Text('Quitar filtro QA'),
-                  ),
-              ],
-              OutlinedButton.icon(
+              ];
+              final exportButton = OutlinedButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -4811,8 +4788,78 @@ class _RecordsState extends State<_Records> {
                 },
                 icon: const Icon(Icons.download_rounded, size: 17),
                 label: const Text('Exportar'),
-              ),
-            ],
+              );
+              final statusesRow = Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ChoiceChip(
+                    label: Text('Todos (${widget.rows.length})'),
+                    selected: status == null,
+                    onSelected: (_) => setState(() => status = null),
+                  ),
+                  for (final value in statuses.take(5))
+                    ChoiceChip(
+                      label: Text(statusLabel(value)),
+                      selected: status == value,
+                      onSelected: (_) => setState(() => status = value),
+                    ),
+                  if (widget.showQaFilter) ...[
+                    const SizedBox(width: 4),
+                    ChoiceChip(
+                      avatar: const Icon(Icons.people_alt_outlined, size: 15),
+                      label: const Text('Reales'),
+                      selected: qaFilter == 'real',
+                      onSelected: (_) => setState(() => qaFilter = 'real'),
+                    ),
+                    ChoiceChip(
+                      avatar: const Icon(Icons.science_outlined, size: 15),
+                      label: const Text('QA / pruebas'),
+                      selected: qaFilter == 'qa',
+                      onSelected: (_) => setState(() => qaFilter = 'qa'),
+                    ),
+                    if (qaFilter != 'all')
+                      TextButton(
+                        onPressed: () => setState(() => qaFilter = 'all'),
+                        child: const Text('Quitar filtro QA'),
+                      ),
+                  ],
+                ],
+              );
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (constraints.maxWidth >= 740)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: primaryFilters,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        exportButton,
+                      ],
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [...primaryFilters, exportButton],
+                    ),
+                  const SizedBox(height: 9),
+                  const Divider(height: 1, color: AdminColors.borderSoft),
+                  const SizedBox(height: 9),
+                  statusesRow,
+                ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 12),
