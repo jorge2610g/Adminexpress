@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'core/admin_design_tokens.dart';
 import 'core/admin_widgets.dart';
 import 'core/admin_demand_stats_grid.dart';
+import 'core/admin_responsive_form_grid.dart';
+import 'core/admin_stage_edit_dialog_title.dart';
 
 import 'core/supabase_client.dart';
 
@@ -110,9 +112,12 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            'Demanda dinámica · ' +
-                (channel == 'preview' ? 'Preview' : 'Producción'),
+          title: AdminStageEditDialogTitle(
+            title: 'Demanda dinámica',
+            subtitle: channel == 'preview'
+                ? 'Preview · Parámetros de demanda'
+                : 'Producción · Parámetros de demanda',
+            icon: Icons.tune_rounded,
           ),
           content: SizedBox(
             width: 720,
@@ -129,45 +134,36 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
                     ),
                   ),
                   const Divider(),
-                  Row(
+                  AdminResponsiveFormGrid(
                     children: [
-                      Expanded(child: _field(lowRatio, 'Ratio demanda baja')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(lowMultiplier, 'Multiplicador baja')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(lowMinDrivers, 'Conductores mín. baja')),
+                      _field(lowRatio, 'Ratio demanda baja'),
+                      _field(lowMultiplier, 'Multiplicador baja'),
+                      _field(lowMinDrivers, 'Conductores mín. baja'),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Row(
+                  AdminResponsiveFormGrid(
                     children: [
-                      Expanded(child: _field(radius, 'Radio km')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(window, 'Ventana minutos')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(minRequests, 'Solicitudes mín.')),
+                      _field(radius, 'Radio km'),
+                      _field(window, 'Ventana minutos'),
+                      _field(minRequests, 'Solicitudes mín.'),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Row(
+                  AdminResponsiveFormGrid(
                     children: [
-                      Expanded(child: _field(elevatedRatio, 'Ratio elevada')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(highRatio, 'Ratio alta')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(criticalRatio, 'Ratio crítica')),
+                      _field(elevatedRatio, 'Ratio elevada'),
+                      _field(highRatio, 'Ratio alta'),
+                      _field(criticalRatio, 'Ratio crítica'),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Row(
+                  AdminResponsiveFormGrid(
                     children: [
-                      Expanded(child: _field(elevatedMultiplier, 'Mult. elevada')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(highMultiplier, 'Mult. alta')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(criticalMultiplier, 'Mult. crítica')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _field(maxMultiplier, 'Máximo')),
+                      _field(elevatedMultiplier, 'Mult. elevada'),
+                      _field(highMultiplier, 'Mult. alta'),
+                      _field(criticalMultiplier, 'Mult. crítica'),
+                      _field(maxMultiplier, 'Máximo'),
                     ],
                   ),
                 ],
