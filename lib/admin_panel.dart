@@ -2363,9 +2363,9 @@ class _Navigation extends StatelessWidget {
                   borderRadius: BorderRadius.circular(15),
                   border: Border.all(color: const Color(0xFF263650)),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 17,
                       backgroundColor: Color(0xFF1E3A5F),
                       child: Icon(
