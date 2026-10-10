@@ -682,6 +682,20 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     return result;
   }
 
+  bool _isIdentityRequirement(Map<String, dynamic> requirement) {
+    final code = _text(requirement['code'], '').toLowerCase();
+    const identityCodes = <String>{
+      'identity_card',
+      'national_id',
+      'id_card',
+      'identity',
+      'carnet',
+      'cedula',
+      'cédula',
+    };
+    return identityCodes.contains(code);
+  }
+
   Future<void> _reviewPhoto(
     Map<String, dynamic> document,
     Map<String, dynamic> requirement,
@@ -697,7 +711,9 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     });
     try {
       await supabase.rpc(
-        'admin_driver_document_review_part_v2',
+        _isIdentityRequirement(requirement)
+            ? 'admin_driver_kyc_bolivia_manual_review_part'
+            : 'admin_driver_document_review_part_v2',
         params: {
           'p_document_id': document['id'],
           'p_slot': slot,
