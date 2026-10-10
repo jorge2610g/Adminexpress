@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_stage_edit_dialog_title.dart';
 
 import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
@@ -170,7 +171,13 @@ class _AdminCountryCoveragePageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Nuevo país' : 'Editar país'),
+          title: AdminStageEditDialogTitle(
+            title: row == null ? 'Nuevo país' : 'Editar país',
+            subtitle: widget.channel == 'preview'
+                ? 'Preview · Países de operación'
+                : 'Producción · Países de operación',
+            icon: Icons.public_rounded,
+          ),
           content: SizedBox(
             width: 590,
             child: SingleChildScrollView(
