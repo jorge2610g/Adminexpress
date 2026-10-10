@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Viajes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Viajes" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Viajes" env="preview" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="border-radius:20px;padding:20px 24px;background:linear-gradient(120deg,#0F2854,#174B91 55%,#0D6B8D);color:#FFFFFF;display:flex;align-items:center;gap:16px;box-shadow:0 10px 30px rgba(23,75,145,.25)">
+<div style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
+<div style="flex:1"><div style="font-size:24px;font-weight:800;letter-spacing:-.4px">Viajes</div><div style="font-size:13px;color:#D7E7FA;font-weight:600;margin-top:4px">Historial y operación de viajes Express.</div></div>
+</div>
+<div style="background:#FFFFFF;border:1px solid #E7ECF3;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+<sc-for list="{{periods}}" as="p" hint-placeholder-count="3">
+<button style="height:34px;padding:0 13px;border-radius:999px;border:1px solid {{p.line}};background:{{p.bg}};color:{{p.ink}};font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="{{p.check}}" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>{{p.label}}</button>
+</sc-for>
+<button style="height:34px;padding:0 13px;border-radius:10px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:12px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18v16H3zM3 10h18M8 3v4M16 3v4"/></svg>Fecha</button>
+<span style="width:1px;height:24px;background:#E4E7EC;margin:0 4px"></span>
+<label style="height:36px;width:240px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;display:flex;align-items:center;gap:8px;padding:0 11px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.2" stroke-linecap="round"><path d="M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-3.5-3.5"/></svg><input type="text" placeholder="Buscar" style="border:0;outline:0;flex:1;min-width:0;font-size:13px;color:#0F172A;background:transparent"></label>
+<span style="flex:1"></span>
+<button style="height:36px;padding:0 14px;border-radius:10px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>Exportar</button>
+</div>
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid #F1F5F9;padding-top:10px">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="6">
+<button style="height:32px;padding:0 12px;border-radius:999px;border:1px solid {{c.line}};background:{{c.bg}};color:{{c.ink}};font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:3px;background:{{c.dot}}"></span>{{c.label}}</button>
+</sc-for>
+</div>
+</div>
+<div style="flex:1;min-height:0;background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;overflow:hidden;display:flex;flex-direction:column">
+<div style="display:grid;grid-template-columns:minmax(0,2.4fr) 112px 84px 80px minmax(0,1fr) minmax(0,1fr) 86px 96px 40px;gap:10px;align-items:center;padding:0 16px;height:40px;background:#F8FAFC;border-bottom:1px solid #EEF1F5;font-size:11px;font-weight:800;color:#64748B;letter-spacing:.4px">
+<span>RUTA</span><span>ESTADO</span><span>CATEGORÍA</span><span>TARIFA</span><span>PASAJERO</span><span>CONDUCTOR</span><span>PAGO</span><span>CREADO</span><span></span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+<div style="display:grid;grid-template-columns:minmax(0,2.4fr) 112px 84px 80px minmax(0,1fr) minmax(0,1fr) 86px 96px 40px;gap:10px;align-items:center;padding:0 16px;height:60px;border-bottom:1px solid #F1F5F9;font-size:13px">
+<div style="display:flex;align-items:center;gap:10px;min-width:0">
+<div style="width:34px;height:34px;flex:none;border-radius:9px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 16l1.5-5h11L19 16M5 16v3M19 16v3M4 16h16M8 13h.01M16 13h.01"/></svg></div>
+<div style="min-width:0"><div style="font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.from}}</div><div style="font-size:12px;color:#64748B;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">→ {{r.to}}</div></div>
+</div>
+<span><span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:{{r.sbg}};color:{{r.sfg}};font-size:11.5px;font-weight:800;white-space:nowrap"><span style="width:6px;height:6px;border-radius:3px;background:{{r.sfg}}"></span>{{r.status}}</span></span>
+<span style="font-weight:600;color:#475467">{{r.cat}}</span>
+<span style="font-weight:800">{{r.fare}}</span>
+<span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.pax}}</span>
+<span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{r.drvInk}}">{{r.drv}}</span>
+<span style="font-size:12px;font-weight:800;color:{{r.payInk}}">{{r.pay}}</span>
+<span style="font-size:12px;color:#64748B;font-weight:600;line-height:1.35">{{r.date}}<br>{{r.time}}</span>
+<button aria-label="Ver detalle completo" title="Ver detalle completo" style="width:34px;height:34px;border-radius:9px;border:1px solid #E4EAF2;background:#FFFFFF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7M21 3l-9 9M19 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h5"/></svg></button>
+</div>
+</sc-for>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const ST = {
+accepted: ['Aceptado', '#7C3AED', '#EDE5FF'],
+cancelled: ['Cancelado', '#D92D20', '#FFE4E8'],
+completed: ['Completado', '#14804A', '#E8F8EF'],
+in_progress: ['En curso', '#2563EB', '#EAF2FF'],
+searching: ['Buscando', '#B54708', '#FFF7E6']
+};
+const PAY = { paid: ['Pagado', '#14804A'], pending: ['Pendiente', '#B54708'], none: ['—', '#98A2B3'] };
+const row = (from, to, st, cat, fare, pax, drv, pay, time) => ({
+from, to, status: ST[st][0], sfg: ST[st][1], sbg: ST[st][2], cat, fare, pax,
+drv: drv || '—', drvInk: drv ? '#0F172A' : '#98A2B3', pay: PAY[pay][0], payInk: PAY[pay][1], date: '10/10/2026', time
+});
+const sel = (label) => ({ label, check: label === 'Hoy' ? 14 : 0, bg: label === 'Hoy' ? '#EAF2FF' : '#FFFFFF', line: label === 'Hoy' ? '#BFD3F9' : '#E4E7EC', ink: label === 'Hoy' ? '#2563EB' : '#0F172A' });
+return {
+periods: [sel('Hoy'), sel('Semana'), sel('Mes')],
+chips: [
+{ label: 'Todos (142)', dot: '#2563EB', bg: '#EAF2FF', line: '#BFD3F9', ink: '#2563EB' },
+{ label: 'Aceptado', dot: '#7C3AED', bg: '#FFFFFF', line: '#E4E7EC', ink: '#0F172A' },
+{ label: 'Buscando', dot: '#B54708', bg: '#FFFFFF', line: '#E4E7EC', ink: '#0F172A' },
+{ label: 'Cancelado', dot: '#D92D20', bg: '#FFFFFF', line: '#E4E7EC', ink: '#0F172A' },
+{ label: 'Completado', dot: '#14804A', bg: '#FFFFFF', line: '#E4E7EC', ink: '#0F172A' },
+{ label: 'En curso', dot: '#2563EB', bg: '#FFFFFF', line: '#E4E7EC', ink: '#0F172A' }
+],
+rows: [
+row('Plaza principal José Ballivián', 'Terminal de buses', 'in_progress', 'Económico', 'Bs 15.00', 'María F. Suárez', 'Carlos Méndez', 'pending', '10:58'),
+row('Mercado Pompeya', 'Hospital Materno Infantil', 'accepted', 'Moto', 'Bs 8.00', 'Jorge Vaca', 'Luis Rivero', 'pending', '10:54'),
+row('Av. Bolívar y La Paz', 'Aeropuerto Tte. Jorge Henrich', 'searching', 'Confort', 'Bs 25.00', 'Ana Lucía Cuéllar', '', 'pending', '10:51'),
+row('Barrio Fátima', 'Universidad Autónoma del Beni', 'completed', 'Económico', 'Bs 12.00', 'Rodrigo Égüez', 'Marco Antonio Roca', 'paid', '10:42'),
+row('Terminal de buses', 'Barrio San Antonio', 'completed', 'Moto', 'Bs 7.00', 'Paola Melgar', 'Fernando Justiniano', 'paid', '10:36'),
+row('Hospital Germán Busch', 'Plaza principal José Ballivián', 'cancelled', 'Económico', 'Bs 10.00', 'Daniela Ortiz', '', 'none', '10:31'),
+row('Calle Cochabamba 214', 'Mercado Campesino', 'completed', 'XL', 'Bs 30.00', 'Hugo Salvatierra', 'Wilson Añez', 'paid', '10:24'),
+row('Laguna Suárez', 'Centro', 'completed', 'Confort', 'Bs 35.00', 'Verónica Moye', 'Carlos Méndez', 'paid', '10:12'),
+row('Av. 6 de Agosto', 'Colegio Nacional Ganadero', 'in_progress', 'Económico', 'Bs 11.00', 'Gabriel Nogales', 'Ronald Parada', 'pending', '10:05'),
+row('Barrio Pompeya', 'Terminal de buses', 'completed', 'Moto', 'Bs 6.00', 'Sofía Antelo', 'Luis Rivero', 'paid', '09:58'),
+row('Universidad Autónoma del Beni', 'Barrio Nueva Trinidad', 'completed', 'Económico', 'Bs 13.00', 'Kevin Guzmán', 'Fernando Justiniano', 'paid', '09:47'),
+row('Aeropuerto Tte. Jorge Henrich', 'Hotel Campanario', 'completed', 'Confort', 'Bs 28.00', 'Andrea Velasco', 'Marco Antonio Roca', 'paid', '09:39')
+]
+};
+}
+}
+</script>
+</body>
+</html>

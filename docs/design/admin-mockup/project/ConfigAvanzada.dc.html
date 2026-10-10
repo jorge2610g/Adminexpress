@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Configuración avanzada</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Configuración avanzada" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Configuración avanzada" env="production" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="border-radius:20px;padding:20px 22px;background:linear-gradient(120deg,#0F2854,#174B91 55%,#0D6B8D);color:#FFFFFF;display:flex;align-items:center;gap:14px;box-shadow:0 10px 30px rgba(23,75,145,.25);flex:none">
+<div style="width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM17.5 14v7M14 17.5h7"/></svg></div>
+<div style="flex:1"><div style="font-size:23px;font-weight:800;letter-spacing:-.3px">Configuración avanzada</div><div style="font-size:12.5px;color:#D7E7FA;font-weight:600;margin-top:3px">Controla funciones de la app sin modificar código ni generar un APK por cada cambio.</div></div>
+</div>
+<div style="border-radius:18px;padding:18px 20px;background:linear-gradient(120deg,#0B57D0,#5B74F5);color:#FFFFFF;display:flex;align-items:center;gap:14px;flex:none">
+<div style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4"/></svg></div>
+<div style="flex:1"><div style="font-size:19px;font-weight:800">Centro de control</div><div style="font-size:11.5px;font-weight:600;color:#E0E7FF;margin-top:3px">Cambios operativos centralizados para pasajero, conductor y administración.</div></div>
+<div style="display:flex;gap:8px">
+<sc-for list="{{stats}}" as="s" hint-placeholder-count="3">
+<div style="background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:8px 14px;min-width:92px"><div style="font-size:16px;font-weight:800">{{s.v}}</div><div style="font-size:9.5px;font-weight:700;color:#E0E7FF">{{s.l}}</div></div>
+</sc-for>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="5">
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:178px;box-sizing:border-box">
+<div style="display:flex;align-items:flex-start;gap:12px">
+<span style="width:42px;height:42px;border-radius:12px;background:{{c.soft}};display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="{{c.accent}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{c.d}}"/></svg></span>
+<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800">{{c.t}}</div><div style="font-size:11.5px;font-weight:600;color:#64748B;margin-top:3px;line-height:1.4">{{c.s}}</div></div>
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#98A2B3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:4px"><path d="M9 5l7 7-7 7"/></svg>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:auto">
+<sc-for list="{{c.chips}}" as="h" hint-placeholder-count="2">
+<span style="display:flex;align-items:center;gap:5px;background:{{c.soft}};color:{{c.accent}};border-radius:999px;padding:3px 9px;font-size:11px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{c.accent}}"></span>{{h.t}}</span>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const card = (t, s, d, accent, soft, chips) => ({ t, s, d, accent, soft, chips: chips.map((x) => ({ t: x })) });
+return {
+stats: [{ l: 'Respaldo pagos', v: '1' }, { l: 'Ofertas', v: 'Activas' }, { l: 'Mantenimiento', v: 'Normal' }],
+cards: [
+card('Compatibilidad de pagos', 'Respaldo global para versiones antiguas. La configuración vigente está en Zonas y Pagos / Billetera.', 'M3 7a2 2 0 012-2h14v4M3 7v10a2 2 0 002 2h16V9H5a2 2 0 01-2-2zM17 14h.01', '#6941C6', '#EDE5FF', ['1 respaldos activos', 'No define la zona']),
+card('Búsqueda y ofertas', 'Tiempos, radio, viajes programados y contraofertas.', 'M12 12m-9 0a9 9 0 1018 0 9 9 0 10-18 0M12 12m-4 0a4 4 0 108 0 4 4 0 10-8 0M12 12l6-6', '#2563EB', '#EAF2FF', ['180 s', '15 km']),
+card('Seguridad del viaje', 'SOS, compartir viaje, chat, llamadas y lugares guardados.', 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM12 9v6M9 12h6', '#0E9384', '#DDF5F1', ['SOS activo', 'Compartir activo']),
+card('Calificaciones', 'Política privada de estrellas y comentarios.', 'M12 2l3 6 6 .9-4.5 4.4 1 6.2L12 16.6 6.5 19.5l1-6.2L3 8.9 9 8z', '#F79009', '#FFEED0', ['Activas', '1–5 ★']),
+card('Mantenimiento', 'Bloqueo temporal y versión mínima permitida.', 'M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z', '#667085', '#F2F4F7', ['Operación normal', 'Min v2.4.0'])
+]
+};
+}
+}
+</script>
+</body>
+</html>

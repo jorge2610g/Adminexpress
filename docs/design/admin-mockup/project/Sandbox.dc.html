@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Entornos de prueba</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Entornos de prueba" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Entornos de prueba" env="preview" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:22px 24px;display:flex;flex-direction:column;gap:14px">
+<div style="border-radius:20px;padding:20px 22px;background:linear-gradient(120deg,#0F2854,#174B91 55%,#0D6B8D);color:#FFFFFF;display:flex;align-items:center;gap:16px;box-shadow:0 10px 30px rgba(23,75,145,.25)">
+<div style="width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4 19a1.5 1.5 0 001.3 2h13.4a1.5 1.5 0 001.3-2L14 9V3"/></svg></div>
+<div style="flex:1;min-width:0"><div style="font-size:23px;font-weight:800;letter-spacing:-.4px">Entornos de prueba</div><div style="font-size:13px;color:#D7E7FA;font-weight:600;margin-top:4px">Prueba la aplicación real sin enviar solicitudes, ofertas ni notificaciones a usuarios de producción.</div></div>
+<div style="display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:8px 14px"><span style="font-size:20px;font-weight:800">2</span><span style="font-size:9.5px;font-weight:800;letter-spacing:1px;color:#D7E7FA">ENTORNOS</span></div>
+<div style="display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:8px 14px"><span style="font-size:20px;font-weight:800">5</span><span style="font-size:9.5px;font-weight:800;letter-spacing:1px;color:#D7E7FA">CUENTAS QA</span></div>
+<button style="height:42px;padding:0 16px;border-radius:11px;border:0;background:#FFFFFF;color:#174B91;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#174B91" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nuevo entorno</button>
+</div>
+<div style="display:flex;gap:12px;align-items:flex-start;background:#ECFDF3;border:1px solid #ABEFC6;border-radius:14px;padding:12px 16px">
+<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#067647" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8.5 12l2.5 2.5 4.5-5"/></svg>
+<span style="font-size:12.5px;font-weight:600;color:#05603A;line-height:1.45">Aislamiento activo en backend: viajes, ofertas, Realtime, push, conductores cercanos y delivery solo cruzan entre cuentas del mismo entorno. Las cuentas sin entorno continúan operando normalmente en producción.</span>
+</div>
+<div style="display:flex;gap:16px;flex:1;min-height:0">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px">
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="2">
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="width:40px;height:40px;border-radius:12px;background:{{g.tile}};display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{{g.tileInk}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4 19a1.5 1.5 0 001.3 2h13.4a1.5 1.5 0 001.3-2L14 9V3"/></svg></div>
+<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800">{{g.name}}</div><div style="font-size:11.5px;color:#64748B;font-weight:600;font-family:monospace">{{g.slug}}</div></div>
+<span style="display:flex;align-items:center;gap:5px;background:{{g.pillBg}};color:{{g.pillInk}};border-radius:999px;padding:4px 10px;font-size:10.5px;font-weight:800;letter-spacing:.3px"><span style="width:6px;height:6px;border-radius:3px;background:{{g.pillInk}}"></span>{{g.pill}}</span>
+<span style="width:40px;height:24px;border-radius:12px;background:{{g.track}};position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:{{g.knob}}px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,.2)"></span></span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+<sc-for list="{{g.cols}}" as="c" hint-placeholder-count="2">
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;gap:8px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{c.tone}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{c.d}}"/></svg><span style="flex:1;font-size:13px;font-weight:800">{{c.title}}</span><span style="background:{{c.soft}};color:{{c.tone}};border-radius:999px;padding:2px 9px;font-size:11px;font-weight:800">{{c.count}}</span></div>
+<sc-for list="{{c.members}}" as="m" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:10px;background:#FFFFFF;border:1px solid #EEF1F5;border-radius:11px;padding:8px 8px 8px 10px">
+<div style="width:32px;height:32px;border-radius:16px;background:{{c.soft}};display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{c.tone}}" stroke-width="2.2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
+<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{m.name}}</div><div style="font-size:11px;color:#64748B;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{m.email}}</div></div>
+<span style="width:8px;height:8px;border-radius:4px;background:{{m.dot}};flex:none"></span>
+<button aria-label="Quitar del entorno" style="width:28px;height:28px;border-radius:8px;border:0;background:transparent;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</div>
+</sc-for>
+<div style="font-size:12px;color:#98A2B3;font-weight:700;padding:2px 2px">{{c.empty}}</div>
+<button style="height:34px;padding:0 12px;border-radius:9px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:6px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{c.tone}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M8.5 11a4 4 0 100-8 4 4 0 000 8zM20 8v6M23 11h-6"/></svg>{{c.add}}</button>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="width:320px;flex:none;align-self:flex-start;background:#FFFFFF;border-radius:16px;border:1px solid #DDE6F0;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column">
+<div style="padding:18px 20px 8px;font-size:19px;font-weight:800;letter-spacing:-.2px">Nuevo entorno de prueba</div>
+<div style="padding:4px 20px;display:flex;flex-direction:column;gap:14px">
+<label style="display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#64748B">Nombre<input value="Auditoría Riberalta" placeholder="Auditoría Cuba" style="height:40px;box-sizing:border-box;border:2px solid #2563EB;border-radius:10px;padding:0 12px;font-size:13.5px;font-weight:700;color:#0F172A;background:#FFFFFF"></label>
+<label style="display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#64748B">Identificador<input value="auditoria-riberalta" placeholder="auditoria-cuba" style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13.5px;font-weight:700;color:#0F172A;background:#FFFFFF;font-family:monospace"><span style="font-size:11px;color:#64748B;font-weight:600">Solo letras minúsculas, números, guion y guion bajo.</span></label>
+</div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:16px 20px 18px">
+<button style="height:40px;padding:0 14px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 16px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Crear</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const pas = 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z';
+const drv = 'M3 13l2-6h14l2 6v5H3zM7 18v2M17 18v2M3 13h18';
+const on = '#12B76A';
+const off = '#98A2B3';
+const col = (kind, members) => kind === 'p'
+? { title: 'Pasajeros de prueba', tone: '#2563EB', soft: '#EAF2FF', d: pas, add: 'Añadir pasajero', count: String(members.length), members, empty: members.length ? '' : 'Sin pasajero asignado' }
+: { title: 'Conductores de prueba', tone: '#0F9F68', soft: '#E5F8F1', d: drv, add: 'Añadir conductor', count: String(members.length), members, empty: members.length ? '' : 'Sin conductor asignado' };
+const grp = (name, slug, active, cols) => ({ name, slug, cols, tile: active ? '#DBEAFE' : '#F1F5F9', tileInk: active ? '#2563EB' : '#64748B', pill: active ? 'AISLADO / ACTIVO' : 'PAUSADO / AISLADO', pillBg: active ? '#E8F8EF' : '#F2F4F7', pillInk: active ? '#14804A' : '#64748B', track: active ? '#2563EB' : '#C5CEDD', knob: active ? 19 : 3 });
+return {
+groups: [
+grp('Auditoría Trinidad', 'auditoria-trinidad', true, [
+col('p', [{ name: 'Pasajero QA Uno', email: 'pasajero.qa1@express.test', dot: on }, { name: 'Pasajero QA Dos', email: 'pasajero.qa2@express.test', dot: on }]),
+col('d', [{ name: 'Conductor QA Moto', email: 'conductor.qa1@express.test', dot: on }, { name: 'Conductor QA Auto', email: 'conductor.qa2@express.test', dot: off }])
+]),
+grp('QA Iquique', 'qa-iquique', false, [
+col('p', [{ name: 'Pasajera QA Iquique', email: 'pasajera.iqq@express.test', dot: off }]),
+col('d', [])
+])
+]
+};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Dashboard" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Dashboard" env="preview" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:22px 24px;display:flex;flex-direction:column;gap:18px">
+<div style="border-radius:20px;padding:22px 24px;background:linear-gradient(120deg,#0F2854,#174B91 55%,#0D6B8D);color:#FFFFFF;display:flex;align-items:center;gap:16px;box-shadow:0 10px 30px rgba(23,75,145,.25)">
+<div style="width:50px;height:50px;border-radius:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
+<div style="flex:1"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:24px;font-weight:800;letter-spacing:-.4px">Express Delivery</span><span style="display:flex;align-items:center;gap:5px;background:#16A34A;border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:#BBF7D0"></span>Activa</span></div><div style="font-size:13px;color:#D7E7FA;font-weight:600;margin-top:4px">Bienvenido al panel de control de tu empresa.</div></div>
+<button style="height:42px;padding:0 18px;border-radius:11px;border:0;background:#FFFFFF;color:#174B91;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="#174B91"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>Ver en vivo</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px">
+<sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+<div style="position:relative;overflow:hidden;background:#FFFFFF;border:1px solid {{k.line}};border-radius:18px;padding:16px 18px;min-height:138px;box-sizing:border-box">
+<div style="position:absolute;right:-18px;top:-18px;width:78px;height:78px;border-radius:39px;background:{{k.soft}};opacity:.7"></div>
+<div style="position:relative;display:flex;justify-content:space-between;align-items:flex-start">
+<div style="width:42px;height:42px;border-radius:13px;background:{{k.soft}};display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{k.accent}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{k.d}}"/></svg></div>
+<span style="display:flex;align-items:center;gap:4px;background:#FFFFFF;border-radius:999px;padding:3px 8px;font-size:9.5px;font-weight:800;color:{{k.accent}}"><svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="{{k.accent}}" stroke-width="2.6" stroke-linecap="round"><path d="M3 17l6-6 4 4 8-8"/></svg>HOY</span>
+</div>
+<div style="position:relative;font-size:30px;font-weight:800;margin-top:12px;letter-spacing:-.5px">{{k.value}}</div>
+<div style="position:relative;font-size:13px;font-weight:800">{{k.label}}</div>
+<div style="position:relative;font-size:11.5px;color:#64748B;font-weight:600;margin-top:2px">{{k.note}}</div>
+</div>
+</sc-for>
+</div>
+<div style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:14px">
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;padding:18px 20px">
+<div style="font-size:15px;font-weight:800;margin-bottom:12px">Acciones rápidas</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+<sc-for list="{{actions}}" as="a" hint-placeholder-count="3">
+<div style="background:{{a.bg}};border-radius:14px;padding:14px;min-height:150px;box-sizing:border-box;display:flex;flex-direction:column;gap:8px">
+<div style="width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.72);display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{{a.accent}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{a.d}}"/></svg></div>
+<div style="font-size:13.5px;font-weight:800;margin-top:auto">{{a.title}}</div>
+<div style="display:flex;align-items:flex-end;gap:6px"><span style="flex:1;font-size:11.5px;color:#475467;font-weight:600">{{a.sub}}</span><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{{a.accent}}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;padding:18px 20px">
+<div style="font-size:15px;font-weight:800;margin-bottom:8px">Estado del sistema</div>
+<sc-for list="{{status}}" as="s" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #F1F5F9">
+<div style="width:34px;height:34px;border-radius:10px;background:#F3F6FA;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{s.d}}"/></svg></div>
+<div style="flex:1"><div style="font-size:13px;font-weight:800">{{s.label}}</div><div style="font-size:11.5px;color:#64748B;font-weight:600">{{s.note}}</div></div>
+<div style="font-size:15px;font-weight:800">{{s.value}}</div>
+<span style="width:8px;height:8px;border-radius:4px;background:{{s.dot}}"></span>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:14px;flex:1;min-height:0">
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;padding:18px 20px;overflow:hidden">
+<div style="font-size:15px;font-weight:800;margin-bottom:6px">Actividad reciente</div>
+<sc-for list="{{activity}}" as="a" hint-placeholder-count="6">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #F1F5F9">
+<div style="width:34px;height:34px;border-radius:10px;background:{{a.bg}};display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{{a.ink}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{a.d}}"/></svg></div>
+<div style="flex:1"><div style="font-size:13px;font-weight:800">{{a.t}}</div><div style="font-size:11.5px;color:#64748B;font-weight:600">{{a.s}}</div></div>
+<div style="font-size:11.5px;color:#98A2B3;font-weight:700">{{a.time}}</div>
+</div>
+</sc-for>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;padding:18px 20px">
+<div style="font-size:15px;font-weight:800;margin-bottom:8px">Resumen del día</div>
+<sc-for list="{{summary}}" as="s" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #F1F5F9">
+<div style="width:34px;height:34px;border-radius:10px;background:{{s.bg}};display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{{s.ink}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{s.d}}"/></svg></div>
+<div style="flex:1;font-size:13px;font-weight:700">{{s.label}}</div>
+<div style="font-size:17px;font-weight:800">{{s.value}}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const P = { pin: 'M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11zM12 12a2 2 0 100-4 2 2 0 000 4z', clock: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2', car: 'M3 13l2-6h14l2 6v5H3zM7 18v2M17 18v2M3 13h18', check: 'M12 21a9 9 0 100-18 9 9 0 000 18zM8 12l3 3 5-6', route: 'M5 19a2 2 0 100-4 2 2 0 000 4zM19 9a2 2 0 100-4 2 2 0 000 4zM7 17h8a3 3 0 000-6H9a3 3 0 010-6h6', people: 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8', radar: 'M12 12m-9 0a9 9 0 1018 0 9 9 0 10-18 0M12 12m-4 0a4 4 0 108 0 4 4 0 10-8 0M12 12l6-6', sos: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM12 8v5M12 16h.01', taxi: 'M5 16l1.5-5h11L19 16M5 16v3M19 16v3M4 16h16', truck: 'M1 6h13v10H1zM14 10h4l3 3v3h-7M5 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z' };
+return {
+kpis: [
+{ label: 'Viajes activos', value: '12', note: 'En operación ahora', soft: '#DDF8EA', accent: '#0F9F68', line: '#C7EEDB', d: P.pin },
+{ label: 'Viajes hoy', value: '142', note: 'Solicitudes del día', soft: '#E1ECFF', accent: '#2563EB', line: '#CFDCF7', d: P.clock },
+{ label: 'Conductores', value: '36', note: 'de 84 conectados', soft: '#FFEED0', accent: '#D97706', line: '#F6DDB0', d: P.car },
+{ label: 'Completados', value: '125', note: 'Finalizados hoy', soft: '#EDE5FF', accent: '#7C3AED', line: '#DDD0FA', d: P.check }
+],
+actions: [
+{ title: 'Ver viajes en vivo', sub: 'Monitorea la operación en tiempo real', bg: '#CFF3E2', accent: '#129B67', d: P.pin },
+{ title: 'Gestionar conductores', sub: 'Administra estados, aprobación y flota', bg: '#FFE7A8', accent: '#C98000', d: P.car },
+{ title: 'Despacho manual', sub: 'Asigna un conductor directamente', bg: '#D8E5FF', accent: '#246BFD', d: P.route }
+],
+status: [
+{ label: 'Conductores', note: 'de 84 conectados', value: '36', dot: '#12B76A', d: P.car },
+{ label: 'Usuarios', note: 'Registrados', value: '1.284', dot: '#12B76A', d: P.people },
+{ label: 'Solicitudes', note: 'Pendientes', value: '5', dot: '#F79009', d: P.radar },
+{ label: 'SOS', note: '1 alerta abierta', value: '1', dot: '#D92D20', d: P.sos }
+],
+activity: [
+{ t: 'Viaje completado', s: 'Plaza principal → Terminal', time: '10:58', bg: '#EAF2FF', ink: '#2563EB', d: P.taxi },
+{ t: 'Delivery entregado', s: 'Farmacia Central → Calle 6', time: '10:51', bg: '#EAF2FF', ink: '#2563EB', d: P.truck },
+{ t: 'Emergencia SOS', s: 'Usuario Express · Viaje en curso', time: '10:44', bg: '#FFE8E8', ink: '#D92D20', d: P.sos },
+{ t: 'Viaje solicitado', s: 'Mercado → Hospital', time: '10:40', bg: '#EAF2FF', ink: '#2563EB', d: P.taxi },
+{ t: 'Viaje completado', s: 'Pompeya → Centro', time: '10:31', bg: '#EAF2FF', ink: '#2563EB', d: P.taxi },
+{ t: 'Delivery solicitado', s: 'Restaurante Mojos → Av. 6 de Agosto', time: '10:22', bg: '#EAF2FF', ink: '#2563EB', d: P.truck }
+],
+summary: [
+{ label: 'Total de viajes', value: '142', bg: '#E5F8F1', ink: '#129B67', d: P.taxi },
+{ label: 'Completados', value: '125', bg: '#F0E8FF', ink: '#7A2CF3', d: P.check },
+{ label: 'Viajes activos', value: '12', bg: '#E8F0FF', ink: '#246BFD', d: P.pin },
+{ label: 'Conductores online', value: '36', bg: '#FFF3D9', ink: '#D98A00', d: P.car }
+]
+};
+}
+}
+</script>
+</body>
+</html>

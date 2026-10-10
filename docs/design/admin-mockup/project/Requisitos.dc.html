@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Requisitos de identidad</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Verificación de identidad" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Verificación de identidad" env="preview" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:16px 24px 22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;background:#FFFFFF;border:1px solid #DDE6F0;border-radius:14px;overflow:hidden;flex:none">
+<div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 0;font-size:13px;font-weight:700;color:#64748B;border-bottom:2px solid transparent"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.factcheck}}"/></svg>Revisión de documentos</div>
+<div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 0;font-size:13px;font-weight:800;color:#2563EB;border-bottom:2px solid #2563EB"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.gear}}"/></svg>Requisitos de identidad</div>
+</div>
+<div style="border-radius:20px;padding:18px 22px;background:linear-gradient(120deg,#0F2854,#174B91 55%,#0D6B8D);color:#FFFFFF;display:flex;align-items:center;gap:14px;box-shadow:0 10px 30px rgba(23,75,145,.25);flex:none">
+<div style="width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.custom}}"/></svg></div>
+<div style="flex:1"><div style="font-size:22px;font-weight:800;letter-spacing:-.3px">Verificación de identidad</div><div style="font-size:12px;color:#D7E7FA;font-weight:600;margin-top:3px">Documentos de conductores y revisión manual de fotografías. Los servicios de identidad automáticos y la verificación por SMS están deshabilitados.</div></div>
+</div>
+<div style="border-radius:18px;padding:16px 20px;background:linear-gradient(120deg,#0B57D0,#5B74F5);color:#FFFFFF;display:flex;align-items:center;gap:14px;flex:none">
+<div style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.verified}}"/></svg></div>
+<div style="flex:1"><div style="font-size:19px;font-weight:800">Centro de identidad</div><div style="font-size:11.5px;font-weight:600;color:#E0E7FF;margin-top:3px;max-width:520px">Las aprobaciones se realizan manualmente desde la pestaña Revisión de documentos. Los registros históricos de servicios anteriores no son solicitudes activas.</div></div>
+<div style="display:flex;gap:8px">
+<div style="background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:8px 14px;min-width:96px"><div style="font-size:16px;font-weight:800">Manual</div><div style="font-size:9.5px;font-weight:700;color:#E0E7FF">Motor</div></div>
+<div style="background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:8px 14px;min-width:96px"><div style="font-size:16px;font-weight:800">Deshabilitado</div><div style="font-size:9.5px;font-weight:700;color:#E0E7FF">Proveedor externo</div></div>
+</div>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;flex:1;min-height:0;overflow:hidden">
+<div style="display:flex;align-items:center;gap:12px;padding-bottom:6px">
+<span style="width:40px;height:40px;border-radius:20px;background:#EAF2FF;display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.folder}}"/></svg></span>
+<div style="flex:1"><div style="font-size:15px;font-weight:800">Documentos requeridos para conductores</div><div style="font-size:12px;font-weight:600;color:#64748B;margin-top:2px">Crea, edita o elimina los documentos que debe cargar cada conductor según país o ciudad.</div></div>
+<button style="height:40px;padding:0 16px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nuevo documento</button>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="7">
+<div style="display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid #E7ECF3;border-radius:12px;background:{{r.bg}}">
+<span style="width:38px;height:38px;border-radius:11px;background:{{r.tile}};display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{{r.ink}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{r.d}}"/></svg></span>
+<div style="flex:1;min-width:0">
+<div style="font-size:13.5px;font-weight:800;color:{{r.title}}">{{r.label}}</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">
+<sc-for list="{{r.chips}}" as="c" hint-placeholder-count="4">
+<span style="display:flex;align-items:center;gap:5px;background:{{c.bg}};color:{{c.ink}};border-radius:999px;padding:3px 9px;font-size:11px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{c.ink}}"></span>{{c.t}}</span>
+</sc-for>
+</div>
+</div>
+<button aria-label="Editar" style="width:36px;height:36px;border-radius:10px;border:1px solid #E2E8F0;background:#FFFFFF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></svg></button>
+<button aria-label="Eliminar" style="width:36px;height:36px;border-radius:10px;border:1px solid #F0B8BF;background:#FFFFFF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D92D20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+</div>
+</sc-for>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;padding:14px 18px;display:flex;align-items:center;gap:12px;flex:none">
+<span style="width:36px;height:36px;border-radius:10px;background:#EAF2FF;display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.factcheck}}"/></svg></span>
+<span style="font-size:12px;font-weight:600;color:#475467;line-height:1.5">Para revisar, aprobar, rechazar o reactivar por separado el frente, reverso y la selfie de un conductor, usa la pestaña «Revisión de documentos». Las solicitudes de Prueba y Producción se gestionan por separado.</span>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const badge = 'M3 5h18v14H3zM7 10a2 2 0 104 0 2 2 0 00-4 0zM5.5 16a3.5 3.5 0 017 0M14 9h4M14 13h4';
+const face = 'M12 13a4 4 0 100-8 4 4 0 000 8zM5 21a7 7 0 0114 0M3 7V4h3M21 7V4h-3';
+const scope = (t) => ({ t, bg: '#EAF2FF', ink: '#2563EB' });
+const req = { t: 'Obligatorio', bg: '#FFE4E8', ink: '#D92D20' };
+const fr = { t: 'Frente', bg: '#F2F4F7', ink: '#475467' };
+const rv = { t: 'Reverso', bg: '#F2F4F7', ink: '#475467' };
+const sf = { t: 'Selfie', bg: '#EDE5FF', ink: '#7C3AED' };
+const ina = { t: 'Inactivo', bg: '#F2F4F7', ink: '#98A2B3' };
+const row = (label, chips, selfie, inactive) => ({ label, chips, d: selfie ? face : badge, bg: inactive ? '#F8FAFC' : '#FFFFFF', tile: inactive ? '#EEF1F5' : (selfie ? '#EDE5FF' : '#EAF2FF'), ink: inactive ? '#98A2B3' : (selfie ? '#7C3AED' : '#2563EB'), title: inactive ? '#64748B' : '#0F172A' });
+return {
+ic: {
+factcheck: 'M3 4h18v16H3zM7 9h4M7 13h4M14 12l2 2 3-4',
+gear: 'M12 15a3 3 0 100-6 3 3 0 000 6zM12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1',
+custom: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM17.5 14v7M14 17.5h7',
+verified: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8.5 12l2.5 2.5 4.5-5',
+folder: 'M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1zM12 14a2 2 0 100-4 2 2 0 000 4zM9 17a3 3 0 016 0'
+},
+rows: [
+row('Carné de identidad', [scope('Todas las ciudades'), req, fr, rv], false, false),
+row('Licencia de conducir', [scope('Bolivia'), req, fr, rv], false, false),
+row('Selfie de verificación', [scope('Bolivia'), req, sf], true, false),
+row('SOAT vigente', [scope('Trinidad'), req, fr], false, false),
+row('RUAT del vehículo', [scope('Trinidad'), req, fr, rv], false, false),
+row('Fotografía del vehículo', [scope('Trinidad'), fr], false, false),
+row('Certificado de antecedentes FELCC', [scope('Bolivia'), fr, ina], false, true)
+]
+};
+}
+}
+</script>
+</body>
+</html>

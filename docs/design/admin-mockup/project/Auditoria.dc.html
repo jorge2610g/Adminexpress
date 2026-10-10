@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Auditoría</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Auditoría" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Auditoría" env="preview" scope="none" hint-size="1032px,112px"></dc-import>
+<main style="flex:1;min-height:0;padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:flex-start;gap:16px">
+<div style="flex:1">
+<div style="font-size:26px;font-weight:800;letter-spacing:-.3px">Auditoría</div>
+<div style="font-size:13px;color:#64748B;font-weight:600;margin-top:4px;max-width:640px">Historial general de Express, ordenado por fecha. Las acciones reales y de pruebas están identificadas en una misma pantalla.</div>
+</div>
+<button style="height:40px;padding:0 14px;border-radius:10px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:13px;font-weight:800;display:flex;align-items:center;gap:8px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg>Actualizar</button>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;overflow:hidden;flex:1;min-height:0;display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid #EEF1F5">
+<div style="flex:1;font-size:15px;font-weight:800">Historial de acciones</div>
+<span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:800;color:#B54708"><span style="width:6px;height:6px;border-radius:3px;background:#B54708"></span>QA · pruebas internas</span>
+<span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:800;color:#14804A"><span style="width:6px;height:6px;border-radius:3px;background:#14804A"></span>REAL · Producción</span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="11">
+<div style="display:flex;align-items:center;gap:14px;padding:11px 20px;border-bottom:1px solid #F1F5F9">
+<div style="width:38px;height:38px;border-radius:19px;background:{{r.bg}};display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{r.ink}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{r.d}}"/></svg></div>
+<div style="flex:1;min-width:0">
+<div style="font-size:13.5px;font-weight:800">{{r.title}}</div>
+<div style="font-size:12px;color:#475467;font-weight:600;margin-top:2px">{{r.who}}</div>
+<div style="font-size:11.5px;color:#98A2B3;font-weight:600;margin-top:1px;font-family:monospace">{{r.id}}</div>
+</div>
+<span style="background:{{r.pillBg}};color:{{r.ink}};border-radius:16px;padding:4px 10px;font-size:10px;font-weight:800;letter-spacing:.4px">{{r.pill}}</span>
+</div>
+</sc-for>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const sci = 'M9 3h6M10 3v6L4 19a1.5 1.5 0 001.3 2h13.4a1.5 1.5 0 001.3-2L14 9V3';
+const his = 'M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8M3 3v5h5M12 7v5l3 2';
+const qa = (title, who, id) => ({ title, who, id, pill: 'QA', bg: '#FFF1D6', pillBg: '#FFF7E6', ink: '#B54708', d: sci });
+const real = (title, who, id) => ({ title, who, id, pill: 'REAL', bg: '#E8F8EF', pillBg: '#E8F8EF', ink: '#14804A', d: his });
+return {
+rows: [
+qa('Configuración de pruebas internas actualizada', 'Admin Express · 10/10/2026 · 11:42', 'qa-core'),
+real('Actualización · tarifa', 'Operaciones Trinidad · 10/10/2026 · 11:15', '4b8e21c0-93fa-4d6e-a1b7-5c02e9d4f318'),
+qa('Creación · entorno de prueba', 'Admin Express · 10/10/2026 · 10:58', 'auditoria-trinidad'),
+real('Aprobación · conductor', 'Soporte Express · 10/10/2026 · 10:31', '9a1f7d42-0c6b-4e85-b2d3-71e8a5c9f604'),
+qa('Asignación · miembro de entorno', 'Admin Express · 10/10/2026 · 10:12', '2e6c9b18-5f04-4a7d-8e31-c09b7d2a64f5'),
+real('Promoción · build', 'Admin Express · 09/10/2026 · 19:47', 'b7d30e95-1a2c-48f6-9d0b-6e4f8c217a39'),
+real('Actualización · zona', 'Operaciones Trinidad · 09/10/2026 · 17:20', '5d2a8f61-7e9b-4c03-a6f4-28b1e0d97c52'),
+qa('Rechazo · documento de identidad', 'Soporte Express · 09/10/2026 · 16:05', 'c1e47b29-8d6a-4f15-b03e-9a7d2c5e8f10'),
+real('Recarga · billetera', 'Administrador · 09/10/2026 · 14:38', '7f09c3d8-2b5e-4a61-9c7f-e4d18a3b6205'),
+qa('Limpieza · carga QA', 'Admin Express · 09/10/2026 · 12:02', 'e3b8a6f0-4c1d-4972-8e5a-d6f2b09c7134'),
+real('Envío · aviso', 'Soporte Express · 09/10/2026 · 09:26', '0a6d5e3b-9f87-41c2-b8d4-3e7c1f92a6d8')
+]
+};
+}
+}
+</script>
+</body>
+</html>

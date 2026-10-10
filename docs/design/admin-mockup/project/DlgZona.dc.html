@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Editar zona</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;box-sizing:border-box;padding:28px 0;display:flex;justify-content:center;align-items:flex-start;background:linear-gradient(rgba(15,23,42,.06),rgba(15,23,42,.06)),#E9EEF5;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<div style="width:1080px;background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column">
+<div style="padding:20px 24px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #EEF1F5">
+<div style="width:40px;height:40px;border-radius:12px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11zM12 12a2 2 0 100-4 2 2 0 000 4z"/></svg></div>
+<div style="flex:1"><div style="font-size:20px;font-weight:800">Editar zona</div><div style="font-size:12px;color:#64748B;font-weight:600;margin-top:2px">Trinidad · Bolivia</div></div>
+</div>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;padding:16px 24px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:10px;background:#F7F9FC;border-radius:12px;padding:10px 12px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 9a3 3 0 100 6 3 3 0 000-6zM12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4"/></svg><span style="font-size:11.5px;color:#64748B;font-weight:600;line-height:1.5">Cada zona puede tener servicios, tarifas, suscripciones y varios métodos de pago propios. Las credenciales sensibles se administran de forma segura por integración.</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Nombre<input value="Trinidad" style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;color:#0F172A"/></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Ciudad<input value="Trinidad" style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;color:#0F172A"/></label>
+</div>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Clave de zona<input value="trinidad" disabled="disabled" placeholder="Ej. trinidad, iquique, santa_cruz" style="height:40px;box-sizing:border-box;border:1px solid #E4E7EC;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;color:#98A2B3;background:#F2F4F7"/><span style="font-size:11px;font-weight:600;color:#64748B">Se genera desde la ciudad si la dejas vacía. No cambia después de crearla.</span></label>
+<div style="display:flex;align-items:flex-end;gap:10px">
+<label style="flex:1;display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">País<span style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;display:flex;align-items:center;gap:8px;padding:0 12px;font-size:13px;font-weight:700;color:#0F172A"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg><span style="flex:1">Bolivia · BO</span><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></label>
+<button style="height:40px;padding:0 10px;border:0;background:transparent;color:#2563EB;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><path d="M12 15a3 3 0 100-6 3 3 0 000 6zM12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Administrar países</button>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Región / departamento<input value="Beni" placeholder="Ej. Tarapacá / Beni" style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;color:#0F172A"/></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Moneda<input value="BOB" placeholder="BOB / CLP" style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;color:#0F172A"/></label>
+</div>
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;gap:10px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg><div><div style="font-size:13px;font-weight:800">Pantalla inicial del pasajero</div><div style="font-size:11.5px;color:#64748B;font-weight:600;margin-top:2px;line-height:1.45">Decide si esta zona entra directo a un servicio o muestra un panel para elegir entre Viajes, Envíos y Express Market.</div></div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Comportamiento de inicio<span style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;font-weight:700;color:#0F172A">Automático<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Servicio predeterminado<span style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;font-weight:700;color:#0F172A">Viajes<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Título del panel<input value="¿Qué necesitas hoy?" style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;color:#0F172A"/></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Subtítulo del panel<input value="Elige un servicio de Express" style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;color:#0F172A"/></label>
+</div>
+<div style="font-size:12px;font-weight:800">Orden de tarjetas</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:-4px">
+<sc-for list="{{order}}" as="o" hint-placeholder-count="3">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">{{o.l}}<input value="{{o.v}}" placeholder="{{o.h}}" style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:700;color:#0F172A"/></label>
+</sc-for>
+</div>
+<div style="font-size:11px;font-weight:600;color:#64748B;line-height:1.45">Automático: con varios módulos visibles muestra el panel; con uno solo entra directo.</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="border:1px solid #DDE6F0;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:11px">
+<div><div style="font-size:15px;font-weight:800">Tipo de cobertura</div><div style="font-size:11.5px;color:#64748B;font-weight:600;margin-top:2px">Selecciona un solo método. El otro no tendrá efecto.</div></div>
+<div style="display:flex;border:1px solid #D0D5DD;border-radius:20px;overflow:hidden;height:38px">
+<div style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:#EAF2FF;color:#1D4ED8;font-size:13px;font-weight:800;border-right:1px solid #D0D5DD"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>Radio</div>
+<div style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;color:#344054;font-size:13px;font-weight:700"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#344054" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18l5-9 6 5 5-10"/></svg>Polígono</div>
+</div>
+<div style="display:flex;gap:8px;background:#F7F9FC;border-radius:10px;padding:9px 11px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8h.01"/></svg><span style="font-size:11.5px;color:#64748B;font-weight:600">Toca el mapa para elegir un centro. Solo cuenta el radio seleccionado.</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Latitud<input value="-14.833300" style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:700;color:#0F172A"/></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Longitud<input value="-64.900000" style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:700;color:#0F172A"/></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Radio (km)<span style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;display:flex;align-items:center;padding:0 12px;gap:6px"><input value="25" style="flex:1;min-width:0;border:0;outline:0;padding:0;font-size:13px;font-weight:700;color:#0F172A;background:transparent"/><span style="font-size:12px;color:#98A2B3;font-weight:700">km</span></span></label>
+</div>
+<div style="font-size:11px;font-weight:600;color:#64748B;margin-top:-5px;text-align:right">Se mostrará como un círculo sobre el mapa.</div>
+<div style="position:relative;height:320px;border-radius:16px;overflow:hidden;border:1px solid #E4EAF2">
+<svg aria-hidden="true" width="478" height="320" viewBox="0 0 478 320" style="position:absolute;inset:0"><rect width="478" height="320" fill="#E8EDF3"/><path d="M0 190 C110 175 190 220 280 185 S410 140 478 150" stroke="#FFFFFF" stroke-width="10" fill="none"/><path d="M100 0 C115 100 80 200 120 320" stroke="#FFFFFF" stroke-width="8" fill="none"/><path d="M370 0 C355 100 400 200 385 320" stroke="#FFFFFF" stroke-width="8" fill="none"/><path d="M0 85 L478 70" stroke="#FFFFFF" stroke-width="5"/><path d="M0 270 L478 255" stroke="#FFFFFF" stroke-width="5"/><path d="M300 0 C330 80 290 160 340 320" stroke="#BFD4EA" stroke-width="14" fill="none"/><rect x="40" y="220" width="60" height="45" rx="7" fill="#DCE7D3"/><circle cx="239" cy="160" r="120" fill="rgba(37,99,235,.14)" stroke="#2563EB" stroke-width="2.5"/></svg>
+<svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" style="position:absolute;left:222px;top:128px" fill="#D92D20" stroke="#FFFFFF" stroke-width="1.2"><path d="M12 22s-7-6.2-7-12a7 7 0 1114 0c0 5.8-7 12-7 12zM12 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/></svg>
+<span style="position:absolute;right:8px;bottom:6px;background:rgba(255,255,255,.85);border-radius:5px;padding:2px 6px;font-size:10px;font-weight:600;color:#475467">OpenStreetMap contributors</span>
+</div>
+</div>
+<div style="border:1px solid #DDE6F0;border-radius:14px;padding:4px 14px">
+<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #EEF1F5"><div style="flex:1"><div style="font-size:13.5px;font-weight:800">Zona activa</div><div style="font-size:11.5px;color:#64748B;font-weight:600;margin-top:2px">La app puede detectarla automáticamente por GPS.</div></div><button role="switch" aria-checked="true" aria-label="Zona activa" style="width:40px;height:24px;border-radius:12px;border:0;padding:0;background:#2563EB;position:relative;flex:none"><span style="position:absolute;top:3px;left:19px;width:18px;height:18px;border-radius:9px;background:#FFFFFF"></span></button></div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 0"><div style="flex:1"><div style="font-size:13.5px;font-weight:800">Registro de conductores en esta zona</div><div style="font-size:11.5px;color:#64748B;font-weight:600;margin-top:2px;line-height:1.45">Si está apagado, un conductor ubicado aquí verá que Express todavía no está disponible para registrarse.</div></div><button role="switch" aria-checked="true" aria-label="Registro de conductores en esta zona" style="width:40px;height:24px;border-radius:12px;border:0;padding:0;background:#2563EB;position:relative;flex:none"><span style="position:absolute;top:3px;left:19px;width:18px;height:18px;border-radius:9px;background:#FFFFFF"></span></button></div>
+</div>
+</div>
+</div>
+<div style="padding:14px 24px 18px;display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #EEF1F5">
+<button style="height:40px;padding:0 14px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 20px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Guardar zona y cobertura</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+return {
+order: [{ l: 'Viajes', v: '1', h: '1' }, { l: 'Envíos', v: '2', h: '2' }, { l: 'Market', v: '3', h: '3' }]
+};
+}
+}
+</script>
+</body>
+</html>
