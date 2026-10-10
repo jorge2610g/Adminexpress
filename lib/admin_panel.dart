@@ -4,6 +4,8 @@ import 'package:latlong2/latlong.dart';
 
 import 'core/supabase_client.dart';
 import 'core/admin_environment_navigation.dart';
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 import 'admin_environment_store.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
@@ -21,13 +23,13 @@ import 'admin_environment_audit.dart';
 import 'admin_manual_identity.dart';
 import 'admin_driver_document_requirements.dart';
 
-const Color adminBlue = Color(0xFF2563EB);
-const Color adminDark = Color(0xFF0F172A);
-const Color adminMuted = Color(0xFF64748B);
-const Color adminBg = Color(0xFFF1F5F9);
-const Color adminNavy = Color(0xFF0B1220);
-const Color adminNavySoft = Color(0xFF111C31);
-const Color adminCyan = Color(0xFF22D3EE);
+const Color adminBlue = AdminColors.blue;
+const Color adminDark = AdminColors.ink;
+const Color adminMuted = AdminColors.muted;
+const Color adminBg = AdminColors.bg;
+const Color adminNavy = AdminColors.sidebar;
+const Color adminNavySoft = AdminColors.sidebarSoft;
+const Color adminCyan = AdminColors.cyan;
 
 
 ThemeData _expressAdminTheme(BuildContext context) {
@@ -2396,6 +2398,8 @@ class _Navigation extends StatelessWidget {
                               fontWeight: FontWeight.w900,
                             ),
                           ),
+                          SizedBox(height: 5),
+                          _EnvironmentMiniBadge(channel: channel),
                         ],
                       ),
                     ),
@@ -2662,7 +2666,7 @@ class _TopBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFDDE6F0)),
+        border: Border.all(color: AdminColors.border),
         boxShadow: const [
           BoxShadow(
             color: Color(0x120F172A),
@@ -2707,16 +2711,18 @@ class _TopBar extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          FilledButton.icon(
-            onPressed: onNewTrip,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Nuevo viaje'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 40),
-              padding: const EdgeInsets.symmetric(horizontal: 15),
+          if (showNewTrip) ...[
+            FilledButton.icon(
+              onPressed: onNewTrip,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Nuevo viaje'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsets.symmetric(horizontal: 15),
+              ),
             ),
-          ),
-          const SizedBox(width: 7),
+            const SizedBox(width: 7),
+          ],
           IconButton(
             tooltip: 'Actualizar',
             onPressed: onRefresh,
@@ -2752,7 +2758,7 @@ class _TopBar extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: AdminColors.surfaceSoft,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
@@ -2796,108 +2802,44 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0F2854), Color(0xFF174B91), Color(0xFF0D6B8D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return AdminPageHero(
+      title: title,
+      subtitle: subtitle,
+      badge: badge,
+    );
+  }
+}
+
+class _EnvironmentMiniBadge extends StatelessWidget {
+  final String channel;
+  const _EnvironmentMiniBadge({required this.channel});
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = channel == 'preview';
+    final ink = preview
+        ? const Color(0xFFFFD9A2)
+        : const Color(0xFFBBF7D0);
+    final bg = preview
+        ? const Color(0xFF4A3415)
+        : const Color(0xFF153A2B);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(999),
         ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x33174B91),
-            blurRadius: 26,
-            offset: Offset(0, 10),
+        child: Text(
+          preview ? 'VISTA PREVIA' : 'PRODUCCIÓN',
+          style: TextStyle(
+            color: ink,
+            fontSize: 8,
+            fontWeight: FontWeight.w900,
+            letterSpacing: .7,
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.12),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withOpacity(.18)),
-            ),
-            child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 25),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 9,
-                  runSpacing: 6,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: -.4,
-                      ),
-                    ),
-                    if (badge != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF16A34A),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x3316A34A),
-                              blurRadius: 10,
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const SizedBox(
-                              width: 6,
-                              height: 6,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFBBF7D0),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              badge!,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Color(0xFFD7E7FA),
-                    height: 1.35,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -2999,7 +2941,7 @@ class _Metric extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: AdminColors.surfaceSoft,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
@@ -3345,7 +3287,7 @@ class _Surface extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(19),
-        border: Border.all(color: const Color(0xFFDDE6F0)),
+        border: Border.all(color: AdminColors.border),
         boxShadow: const [
           BoxShadow(
             color: Color(0x120F172A),
