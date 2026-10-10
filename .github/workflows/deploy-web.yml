@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - claude/admin-preview-unlock-2026-10-10
   workflow_dispatch:
     inputs:
       preview_only:
@@ -24,11 +25,11 @@ permissions:
 
 concurrency:
   group: adminexpress-pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
-    if: ${{ !contains(github.event.head_commit.message, '[deploy-preview-only]') && !(inputs.preview_only == true) }}
+    if: ${{ github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[deploy-preview-only]') && !(inputs.preview_only == true) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -128,7 +129,7 @@ jobs:
           path: build/site
 
   preview_only:
-    if: ${{ contains(github.event.head_commit.message, '[deploy-preview-only]') || inputs.preview_only == true }}
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/claude/admin-preview-unlock-2026-10-10') || contains(github.event.head_commit.message, '[deploy-preview-only]') || inputs.preview_only == true }}
     runs-on: ubuntu-latest
     outputs:
       preview_sha: ${{ steps.resolve_preview.outputs.preview_sha }}
