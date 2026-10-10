@@ -480,30 +480,22 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              AdminPageHero(
+              AdminPlainPageHeading(
                 title: 'Prioridad de conductores',
                 subtitle: 'Alta, Media y Baja según reputación, reseñas, experiencia y frecuencia.',
-                icon: Icons.workspace_premium_rounded,
                 trailing: Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: [
                     OutlinedButton.icon(
                       onPressed: _refresh,
                       icon: const Icon(Icons.refresh_rounded),
                       label: const Text('Actualizar'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white54),
-                      ),
                     ),
                     FilledButton.icon(
                       onPressed: () => _editSettings(settings),
                       icon: const Icon(Icons.tune_rounded),
                       label: const Text('Configurar'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AdminColors.blue,
-                      ),
                     ),
                   ],
                 ),
