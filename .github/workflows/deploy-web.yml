@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - chatgpt/unify-driver-review
   workflow_dispatch:
     inputs:
       preview_only:
