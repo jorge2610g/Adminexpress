@@ -2421,10 +2421,10 @@ class _Navigation extends StatelessWidget {
           ('GENERAL', [0]),
           ('OPERACIONES', [1, 2, 13, 3, 26, 4, 5, 6]),
           ('MÓDULOS', [23, 24, 25]),
-          ('FINANZAS', [9, 8, 22]),
+          ('FINANZAS', [9, 8, 22, 28]),
           ('ANÁLISIS', [10, 14]),
           ('COMUNICACIÓN', [15]),
-          ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
+          ('CONFIGURACIÓN', [16, 7, 18, 11, 19, 12]),
           ('HERRAMIENTAS QA', [20, 21]),
         ];
 
