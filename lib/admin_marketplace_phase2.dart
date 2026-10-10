@@ -1678,18 +1678,13 @@ class _AdminMarketplacePhase2PageState
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              AdminPageHero(
+              AdminPlainPageHeading(
                 title: 'Delivery · Configuración',
                 subtitle: 'Cada bloque abre su propia administración para mantener el panel compacto.',
-                icon: Icons.delivery_dining_rounded,
                 trailing: OutlinedButton.icon(
                   onPressed: _refresh,
                   icon: const Icon(Icons.refresh_rounded),
                   label: const Text('Actualizar'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white54),
-                  ),
                 ),
               ),
               const SizedBox(height: 22),
