@@ -1,0 +1,637 @@
+{
+  "schema": "admin-express-design-stage-review-v1",
+  "source_pdf": "Mockups-Admin-Express.pdf",
+  "source_design": "docs/design/admin-mockup/project/canvas.json",
+  "total": 54,
+  "safe_deployment": "Preview solamente; Producción intacta",
+  "gates": [
+    "La compilación y las pruebas del último commit deben pasar",
+    "Visual comparado con captura real de Flutter a ancho de diseño",
+    "Interacciones, estados, diálogos, permisos y datos del entorno validados",
+    "No marcar terminada sin las tres comprobaciones"
+  ],
+  "stages": [
+    {
+      "code": "E1",
+      "title": "Acceso y estructura visual",
+      "pages": [
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "priority": "alta",
+      "review": "Login y estados; 248px sidebar, 72px topbar, 390px móvil, navegación sin recargas",
+      "risk": "Autenticación, control de roles y entorno",
+      "acceptance": "Comparar cinco páginas en móvil/escritorio; login y accesos correctos"
+    },
+    {
+      "code": "E2",
+      "title": "Operación principal",
+      "pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "priority": "crítica",
+      "review": "Dashboard, mapa vivo, zonas, Viajes tabla, Delivery acordeón, despacho/pedidos, Conductores, Usuarios, SOS",
+      "risk": "Rutas, autorización y datos del canal; funciones de despacho solo en Producción",
+      "acceptance": "Comparar nueve capturas; filtros, edición y navegación funcionan; sin escrituras ajenas al entorno"
+    },
+    {
+      "code": "E3",
+      "title": "Fichas y verificación",
+      "pages": [
+        15,
+        16,
+        17,
+        18,
+        34,
+        35,
+        36
+      ],
+      "priority": "crítica",
+      "review": "Fichas de conductor/usuario/viaje/pedido, revisión documental y requisitos integrados a Conductores",
+      "risk": "No activar aprobar/rechazar genérico hasta backend QA; conservar fotos y permisos",
+      "acceptance": "Probar cerrar/guardar, validación de campos y revisión documental en QA"
+    },
+    {
+      "code": "E4",
+      "title": "Market, Delivery avanzado y prioridad",
+      "pages": [
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "priority": "media",
+      "review": "Market/Express Plus, clasificación/prioridades y sus diálogos",
+      "risk": "Pantallas productivas bloqueadas en Preview; no habilitarlas artificialmente",
+      "acceptance": "Comparación visual mediante build local QA con datos sintéticos; acciones reales bloqueadas"
+    },
+    {
+      "code": "E5",
+      "title": "Pagos, tarifas y suscripciones",
+      "pages": [
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ],
+      "priority": "crítica",
+      "review": "Finanzas, reglas de cobro, planes, 3 conjuntos de diálogos",
+      "risk": "Credenciales, Mercado Pago, dinero y pagos reales",
+      "acceptance": "Validación de formularios sin transacciones reales; condiciones de seguridad y estados probados"
+    },
+    {
+      "code": "E6",
+      "title": "Informes, auditoría y comunicaciones",
+      "pages": [
+        31,
+        32,
+        33
+      ],
+      "priority": "alta",
+      "review": "Nueve indicadores, historial QA/REAL, envío/telemetría de avisos",
+      "risk": "Datos Preview separados de Producción; permisos para notificaciones",
+      "acceptance": "Fechas correctas, informes aislados, historial y acciones operativas"
+    },
+    {
+      "code": "E7",
+      "title": "Cobertura y configuración",
+      "pages": [
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49
+      ],
+      "priority": "crítica",
+      "review": "Servicios, zonas y sectores, configuración, builds, demanda, cobertura y sus modales",
+      "risk": "Radio O polígono; publicar builds requiere aprobación; cambios territoriales y switches sensibles",
+      "acceptance": "Trece comparaciones; cobertura excluyente y edición sin romper reglas existentes"
+    },
+    {
+      "code": "E8",
+      "title": "Entornos QA y portal de socios",
+      "pages": [
+        50,
+        51,
+        52,
+        53,
+        54
+      ],
+      "priority": "alta",
+      "review": "Sandbox, simulación Carga QA y tres vistas de socios",
+      "risk": "Aislamiento QA, límites de carga, acceso por sindicato, datos de terceros",
+      "acceptance": "Cinco capturas; testear rol socio y bloqueos de seguridad"
+    }
+  ],
+  "pages": [
+    {
+      "n": 1,
+      "title": "0 · Dashboard",
+      "file": "project/Main.dc.html",
+      "flutter": "lib/admin_panel.dart · _dashboard",
+      "stage": "E2",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 2,
+      "title": "1 · Operación en vivo",
+      "file": "project/Live.dc.html",
+      "flutter": "lib/admin_panel.dart · _liveOperations",
+      "stage": "E2",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 3,
+      "title": "2 · Viajes",
+      "file": "project/Viajes.dc.html",
+      "flutter": "lib/admin_panel.dart · _tripList / _Records",
+      "stage": "E2",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 4,
+      "title": "13 · Despacho manual",
+      "file": "project/Despacho.dc.html",
+      "flutter": "lib/admin_panel.dart + lib/admin_control_sections.dart",
+      "stage": "E2",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 5,
+      "title": "3 · Delivery",
+      "file": "project/Delivery.dc.html",
+      "flutter": "lib/admin_panel.dart · _deliveryList",
+      "stage": "E2",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 6,
+      "title": "26 · Pedidos Delivery",
+      "file": "project/Pedidos.dc.html",
+      "flutter": "lib/admin_panel.dart · sección Delivery",
+      "stage": "E2",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 7,
+      "title": "4 · Conductores",
+      "file": "project/Conductores.dc.html",
+      "flutter": "lib/admin_panel.dart · _driverList",
+      "stage": "E2",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 8,
+      "title": "5 · Usuarios",
+      "file": "project/Usuarios.dc.html",
+      "flutter": "lib/admin_panel.dart · _userList",
+      "stage": "E2",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 9,
+      "title": "6 · Seguridad / SOS",
+      "file": "project/SOS.dc.html",
+      "flutter": "lib/admin_panel.dart · _security",
+      "stage": "E2",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 10,
+      "title": "Inicio de sesión",
+      "file": "project/Login.dc.html",
+      "flutter": "lib/main.dart · _AdminLogin",
+      "stage": "E1",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 11,
+      "title": "Estados de acceso y bloqueo",
+      "file": "project/Estados.dc.html",
+      "flutter": "lib/main.dart · _AccessDenied / _StartupError",
+      "stage": "E1",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 12,
+      "title": "Vista compacta (< 1180 px)",
+      "file": "project/Movil.dc.html",
+      "flutter": "lib/admin_panel.dart · LayoutBuilder compact",
+      "stage": "E1",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 13,
+      "title": "Componente · Menú lateral",
+      "file": "project/Sidebar.dc.html",
+      "flutter": "lib/admin_panel.dart · _Navigation",
+      "stage": "E1",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 14,
+      "title": "Componente · Barra superior",
+      "file": "project/Topbar.dc.html",
+      "flutter": "lib/admin_panel.dart · _TopBar",
+      "stage": "E1",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 15,
+      "title": "Ficha del conductor",
+      "file": "project/DlgConductor.dc.html",
+      "flutter": "lib/admin_detail_dialogs.dart · _DriverEditorDialog",
+      "stage": "E3",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 16,
+      "title": "Ficha del usuario",
+      "file": "project/DlgUsuario.dc.html",
+      "flutter": "lib/admin_detail_dialogs.dart · _UserEditorDialog",
+      "stage": "E3",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 17,
+      "title": "Detalle del viaje",
+      "file": "project/DlgViaje.dc.html",
+      "flutter": "lib/admin_detail_dialogs.dart · _TripDetailDialog",
+      "stage": "E3",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 18,
+      "title": "Pedido Delivery",
+      "file": "project/DlgPedido.dc.html",
+      "flutter": "lib/admin_panel.dart · Delivery details",
+      "stage": "E3",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 19,
+      "title": "23 · Express Market",
+      "file": "project/Market.dc.html",
+      "flutter": "lib/admin_marketplace.dart",
+      "stage": "E4",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 20,
+      "title": "24 · Delivery Fase 2 / Express Plus",
+      "file": "project/Fase2.dc.html",
+      "flutter": "lib/admin_marketplace_phase2.dart",
+      "stage": "E4",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 21,
+      "title": "25 · Prioridad conductores",
+      "file": "project/Prioridad.dc.html",
+      "flutter": "lib/admin_driver_priority.dart",
+      "stage": "E4",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 22,
+      "title": "Diálogos · Express Market",
+      "file": "project/DlgMarket.dc.html",
+      "flutter": "lib/admin_marketplace.dart · diálogos",
+      "stage": "E4",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 23,
+      "title": "Diálogos · Delivery Fase 2",
+      "file": "project/DlgFase2.dc.html",
+      "flutter": "lib/admin_marketplace_phase2.dart · diálogos",
+      "stage": "E4",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 24,
+      "title": "Diálogo · Configurar prioridad",
+      "file": "project/DlgPrioridad.dc.html",
+      "flutter": "lib/admin_driver_priority.dart · diálogos",
+      "stage": "E4",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 25,
+      "title": "9 · Pagos / Billetera",
+      "file": "project/Pagos.dc.html",
+      "flutter": "lib/admin_control_sections.dart",
+      "stage": "E5",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 26,
+      "title": "8 · Tarifas",
+      "file": "project/Tarifas.dc.html",
+      "flutter": "lib/admin_control_sections.dart + lib/admin_distance_fares.dart",
+      "stage": "E5",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 27,
+      "title": "22 · Suscripciones",
+      "file": "project/Suscripciones.dc.html",
+      "flutter": "lib/admin_driver_subscriptions.dart",
+      "stage": "E5",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 28,
+      "title": "Diálogos · Pagos",
+      "file": "project/DlgPagos.dc.html",
+      "flutter": "lib/admin_control_sections.dart · diálogos",
+      "stage": "E5",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 29,
+      "title": "Diálogos · Tarifas",
+      "file": "project/DlgTarifa.dc.html",
+      "flutter": "lib/admin_control_sections.dart · diálogos",
+      "stage": "E5",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 30,
+      "title": "Diálogos · Suscripciones",
+      "file": "project/DlgPlan.dc.html",
+      "flutter": "lib/admin_driver_subscriptions.dart · diálogos",
+      "stage": "E5",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 31,
+      "title": "10 · Reportes",
+      "file": "project/Reportes.dc.html",
+      "flutter": "lib/admin_environment_reports.dart",
+      "stage": "E6",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 32,
+      "title": "14 · Auditoría",
+      "file": "project/Auditoria.dc.html",
+      "flutter": "lib/admin_environment_audit.dart",
+      "stage": "E6",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 33,
+      "title": "15 · Notificaciones / Avisos",
+      "file": "project/Avisos.dc.html",
+      "flutter": "lib/admin_control_sections.dart",
+      "stage": "E6",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 34,
+      "title": "18 · Verificación de identidad · Revisión (= 27)",
+      "file": "project/Identidad.dc.html",
+      "flutter": "lib/admin_bolivia_kyc.dart (integrado en Conductores)",
+      "stage": "E3",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 35,
+      "title": "18 · Verificación de identidad · Requisitos",
+      "file": "project/Requisitos.dc.html",
+      "flutter": "lib/admin_driver_document_requirements.dart (integrado en Conductores)",
+      "stage": "E3",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 36,
+      "title": "Diálogos · Identidad y requisitos",
+      "file": "project/DlgIdentidad.dc.html",
+      "flutter": "lib/admin_detail_dialogs.dart + lib/admin_bolivia_kyc.dart",
+      "stage": "E3",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 37,
+      "title": "16 · Servicios",
+      "file": "project/Servicios.dc.html",
+      "flutter": "lib/admin_preview_config_sections.dart + lib/admin_control_sections.dart",
+      "stage": "E7",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 38,
+      "title": "7 · Zonas y cobertura",
+      "file": "project/Zonas.dc.html",
+      "flutter": "lib/admin_country_coverage.dart + lib/admin_panel.dart",
+      "stage": "E7",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 39,
+      "title": "7 · Seguridad (= 17 Cobertura y seguridad)",
+      "file": "project/GeoSeguridad.dc.html",
+      "flutter": "lib/admin_zone_coverage_editor.dart",
+      "stage": "E7",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 40,
+      "title": "11 · Configuración",
+      "file": "project/Configuracion.dc.html",
+      "flutter": "lib/admin_control_sections.dart",
+      "stage": "E7",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 41,
+      "title": "19 · Configuración avanzada",
+      "file": "project/ConfigAvanzada.dc.html",
+      "flutter": "lib/admin_preview_config_sections.dart",
+      "stage": "E7",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 42,
+      "title": "12 · Builds",
+      "file": "project/Builds.dc.html",
+      "flutter": "lib/admin_single_app_release.dart",
+      "stage": "E7",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 43,
+      "title": "28 · Demanda y precios",
+      "file": "project/Demanda.dc.html",
+      "flutter": "lib/admin_dynamic_pricing.dart",
+      "stage": "E7",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 44,
+      "title": "Diálogo · Zona y cobertura",
+      "file": "project/DlgZona.dc.html",
+      "flutter": "lib/admin_zone_coverage_editor.dart",
+      "stage": "E7",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 45,
+      "title": "Diálogo · Servicio",
+      "file": "project/DlgConfig.dc.html",
+      "flutter": "lib/admin_control_sections.dart · diálogos",
+      "stage": "E7",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 46,
+      "title": "11 · Configuración · resto de pestañas",
+      "file": "project/ConfiguracionTabs.dc.html",
+      "flutter": "lib/admin_control_sections.dart",
+      "stage": "E7",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 47,
+      "title": "Diálogos · Configuración avanzada",
+      "file": "project/DlgAvanzada.dc.html",
+      "flutter": "lib/admin_preview_config_sections.dart · diálogos",
+      "stage": "E7",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 48,
+      "title": "Zonas · Dashboard de aliados y liquidación",
+      "file": "project/ZonasAliados.dc.html",
+      "flutter": "lib/admin_country_coverage.dart",
+      "stage": "E7",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 49,
+      "title": "Diálogos · Países, sindicatos y accesos",
+      "file": "project/DlgAliados.dc.html",
+      "flutter": "lib/admin_country_coverage.dart · diálogos",
+      "stage": "E7",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 50,
+      "title": "20 · Entornos de prueba",
+      "file": "project/Sandbox.dc.html",
+      "flutter": "lib/admin_audit_sandbox.dart",
+      "stage": "E8",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 51,
+      "title": "21 · Carga QA",
+      "file": "project/CargaQA.dc.html",
+      "flutter": "lib/admin_load_lab.dart",
+      "stage": "E8",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 52,
+      "title": "Socios · Resumen",
+      "file": "project/SociosResumen.dc.html",
+      "flutter": "lib/partner_panel.dart · _PartnerOverview",
+      "stage": "E8",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 53,
+      "title": "Socios · Conductores y solicitudes",
+      "file": "project/SociosConductores.dc.html",
+      "flutter": "lib/partner_panel.dart · _PartnerDrivers / _PartnerJoinRequests",
+      "stage": "E8",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    },
+    {
+      "n": 54,
+      "title": "Socios · Pagos y avisos",
+      "file": "project/SociosAvisos.dc.html",
+      "flutter": "lib/partner_panel.dart · _PartnerPayments / _PartnerAnnouncements",
+      "stage": "E8",
+      "reference": "inspeccionada_en_PDF",
+      "parity": "pendiente_de_captura_real"
+    }
+  ]
+}
