@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+
+import 'core/admin_design_tokens.dart';
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
 
-const Color _detailBlue = Color(0xFF2563EB);
-const Color _detailDark = Color(0xFF0F172A);
-const Color _detailMuted = Color(0xFF64748B);
+const Color _detailBlue = AdminColors.blue;
+const Color _detailDark = AdminColors.ink;
+const Color _detailMuted = AdminColors.muted;
 const Color _detailBorder = Color(0xFFE2E8F0);
-const Color _detailSoft = Color(0xFFF8FAFC);
+const Color _detailSoft = AdminColors.surfaceSoft;
 
 List<Map<String, dynamic>> _maps(Object? value) {
   if (value is! List) return const [];
@@ -811,7 +813,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                           ? const Color(0xFF067647)
                           : status == 'rejected'
                               ? const Color(0xFFB42318)
-                              : const Color(0xFFB54708),
+                              : AdminColors.warn,
                     ),
                     const SizedBox(width: 8),
                     Text(
