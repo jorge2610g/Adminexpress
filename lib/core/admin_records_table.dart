@@ -14,6 +14,7 @@ class AdminRecordsTable extends StatefulWidget {
   final List<Map<String, dynamic>> rows;
   final Widget Function(Map<String, dynamic>) detailBuilder;
   final bool Function(Map<String, dynamic>)? tryOpen;
+  final Widget Function(Map<String, dynamic>)? rowAction;
 
   const AdminRecordsTable({
     super.key,
@@ -21,6 +22,7 @@ class AdminRecordsTable extends StatefulWidget {
     required this.rows,
     required this.detailBuilder,
     this.tryOpen,
+    this.rowAction,
   });
 
   @override
@@ -365,8 +367,9 @@ class _AdminRecordsTableState extends State<AdminRecordsTable> {
                       ),
                     ),
                     const SizedBox(width: 5),
-                    const Icon(Icons.chevron_right_rounded,
-                        color: AdminColors.blue),
+                    widget.rowAction?.call(row) ??
+                        const Icon(Icons.chevron_right_rounded,
+                            color: AdminColors.blue),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -461,15 +464,16 @@ class _AdminRecordsTableState extends State<AdminRecordsTable> {
                           child: child,
                         )),
                       DataCell(
-                        IconButton(
-                          tooltip: 'Ver detalle y acciones',
-                          onPressed: () => openRow(row),
-                          icon: const Icon(
-                            Icons.more_horiz_rounded,
-                            color: AdminColors.blue,
-                            size: 20,
-                          ),
-                        ),
+                        widget.rowAction?.call(row) ??
+                            IconButton(
+                              tooltip: 'Ver detalle y acciones',
+                              onPressed: () => openRow(row),
+                              icon: const Icon(
+                                Icons.more_horiz_rounded,
+                                color: AdminColors.blue,
+                                size: 20,
+                              ),
+                            ),
                       ),
                     ],
                   ),
