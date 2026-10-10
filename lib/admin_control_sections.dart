@@ -2485,8 +2485,28 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         return ListView(
           padding: const EdgeInsets.all(22),
           children: [
-            _Header(
+            _AdminHero(
+              icon: Icons.map_outlined,
               title: 'Zonas de operación',
+              subtitle: 'Países, ciudades y áreas de servicio de Express.',
+              stats: [
+                ('Zonas', rows.length.toString()),
+                (
+                  'Activas',
+                  rows.where((row) =>
+                    row['active'] == true && row['country_active'] != false)
+                    .length.toString(),
+                ),
+                (
+                  'Polígonos',
+                  rows.where((row) => row['coverage_mode'] == 'polygon')
+                    .length.toString(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _Header(
+              title: 'Ciudades y cobertura',
               subtitle:
                   'Cada ciudad funciona como una unidad independiente de servicios, tarifas y suscripciones.',
               action: Wrap(
