@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 
 import 'core/supabase_client.dart';
 
@@ -239,13 +240,10 @@ class _AdminEnvironmentReportsPageState
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              const Text('Reportes', style: TextStyle(
-                color: _ink, fontSize: 24, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 4),
-              const Text(
-                'Resumen general de Express. Una sola pantalla, sin cambiar '
-                'el modo del panel ni seleccionar país o zona.',
-                style: TextStyle(color: _muted),
+              const AdminPageHero(
+                title: 'Reportes',
+                subtitle: 'Resumen general de Express. Una sola pantalla, sin cambiar el modo del panel ni seleccionar país o zona.',
+                icon: Icons.bar_chart_rounded,
               ),
               const SizedBox(height: 14),
               Wrap(
