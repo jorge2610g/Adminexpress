@@ -4672,8 +4672,9 @@ class _RecordsState extends State<_Records> {
       'Usuarios' => AdminRecordsKind.users,
       _ => null,
     };
-    final showDesktopTable =
-        tableKind != null && MediaQuery.sizeOf(context).width >= 1080;
+    // Both desktop tables and responsive cards are drawn from the same
+    // scoped rows, preserving the original RPC filters and detail actions.
+    final showMockupRecords = tableKind != null;
 
     String statusLabel(String value) => switch (value.toLowerCase()) {
       'approved' => 'Activos',
@@ -4783,7 +4784,7 @@ class _RecordsState extends State<_Records> {
               style: const TextStyle(color: adminMuted),
             ),
           )
-        else if (showDesktopTable)
+        else if (showMockupRecords)
           AdminRecordsTable(
             kind: tableKind!,
             rows: visible,
