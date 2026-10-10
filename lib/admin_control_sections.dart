@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -3903,110 +3904,49 @@ class _AdminHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0B57D0), Color(0xFF5B74F5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
-          BoxShadow(color: Color(0x2A0B57D0), blurRadius: 24, offset: Offset(0, 10)),
-        ],
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final info = Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.16),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFFE7EEFF),
-                        fontSize: 11,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-
-          final statRow = Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: stats
-                .map(
-                  (stat) => Container(
-                    constraints: const BoxConstraints(minWidth: 105),
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(.13),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(.14)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          stat.$2,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        Text(
-                          stat.$1,
-                          style: const TextStyle(color: Color(0xFFE7EEFF), fontSize: 9),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-                .toList(),
-          );
-
-          if (constraints.maxWidth < 780) {
-            return Column(
+    final statRow = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final stat in stats)
+          Container(
+            constraints: const BoxConstraints(minWidth: 98),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: .15)),
+            ),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [info, const SizedBox(height: 14), statRow],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(child: info),
-              const SizedBox(width: 20),
-              statRow,
-            ],
-          );
-        },
-      ),
+              children: [
+                Text(
+                  stat.$2,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  stat.$1,
+                  style: const TextStyle(
+                    color: AdminColors.headerMuted,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    return AdminPageHero(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      trailing: stats.isEmpty ? null : statRow,
     );
   }
 }
@@ -4032,17 +3972,10 @@ class _AdminModuleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Ink(
+      borderRadius: BorderRadius.circular(AdminRadius.card),
+      child: AdminCard(
+        elevated: true,
         padding: const EdgeInsets.all(17),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE4EAF2)),
-          boxShadow: const [
-            BoxShadow(color: Color(0x0D101828), blurRadius: 18, offset: Offset(0, 7)),
-          ],
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -4052,52 +3985,44 @@ class _AdminModuleCard extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: accent.withOpacity(.10),
+                    color: accent.withValues(alpha: .10),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: accent, size: 22),
                 ),
                 const Spacer(),
                 if (onTap != null)
-                  const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: _muted),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                    color: AdminColors.muted,
+                  ),
               ],
             ),
             const SizedBox(height: 14),
             Text(
               title,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: _dark),
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: AdminColors.ink,
+              ),
             ),
             const SizedBox(height: 5),
             Text(
               subtitle,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10, color: _muted, height: 1.4),
+              style: AdminText.caption,
             ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: chips
-                  .map(
-                    (chip) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F7FA),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: const Color(0xFFE7ECF3)),
-                      ),
-                      child: Text(
-                        chip,
-                        style: const TextStyle(
-                          color: _dark,
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
+              children: [
+                for (final chip in chips)
+                  AdminStatusChip(chip, dot: false),
+              ],
             ),
           ],
         ),
@@ -8974,110 +8899,11 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final copy = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 23,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            letterSpacing: -.35,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: Color(0xFFD7E7FA),
-            height: 1.4,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF102A56), Color(0xFF174B91), Color(0xFF0D6B8D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x2B174B91),
-            blurRadius: 24,
-            offset: Offset(0, 9),
-          ),
-        ],
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (action == null) {
-            return Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(.12),
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(color: Colors.white.withOpacity(.16)),
-                  ),
-                  child: const Icon(
-                    Icons.dashboard_customize_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 13),
-                Expanded(child: copy),
-              ],
-            );
-          }
-
-          if (constraints.maxWidth < 680) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                copy,
-                const SizedBox(height: 14),
-                action!,
-              ],
-            );
-          }
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.12),
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(color: Colors.white.withOpacity(.16)),
-                ),
-                child: const Icon(
-                  Icons.dashboard_customize_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 13),
-              Expanded(child: copy),
-              const SizedBox(width: 16),
-              action!,
-            ],
-          );
-        },
-      ),
+    return AdminPageHero(
+      title: title,
+      subtitle: subtitle,
+      icon: Icons.dashboard_customize_rounded,
+      trailing: action,
     );
   }
 }
@@ -9188,70 +9014,25 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D101828),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AdminColors.blueSoft,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(_settingsIcon(title), color: _blue, size: 20),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: _dark,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        subtitle!,
-                        style: const TextStyle(
-                          color: _muted,
-                          fontSize: 10,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          const Divider(height: 1, color: Color(0xFFEEF1F5)),
-          const SizedBox(height: 8),
-          ...children,
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: AdminCard(
+        elevated: true,
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AdminSectionHeading(
+              title: title,
+              subtitle: subtitle,
+              icon: _settingsIcon(title),
+            ),
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: Color(0xFFEEF1F5)),
+            const SizedBox(height: 8),
+            ...children,
+          ],
+        ),
       ),
     );
   }
@@ -9442,12 +9223,9 @@ class _Empty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Text(text, style: const TextStyle(color: _muted)),
-      ),
+    return AdminEmptyState(
+      title: 'Sin información',
+      message: text,
     );
   }
 }
@@ -9486,26 +9264,9 @@ class _Error extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline_rounded, size: 46),
-              const SizedBox(height: 10),
-              Text(error.toString()),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return AdminErrorState(
+      message: error.toString(),
+      onRetry: onRetry,
     );
   }
 }
