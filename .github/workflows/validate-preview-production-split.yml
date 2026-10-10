@@ -45,7 +45,19 @@ jobs:
           grep -q "AdminSettingsPage(channel: adminChannel)" lib/admin_panel.dart
           grep -q "AdminServicesPage(" lib/admin_panel.dart
           grep -q "AdminGeoSafetyPage(" lib/admin_panel.dart
-          grep -q "AdminIdentitySecurityPage(" lib/admin_panel.dart
+          # Identity and document requirements are intentionally unified under Conductores.
+          # Legacy section indices remain compatible, but must resolve to the same driver UI.
+          grep -q "AdminDriverDocumentRequirementsPanel(" lib/admin_panel.dart
+          grep -q "label: const Text('Ajuste de requisitos')" lib/admin_panel.dart
+          python3 - <<'PY'
+          from pathlib import Path
+          panel = Path('lib/admin_panel.dart').read_text()
+          for section in ('18', '27'):
+              marker = f'case {section}:'
+              block = panel.split(marker, 1)[1].split('case ', 1)[0]
+              assert 'return _driverList();' in block, f'Legacy identity section {section} must route to Conductores'
+          print('PASS: identity requirements and manual review are unified under Conductores.')
+          PY
           grep -q "AdminAdvancedSettingsPage(channel: adminChannel)" lib/admin_panel.dart
           grep -q "AdminDriverSubscriptionsPage(" lib/admin_panel.dart
 
@@ -228,7 +240,15 @@ jobs:
           assert "row?['id'] != null && !_environment.isPreview" in zones_editor
           assert "'polygon': coverageMode == 'polygon'" in zones_editor
           assert "if (_environment.isPreview)" in zones_editor
-          assert "AdminManualIdentityPage(" in panel and "AdminIdentitySecurityPage(" in panel
+          # Identity/review UI is unified under Conductores. Keep legacy section
+          # indices fail-safe by routing them to the same driver list.
+          for section in ('18', '27'):
+              block = panel.split(f'case {section}:', 1)[1].split('case ', 1)[0]
+              assert 'return _driverList();' in block
+          assert 'AdminDriverDocumentRequirementsPanel(' in panel
+          assert "label: const Text('Ajuste de requisitos')" in panel
+          assert 'AdminManualIdentityPage(' not in panel
+          assert 'AdminIdentitySecurityPage(' not in panel
           assert "AdminDistanceFaresEditor(" in Path('lib/admin_control_sections.dart').read_text()
           assert 'productionAccess: allowProduction && !adminIsPreview' in panel
           assert 'static const Set<int> _previewScopedModules' in panel
