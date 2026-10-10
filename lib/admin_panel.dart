@@ -1512,10 +1512,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
-                  final cardWidth = width < 700
+                  final cardWidth = width < 340
                       ? width
                       : width < 1100
-                          ? (width - 12) / 2
+                          ? (width - 14) / 2
                           : (width - 42) / 4;
                   return Wrap(
                     spacing: 14,
