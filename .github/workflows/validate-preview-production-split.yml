@@ -284,6 +284,10 @@ jobs:
           flutter analyze --no-fatal-warnings --no-fatal-infos \
             lib/admin_panel.dart \
             lib/main.dart \
+            lib/partner_panel.dart \
+            lib/core/admin_widgets.dart \
+            lib/core/admin_design_tokens.dart \
+            lib/core/admin_records_table.dart \
             lib/core/supabase_client.dart \
             lib/admin_single_app_release.dart \
             lib/admin_environment_reports.dart \
@@ -300,6 +304,10 @@ jobs:
             lib/admin_driver_document_requirements.dart \
             lib/admin_country_coverage.dart \
             lib/admin_distance_fares.dart
+      - name: Verify responsive mockup components
+        run: |
+          flutter test test/admin_mockup_widgets_test.dart
+          flutter test test/admin_records_table_test.dart
       - name: Verify active polygon vs radio zone labels
         run: flutter test test/admin_zone_coverage_label_test.dart
       - name: Verify invalid environment channel fails closed in release and QA

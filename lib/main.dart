@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'admin_panel.dart';
 import 'core/supabase_client.dart';
 import 'core/admin_environment_navigation.dart';
+import 'core/admin_design_tokens.dart';
 import 'partner_panel.dart';
 
 const adminExpressVersion = 'Adminexpress v1.0.1 · build 2';
@@ -49,8 +50,36 @@ class AdminExpressApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF0B57D0),
-        scaffoldBackgroundColor: const Color(0xFFF7F9FC),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AdminColors.blue,
+          surface: AdminColors.surface,
+        ),
+        scaffoldBackgroundColor: AdminColors.bg,
+        cardTheme: CardThemeData(
+          color: AdminColors.surface,
+          surfaceTintColor: AdminColors.surface,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AdminRadius.card),
+            side: const BorderSide(color: AdminColors.border),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: AdminColors.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AdminRadius.control),
+            borderSide: const BorderSide(color: AdminColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AdminRadius.control),
+            borderSide: const BorderSide(color: AdminColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AdminRadius.control),
+            borderSide: const BorderSide(color: AdminColors.blue, width: 1.5),
+          ),
+        ),
       ),
       home: startupError == null
           ? const _AdminAuthGate()
@@ -261,7 +290,7 @@ class _AdminLoginState extends State<_AdminLogin> {
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= 900;
+    final wide = MediaQuery.sizeOf(context).width >= AdminBreakpoints.desktop;
     return Scaffold(
       body: Row(
         children: [
@@ -429,15 +458,7 @@ class _AdminBrandPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(54),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF073B8C),
-            Color(0xFF0B57D0),
-            Color(0xFF39A0FF),
-          ],
-        ),
+        gradient: AdminGradients.hero,
       ),
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,

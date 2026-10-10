@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'core/admin_widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
@@ -352,12 +354,11 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('Express · Una sola aplicación', style: TextStyle(
-          fontSize: 23, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 8),
-        const Text('Desarrollo y pruebas compartidas: Web primero. '
-            'Android usa lib/mobile_main.dart y se compila cuando hay '
-            'una función nativa que verificar o una nueva publicación.'),
+        const AdminPageHero(
+          title: 'Express · Una sola aplicación',
+          subtitle: 'Desarrollo y pruebas compartidas: Web primero. Android se compila cuando hay una función nativa que verificar o una nueva publicación.',
+          icon: Icons.android_rounded,
+        ),
         const SizedBox(height: 12),
         if (!canManage)
           _section('Solo lectura',

@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -13,9 +16,9 @@ import 'admin_distance_fares.dart';
 import 'admin_zone_coverage_editor.dart';
 import 'core/admin_zone_coverage_label.dart';
 
-const Color _blue = Color(0xFF2563EB);
-const Color _dark = Color(0xFF0F172A);
-const Color _muted = Color(0xFF64748B);
+const Color _blue = AdminColors.blue;
+const Color _dark = AdminColors.ink;
+const Color _muted = AdminColors.muted;
 
 class AdminDispatchPage extends StatefulWidget {
   final String channel;
@@ -377,7 +380,7 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
             ),
             const SizedBox(height: 14),
             Card(
-              color: const Color(0xFFEAF2FF),
+              color: AdminColors.blueSoft,
               elevation: 0,
               child: Padding(
                 padding: const EdgeInsets.all(14),
@@ -1162,7 +1165,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                       elevation: 0,
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: const Color(0xFFEAF2FF),
+                          backgroundColor: AdminColors.blueSoft,
                           child: Icon(
                             active
                                 ? Icons.verified_user_outlined
@@ -1493,7 +1496,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     width: 180,
                     padding: const EdgeInsets.all(13),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: AdminColors.surfaceSoft,
                       border: Border.all(color: const Color(0xFFE7ECF3)),
                       borderRadius: BorderRadius.circular(11),
                     ),
@@ -1722,7 +1725,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             CircleAvatar(
-                              backgroundColor: const Color(0xFFEAF2FF),
+                              backgroundColor: AdminColors.blueSoft,
                               child: Icon(
                                 row['organization_type'] == 'syndicate'
                                     ? Icons.groups_2_rounded
@@ -1960,7 +1963,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Row(
@@ -2107,7 +2110,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: AdminColors.surfaceSoft,
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -2532,7 +2535,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     ),
                     leading: CircleAvatar(
                       radius: 18,
-                      backgroundColor: const Color(0xFFEAF2FF),
+                      backgroundColor: AdminColors.blueSoft,
                       child: Icon(
                         row['active'] == true
                             ? Icons.location_on_rounded
@@ -2773,7 +2776,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
@@ -3901,110 +3904,49 @@ class _AdminHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0B57D0), Color(0xFF5B74F5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
-          BoxShadow(color: Color(0x2A0B57D0), blurRadius: 24, offset: Offset(0, 10)),
-        ],
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final info = Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.16),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFFE7EEFF),
-                        fontSize: 11,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-
-          final statRow = Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: stats
-                .map(
-                  (stat) => Container(
-                    constraints: const BoxConstraints(minWidth: 105),
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(.13),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(.14)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          stat.$2,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        Text(
-                          stat.$1,
-                          style: const TextStyle(color: Color(0xFFE7EEFF), fontSize: 9),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-                .toList(),
-          );
-
-          if (constraints.maxWidth < 780) {
-            return Column(
+    final statRow = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final stat in stats)
+          Container(
+            constraints: const BoxConstraints(minWidth: 98),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: .15)),
+            ),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [info, const SizedBox(height: 14), statRow],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(child: info),
-              const SizedBox(width: 20),
-              statRow,
-            ],
-          );
-        },
-      ),
+              children: [
+                Text(
+                  stat.$2,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  stat.$1,
+                  style: const TextStyle(
+                    color: AdminColors.headerMuted,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    return AdminPageHero(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      trailing: stats.isEmpty ? null : statRow,
     );
   }
 }
@@ -4030,17 +3972,10 @@ class _AdminModuleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Ink(
+      borderRadius: BorderRadius.circular(AdminRadius.card),
+      child: AdminCard(
+        elevated: true,
         padding: const EdgeInsets.all(17),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE4EAF2)),
-          boxShadow: const [
-            BoxShadow(color: Color(0x0D101828), blurRadius: 18, offset: Offset(0, 7)),
-          ],
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -4050,52 +3985,44 @@ class _AdminModuleCard extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: accent.withOpacity(.10),
+                    color: accent.withValues(alpha: .10),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: accent, size: 22),
                 ),
                 const Spacer(),
                 if (onTap != null)
-                  const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: _muted),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                    color: AdminColors.muted,
+                  ),
               ],
             ),
             const SizedBox(height: 14),
             Text(
               title,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: _dark),
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: AdminColors.ink,
+              ),
             ),
             const SizedBox(height: 5),
             Text(
               subtitle,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10, color: _muted, height: 1.4),
+              style: AdminText.caption,
             ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: chips
-                  .map(
-                    (chip) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F7FA),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: const Color(0xFFE7ECF3)),
-                      ),
-                      child: Text(
-                        chip,
-                        style: const TextStyle(
-                          color: _dark,
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
+              children: [
+                for (final chip in chips)
+                  AdminStatusChip(chip, dot: false),
+              ],
             ),
           ],
         ),
@@ -4192,7 +4119,7 @@ Color _securityTone(String? type) {
     case 'caution':
       return const Color(0xFFF79009);
     default:
-      return const Color(0xFFD92D20);
+      return AdminColors.danger;
   }
 }
 
@@ -4357,7 +4284,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
@@ -4600,7 +4527,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -4898,7 +4825,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                       elevation: 0,
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: const Color(0xFFEAF2FF),
+                          backgroundColor: AdminColors.blueSoft,
                           child: Icon(
                             type == 'airport'
                                 ? Icons.flight_rounded
@@ -5108,7 +5035,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                       vertical: 4,
                     ),
                     leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFEAF2FF),
+                      backgroundColor: AdminColors.blueSoft,
                       child: Icon(Icons.payments_outlined, color: _blue),
                     ),
                     title: Text(
@@ -6013,7 +5940,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
             style: approved
                 ? null
                 : FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFD92D20),
+                    backgroundColor: AdminColors.danger,
                   ),
             child: Text(approved ? 'Aprobar' : 'Rechazar'),
           ),
@@ -6496,7 +6423,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                         backgroundColor: Color(0xFFFFF4E5),
                         child: Icon(
                           Icons.account_balance_wallet_outlined,
-                          color: Color(0xFFB54708),
+                          color: AdminColors.warn,
                         ),
                       ),
                       title: Text(
@@ -6601,7 +6528,7 @@ class _AdminPaymentNotice extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: AdminColors.surfaceSoft,
         border: Border.all(color: const Color(0xFFE2E8F0)),
         borderRadius: BorderRadius.circular(10),
       ),
@@ -7066,7 +6993,7 @@ class _AdminCommunicationsPageState
                                           ),
                                           decoration: BoxDecoration(
                                             color: admin
-                                                ? const Color(0xFFEAF2FF)
+                                                ? AdminColors.blueSoft
                                                 : const Color(0xFFF2F4F7),
                                             borderRadius:
                                                 BorderRadius.circular(14),
@@ -7281,7 +7208,7 @@ class _AdminCommunicationsPageState
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: AdminColors.surfaceSoft,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
@@ -8165,7 +8092,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                       ),
                       decoration: BoxDecoration(
                         color: selected
-                            ? const Color(0xFFEAF2FF)
+                            ? AdminColors.blueSoft
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(9),
                       ),
@@ -8768,7 +8695,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                     const Text(
                       'Todavía no hay builds Android listos registrados en el panel.',
                       style: TextStyle(
-                        color: Color(0xFFB54708),
+                        color: AdminColors.warn,
                         fontSize: 11,
                       ),
                     ),
@@ -8902,7 +8829,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                     title: 'Mantenimiento',
                     subtitle: 'Bloqueo temporal y versión mínima permitida.',
                     accent: row['maintenance_mode'] == true
-                        ? const Color(0xFFD92D20)
+                        ? AdminColors.danger
                         : const Color(0xFF667085),
                     chips: [
                       row['maintenance_mode'] == true ? 'Mantenimiento activo' : 'Operación normal',
@@ -8972,110 +8899,11 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final copy = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 23,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            letterSpacing: -.35,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: Color(0xFFD7E7FA),
-            height: 1.4,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF102A56), Color(0xFF174B91), Color(0xFF0D6B8D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x2B174B91),
-            blurRadius: 24,
-            offset: Offset(0, 9),
-          ),
-        ],
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (action == null) {
-            return Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(.12),
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(color: Colors.white.withOpacity(.16)),
-                  ),
-                  child: const Icon(
-                    Icons.dashboard_customize_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 13),
-                Expanded(child: copy),
-              ],
-            );
-          }
-
-          if (constraints.maxWidth < 680) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                copy,
-                const SizedBox(height: 14),
-                action!,
-              ],
-            );
-          }
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.12),
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(color: Colors.white.withOpacity(.16)),
-                ),
-                child: const Icon(
-                  Icons.dashboard_customize_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 13),
-              Expanded(child: copy),
-              const SizedBox(width: 16),
-              action!,
-            ],
-          );
-        },
-      ),
+    return AdminPageHero(
+      title: title,
+      subtitle: subtitle,
+      icon: Icons.dashboard_customize_rounded,
+      trailing: action,
     );
   }
 }
@@ -9094,7 +8922,7 @@ class _Kpi extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFDDE6F0)),
+        border: Border.all(color: AdminColors.border),
         boxShadow: const [
           BoxShadow(
             color: Color(0x120F172A),
@@ -9186,70 +9014,25 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D101828),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(_settingsIcon(title), color: _blue, size: 20),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: _dark,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        subtitle!,
-                        style: const TextStyle(
-                          color: _muted,
-                          fontSize: 10,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          const Divider(height: 1, color: Color(0xFFEEF1F5)),
-          const SizedBox(height: 8),
-          ...children,
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: AdminCard(
+        elevated: true,
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AdminSectionHeading(
+              title: title,
+              subtitle: subtitle,
+              icon: _settingsIcon(title),
+            ),
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: Color(0xFFEEF1F5)),
+            const SizedBox(height: 8),
+            ...children,
+          ],
+        ),
       ),
     );
   }
@@ -9336,7 +9119,7 @@ class _DispatchItem extends StatelessWidget {
                 height: 36,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
+                  color: AdminColors.blueSoft,
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: Icon(icon, color: _blue, size: 18),
@@ -9413,9 +9196,9 @@ class _MiniStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg =
-        positive ? const Color(0xFFE8F8EF) : const Color(0xFFF2F4F7);
+        positive ? AdminColors.okSoft : const Color(0xFFF2F4F7);
     final fg =
-        positive ? const Color(0xFF14804A) : const Color(0xFF667085);
+        positive ? AdminColors.ok : const Color(0xFF667085);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -9440,12 +9223,9 @@ class _Empty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Text(text, style: const TextStyle(color: _muted)),
-      ),
+    return AdminEmptyState(
+      title: 'Sin información',
+      message: text,
     );
   }
 }
@@ -9484,26 +9264,9 @@ class _Error extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline_rounded, size: 46),
-              const SizedBox(height: 10),
-              Text(error.toString()),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return AdminErrorState(
+      message: error.toString(),
+      onRetry: onRetry,
     );
   }
 }

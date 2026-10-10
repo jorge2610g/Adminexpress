@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
+
 import 'core/supabase_client.dart';
 
-const _bg = Color(0xFFF1F5F9);
-const _ink = Color(0xFF0F172A);
-const _muted = Color(0xFF64748B);
-const _blue = Color(0xFF2563EB);
+const _bg = AdminColors.bg;
+const _ink = AdminColors.ink;
+const _muted = AdminColors.muted;
+const _blue = AdminColors.blue;
 
 /// One reports destination for Express. Production and QA metrics remain
 /// separate, clearly labeled datasets; never sum test figures into real KPIs.
@@ -143,7 +146,7 @@ class _AdminEnvironmentReportsPageState
                 child: Row(
                   children: [
                     CircleAvatar(
-                      backgroundColor: const Color(0xFFEAF2FF),
+                      backgroundColor: AdminColors.blueSoft,
                       child: Icon(item.$3, color: _blue),
                     ),
                     const SizedBox(width: 12),
@@ -171,7 +174,7 @@ class _AdminEnvironmentReportsPageState
 
   Widget _channelReport(String channel, Map<String, dynamic> data) {
     final isTest = channel == 'preview';
-    final accent = isTest ? const Color(0xFFB54708) : const Color(0xFF14804A);
+    final accent = isTest ? AdminColors.warn : AdminColors.ok;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -179,7 +182,7 @@ class _AdminEnvironmentReportsPageState
           width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: isTest ? const Color(0xFFFFF7E6) : const Color(0xFFE8F8EF),
+            color: isTest ? AdminColors.warnSoft : AdminColors.okSoft,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(children: [
@@ -237,13 +240,10 @@ class _AdminEnvironmentReportsPageState
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              const Text('Reportes', style: TextStyle(
-                color: _ink, fontSize: 24, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 4),
-              const Text(
-                'Resumen general de Express. Una sola pantalla, sin cambiar '
-                'el modo del panel ni seleccionar país o zona.',
-                style: TextStyle(color: _muted),
+              const AdminPageHero(
+                title: 'Reportes',
+                subtitle: 'Resumen general de Express. Una sola pantalla, sin cambiar el modo del panel ni seleccionar país o zona.',
+                icon: Icons.bar_chart_rounded,
               ),
               const SizedBox(height: 14),
               Wrap(

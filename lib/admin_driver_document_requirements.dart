@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
+
 import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
 
@@ -145,12 +148,12 @@ class _AdminDriverDocumentRequirementsPanelState
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEAF2FF),
+                        color: AdminColors.blueSoft,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.info_outline_rounded, color: Color(0xFF2563EB)),
+                          Icon(Icons.info_outline_rounded, color: AdminColors.blue),
                           SizedBox(width: 9),
                           Expanded(
                             child: Text(
@@ -412,7 +415,7 @@ class _AdminDriverDocumentRequirementsPanelState
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD92D20)),
+            style: FilledButton.styleFrom(backgroundColor: AdminColors.danger),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Eliminar'),
           ),
@@ -477,7 +480,7 @@ class _AdminDriverDocumentRequirementsPanelState
               padding: const EdgeInsets.all(18),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline_rounded, color: Color(0xFFD92D20)),
+                  const Icon(Icons.error_outline_rounded, color: AdminColors.danger),
                   const SizedBox(width: 10),
                   Expanded(child: Text(snapshot.error.toString())),
                   TextButton(
@@ -493,44 +496,23 @@ class _AdminDriverDocumentRequirementsPanelState
         final data = snapshot.data ??
             (requirements: <Map<String, dynamic>>[], zones: <Map<String, dynamic>>[]);
 
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const CircleAvatar(
-                      backgroundColor: Color(0xFFEAF2FF),
-                      child: Icon(Icons.folder_shared_outlined, color: Color(0xFF2563EB)),
-                    ),
-                    const SizedBox(width: 11),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Documentos requeridos para conductores',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            'Crea, edita o elimina los documentos que debe cargar cada conductor según país o ciudad.',
-                            style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    FilledButton.icon(
-                      onPressed: () => _edit(zones: data.zones),
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Nuevo documento'),
-                    ),
-                  ],
+        return AdminCard(
+          elevated: true,
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AdminSectionHeading(
+                title: 'Documentos requeridos para conductores',
+                subtitle: 'Crea, edita o elimina los documentos que debe cargar cada conductor según país o ciudad.',
+                icon: Icons.folder_shared_outlined,
+                trailing: FilledButton.icon(
+                  onPressed: () => _edit(zones: data.zones),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Nuevo documento'),
                 ),
-                const SizedBox(height: 14),
+              ),
+              const SizedBox(height: 14),
                 if (data.requirements.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 18),
@@ -543,10 +525,19 @@ class _AdminDriverDocumentRequirementsPanelState
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: row['active'] == false
-                            ? const Color(0xFFF8FAFC)
+                            ? AdminColors.surfaceSoft
                             : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE4E7EC)),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AdminColors.border),
+                        boxShadow: row['active'] == false
+                            ? null
+                            : const [
+                                BoxShadow(
+                                  color: Color(0x0A0F172A),
+                                  blurRadius: 12,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
                       ),
                       child: Row(
                         children: [
@@ -554,7 +545,7 @@ class _AdminDriverDocumentRequirementsPanelState
                             row['require_selfie'] == true
                                 ? Icons.face_retouching_natural_rounded
                                 : Icons.badge_outlined,
-                            color: const Color(0xFF2563EB),
+                            color: AdminColors.blue,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -570,17 +561,29 @@ class _AdminDriverDocumentRequirementsPanelState
                                   spacing: 6,
                                   runSpacing: 4,
                                   children: [
-                                    Chip(label: Text(_scopeLabel(row))),
+                                    AdminStatusChip(
+                                      _scopeLabel(row),
+                                      tone: AdminStatusTone.info,
+                                      dot: false,
+                                    ),
                                     if (row['required'] == true)
-                                      const Chip(label: Text('Obligatorio')),
+                                      const AdminStatusChip(
+                                        'Obligatorio',
+                                        tone: AdminStatusTone.danger,
+                                        dot: false,
+                                      ),
                                     if (row['require_front'] == true)
-                                      const Chip(label: Text('Frente')),
+                                      const AdminStatusChip('Frente', dot: false),
                                     if (row['require_back'] == true)
-                                      const Chip(label: Text('Reverso')),
+                                      const AdminStatusChip('Reverso', dot: false),
                                     if (row['require_selfie'] == true)
-                                      const Chip(label: Text('Selfie')),
+                                      const AdminStatusChip(
+                                        'Selfie',
+                                        tone: AdminStatusTone.purple,
+                                        dot: false,
+                                      ),
                                     if (row['active'] == false)
-                                      const Chip(label: Text('Inactivo')),
+                                      const AdminStatusChip('Inactivo', dot: false),
                                   ],
                                 ),
                               ],
@@ -600,8 +603,7 @@ class _AdminDriverDocumentRequirementsPanelState
                       ),
                     ),
                   ),
-              ],
-            ),
+            ],
           ),
         );
       },

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+
 import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
 
-const Color _countryBlue = Color(0xFF2563EB);
-const Color _countryMuted = Color(0xFF64748B);
+const Color _countryBlue = AdminColors.blue;
+const Color _countryMuted = AdminColors.muted;
 
 class AdminCountryCoveragePage extends StatefulWidget {
   final String channel;
@@ -179,7 +181,7 @@ class _AdminCountryCoveragePageState
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
@@ -255,7 +257,7 @@ class _AdminCountryCoveragePageState
                   const ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(Icons.verified_user_rounded,
-                        color: Color(0xFF14804A)),
+                        color: AdminColors.ok),
                     title: Text('Identidad: verificación manual'),
                     subtitle: Text(
                       'Carné frontal, reverso y selfie. La revisión '
@@ -364,7 +366,7 @@ class _AdminCountryCoveragePageState
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: positive
-            ? const Color(0xFFE8F8EF)
+            ? AdminColors.okSoft
             : const Color(0xFFF2F4F7),
         borderRadius: BorderRadius.circular(20),
       ),
@@ -372,7 +374,7 @@ class _AdminCountryCoveragePageState
         text,
         style: TextStyle(
           color: positive
-              ? const Color(0xFF14804A)
+              ? AdminColors.ok
               : const Color(0xFF667085),
           fontSize: 10,
           fontWeight: FontWeight.w900,
@@ -481,7 +483,7 @@ class _AdminCountryCoveragePageState
                       ),
                       leading: CircleAvatar(
                         backgroundColor: active
-                            ? const Color(0xFFEAF2FF)
+                            ? AdminColors.blueSoft
                             : const Color(0xFFF2F4F7),
                         child: Icon(
                           active

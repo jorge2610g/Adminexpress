@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
+
 import 'core/supabase_client.dart';
 
-const _blue = Color(0xFF2563EB);
+const _blue = AdminColors.blue;
 const _green = Color(0xFF16A34A);
 const _orange = Color(0xFFF59E0B);
 const _red = Color(0xFFDC2626);
-const _ink = Color(0xFF0F172A);
-const _muted = Color(0xFF64748B);
-const _bg = Color(0xFFF1F5F9);
+const _ink = AdminColors.ink;
+const _muted = AdminColors.muted;
+const _bg = AdminColors.bg;
 
 class AdminDriverPriorityPage extends StatefulWidget {
   final String channel;
@@ -477,40 +480,33 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Prioridad de conductores',
-                          style: TextStyle(
-                            color: _ink,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Alta, Media y Baja según reputación, reseñas, experiencia y frecuencia.',
-                          style: TextStyle(color: _muted),
-                        ),
-                      ],
+              AdminPageHero(
+                title: 'Prioridad de conductores',
+                subtitle: 'Alta, Media y Baja según reputación, reseñas, experiencia y frecuencia.',
+                icon: Icons.workspace_premium_rounded,
+                trailing: Wrap(
+                  spacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _refresh,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Actualizar'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white54),
+                      ),
                     ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Actualizar'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: () => _editSettings(settings),
-                    icon: const Icon(Icons.tune_rounded),
-                    label: const Text('Configurar'),
-                  ),
-                ],
+                    FilledButton.icon(
+                      onPressed: () => _editSettings(settings),
+                      icon: const Icon(Icons.tune_rounded),
+                      label: const Text('Configurar'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AdminColors.blue,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
               Wrap(
@@ -551,7 +547,7 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
+                  color: AdminColors.blueSoft,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Row(

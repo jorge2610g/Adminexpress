@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
+
 import 'core/supabase_client.dart';
 
 class AdminDynamicPricingPage extends StatefulWidget {
@@ -307,41 +310,34 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Demanda y precios',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Precio recomendado autoritativo · ' +
-                              (widget.channel == 'preview'
-                                  ? 'Preview'
-                                  : 'Producción'),
-                        ),
-                      ],
+              AdminPageHero(
+                title: 'Demanda y precios',
+                subtitle: 'Precio recomendado autoritativo · ' +
+                    (widget.channel == 'preview' ? 'Preview' : 'Producción'),
+                icon: Icons.trending_up_rounded,
+                trailing: Wrap(
+                  spacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _refresh,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Actualizar'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white54),
+                      ),
                     ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Actualizar'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: () => _configure(settings),
-                    icon: const Icon(Icons.tune_rounded),
-                    label: const Text('Configurar'),
-                  ),
-                ],
+                    FilledButton.icon(
+                      onPressed: () => _configure(settings),
+                      icon: const Icon(Icons.tune_rounded),
+                      label: const Text('Configurar'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AdminColors.blue,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 18),
               Wrap(
@@ -448,7 +444,7 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Color(0xFF64748B))),
+          Text(label, style: const TextStyle(color: AdminColors.muted)),
           const SizedBox(height: 4),
           Text(
             value,

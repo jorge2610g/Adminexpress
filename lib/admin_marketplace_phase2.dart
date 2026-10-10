@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
+
 import 'core/supabase_client.dart';
 
-const _blue = Color(0xFF2563EB);
-const _ink = Color(0xFF0F172A);
-const _muted = Color(0xFF64748B);
-const _bg = Color(0xFFF1F5F9);
+const _blue = AdminColors.blue;
+const _ink = AdminColors.ink;
+const _muted = AdminColors.muted;
+const _bg = AdminColors.bg;
 
 class AdminMarketplacePhase2Page extends StatefulWidget {
   final bool ordersOnly;
@@ -1282,14 +1285,14 @@ class _AdminMarketplacePhase2PageState
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: active
-            ? const Color(0xFFE8F8EF)
+            ? AdminColors.okSoft
             : const Color(0xFFF2F4F7),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: active ? const Color(0xFF14804A) : _muted,
+          color: active ? AdminColors.ok : _muted,
           fontSize: 10,
           fontWeight: FontWeight.w800,
         ),
@@ -1314,7 +1317,7 @@ class _AdminMarketplacePhase2PageState
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: const Color(0xFFEAF2FF),
+                backgroundColor: AdminColors.blueSoft,
                 child: Icon(icon, color: _blue),
               ),
               const SizedBox(width: 14),
@@ -1675,34 +1678,19 @@ class _AdminMarketplacePhase2PageState
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Delivery · Configuración',
-                          style: TextStyle(
-                            color: _ink,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Cada bloque abre su propia administración para mantener el panel compacto.',
-                          style: TextStyle(color: _muted),
-                        ),
-                      ],
-                    ),
+              AdminPageHero(
+                title: 'Delivery · Configuración',
+                subtitle: 'Cada bloque abre su propia administración para mantener el panel compacto.',
+                icon: Icons.delivery_dining_rounded,
+                trailing: OutlinedButton.icon(
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Actualizar'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white54),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Actualizar'),
-                  ),
-                ],
+                ),
               ),
               const SizedBox(height: 22),
               LayoutBuilder(
@@ -1767,7 +1755,7 @@ class _AdminMarketplacePhase2PageState
                   child: Row(
                     children: [
                       const CircleAvatar(
-                        backgroundColor: Color(0xFFEAF2FF),
+                        backgroundColor: AdminColors.blueSoft,
                         child: Icon(Icons.receipt_long_rounded, color: _blue),
                       ),
                       const SizedBox(width: 12),

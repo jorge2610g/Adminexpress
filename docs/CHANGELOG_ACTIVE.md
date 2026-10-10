@@ -1,3 +1,14 @@
+## 2026-10-10 — Rediseño visual integral Admin + Conductores unificado (PR #63)
+
+- Se aplicó el sistema visual de `docs/design/admin-mockup` al panel Flutter mediante tokens y componentes reutilizables: fondo, superficies, bordes, estados, cabeceras, navegación, login, diálogos y tarjetas.
+- Se conservan RPC, consultas, permisos, filtros de seguridad y lógica `ADMIN_ENV`; el rediseño no modifica Supabase, Edge Functions ni datos.
+- Conductores es la excepción intencional al mockup original: la revisión de identidad y los requisitos configurables se consolidan en **Conductores** para evitar dos flujos administrativos duplicados.
+- La ficha del conductor conserva tarjetas dinámicas según país/zona, carrusel de requisitos y revisión de frente/reverso/selfie dentro del panel.
+- `Verificación de identidad` no se vuelve a exponer como opción separada de navegación.
+- Los cambios permanecen en `chatgpt/admin-redesign-full`; **no se autoriza merge ni despliegue a Producción**. La siguiente etapa es CI + publicación exclusiva en Preview para revisión visual.
+
+---
+
 ## 2026-10-10 — Google OAuth de Preview retornaba a la web de pasajeros
 
 - Vídeo de QA: seleccionar Google en `/preview/` termina en `https://expressviajes.online/` en vez del panel. No se confirmó ingreso administrativo; no retirar permisos del administrador anterior.
