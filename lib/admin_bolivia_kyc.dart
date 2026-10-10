@@ -82,16 +82,16 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
     _ => 'Sin revisar',
   };
 
-  Future<void> _reviewSlot(
+  Future<Map<String,dynamic>?> _reviewSlot(
     Map<String,dynamic> doc,
     String slot,
     String nextStatus,
     int expectedVersion,
   ) async {
-    if (_busy) return;
+    if (_busy) return null;
     final current = _map(_map(doc['review_parts'])[slot]);
     final oldStatus = _text(current['status']);
-    if (oldStatus == nextStatus) return;
+    if (oldStatus == nextStatus) return doc;
     final reasonController=TextEditingController();
     final confirm=await showDialog<bool>(
       context:context,
@@ -128,11 +128,11 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
     );
     final reason=reasonController.text.trim();
     reasonController.dispose();
-    if(confirm!=true || !mounted) return;
+    if(confirm!=true || !mounted) return null;
     if(nextStatus=='rejected' && reason.length<5) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content:Text('Escribe al menos cinco caracteres como motivo.')));
-      return;
+      return null;
     }
     setState(()=>_busy=true);
     try {
@@ -144,16 +144,25 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
         'p_expected_version':expectedVersion,
         'p_channel':widget.channel,
       });
+      final refreshed=await _load();
+      Map<String,dynamic>? updatedDocument;
+      for(final candidate in _list(refreshed['documents'])) {
+        if(_text(candidate['id'])==_text(doc['id'])) {
+          updatedDocument=candidate;
+          break;
+        }
+      }
       if(mounted) {
-        Navigator.of(context).pop(); // Close document details after action.
-        _reload();
+        setState(()=>_future=Future.value(refreshed));
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content:Text('${_slotLabel(slot)}: ${_statusLabel(nextStatus)}.'),
         ));
       }
+      return updatedDocument;
     } catch(e) {
       if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content:Text('No se pudo actualizar la fotografía: $e. Actualiza la lista.')));
+      return null;
     } finally {
       if(mounted) setState(()=>_busy=false);
     }
@@ -226,21 +235,22 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
       } catch (_) {}
     }
     if(!mounted) return;
-    final parts=_map(document['review_parts']);
-    String? selectedZoneId=_text(document['zone_id']).isEmpty
-      ? null:_text(document['zone_id']);
+    var currentDocument=Map<String,dynamic>.from(document);
+    String? selectedZoneId=_text(currentDocument['zone_id']).isEmpty
+      ? null:_text(currentDocument['zone_id']);
     var activationBusy=false;
     await showDialog<void>(
       context:context,
       builder:(dialogContext)=>StatefulBuilder(
         builder:(context,setDialogState) {
+          final parts=_map(currentDocument['review_parts']);
           final allPhotosApproved=parts.values.whereType<Map>().every((part) {
             final photo=_text(part['path']).isNotEmpty;
             return !photo || _text(part['status'])=='approved';
           });
-          final verified=_text(document['status'])=='verified';
-          final alreadyActive=_text(document['approval_status'])=='approved' &&
-            _text(document['zone_id']).isNotEmpty;
+          final verified=_text(currentDocument['status'])=='verified';
+          final alreadyActive=_text(currentDocument['approval_status'])=='approved' &&
+            _text(currentDocument['zone_id']).isNotEmpty;
           Map<String,dynamic>? selectedZone;
           for(final zone in zones) {
             if(_text(zone['id'])==selectedZoneId) {
@@ -254,11 +264,11 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
         title:const Text('Revisión individual de identidad'),
         content:SizedBox(width:690,child:SingleChildScrollView(
           child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-            Text('Conductor: ${_text(document['full_name'])}'),
-            Text('Carné: ${_text(document['document_number'])}'),
+            Text('Conductor: ${_text(currentDocument['full_name'])}'),
+            Text('Carné: ${_text(currentDocument['document_number'])}'),
             Text('Identidad: ${_statusLabel(
-              _text(document['status'])=='verified' ? 'approved'
-                : _text(document['status']))}'),
+              _text(currentDocument['status'])=='verified' ? 'approved'
+                : _text(currentDocument['status']))}'),
             const SizedBox(height:8),
             const Text('Puedes aprobar, rechazar o reactivar cada fotografía '
               'en cualquier momento. No se exige volver a cargar una foto '
@@ -296,22 +306,37 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
                     if(exists) Wrap(spacing:7,runSpacing:8,children:[
                       if(current!='approved')
                         FilledButton.icon(
-                          onPressed:_busy ? null:()=>_reviewSlot(
-                            document,slot,'approved',version),
+                          onPressed:_busy ? null:() async {
+                            final updated=await _reviewSlot(
+                              currentDocument,slot,'approved',version);
+                            if(updated!=null && dialogContext.mounted) {
+                              setDialogState(()=>currentDocument=updated);
+                            }
+                          },
                           icon:const Icon(Icons.check_circle_outline),
                           label:const Text('Aprobar'),
                         ),
                       if(current!='rejected')
                         OutlinedButton.icon(
-                          onPressed:_busy ? null:()=>_reviewSlot(
-                            document,slot,'rejected',version),
+                          onPressed:_busy ? null:() async {
+                            final updated=await _reviewSlot(
+                              currentDocument,slot,'rejected',version);
+                            if(updated!=null && dialogContext.mounted) {
+                              setDialogState(()=>currentDocument=updated);
+                            }
+                          },
                           icon:const Icon(Icons.highlight_off),
                           label:const Text('Rechazar'),
                         ),
                       if(current!='pending')
                         OutlinedButton.icon(
-                          onPressed:_busy ? null:()=>_reviewSlot(
-                            document,slot,'pending',version),
+                          onPressed:_busy ? null:() async {
+                            final updated=await _reviewSlot(
+                              currentDocument,slot,'pending',version);
+                            if(updated!=null && dialogContext.mounted) {
+                              setDialogState(()=>currentDocument=updated);
+                            }
+                          },
                           icon:const Icon(Icons.restart_alt),
                           label:const Text('Reactivar'),
                         ),
@@ -322,7 +347,7 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
             ],
             const SizedBox(height:12),
             if(!alreadyActive) ...[
-              if(_text(document['zone_id']).isEmpty)
+              if(_text(currentDocument['zone_id']).isEmpty)
                 DropdownButtonFormField<String>(
                   value:selectedZoneId,
                   decoration:const InputDecoration(
@@ -344,13 +369,13 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
               const SizedBox(height:10),
               FilledButton.icon(
                 onPressed:canActivate ? ()=>_activateDriver(
-                  document,selectedZone!,dialogContext,
+                  currentDocument,selectedZone!,dialogContext,
                   (busy)=>setDialogState(()=>activationBusy=busy)) : null,
                 icon:const Icon(Icons.verified_user_rounded),
                 label:Text(activationBusy ? 'Activando…':'Activar conductor'),
               ),
             ] else
-              Chip(label:Text('Activo · ${_text(document['zone_name'])}')),
+              Chip(label:Text('Activo · ${_text(currentDocument['zone_name'])}')),
             const Text('La aprobación del conductor y del vehículo '
               'es independiente de estas fotografías.'),
           ]),
