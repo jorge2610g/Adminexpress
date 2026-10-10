@@ -39,6 +39,18 @@ class _AdminRecordsTableState extends State<AdminRecordsTable> {
   }
 
   static String present(String value) => switch (value.toLowerCase()) {
+        'accepted' => 'Aceptado',
+        'searching' => 'Buscando',
+        'paid' => 'Pagado',
+        'delivered' => 'Entregado',
+        'picked_up' => 'Recogido',
+        'busy' => 'Ocupado',
+        'economy' => 'Económico',
+        'comfort' => 'Confort',
+        'motorcycle' => 'Moto',
+        'car' => 'Auto',
+        'cash' => 'Efectivo',
+        'transfer' => 'Transferencia',
         'approved' => 'Aprobado',
         'pending' => 'Pendiente',
         'rejected' => 'Rechazado',
@@ -48,7 +60,7 @@ class _AdminRecordsTableState extends State<AdminRecordsTable> {
         'cancelled' || 'canceled' => 'Cancelado',
         'in_progress' => 'En curso',
         'online' => 'En línea',
-        'offline' => 'Desconectado',
+        'offline' => 'Fuera de línea',
         'blocked' => 'Bloqueado',
         'passenger' => 'Pasajero',
         'driver' => 'Conductor',
@@ -163,20 +175,25 @@ class _AdminRecordsTableState extends State<AdminRecordsTable> {
     final danger = [
       'rejected', 'blocked', 'cancelled', 'canceled', 'suspended',
     ].contains(lower);
+    final purple = lower == 'accepted';
     final ink = success
         ? AdminColors.ok
         : warning
             ? AdminColors.warn
             : danger
                 ? AdminColors.danger
-                : AdminColors.blue;
+                : purple
+                    ? AdminColors.purple
+                    : AdminColors.blue;
     final soft = success
         ? AdminColors.okSoft
         : warning
             ? AdminColors.warnSoft
             : danger
                 ? AdminColors.dangerSoft
-                : AdminColors.blueSoft;
+                : purple
+                    ? AdminColors.purpleSoft
+                    : AdminColors.blueSoft;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
@@ -203,6 +220,16 @@ class _AdminRecordsTableState extends State<AdminRecordsTable> {
         ],
       ),
     );
+  }
+
+  String shortDate(Map<String, dynamic> row) {
+    final parsed = DateTime.tryParse(read(row, 'created_at', ''))?.toLocal();
+    if (parsed == null) return read(row, 'created_at');
+    final day = parsed.day.toString().padLeft(2, '0');
+    final month = parsed.month.toString().padLeft(2, '0');
+    final hh = parsed.hour.toString().padLeft(2, '0');
+    final mm = parsed.minute.toString().padLeft(2, '0');
+    return '$day/$month/${parsed.year}\n$hh:$mm';
   }
 
   String fare(Map<String, dynamic> row, String key) {
@@ -252,7 +279,17 @@ class _AdminRecordsTableState extends State<AdminRecordsTable> {
           value(row, delivery ? 'customer_name' : 'passenger_name', width: 130),
           value(row, delivery ? 'courier_name' : 'driver_name', width: 130),
           value(row, delivery ? 'payment_method' : 'payment_status', width: 95),
-          value(row, 'created_at', width: 112, muted: true),
+          SizedBox(
+            width: 112,
+            child: Text(
+              shortDate(row),
+              style: const TextStyle(
+                color: AdminColors.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ];
       case AdminRecordsKind.drivers:
         return [
