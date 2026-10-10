@@ -7,6 +7,7 @@ import 'core/admin_environment_navigation.dart';
 import 'core/admin_design_tokens.dart';
 import 'core/admin_widgets.dart';
 import 'core/admin_records_table.dart';
+import 'core/admin_delivery_row.dart';
 import 'admin_environment_store.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
@@ -1804,25 +1805,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           empty: 'Todavía no hay delivery.',
           rows: rows,
           serverFilters: _periodFilter('delivery'),
-          item: (row) => _OperationCard(
-            icon: Icons.local_shipping_rounded,
-            title:
-                (row['pickup_address'] ?? 'Origen').toString() +
-                ' → ' +
-                (row['dropoff_address'] ?? 'Destino').toString(),
-            subtitle:
-                (row['status'] ?? '—').toString() +
-                ' · ' +
-                (row['package_type'] ?? 'Paquete').toString() +
-                ' · Bs ' +
-                (row['proposed_fare'] ?? '—').toString(),
-            details: [
-              'Cliente: ' + (row['customer_name'] ?? '—').toString(),
-              'Repartidor: ' + (row['courier_name'] ?? '—').toString(),
-              'Pago: ' + (row['payment_method'] ?? '—').toString(),
-              'Creado: ' + _formatDate(row['created_at']),
-            ],
-          ),
+          item: (row) => AdminDeliveryRow(row: row),
         );
       },
     );
@@ -4667,7 +4650,6 @@ class _RecordsState extends State<_Records> {
 
     final tableKind = switch (widget.title) {
       'Viajes' => AdminRecordsKind.trips,
-      'Delivery' => AdminRecordsKind.delivery,
       'Conductores' => AdminRecordsKind.drivers,
       'Usuarios' => AdminRecordsKind.users,
       _ => null,
