@@ -79,6 +79,10 @@ void main() {
     expect(find.text('CONDUCTOR'), findsOneWidget);
     expect(find.text('VEHÍCULO'), findsOneWidget);
     expect(find.text('APROBACIÓN'), findsOneWidget);
+    // The last action column is horizontally scrollable at 800 px.
+    // Bring it on screen before interacting, just as the user would.
+    await tester.ensureVisible(find.byTooltip('Ver detalle y acciones'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Ver detalle y acciones'));
     await tester.pump();
     expect(find.text('Acciones de revisión'), findsOneWidget);
