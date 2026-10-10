@@ -1974,17 +1974,52 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     foregroundColor: adminBlue,
                   ),
                 ),
+          listHeader: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 760) {
+                return const SizedBox.shrink();
+              }
+              const style = TextStyle(
+                color: AdminColors.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: .4,
+              );
+              return Container(
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: AdminColors.surfaceSoft,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(AdminRadius.card),
+                  ),
+                  border: Border.all(color: AdminColors.border),
+                ),
+                child: const Row(
+                  children: [
+                    SizedBox(width: 260, child: Text('CONDUCTOR', style: style)),
+                    SizedBox(width: 12),
+                    Expanded(child: Text('VEHÍCULO', style: style)),
+                    SizedBox(width: 120, child: Text('CIUDAD', style: style)),
+                    SizedBox(width: 118, child: Text('APROBACIÓN', style: style)),
+                    SizedBox(width: 118, child: Text('ESTADO', style: style)),
+                    SizedBox(width: 40),
+                  ],
+                ),
+              );
+            },
+          ),
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
             final online = (row['online_status'] ?? 'offline').toString();
             final name = row['full_name']?.toString().trim();
 
             return Container(
-              margin: const EdgeInsets.only(bottom: 7),
+              margin: const EdgeInsets.only(bottom: 2),
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: const Color(0xFFE7ECF3)),
-                borderRadius: BorderRadius.circular(11),
+                color: AdminColors.surface,
+                border: Border.all(color: AdminColors.divider),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -2092,7 +2127,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                       ),
                       child: Row(
                         children: [
-                          SizedBox(width: 240, child: identity),
+                          SizedBox(width: 260, child: identity),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -4699,6 +4734,7 @@ class _Records extends StatefulWidget {
   final String statusField;
   final List<String>? statusOptions;
   final Widget? headerAction;
+  final Widget? listHeader;
 
   const _Records({
     required this.title,
@@ -4711,6 +4747,7 @@ class _Records extends StatefulWidget {
     this.statusField = 'status',
     this.statusOptions,
     this.headerAction,
+    this.listHeader,
   });
 
   @override
@@ -4827,7 +4864,18 @@ class _RecordsState extends State<_Records> {
               ),
               for (final value in statuses.take(5))
                 ChoiceChip(
-                  label: Text(statusLabel(value)),
+                  label: Text(
+                    statusLabel(value) +
+                        ' (' +
+                        widget.rows
+                            .where(
+                              (row) =>
+                                  row[widget.statusField]?.toString() == value,
+                            )
+                            .length
+                            .toString() +
+                        ')',
+                  ),
                   selected: status == value,
                   onSelected: (_) => setState(() => status = value),
                 ),
@@ -4868,6 +4916,10 @@ class _RecordsState extends State<_Records> {
           ),
         ),
         const SizedBox(height: 12),
+        if (visible.isNotEmpty && widget.listHeader != null) ...[
+          widget.listHeader!,
+          const SizedBox(height: 2),
+        ],
         if (visible.isEmpty)
           Container(
             padding: const EdgeInsets.all(28),
