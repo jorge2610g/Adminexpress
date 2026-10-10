@@ -104,7 +104,15 @@
 
 **Revisión del código**: `admin_control_sections.dart`, `admin_preview_config_sections.dart`, `admin_zone_coverage_editor.dart`, `admin_single_app_release.dart`, `admin_dynamic_pricing.dart`, `admin_country_coverage.dart`. El selector de cobertura debe conservar **radio O polígono, jamás ambos**. No cambiar la aprobación de builds ni seguridad en QA.
 
-**Pendientes**: comparación por formulario/campo y límites del mapa, zonas/sindicatos, roles y separaciones de canal. Las 13 pantallas suman varios modales y subestados.
+**Avance de código E7 (10 oct 2026)**:
+- Respaldo `backup/admin-e7-before-config-coverage-20261010` en el estado E6, antes de editar.
+- **Zona y cobertura:** selector responsive con dos tarjetas excluyentes (Radio / Polígono) enlazado al mismo `onModeChanged` y modo persistido; el mapa continúa dibujando únicamente el modo activo. No se modificaron la RPC, los datos ni la validación del backend.
+- **Zonas de operación:** tarjetas responsive con nombre, país, ciudad, moneda, modo de cobertura, estado e información de registro; los accesos existentes a Aliados, Métodos de pago y Editar permanecen conectados con sus funciones originales.
+- **Demanda y precios:** siete indicadores presentados en siete columnas cuando hay ancho, cuatro o dos en tablet/móvil; formulario de demanda reorganizado en filas adaptativas, sin cambiar parámetros ni algoritmo.
+- **Diálogos:** cabeceras de edición de zona, país, servicio, seguridad y demanda visualmente unificadas con el diseño de Claude. Se conservaron permisos por entorno y acciones originales.
+- Pruebas widget añadidas: selección exclusiva de cobertura, resumen y acciones de zona, siete indicadores de demanda, y cuatro campos de formulario a tamaños móviles y de escritorio; integradas en el workflow de Flutter.
+
+**Pendientes para aprobar E7**: faltan detalles visuales e interacciones de los demás artboards 37–49 (incluidos Builds, Configuración y Avanzada, aliados y seguridad), capturas comparativas de Flutter, validación en QA de radio/polígono y pruebas autorizadas por roles/canales. Estas mejoras **no certifican la Etapa 7**, ni se publicaron todavía en Preview. No habilitar publicaciones de builds ni usar cambios reales de zona para pruebas de diseño.
 
 ## E8 — QA y socios (5)
 
