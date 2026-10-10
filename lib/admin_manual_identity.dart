@@ -21,7 +21,11 @@ class AdminManualIdentityPage extends StatelessWidget {
         const Text('Un administrador verifica el carné y la selfie. '
           'Puede aprobar, rechazar o reactivar fotografías por separado.'),
         const SizedBox(height:16),
-        AdminBoliviaKycPanel(channel:channel,countryCode:countryCode),
+        AdminBoliviaKycPanel(
+          channel:channel,
+          countryCode:countryCode,
+          zoneId:zoneId,
+        ),
       ],
     );
   }
