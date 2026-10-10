@@ -328,6 +328,7 @@ jobs:
           flutter test test/admin_zone_coverage_mode_selector_test.dart
           flutter test test/admin_demand_stats_grid_test.dart
           flutter test test/admin_zone_summary_card_test.dart
+          flutter test test/admin_responsive_form_grid_test.dart
           flutter test test/admin_responsive_split_test.dart
           flutter test test/admin_sos_row_test.dart
           flutter test test/admin_plain_page_heading_test.dart
