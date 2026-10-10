@@ -757,10 +757,14 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     required List<Widget> chips,
     required VoidCallback onTap,
     Widget? trailing,
+    IconData icon = Icons.storefront_rounded,
   }) {
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      color: AdminColors.surface,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AdminColors.border),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
@@ -775,7 +779,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   color: AdminColors.blueSoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.storefront_rounded, color: _blue),
+                child: Icon(icon, color: _blue),
               ),
               const SizedBox(width: 11),
               Expanded(
@@ -814,9 +818,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
   Widget _grid(List<Widget> children) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1100
+        final columns = constraints.maxWidth >= 900
             ? 3
-            : constraints.maxWidth >= 700
+            : constraints.maxWidth >= 600
                 ? 2
                 : 1;
         final width =
@@ -842,35 +846,49 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: _ink,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final heading = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: _ink,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: _muted, fontSize: 12),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: _muted,
+                    fontSize: 12,
                   ),
-                ],
-              ),
-            ),
-            FilledButton.icon(
+                ),
+              ],
+            );
+            final button = FilledButton.icon(
               onPressed: action,
               icon: const Icon(Icons.add_rounded, size: 18),
               label: Text(actionLabel),
-            ),
-          ],
+            );
+            if (constraints.maxWidth < 560) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [heading, const SizedBox(height: 10), button],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(child: heading),
+                const SizedBox(width: 12),
+                button,
+              ],
+            );
+          },
         ),
         const SizedBox(height: 10),
         _grid(children),
@@ -952,6 +970,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                     .map(
                       (row) => _card(
                         title: row['name']?.toString() ?? 'Categoría',
+                        icon: Icons.category_outlined,
                         subtitle: row['category_key']?.toString() ?? '',
                         chips: [
                           _tag('Activa', row['active'] == true),
@@ -973,6 +992,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                     .map(
                       (row) => _card(
                         title: row['title']?.toString() ?? 'Banner',
+                        icon: Icons.campaign_outlined,
                         subtitle: row['subtitle']?.toString() ?? '',
                         chips: [
                           _tag('Activo', row['active'] == true),
