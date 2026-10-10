@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Dashboard del aliado</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="position:relative;width:1280px;height:1000px;background:linear-gradient(rgba(15,23,42,.06),rgba(15,23,42,.06)),#E9EEF5;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<div style="position:absolute;left:130px;top:24px;width:1020px;height:650px;box-sizing:border-box;background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column">
+<div style="padding:18px 22px 12px;display:flex;align-items:center;gap:12px">
+<div style="width:40px;height:40px;border-radius:12px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg></div>
+<div style="flex:1"><div style="font-size:19px;font-weight:800">Dashboard · Sindicato Mixto 18 de Noviembre</div></div>
+<button style="height:38px;padding:0 13px;border-radius:10px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round"><path d="M3 5h18v16H3zM3 10h18M8 3v4M16 3v4"/></svg>Período</button>
+<button style="height:38px;padding:0 14px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4"/></svg>Crear liquidación</button>
+</div>
+<div style="padding:0 22px;display:flex;flex-wrap:wrap;gap:10px">
+<sc-for list="{{tiles}}" as="t" hint-placeholder-count="7">
+<div style="width:180px;box-sizing:border-box;border:1px solid #DDE6F0;border-radius:14px;padding:11px 13px;background:{{t.bg}}"><div style="font-size:19px;font-weight:800;letter-spacing:-.3px">{{t.v}}</div><div style="font-size:11px;color:#64748B;font-weight:700;margin-top:2px">{{t.l}}</div></div>
+</sc-for>
+</div>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;padding:14px 22px 0;flex:1;min-height:0">
+<div style="min-height:0;overflow:hidden">
+<div style="font-size:15px;font-weight:800;margin-bottom:4px">Liquidaciones</div>
+<sc-for list="{{settle}}" as="s" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid #F1F5F9">
+<div style="width:36px;height:36px;border-radius:18px;background:#EAF2FF;display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 10h16M12 3l8 5H4zM6 10v8M10 10v8M14 10v8M18 10v8"/></svg></div>
+<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:800">{{s.a}}</div><div style="font-size:11.5px;color:#64748B;font-weight:600">{{s.s}}</div></div>
+<sc-if value="{{s.paid}}" hint-placeholder-val="{{ true }}"><span style="display:flex;align-items:center;gap:5px;background:#E8F8EF;color:#14804A;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:#14804A"></span>Pagada</span></sc-if>
+<sc-if value="{{s.open}}" hint-placeholder-val="{{ false }}"><button style="height:32px;padding:0 12px;border-radius:9px;border:0;background:#2563EB;color:#FFFFFF;font-size:12px;font-weight:800">Marcar pagada</button></sc-if>
+</div>
+</sc-for>
+</div>
+<div style="min-height:0;overflow:hidden">
+<div style="font-size:15px;font-weight:800;margin-bottom:4px">Pagos de conductores</div>
+<sc-for list="{{pays}}" as="p" hint-placeholder-count="6">
+<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #F1F5F9">
+<svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4"/></svg>
+<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800">{{p.n}}</div><div style="font-size:11px;color:#64748B;font-weight:600">{{p.s}}</div></div>
+<div style="text-align:right"><div style="font-size:12.5px;font-weight:800">{{p.a}}</div><div style="font-size:11px;color:#64748B;font-weight:600">{{p.c}}</div></div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="padding:12px 22px 16px;display:flex;justify-content:flex-end"><button style="height:40px;padding:0 14px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cerrar</button></div>
+</div>
+<div style="position:absolute;inset:0;background:rgba(15,23,42,.16)"></div>
+<div style="position:absolute;left:690px;top:470px;width:460px;box-sizing:border-box;background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.24)">
+<div style="padding:20px 22px 12px;display:flex;align-items:center;gap:12px"><div style="width:40px;height:40px;border-radius:12px;background:#E8F8EF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14804A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM8 12l3 3 5-6"/></svg></div><div style="font-size:19px;font-weight:800">Marcar liquidación como pagada</div></div>
+<div style="padding:0 22px;display:flex;flex-direction:column;gap:12px">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Referencia / comprobante<input value="TRF-BNB-00482193" style="height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;color:#0F172A"/></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Nota opcional<span style="height:76px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:600;color:#98A2B3">Nota opcional</span></label>
+</div>
+<div style="padding:16px 22px 18px;display:flex;justify-content:flex-end;gap:10px">
+<button style="height:40px;padding:0 14px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 18px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Confirmar pago</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+const w = '#FFFFFF';
+return {
+tiles: [
+{ l: 'Conductores', v: '48', bg: w }, { l: 'Conductores online', v: '19', bg: w }, { l: 'Pagos aprobados', v: '318', bg: w },
+{ l: 'Facturación BOB', v: '24.800', bg: '#F8FAFF' }, { l: 'Comisión generada BOB', v: '1.240', bg: '#F8FAFF' },
+{ l: 'Comisión pendiente BOB', v: '260', bg: '#FFF7E6' }, { l: 'Comisión liquidada BOB', v: '980', bg: '#E8F8EF' }
+],
+settle: [
+{ a: 'BOB 260', s: 'Bruto: BOB 5.200 · 10/10/2026', paid: false, open: true },
+{ a: 'BOB 540', s: 'Bruto: BOB 10.800 · 01/10/2026', paid: true, open: false },
+{ a: 'BOB 440', s: 'Bruto: BOB 8.800 · 15/09/2026', paid: true, open: false }
+],
+pays: [
+{ n: 'Marcelo Justiniano', s: 'VeriPagos QR · 10/10/2026', a: 'BOB 120', c: 'Comisión 6' },
+{ n: 'Hugo Suárez Roca', s: 'VeriPagos QR · 10/10/2026', a: 'BOB 80', c: 'Comisión 4' },
+{ n: 'Daniela Méndez', s: 'Billetera · 09/10/2026', a: 'BOB 100', c: 'Comisión 5' },
+{ n: 'Conductor', s: 'Efectivo · 09/10/2026', a: 'BOB 60', c: 'Comisión 3' },
+{ n: 'Óscar Parada', s: 'VeriPagos QR · 08/10/2026', a: 'BOB 140', c: 'Comisión 7' },
+{ n: 'Wilson Rivero', s: 'Billetera · 08/10/2026', a: 'BOB 90', c: 'Comisión 4,5' },
+{ n: 'Fabiola Vargas', s: 'VeriPagos QR · 07/10/2026', a: 'BOB 110', c: 'Comisión 5,5' }
+]
+};
+}
+}
+</script>
+</body>
+</html>

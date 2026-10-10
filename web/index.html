@@ -6,11 +6,32 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Adminexpress - Panel administrativo de Express Delivery">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <meta name="theme-color" content="#0B57D0">
+  <meta name="theme-color" content="#2563EB">
+  <!-- Preview assets are versioned by the safe Preview-only Pages workflow. -->
+  <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <title>Adminexpress</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <script>
+    // This diagnostic only runs on the QA page. Never touch the root
+    // Production service worker, cookies, session, or browser storage.
+    if (location.pathname.startsWith('/preview/')) {
+      window.addEventListener('DOMContentLoaded', () => {
+        const marker = document.createElement('div');
+        marker.id = 'express-preview-ui-marker';
+        marker.textContent = 'EXPRESS · NUEVA UI QA';
+        marker.style.cssText = [
+          'position:fixed', 'bottom:12px', 'right:12px',
+          'z-index:2147483647', 'pointer-events:none',
+          'background:#0F2854', 'color:#FFFFFF', 'font:700 11px Arial,sans-serif',
+          'padding:7px 10px', 'border-radius:9px',
+          'border:1px solid #22D3EE', 'box-shadow:0 4px 16px #0003',
+        ].join(';');
+        document.body.appendChild(marker);
+      });
+    }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

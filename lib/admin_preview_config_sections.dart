@@ -2,12 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+
 import 'core/supabase_client.dart';
 
-const _previewBlue = Color(0xFF2563EB);
-const _previewInk = Color(0xFF0F172A);
-const _previewMuted = Color(0xFF64748B);
-const _previewBg = Color(0xFFF1F5F9);
+const _previewBlue = AdminColors.blue;
+const _previewInk = AdminColors.ink;
+const _previewMuted = AdminColors.muted;
+const _previewBg = AdminColors.bg;
 
 class AdminPreviewModulePage extends StatefulWidget {
   final String module;
@@ -306,14 +308,14 @@ class _AdminPreviewModulePageState extends State<AdminPreviewModulePage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7E6),
+                  color: AdminColors.warnSoft,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: const Color(0xFFF5C36A)),
                 ),
                 child: Row(
                   children: [
                     const Icon(Icons.science_rounded,
-                        color: Color(0xFFB54708)),
+                        color: AdminColors.warn),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -349,7 +351,7 @@ class _AdminPreviewModulePageState extends State<AdminPreviewModulePage> {
                     margin: const EdgeInsets.only(bottom: 9),
                     child: ListTile(
                       leading: const CircleAvatar(
-                        backgroundColor: Color(0xFFEAF2FF),
+                        backgroundColor: AdminColors.blueSoft,
                         child: Icon(Icons.tune_rounded, color: _previewBlue),
                       ),
                       title: Text(

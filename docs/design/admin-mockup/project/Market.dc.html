@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Express Market</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Express Market" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Express Market" env="production" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:flex-end;gap:10px">
+<div style="flex:1;min-width:0">
+<div style="font-size:26px;font-weight:800;letter-spacing:-.3px">Express Market</div>
+<div style="font-size:13px;color:#64748B;font-weight:600;margin-top:3px">Administra el módulo para Preview y Producción desde un solo lugar.</div>
+</div>
+<button style="height:40px;padding:0 14px;border-radius:10px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg>Actualizar</button>
+<button style="height:40px;padding:0 16px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4"/></svg>Configuración</button>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{status}}" as="g" hint-placeholder-count="5">
+<span style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;background:{{g.bg}};color:{{g.ink}};font-size:11.5px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{g.ink}}"></span>{{g.t}}</span>
+</sc-for>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+<div style="flex:1"><div style="font-size:18px;font-weight:800">Categorías</div><div style="font-size:12px;color:#64748B;font-weight:600">Orden, icono y visibilidad por entorno.</div></div>
+<button style="height:38px;padding:0 14px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nueva categoría</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+<sc-for list="{{cats}}" as="c" hint-placeholder-count="6">
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;padding:14px;display:flex;gap:12px;align-items:flex-start;box-sizing:border-box">
+<div style="width:42px;height:42px;border-radius:12px;background:#EAF2FF;flex:none;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{store}}"/></svg></div>
+<div style="flex:1;min-width:0">
+<div style="font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{c.t}}</div>
+<div style="font-size:11px;color:#64748B;font-weight:600;margin-top:2px">{{c.s}}</div>
+<div style="display:flex;gap:5px;margin-top:8px">
+<sc-for list="{{c.tags}}" as="g" hint-placeholder-count="3"><span style="display:flex;align-items:center;gap:4px;border-radius:999px;padding:3px 8px;background:{{g.bg}};color:{{g.ink}};font-size:10px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{g.ink}}"></span>{{g.t}}</span></sc-for>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+<div style="flex:1"><div style="font-size:18px;font-weight:800">Banners y promociones</div><div style="font-size:12px;color:#64748B;font-weight:600">Contenido promocional del Home.</div></div>
+<button style="height:38px;padding:0 14px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nuevo banner</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+<sc-for list="{{banners}}" as="c" hint-placeholder-count="3">
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;padding:14px;display:flex;gap:12px;align-items:flex-start;box-sizing:border-box">
+<div style="width:42px;height:42px;border-radius:12px;background:#EAF2FF;flex:none;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{store}}"/></svg></div>
+<div style="flex:1;min-width:0">
+<div style="font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{c.t}}</div>
+<div style="font-size:11px;color:#64748B;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{c.s}}</div>
+<div style="display:flex;gap:5px;margin-top:8px">
+<sc-for list="{{c.tags}}" as="g" hint-placeholder-count="3"><span style="display:flex;align-items:center;gap:4px;border-radius:999px;padding:3px 8px;background:{{g.bg}};color:{{g.ink}};font-size:10px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{g.ink}}"></span>{{g.t}}</span></sc-for>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+<div style="flex:1"><div style="font-size:18px;font-weight:800">Comercios y productos</div><div style="font-size:12px;color:#64748B;font-weight:600">Locales, tiempos, costo de envío y catálogo.</div></div>
+<button style="height:38px;padding:0 14px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nuevo comercio</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+<sc-for list="{{merchants}}" as="c" hint-placeholder-count="6">
+<div style="position:relative;background:#FFFFFF;border:1px solid {{c.line}};border-radius:16px;padding:14px;display:flex;gap:12px;align-items:flex-start;box-sizing:border-box">
+<div style="width:42px;height:42px;border-radius:12px;background:#EAF2FF;flex:none;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{store}}"/></svg></div>
+<div style="flex:1;min-width:0">
+<div style="font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{c.t}}</div>
+<div style="font-size:11px;color:#64748B;font-weight:600;margin-top:2px">{{c.s}}</div>
+<div style="display:flex;gap:5px;margin-top:8px">
+<sc-for list="{{c.tags}}" as="g" hint-placeholder-count="3"><span style="display:flex;align-items:center;gap:4px;border-radius:999px;padding:3px 8px;background:{{g.bg}};color:{{g.ink}};font-size:10px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{g.ink}}"></span>{{g.t}}</span></sc-for>
+</div>
+</div>
+<button aria-label="Opciones del comercio" style="width:32px;height:32px;flex:none;border-radius:9px;border:1px solid {{c.kb}};background:{{c.kbg}};display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475467" stroke-width="3" stroke-linecap="round"><path d="M12 5h.01M12 12h.01M12 19h.01"/></svg></button>
+<sc-if value="{{c.menu}}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;right:10px;top:50px;z-index:2;width:196px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;box-shadow:0 12px 28px rgba(15,23,42,.16);padding:6px">
+<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:#F1F5F9;font-size:13px;font-weight:700"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></svg>Editar comercio</div>
+<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;font-size:13px;font-weight:700"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10"/></svg>Productos</div>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const on = (t) => ({ t: t, bg: '#E8F8EF', ink: '#14804A' });
+const off = (t) => ({ t: t, bg: '#F2F4F7', ink: '#64748B' });
+const m = (t, s, tags, menu) => ({ t: t, s: s, tags: tags, menu: menu, line: menu ? '#9DBBF2' : '#DDE6F0', kb: menu ? '#9DBBF2' : '#E2E8F0', kbg: menu ? '#EAF2FF' : '#FFFFFF' });
+return {
+store: 'M3 9l1.5-5h15L21 9M3 9v11h18V9M3 9h18M9 20v-6h6v6',
+status: [on('Preview'), on('Producción'), on('6 categorías'), on('3 banners'), on('6 comercios')],
+cats: [
+{ t: 'Restaurantes', s: 'restaurants', tags: [on('Activa'), off('Preview'), on('Prod')] },
+{ t: 'Farmacias', s: 'pharmacies', tags: [on('Activa'), off('Preview'), on('Prod')] },
+{ t: 'Supermercados', s: 'markets', tags: [on('Activa'), off('Preview'), on('Prod')] },
+{ t: 'Tiendas', s: 'stores', tags: [on('Activa'), off('Preview'), on('Prod')] },
+{ t: 'Licorerías', s: 'liquor', tags: [on('Activa'), off('Preview'), on('Prod')] },
+{ t: 'Mascotas', s: 'pets', tags: [off('Inactiva'), off('Preview'), on('Prod')] }
+],
+banners: [
+{ t: 'Envío gratis en tu primer pedido', s: 'Válido en Trinidad hasta el domingo.', tags: [on('Activo'), off('Preview'), on('Prod')] },
+{ t: 'Farmacias de turno 24 h', s: 'Medicamentos a tu puerta en minutos.', tags: [on('Activo'), off('Preview'), on('Prod')] },
+{ t: 'Semana del helado', s: '2x1 en heladerías seleccionadas.', tags: [off('Inactivo'), off('Preview'), on('Prod')] }
+],
+merchants: [
+m('Pollos Copacabana', 'restaurants · 20-35 min', [on('Activo'), off('Preview'), on('Prod')], true),
+m('Farmacia Central', 'pharmacies · 15-30 min', [on('Activo'), off('Preview'), on('Prod')], false),
+m('Supermercado El Mojeño', 'markets · 25-45 min', [on('Activo'), off('Preview'), on('Prod')], false),
+m('Heladería Mamoré', 'restaurants · 15-25 min', [on('Activo'), off('Preview'), on('Prod')], false),
+m('Licorería La Esquina', 'liquor · 15-40 min', [on('Activo'), off('Preview'), on('Prod')], false),
+m('Pet Shop Beni', 'pets · 30-50 min', [off('Inactivo'), off('Preview'), on('Prod')], false)
+]
+};
+}
+}
+</script>
+</body>
+</html>

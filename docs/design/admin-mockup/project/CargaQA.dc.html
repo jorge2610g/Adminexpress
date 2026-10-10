@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carga QA</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Carga QA" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Carga QA" env="production" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:18px 24px 22px;display:flex;flex-direction:column;gap:12px">
+<div>
+<div style="font-size:26px;font-weight:800;letter-spacing:-.3px">Laboratorio de carga QA</div>
+<div style="font-size:12.5px;color:#64748B;font-weight:600;margin-top:3px;line-height:1.4">Genera conductores y solicitudes sintéticas en la ciudad QA que elijas y permite simular demanda para Express Preview. La operación real sigue centrada en Trinidad; LOADTEST y la demanda QA no alteran la tarifa real de producción.</div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;background:#FFF4E5;border:1px solid #F79009;border-radius:12px;padding:10px 14px">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B54708" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3L2 20h20zM12 10v4M12 17h.01"/></svg>
+<span style="font-size:12.5px;font-weight:700;color:#7A2E0E">Producción real: los usuarios sintéticos compartirán alcance con usuarios reales y podrán aparecer en la app hasta limpiar o expirar.</span>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Entorno<span style="height:38px;width:190px;box-sizing:border-box;border:1px solid #E4E7EC;border-radius:10px;background:#F2F4F7;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:13px;font-weight:700;color:#14804A"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#14804A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8.5 12l2.5 2.5 4.5-5"/></svg>Producción (real)</span></label>
+<sc-for list="{{drops1}}" as="d" hint-placeholder-count="3">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">{{d.label}}<span style="height:38px;width:{{d.w}}px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:13px;font-weight:700;color:#0F172A">{{d.value}}<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></label>
+</sc-for>
+<button style="height:38px;padding:0 12px;border-radius:10px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Aplicar demanda</button>
+<sc-for list="{{drops2}}" as="d" hint-placeholder-count="3">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">{{d.label}}<span style="height:38px;width:{{d.w}}px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:13px;font-weight:700;color:#0F172A">{{d.value}}<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></label>
+</sc-for>
+<button style="height:38px;padding:0 14px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4 19a1.5 1.5 0 001.3 2h13.4a1.5 1.5 0 001.3-2L14 9V3"/></svg>Recrear escenario</button>
+<button style="height:38px;padding:0 12px;border-radius:10px;border:1px solid #F0B8BF;background:#FFFFFF;color:#D92D20;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D92D20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3l-4 8M6 11h12l-1 10H7zM10 15v3M14 15v3"/></svg>Limpiar prueba</button>
+<button aria-label="Actualizar" style="width:38px;height:38px;border-radius:10px;border:1px solid #E2E8F0;background:#FFFFFF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg></button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px">
+<sc-for list="{{metrics}}" as="m" hint-placeholder-count="7">
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:14px;padding:11px 12px">
+<div style="display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{m.d}}"/></svg><span style="font-size:11px;color:#64748B;font-weight:700">{{m.label}}</span></div>
+<div style="font-size:16px;font-weight:800;margin-top:5px;letter-spacing:-.2px;color:{{m.ink}}">{{m.value}}</div>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;gap:14px;flex:1;min-height:0">
+<div style="flex:1;min-width:0;position:relative;border-radius:16px;overflow:hidden;border:1px solid #E4EAF2">
+<svg aria-hidden="true" width="100%" height="100%" viewBox="0 0 600 520" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0"><rect width="600" height="520" fill="#E8EDF3"/><path d="M0 300 C140 270 220 330 330 280 S500 220 600 240" stroke="#FFFFFF" stroke-width="16" fill="none"/><path d="M130 0 C150 160 100 320 160 520" stroke="#FFFFFF" stroke-width="12" fill="none"/><path d="M440 0 C420 140 490 300 460 520" stroke="#FFFFFF" stroke-width="12" fill="none"/><path d="M0 140 L600 120" stroke="#FFFFFF" stroke-width="8"/><path d="M0 430 L600 410" stroke="#FFFFFF" stroke-width="8"/><rect x="220" y="40" width="120" height="70" rx="10" fill="#DCE7D3"/><rect x="480" y="320" width="90" height="90" rx="10" fill="#DCE7D3"/><circle cx="300" cy="260" r="200" fill="rgba(37,99,235,.08)" stroke="#2563EB" stroke-width="2"/></svg>
+<sc-for list="{{drivers}}" as="p" hint-placeholder-count="16">
+<div style="position:absolute;left:{{p.x}}%;top:{{p.y}}%;width:18px;height:18px;border-radius:9px;background:#2563EB;border:2px solid #FFFFFF;box-shadow:0 2px 5px rgba(15,23,42,.25);display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18a3 3 0 100-6 3 3 0 000 6zM19 18a3 3 0 100-6 3 3 0 000 6zM8 15h6l3-5h-4"/></svg></div>
+</sc-for>
+<sc-for list="{{requests}}" as="p" hint-placeholder-count="12">
+<div style="position:absolute;left:{{p.x}}%;top:{{p.y}}%;width:24px;height:24px"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="#F97316" stroke="#FFFFFF" stroke-width="1.5"><path d="M12 22s-7-6.2-7-11.5a7 7 0 1114 0C19 15.8 12 22 12 22z"/><circle cx="12" cy="10" r="2.6" fill="#FFFFFF" stroke="none"/></svg></div>
+</sc-for>
+<span style="position:absolute;left:14px;top:14px;background:rgba(255,255,255,.94);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:800">Trinidad · Azul: 100 conductores · Naranja: 100 solicitudes</span>
+<span style="position:absolute;right:10px;bottom:8px;background:rgba(255,255,255,.85);border-radius:6px;padding:2px 7px;font-size:10px;font-weight:600;color:#475467">OpenStreetMap contributors</span>
+</div>
+<div style="width:290px;flex:none;display:flex;flex-direction:column;gap:12px">
+<div style="background:#FFFFFF;border:1px solid #ABEFC6;border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;gap:8px"><span style="width:30px;height:30px;border-radius:9px;background:#ECFDF3;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#067647" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM8 12l3 3 5-6"/></svg></span><span style="font-size:14px;font-weight:800;color:#067647">Escenario creado</span></div>
+<sc-for list="{{result}}" as="r" hint-placeholder-count="7">
+<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:4px 0;border-bottom:1px solid #F1F5F9"><span style="color:#64748B;font-weight:600">{{r.k}}</span><span style="font-weight:800;text-align:right">{{r.v}}</span></div>
+</sc-for>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;padding:14px 16px">
+<div style="font-size:14px;font-weight:800;margin-bottom:6px">Escenario activo</div>
+<div style="font-size:12px;color:#344054;font-weight:600;line-height:1.5">Ejecución 7f3a9c21 · PRODUCCIÓN · Trinidad · 100 conductores · 100 solicitudes. El escenario mide renderizado, Realtime, filtrado por radio y lectura masiva usando el entorno seleccionado.</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const pts = (arr) => arr.map((p) => ({ x: p[0], y: p[1] }));
+return {
+drops1: [
+{ label: 'Ciudad QA', value: 'Trinidad', w: 150 },
+{ label: 'Servicio QA', value: 'Mixto · Auto + Moto', w: 190 },
+{ label: 'Demanda Preview', value: 'Automática (real)', w: 180 }
+],
+drops2: [
+{ label: 'Conductores', value: '100', w: 120 },
+{ label: 'Solicitudes', value: '100', w: 120 },
+{ label: 'Radio de prueba', value: '3.0 km', w: 140 }
+],
+metrics: [
+{ label: 'Estado', value: 'ACTIVO', ink: '#14804A', d: 'M13 2L4 14h7l-1 8 9-12h-7z' },
+{ label: 'Entorno', value: 'PRODUCCIÓN', ink: '#0F172A', d: 'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5M3 17l9 5 9-5' },
+{ label: 'Ciudad', value: 'Trinidad', ink: '#0F172A', d: 'M3 21h18M5 21V7l7-4 7 4v14M9 9h1M14 9h1M9 13h1M14 13h1' },
+{ label: 'Demanda QA', value: 'AUTO', ink: '#0F172A', d: 'M3 17l6-6 4 4 8-8M15 7h6v6' },
+{ label: 'Conductores', value: '100', ink: '#0F172A', d: 'M3 13l2-6h14l2 6v5H3zM7 18v2M17 18v2M3 13h18' },
+{ label: 'Solicitudes', value: '100', ink: '#0F172A', d: 'M5 16l1.5-5h11L19 16M5 16v3M19 16v3M4 16h16' },
+{ label: 'Creación', value: '4820 ms', ink: '#0F172A', d: 'M12 14l4-4M3.5 18a10 10 0 1117 0' }
+],
+drivers: pts([[30, 30], [42, 22], [55, 28], [64, 36], [70, 50], [62, 62], [48, 70], [36, 64], [26, 52], [38, 44], [52, 46], [58, 54], [45, 34], [33, 76], [68, 26], [24, 38]]),
+requests: pts([[35, 36], [49, 26], [60, 42], [66, 58], [43, 58], [29, 46], [54, 66], [40, 50], [57, 33], [72, 44], [31, 60], [47, 40]]),
+result: [
+{ k: 'Ejecución', v: '7f3a9c21' },
+{ k: 'Entorno', v: 'Producción (real)' },
+{ k: 'Ciudad QA', v: 'Trinidad' },
+{ k: 'Servicio QA', v: 'Mixto · Auto + Moto' },
+{ k: 'Conductores sintéticos', v: '100' },
+{ k: 'Solicitudes sintéticas', v: '100' },
+{ k: 'Radio de prueba', v: '3.0 km' },
+{ k: 'Duración de creación', v: '4820 ms' }
+]
+};
+}
+}
+</script>
+</body>
+</html>

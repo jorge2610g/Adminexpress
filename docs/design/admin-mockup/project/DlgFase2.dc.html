@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Diálogos Delivery Fase 2</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1000px;box-sizing:border-box;background:#E9EEF5;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<div style="width:1280px;height:1000px;box-sizing:border-box;background:rgba(15,23,42,.06);padding:22px 24px;display:flex;gap:16px;align-items:flex-start">
+
+<div style="width:600px;flex:none;display:flex;flex-direction:column;gap:14px">
+<div style="background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);overflow:hidden">
+<div style="padding:14px 18px 8px;display:flex;gap:12px;align-items:center"><span style="width:36px;height:36px;border-radius:10px;background:#EAF2FF;flex:none;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18a3 3 0 100-6 3 3 0 000 6zM19 18a3 3 0 100-6 3 3 0 000 6zM8 15h6l3-5h-4M13 7h3"/></svg></span><div><div style="font-size:18px;font-weight:800;letter-spacing:-.2px">Delivery · Trinidad</div><div style="font-size:11.5px;color:#64748B;font-weight:600">Producción · Bolivia · Bs</div></div></div>
+<div style="padding:0 18px 10px;display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:9px 12px 10px">
+<div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;margin-bottom:6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{g.d}}"/></svg>{{g.t}}</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+<sc-for list="{{g.f}}" as="x" hint-placeholder-count="3">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B;min-width:0">{{x.l}}<span style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;gap:6px;padding:0 10px"><input readonly value="{{x.v}}" style="flex:1;min-width:0;width:100%;border:0;outline:0;background:transparent;font-size:13px;font-weight:600;color:#0F172A;padding:0"><span style="font-size:12px;font-weight:700;color:#64748B">Bs</span></span></label>
+</sc-for>
+</div>
+</div>
+</sc-for>
+<sc-for list="{{swGroups}}" as="g" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px;border-top:1px solid #E2E8F0;padding-top:2px">
+<sc-for list="{{g.items}}" as="s" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:8px;padding:6px 0;opacity:{{s.op}}">
+<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800">{{s.l}}</div><div style="font-size:10.5px;color:#64748B;font-weight:600;line-height:1.3">{{s.sub}}</div></div>
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{s.lk}}" stroke-width="2.2" stroke-linecap="round"><path d="M6 11h12v10H6zM8 11V7a4 4 0 018 0v4"/></svg>
+<span role="switch" aria-checked="{{s.on}}" style="width:40px;height:24px;border-radius:12px;background:{{s.bg}};position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:{{s.k}}px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(15,23,42,.25)"></span></span>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+<div style="padding:9px 18px;border-top:1px solid #EEF1F5;display:flex;justify-content:flex-end;gap:8px"><button style="height:36px;padding:0 12px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button><button style="height:36px;padding:0 18px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Guardar</button></div>
+</div>
+
+<div style="background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);overflow:hidden">
+<div style="padding:14px 18px 8px;display:flex;gap:12px;align-items:center"><span style="width:36px;height:36px;border-radius:10px;background:#EAF2FF;flex:none;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8"/></svg></span><div><div style="font-size:18px;font-weight:800;letter-spacing:-.2px">Accesos · Pollos Copacabana</div><div style="font-size:11.5px;color:#64748B;font-weight:600">Usuarios del local</div></div></div>
+<div style="padding:0 18px 8px">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Correo de la cuenta Express del comercio<span style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;gap:6px;padding:0 4px 0 10px"><input readonly value="caja@polloscopacabana.bo" style="flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:13px;font-weight:600;color:#0F172A;padding:0"><button aria-label="Vincular" style="width:30px;height:30px;border-radius:8px;border:0;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M8.5 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6"/></svg></button></span></label>
+<sc-for list="{{access}}" as="a" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #EEF1F5">
+<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800">{{a.n}}</div><div style="font-size:11px;color:#64748B;font-weight:600">{{a.s}}</div></div>
+<span role="switch" aria-checked="{{a.on}}" style="width:40px;height:24px;border-radius:12px;background:{{a.bg}};position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:{{a.k}}px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(15,23,42,.25)"></span></span>
+</div>
+</sc-for>
+</div>
+<div style="padding:9px 18px;border-top:1px solid #EEF1F5;display:flex;justify-content:flex-end"><button style="height:36px;padding:0 12px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cerrar</button></div>
+</div>
+</div>
+
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px">
+<div style="background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);overflow:hidden">
+<div style="padding:14px 18px 8px;display:flex;gap:12px;align-items:center"><span style="width:36px;height:36px;border-radius:10px;background:#EAF2FF;flex:none;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></span><div><div style="font-size:18px;font-weight:800;letter-spacing:-.2px">Express Plus · Trinidad</div><div style="font-size:11.5px;color:#64748B;font-weight:600">Plan mensual para clientes</div></div></div>
+<div style="padding:0 18px 10px;display:flex;flex-direction:column;gap:9px">
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 10px">
+<sc-for list="{{plusF}}" as="x" hint-placeholder-count="4">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B;min-width:0">{{x.l}}<span style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;gap:6px;padding:0 10px"><input readonly value="{{x.v}}" style="flex:1;min-width:0;width:100%;border:0;outline:0;background:transparent;font-size:13px;font-weight:600;color:#0F172A;padding:0"><span style="font-size:12px;font-weight:700;color:#64748B">{{x.suf}}</span></span></label>
+</sc-for>
+</div>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Descripción<span style="height:62px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;padding:9px 10px;font-size:13px;font-weight:600;color:#0F172A;line-height:1.4">Envío gratis en locales adheridos y 10% de descuento en todo Express Market.</span></label>
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:2px 12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px">
+<sc-for list="{{plusSw}}" as="s" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:8px;padding:7px 0;opacity:{{s.op}}">
+<div style="flex:1;min-width:0;font-size:12.5px;font-weight:800">{{s.l}}</div>
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{s.lk}}" stroke-width="2.2" stroke-linecap="round"><path d="M6 11h12v10H6zM8 11V7a4 4 0 018 0v4"/></svg>
+<span role="switch" aria-checked="{{s.on}}" style="width:40px;height:24px;border-radius:12px;background:{{s.bg}};position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:{{s.k}}px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(15,23,42,.25)"></span></span>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="padding:9px 18px;border-top:1px solid #EEF1F5;display:flex;justify-content:flex-end;gap:8px"><button style="height:36px;padding:0 12px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button><button style="height:36px;padding:0 18px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Guardar</button></div>
+</div>
+
+<div style="display:flex;gap:14px;align-items:flex-start">
+<div style="flex:1;min-width:0;background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);overflow:hidden">
+<div style="padding:14px 16px 8px;display:flex;gap:10px;align-items:center"><span style="width:34px;height:34px;border-radius:10px;background:#EAF2FF;flex:none;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 6 6 .9-4.5 4.4 1 6.2L12 16.6 6.5 19.5l1-6.2L3 8.9 9 8z"/></svg></span><div style="min-width:0"><div style="font-size:17px;font-weight:800;letter-spacing:-.2px">Plus · Pollos Copacabana</div><div style="font-size:11px;color:#64748B;font-weight:600">Beneficios Express Plus</div></div></div>
+<div style="padding:0 16px 10px;display:flex;flex-direction:column;gap:8px">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Descuento exclusivo %<span style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;gap:6px;padding:0 10px"><input readonly value="15" style="flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:13px;font-weight:600;color:#0F172A;padding:0"><span style="font-size:12px;font-weight:700;color:#64748B">%</span></span></label>
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:2px 12px">
+<sc-for list="{{benSw1}}" as="s" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:8px;padding:7px 0"><div style="flex:1;min-width:0;font-size:12.5px;font-weight:800">{{s.l}}</div><span role="switch" aria-checked="{{s.on}}" style="width:40px;height:24px;border-radius:12px;background:{{s.bg}};position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:{{s.k}}px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(15,23,42,.25)"></span></span></div>
+</sc-for>
+</div>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Quién financia el descuento<span style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:13px;font-weight:600;color:#0F172A">Express<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></label>
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:7px 12px;display:flex;align-items:center;gap:8px"><div style="flex:1;font-size:12.5px;font-weight:800">Beneficio activo</div><span role="switch" aria-checked="true" style="width:40px;height:24px;border-radius:12px;background:#2563EB;position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:19px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(15,23,42,.25)"></span></span></div>
+</div>
+<div style="padding:9px 16px;border-top:1px solid #EEF1F5;display:flex;justify-content:flex-end;gap:6px"><button style="height:36px;padding:0 10px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button><button style="height:36px;padding:0 16px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Guardar</button></div>
+</div>
+
+<div style="flex:1;min-width:0;background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);overflow:hidden">
+<div style="padding:14px 16px 8px;display:flex;gap:10px;align-items:center"><span style="width:34px;height:34px;border-radius:10px;background:#EAF2FF;flex:none;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11zM12 12a2 2 0 100-4 2 2 0 000 4z"/></svg></span><div style="min-width:0"><div style="font-size:17px;font-weight:800;letter-spacing:-.2px">Logística · Pollos Copacabana</div><div style="font-size:11px;color:#64748B;font-weight:600">Ubicación / transferencia</div></div></div>
+<div style="padding:0 16px 10px;display:flex;flex-direction:column;gap:8px">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Dirección del comercio<span style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;padding:0 10px"><input readonly value="Av. Cipriano Barace 245, Trinidad" style="flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:13px;font-weight:600;color:#0F172A;padding:0"></span></label>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B;min-width:0">Latitud<span style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;padding:0 10px"><input readonly value="-14.83364" style="flex:1;min-width:0;width:100%;border:0;outline:0;background:transparent;font-size:13px;font-weight:600;color:#0F172A;padding:0"></span></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B;min-width:0">Longitud<span style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;display:flex;align-items:center;padding:0 10px"><input readonly value="-64.90071" style="flex:1;min-width:0;width:100%;border:0;outline:0;background:transparent;font-size:13px;font-weight:600;color:#0F172A;padding:0"></span></label>
+</div>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Datos/instrucciones de transferencia<span style="height:112px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;background:#FFFFFF;padding:9px 10px;font-size:12.5px;font-weight:600;color:#0F172A;line-height:1.5;display:flex;flex-direction:column"><span>Banco Unión · Caja de ahorro</span><span>Titular: Pollos Copacabana SRL</span><span>Cuenta: 1-00234567</span><span>NIT: 4512378016</span></span><span style="font-size:10.5px;font-weight:600;color:#64748B">Banco, tipo de cuenta, titular, RUT/CI, correo, etc.</span></label>
+</div>
+<div style="padding:9px 16px;border-top:1px solid #EEF1F5;display:flex;justify-content:flex-end;gap:6px"><button style="height:36px;padding:0 10px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button><button style="height:36px;padding:0 16px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Guardar</button></div>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+const sw = (l, sub, on, locked) => ({ l: l, sub: sub, on: on ? 'true' : 'false', bg: on ? '#2563EB' : '#C5CEDD', k: on ? 19 : 3, op: locked ? '.5' : '1', lk: locked ? '#98A2B3' : 'transparent' });
+const f = (l, v, suf) => ({ l: l, v: v, suf: suf || '' });
+return {
+groups: [
+{ t: 'Tarifa que paga el cliente', d: 'M16 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z', f: [f('Base cliente', '8'), f('Por km cliente', '2'), f('Mínimo cliente', '10')] },
+{ t: 'Pago independiente al repartidor', d: 'M5 18a3 3 0 100-6 3 3 0 000 6zM19 18a3 3 0 100-6 3 3 0 000 6zM8 15h6l3-5h-4M13 7h3', f: [f('Base repartidor', '6'), f('Por km repartidor', '1.5'), f('Mínimo repartidor', '8')] },
+{ t: 'Envío Plus · prioridad', d: 'M13 2L4 14h7l-1 8 9-12h-7z', f: [f('Recargo al cliente', '4'), f('Bono al repartidor', '3')] }
+],
+swGroups: [
+{ items: [sw('Habilitar Envío Plus prioritario', '', true, false), sw('Permitir propinas', '', true, false)] },
+{ items: [sw('Efectivo', '', true, false), sw('Transferencia al comercio', 'Requiere comprobante y aprobación del comercio.', true, false), sw('Tarjeta / Mercado Pago', '', false, false), sw('Suscripción Express Plus clientes', '', true, false)] },
+{ items: [sw('Delivery Fase 2 en Preview', '', true, true), sw('Delivery Fase 2 en Producción', 'Mantener apagado hasta aprobación final.', false, false)] }
+],
+plusF: [f('Nombre', 'Express Plus'), f('Precio mensual', '35', 'Bs'), f('Descuento general %', '10', '%'), f('Envíos prioritarios incluidos / mes', '4')],
+plusSw: [sw('Envío gratis', '', true, false), sw('Plan activo', '', true, false), sw('Visible Preview', '', true, true), sw('Visible Producción', '', true, false)],
+benSw1: [sw('Envío gratis para Plus', '', true, false), sw('Promoción exclusiva Plus', '', false, false)],
+access: [
+{ n: 'Mariela Copa', s: 'mariela@polloscopacabana.bo · Encargado', on: 'true', bg: '#2563EB', k: 19 },
+{ n: 'Javier Rivero', s: 'caja@polloscopacabana.bo · Encargado', on: 'false', bg: '#C5CEDD', k: 3 }
+]
+};
+}
+}
+</script>
+</body>
+</html>

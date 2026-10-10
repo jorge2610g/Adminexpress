@@ -209,3 +209,34 @@ Reglas:
 - nuevas RPC operativas sensibles deben incluir entorno explícito o quedar bloqueadas por el validador CI.
 
 El objetivo es que un bug del frontend no pueda convertir una operación Preview en una mutación silenciosa de Producción.
+
+
+## Acceso temporal al menú completo en Preview · 2026-10-10
+
+**Solo para revisión visual pre-lanzamiento en la rama QA**
+`claude/admin-preview-unlock-2026-10-10`. El propietario solicitó
+ver todos los módulos del panel Preview antes de aprobar el rediseño.
+
+- `_previewUnlockAllModules = true` muestra las pantallas que antes
+  quedaban bloqueadas en `_body` (incluidos Market, Express Plus, pagos,
+  suscripciones, Builds, pruebas y despacho).
+- La navegación principal muestra también **Verificación de identidad**
+  (panel unificado) y **Demanda y precios**, sin duplicar los accesos
+  fusionados de Cobertura y Verificación manual.
+- Se conservan `ADMIN_ENV`, autorización por rol, ámbito país/zona y
+  controles existentes de producción. NO se cambia la base de datos,
+  las RPC, los permisos ni el canal de producción.
+- **ADVERTENCIA:** abrir una pantalla no garantiza que todas sus lecturas
+  o escrituras estén aisladas por `channel`; ambos sitios usan la misma
+  base Supabase. No ejecutar cobros, pagos, builds, suscripciones,
+  cambios de estado o escrituras en módulos todavía no auditados.
+  Tampoco representa autorización para usar datos de producción.
+- El test CI permite esta excepción únicamente para el PR temporal
+  indicado y el workflow de despliegue valida que el SHA fijado
+  pertenezca a dicha rama. No fusionar a `main`, no desplegar raíz `/`.
+- Para publicar únicamente `/preview/`, usar el workflow manual
+  `Deploy Adminexpress Web to GitHub Pages`, elegir la rama QA,
+  `preview_only=true` y fijar el SHA de código verificado en CI.
+  El workflow exige que el SHA sea **distinto** del commit del ref
+  seleccionado y comprueba que todos los bytes de Producción
+  permanezcan idénticos.

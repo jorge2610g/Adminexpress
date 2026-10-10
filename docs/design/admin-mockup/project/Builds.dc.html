@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Builds</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input,textarea{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Builds" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Builds" env="production" scope="none" hint-size="1032px,112px"></dc-import>
+<main style="flex:1;min-height:0;padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+<div>
+<div style="font-size:24px;font-weight:800;letter-spacing:-.3px">Express · Una sola aplicación</div>
+<div style="font-size:13px;color:#64748B;font-weight:600;margin-top:4px">Desarrollo y pruebas compartidas: Web primero. Android usa lib/mobile_main.dart y se compila cuando hay una función nativa que verificar o una nueva publicación.</div>
+</div>
+<div style="display:flex;gap:16px;flex:1;min-height:0">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:10px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10a1 1 0 011 1v15a1 1 0 01-1 1H7a1 1 0 01-1-1V5a1 1 0 011-1zM11 18h2"/></svg></div><div style="flex:1;font-size:17px;font-weight:800">Flujo único Android</div></div>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<span style="display:flex;align-items:center;gap:6px;background:#F3F6FA;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;color:#475467">Google Play: build vigente <b style="color:#0F172A">59</b> · siguiente <b style="color:#0F172A">61</b></span>
+</div>
+<div style="font-size:12.5px;color:#475467;font-weight:600">Preparar APK/AAB firmado → probar ese mismo APK → certificar → aprobar → promover el mismo archivo → publicar.</div>
+<div><button style="height:40px;padding:0 16px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800;display:flex;align-items:center;gap:8px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg>Crear candidato Android (sin APK Preview)</button></div>
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:8px"><span style="font-size:13.5px;font-weight:800">Versión 1.6.1 · build 61 ·</span><span style="display:flex;align-items:center;gap:5px;background:#E8F8EF;color:#14804A;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:#14804A"></span>Listo</span></div>
+<div style="font-size:12px;color:#475467;font-family:monospace">Código SHA: 3c9e1f7a42b8d05e6f19a7c3b2d48e0f51a6c9d2</div>
+<div style="font-size:11px;color:#64748B;font-family:monospace">APK SHA-256: 8f2a6c1e9b47d03f5a8e2c61d9b70f4e3a1c58d27b6e90f13c4a2d8e5b7f6019</div>
+<div style="font-size:11px;color:#64748B;font-family:monospace">AAB SHA-256: d41c7e09a3b5f28e6c1d94a07b3e5f62c8a19d0e4b7f35a26c8e1d9b0f4a7c53</div>
+<div style="display:flex;gap:8px;margin-top:4px">
+<button style="height:34px;padding:0 12px;border-radius:9px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14804A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 16V11a7 7 0 0114 0v5H5zM8 5L6.5 3M16 5l1.5-2M9 11h.01M15 11h.01"/></svg>Probar APK real</button>
+<button style="height:34px;padding:0 12px;border-radius:9px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>Ver AAB</button>
+</div>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<sc-for list="{{checks}}" as="c" hint-placeholder-count="3">
+<span style="display:flex;align-items:center;gap:6px;background:{{c.bg}};color:{{c.ink}};border-radius:999px;padding:4px 11px;font-size:11.5px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{c.ink}}"></span>{{c.t}}</span>
+</sc-for>
+</div>
+<div style="font-size:12px;color:#475467;font-weight:600">Evidencia: Instalado en Samsung A14 y Moto G32. Inicio, login, GPS y permisos, mapas, llamadas y notificaciones correctos; flujo de conductor y pasajero completo en Trinidad.</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<button style="height:40px;padding:0 14px;border-radius:10px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4zM8 9l2 2 4-4M8 15h8"/></svg>Registrar pruebas Android</button>
+<button style="height:40px;padding:0 14px;border-radius:10px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14804A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8.5 12l2.5 2.5 4.5-5"/></svg>Aprobar</button>
+<button disabled="disabled" style="height:40px;padding:0 14px;border-radius:10px;border:0;background:#E4E7EC;color:#98A2B3;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#98A2B3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V8M7 13l5-5 5 5M5 4h14"/></svg>Promover APK/AAB</button>
+</div>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;padding:18px 20px;display:flex;flex-direction:column;flex:1;min-height:0">
+<div style="font-size:17px;font-weight:800;margin-bottom:4px">Publicaciones de Producción</div>
+<sc-for list="{{releases}}" as="r" hint-placeholder-count="2">
+<div style="border-top:1px solid #EEF1F5;padding:12px 0;display:flex;flex-direction:column;gap:5px">
+<div style="display:flex;align-items:center;gap:8px"><span style="font-size:13.5px;font-weight:800">{{r.title}}</span><span style="display:flex;align-items:center;gap:5px;background:{{r.bg}};color:{{r.ink}};border-radius:999px;padding:2px 9px;font-size:11px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{r.ink}}"></span>{{r.status}}</span></div>
+<div style="font-size:12px;color:#475467;font-family:monospace">Código SHA: {{r.sha}}</div>
+<div style="font-size:11px;color:#64748B;font-family:monospace">APK SHA-256: {{r.apk}}</div>
+<div style="font-size:11px;color:#64748B;font-family:monospace">AAB SHA-256: {{r.aab}}</div>
+<div style="display:flex;gap:8px;margin-top:4px">
+<button style="height:34px;padding:0 12px;border-radius:9px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14804A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 16V11a7 7 0 0114 0v5H5zM8 5L6.5 3M16 5l1.5-2M9 11h.01M15 11h.01"/></svg>Probar APK real</button>
+<button style="height:34px;padding:0 12px;border-radius:9px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>Ver AAB</button>
+<button style="height:34px;padding:0 12px;border-radius:9px;border:1px solid {{r.pubBorder}};background:{{r.pubBg}};color:{{r.pubInk}};font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px;margin-left:auto"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{r.pubInk}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a5 5 0 01-.6-10A6 6 0 0118 9a4.5 4.5 0 01-1 9M12 12v8M9 15l3-3 3 3"/></svg>Publicar versión aprobada</button>
+</div>
+</div>
+</sc-for>
+<div style="margin-top:auto;border-top:1px solid #EEF1F5;padding-top:10px"><button style="height:34px;padding:0 6px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg>Actualizar estado</button></div>
+</div>
+</div>
+<div style="width:380px;flex:none;align-self:flex-start;background:#FFFFFF;border-radius:16px;border:1px solid #DDE6F0;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column">
+<div style="padding:20px 22px 12px">
+<div style="font-size:19px;font-weight:800;letter-spacing:-.2px">Preparar APK y AAB reales de Express</div>
+</div>
+<div style="padding:0 22px 6px;display:flex;flex-direction:column;gap:14px">
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:14px;display:flex;gap:10px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px"><path d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v6M12 7h.01"/></svg><span style="font-size:12.5px;color:#475467;font-weight:600;line-height:1.45">Se usará el código vigente de main, el paquete oficial com.express.usuario1 y la firma Android existente. No crea Express Preview ni publica en Google Play.</span></div>
+<label style="display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#64748B">Versión (igual a pubspec.yaml)<input value="1.6.1" placeholder="1.6.1" style="height:40px;box-sizing:border-box;border:2px solid #2563EB;border-radius:10px;padding:0 12px;font-size:13.5px;font-weight:700;color:#0F172A;background:#FFFFFF"></label>
+<label style="display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#64748B">Notas del candidato<textarea rows="3" style="box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600;color:#0F172A;resize:none;line-height:1.4">Corrige permisos de ubicación en Android 14 y mejora el aviso de llegada del conductor.</textarea></label>
+<div style="display:flex;align-items:center;gap:8px;background:#EAF2FF;border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:700;color:#174B91"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"/></svg>Siguiente versionCode de Google Play: 61</div>
+</div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:16px 22px 20px">
+<button style="height:40px;padding:0 14px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 18px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800">Poner en cola</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const ok = ['#E8F8EF', '#14804A'];
+const wait = ['#FFF7E6', '#B54708'];
+const ch = (t, c) => ({ t, bg: c[0], ink: c[1] });
+const rel = (title, status, c, can, sha, apk, aab) => ({ title, status, bg: c[0], ink: c[1], sha, apk, aab, pubBg: can ? '#FFFFFF' : '#F2F4F7', pubInk: can ? '#2563EB' : '#98A2B3', pubBorder: can ? '#D0D5DD' : '#E4E7EC' });
+return {
+checks: [ch('QA: certificado', ok), ch('Aprobación: pendiente', wait), ch('Promovido: no', wait)],
+releases: [
+rel('Versión 1.6.0 · build 60 ·', 'Listo', ok, true, 'a81f04c6e93b27d5f0e1c8a4b6d39e72f5c0a184', '5b9e3d07c2a61f48e8d0b7a39c5e12f6d4a8b3c07e9f21d65a0c4b8e3f7d9a12', '2c7a90e4b6d13f58a2e9c0d74b1f63a85e2d9c07b4f6a13e8d5c2b90a7f4e631'),
+rel('Versión 1.5.9 · build 59 ·', 'Publicado', ['#EAF2FF', '#2563EB'], false, '7d2e5b19a0c84f63e1b9d07a5c3f28e46b0d1a95', 'e4a1c87f3b0d26e95a7c1f48d3b06e29a5f8c1d74b3e09a62c5f8d1b4e7a0c39', '91f5d3a0c7e28b64d1a9f0e35c7b82a46e0d9f13b5c8a27e4d6f19b0c3a5e782')
+]
+};
+}
+}
+</script>
+</body>
+</html>

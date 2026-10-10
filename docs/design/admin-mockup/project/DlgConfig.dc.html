@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Servicio por zona</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1000px;box-sizing:border-box;background:#E9EEF5;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<div style="width:1280px;height:1000px;box-sizing:border-box;background:rgba(15,23,42,.06);padding:26px 40px;display:flex;gap:40px;align-items:flex-start">
+<sc-for list="{{dialogs}}" as="g" hint-placeholder-count="2">
+<div style="width:580px;flex:none;background:#FFFFFF;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column;overflow:hidden">
+<div style="padding:18px 22px 12px"><div style="font-size:19px;font-weight:800">{{g.title}}</div><div style="font-size:12px;font-weight:600;color:#64748B;margin-top:3px">{{g.sub}}</div></div>
+<div style="padding:0 22px;display:flex;flex-direction:column;gap:10px">
+<div style="background:#EAF2FF;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px"><span style="width:32px;height:32px;border-radius:16px;background:#FFFFFF;display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l6-4v17M11 21V10l8 3v8M8 11h.01M8 15h.01M15 15h.01"/></svg></span><span style="font-size:11.5px;font-weight:600;color:#1E3A8A;line-height:1.45">Disponibilidad en Trinidad. El nombre, descripción y tipo de vehículo forman parte del catálogo base; la activación y visibilidad se controlan por zona.</span></div>
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>Catálogo base</div>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px">
+<sc-for list="{{g.fields}}" as="f" hint-placeholder-count="5">
+<label style="grid-column:span {{f.span}};display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:700;color:#64748B">{{f.l}}<span style="height:{{f.h}}px;box-sizing:border-box;border:1px solid {{f.line}};border-radius:10px;background:{{f.bg}};display:flex;align-items:{{f.al}};gap:6px;padding:{{f.pad}};font-size:13px;font-weight:600;color:{{f.ink}};line-height:1.45"><span style="flex:1">{{f.v}}</span><sc-if value="{{f.dd}}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></sc-if></span><span style="font-size:10.5px;font-weight:500;color:#64748B">{{f.hint}}</span></label>
+</sc-for>
+</div>
+</div>
+<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:6px 14px 6px;display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;padding:6px 0 2px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11zM12 12a2 2 0 100-4 2 2 0 000 4z"/></svg>Disponibilidad en la zona</div>
+<sc-for list="{{g.zone}}" as="s" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #EEF1F5">
+<div style="flex:1"><div style="font-size:13px;font-weight:700">{{s.t}}</div><div style="font-size:11px;font-weight:500;color:#64748B">{{s.sub}}</div></div>
+<span style="width:40px;height:24px;border-radius:12px;background:{{s.bg}};position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:{{s.knob}}px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,.2)"></span></span>
+</div>
+</sc-for>
+<div style="height:1px;background:#D0D5DD;margin:6px 0 2px"></div>
+<sc-for list="{{g.rules}}" as="s" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #EEF1F5">
+<div style="flex:1"><div style="font-size:13px;font-weight:700">{{s.t}}</div><div style="font-size:11px;font-weight:500;color:#64748B">{{s.sub}}</div></div>
+<span style="width:40px;height:24px;border-radius:12px;background:{{s.bg}};position:relative;display:inline-block;flex:none"><span style="position:absolute;top:3px;left:{{s.knob}}px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,.2)"></span></span>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;justify-content:flex-end;gap:10px;padding:14px 22px 18px">
+<button style="height:40px;padding:0 14px;border-radius:10px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 18px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5zM8 3v6h8V3M8 21v-7h8v7"/></svg>Guardar servicio</button>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+const sw = (t, sub, on) => ({ t, sub, bg: on ? '#2563EB' : '#C5CEDD', knob: on ? 19 : 3 });
+const f = (l, v, o) => {
+o = o || {};
+const ph = !!o.ph, dis = !!o.dis, multi = !!o.multi;
+return { l, v, hint: o.hint || '', span: o.span || 1, dd: !!o.dd, h: multi ? 74 : 38, al: multi ? 'flex-start' : 'center', pad: multi ? '8px 12px' : '0 12px', bg: dis ? '#F2F4F7' : '#FFFFFF', line: dis ? '#E4E7EC' : '#D0D5DD', ink: dis || ph ? '#98A2B3' : '#0F172A' };
+};
+const vehHint = 'Auto · Moto · XL · Cualquiera';
+return {
+dialogs: [
+{
+title: 'Crear servicio · Trinidad', sub: '',
+fields: [
+f('Nombre visible', 'Ej. Moto Express', { ph: true }),
+f('Clave interna', 'motorcycle', { ph: true }),
+f('Descripción', '', { multi: true, span: 2 }),
+f('Vehículo requerido', 'Moto', { dd: true, hint: vehHint }),
+f('Orden en la app', '100', { hint: 'Número · por defecto 100' })
+],
+zone: [
+sw('Disponible en Trinidad', 'Activa o bloquea solicitudes. La visibilidad se controla por separado.', false),
+sw('Visible para pasajeros', 'Si está visible pero no disponible, aparecerá como “No disponible”.', false),
+sw('Visible para conductores', 'Controla si el servicio aparece en la interfaz del conductor.', false)
+],
+rules: [sw('Permitir ofertas', '', true), sw('Permitir precio fijo', '', true), sw('Permitir viajes programados', '', true)]
+},
+{
+title: 'Editar servicio · Trinidad', sub: '',
+fields: [
+f('Nombre visible', 'Taxi Express'),
+f('Clave interna', 'taxi_express', { dis: true }),
+f('Descripción', 'Auto con aire acondicionado para hasta 4 pasajeros.', { multi: true, span: 2 }),
+f('Vehículo requerido', 'Auto', { dd: true, hint: vehHint }),
+f('Orden en la app', '20', { hint: 'Número · por defecto 100' })
+],
+zone: [
+sw('Disponible en Trinidad', 'Activa o bloquea solicitudes. La visibilidad se controla por separado.', true),
+sw('Visible para pasajeros', 'Si está visible pero no disponible, aparecerá como “No disponible”.', true),
+sw('Visible para conductores', 'Controla si el servicio aparece en la interfaz del conductor.', true)
+],
+rules: [sw('Permitir ofertas', '', true), sw('Permitir precio fijo', '', true), sw('Permitir viajes programados', '', true)]
+}
+]
+};
+}
+}
+</script>
+</body>
+</html>

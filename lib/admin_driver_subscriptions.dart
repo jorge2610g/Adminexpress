@@ -2,6 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+import 'core/admin_stage_edit_dialog_title.dart';
+import 'core/admin_widgets.dart';
+
 import 'admin_control_sections.dart';
 import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
@@ -448,7 +452,11 @@ class _AdminDriverSubscriptionsPageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(plan == null ? 'Nuevo plan' : 'Editar plan'),
+          title: AdminStageEditDialogTitle(
+            title: plan == null ? 'Nuevo plan' : 'Editar plan',
+            subtitle: 'Planes · ${settings['zone_name'] ?? selectedZoneKey ?? 'Zona'}',
+            icon: Icons.workspace_premium_rounded,
+          ),
           content: SizedBox(
             width: 520,
             child: SingleChildScrollView(
@@ -714,11 +722,13 @@ class _AdminDriverSubscriptionsPageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            'Asignar plan · ' +
+          title: AdminStageEditDialogTitle(
+            title: 'Asignar plan · ' +
                 (driver['full_name']?.toString().trim().isNotEmpty == true
                     ? driver['full_name'].toString()
                     : driver['email']?.toString() ?? 'Conductor'),
+            subtitle: '${settings['zone_name'] ?? selectedZoneKey ?? 'Zona'} · ${settings['currency_code'] ?? 'BOB'}',
+            icon: Icons.two_wheeler_rounded,
           ),
           content: SizedBox(
             width: 480,
@@ -825,7 +835,11 @@ class _AdminDriverSubscriptionsPageState
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Conectar VeriPagos'),
+        title: AdminStageEditDialogTitle(
+          title: 'Conectar VeriPagos',
+          subtitle: 'QR Bolivia · ${settings['zone_name'] ?? selectedZoneKey ?? 'Zona'}',
+          icon: Icons.qr_code_2_rounded,
+        ),
         content: SizedBox(
           width: 520,
           child: SingleChildScrollView(
@@ -1038,32 +1052,15 @@ class _AdminDriverSubscriptionsPageState
       child: ListView(
         padding: const EdgeInsets.fromLTRB(22, 20, 22, 32),
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Suscripciones de conductores',
-                      style:
-                          TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Planes, vigencias y pagos por zona.',
-                      style: TextStyle(color: Color(0xFF64748B)),
-                    ),
-                  ],
+          AdminPlainPageHeading(
+                title: 'Suscripciones de conductores',
+                subtitle: 'Planes, vigencias y pagos por zona.',
+                trailing: IconButton(
+                  tooltip: 'Actualizar',
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh_rounded, color: AdminColors.blue),
                 ),
               ),
-              IconButton(
-                tooltip: 'Actualizar',
-                onPressed: _load,
-                icon: const Icon(Icons.refresh_rounded),
-              ),
-            ],
-          ),
           if (error != null) ...[
             const SizedBox(height: 12),
             _AdminSubNotice(text: error!, warning: true),
@@ -1317,7 +1314,7 @@ class _AdminDriverSubscriptionsPageState
                 ? 'Los usuarios de prueba no se mezclan con los conductores reales.'
                 : qaDrivers.length.toString() +
                     ' conductores QA están separados y no cuentan como reales.',
-            style: const TextStyle(color: Color(0xFF64748B)),
+            style: const TextStyle(color: AdminColors.muted),
           ),
           const SizedBox(height: 10),
           if (realDrivers.isEmpty)
@@ -1659,7 +1656,7 @@ class _ProviderCard extends StatelessWidget {
           children: [
             CircleAvatar(
               backgroundColor: configured
-                  ? const Color(0xFFE8F8EF)
+                  ? AdminColors.okSoft
                   : const Color(0xFFFFF3E0),
               child: const Icon(Icons.qr_code_2_rounded),
             ),
@@ -1791,7 +1788,7 @@ class _AdminPlanCard extends StatelessWidget {
             Text(
               price + ' · ' + plan['days'].toString() + ' días',
               style: const TextStyle(
-                color: Color(0xFF2563EB),
+                color: AdminColors.blue,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -1845,7 +1842,7 @@ class _AdminSubNotice extends StatelessWidget {
               warning ? Icons.warning_amber_rounded : Icons.info_outline,
               color: warning
                   ? const Color(0xFFD97706)
-                  : const Color(0xFF2563EB),
+                  : AdminColors.blue,
             ),
             const SizedBox(width: 10),
             Expanded(child: Text(text)),
