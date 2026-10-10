@@ -60,7 +60,15 @@
 
 **Revisión del código**: `admin_marketplace.dart`, `admin_marketplace_phase2.dart` y `admin_driver_priority.dart` tienen fuentes reales y cabeceras planas (como el PDF). Son **módulos productivos restringidos en Preview**; no fingir paridad visual mostrando los datos de ejemplo de Claude ni desbloquear permisos solo para compararlos.
 
-**Pendientes**: contrastar grids, menús y cada campo de los diálogos con fixtures QA aisladas; verificar botones sin datos reales.
+**Avance de código E4 (10 oct 2026)**:
+- **Express Market:** rejilla de tres columnas a partir de 900 px de espacio útil, tarjetas con borde, iconografía diferenciada y acciones adaptadas a móvil.
+- **Delivery Fase 2 / Express Plus:** tres tarjetas compactas de módulos en escritorio, tarjeta de acceso a Pedidos preservada y cabeceras de formularios alineadas al diseño.
+- **Prioridad:** cuatro indicadores reales (reputación, reseñas, experiencia y frecuencia) en paralelo cuando hay ancho, con adaptación a móvil y valores de progreso limitados a 0–100; **no se cambió el algoritmo de ranking**.
+- Los principales cuadros de configuración de Market, Plus y Prioridad ahora comparten cabeceras claras con icono y etiqueta de entorno; sus switches, RPC, validaciones existentes y permisos permanecen intactos.
+- Pruebas de widget para indicadores de prioridad, anchos 320/390/900 px y cabeceras de formularios a 390/960 px añadidas a CI.
+- Respaldo previo: `backup/admin-e4-before-market-priority-20261010`.
+
+**Pendientes para aprobar E4**: capturas de Flutter comparadas con PDF 19–24; verificación de todos los diálogos, acciones y ausencia de overflow; no desbloquear Market/Plus/Prioridad en Preview. Verificar visualmente mediante build QA aislado con datos sintéticos, sin ejecutar operaciones de Producción. **E4 no está certificada.**
 
 ## E5 — Finanzas (6)
 
