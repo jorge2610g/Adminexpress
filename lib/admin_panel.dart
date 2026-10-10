@@ -1141,6 +1141,20 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                   ? AppBar(
                       title: const _Brand(compact: true),
                       actions: [
+                        if (adminIsPreview)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4),
+                            child: Center(
+                              child: Text(
+                                'UI QA',
+                                style: TextStyle(
+                                  color: AdminColors.previewInk,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ),
                         if (!_isZoneMonitor)
                           IconButton(
                             tooltip: 'Nuevo viaje',
