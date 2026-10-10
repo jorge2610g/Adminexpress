@@ -47,14 +47,20 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
   String _text(dynamic value) => value?.toString().trim() ?? '';
 
   Future<Map<String, dynamic>> _load() async {
-    final results = await Future.wait([
-      supabase.rpc('admin_driver_kyc_bolivia_manual_list',
-          params: {'p_channel':widget.channel,'p_limit':150}),
-    ]);
-    final rows=_list(results[0]);
+    final documents=await supabase.rpc('admin_driver_kyc_bolivia_manual_list',
+      params:{'p_channel':widget.channel,'p_limit':150});
+    final zones=(widget.countryCode??'').trim().isEmpty
+      ? <Map<String,dynamic>>[]
+      : _list(await supabase.rpc('admin_zone_list_for_country',params:{
+          'p_country_code':widget.countryCode!.trim().toUpperCase(),
+        }));
+    final rows=_list(documents);
     final region=widget.countryCode?.toUpperCase();
-    return {'documents':rows.where((d)=>region==null || region.isEmpty ||
-      _text(d['country_code']).toUpperCase()==region).toList()};
+    return {
+      'documents':rows.where((d)=>region==null || region.isEmpty ||
+        _text(d['country_code']).toUpperCase()==region).toList(),
+      'zones':zones,
+    };
   }
 
   void _reload() {
@@ -70,6 +76,7 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
 
   String _statusLabel(String status) => switch(status) {
     'approved' => 'Aprobada',
+    'verified' => 'Verificada',
     'rejected' => 'Rechazada',
     'pending' => 'Pendiente',
     _ => 'Sin revisar',
@@ -152,7 +159,56 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
     }
   }
 
-  Future<void> _details(Map<String,dynamic> document) async {
+  Future<void> _activateDriver(
+    Map<String,dynamic> document,
+    Map<String,dynamic> zone,
+    BuildContext detailContext,
+    void Function(bool) setActivationBusy,
+  ) async {
+    final name=_text(document['full_name']).isEmpty
+      ? 'El conductor':_text(document['full_name']);
+    final zoneName=_text(zone['name']).isEmpty
+      ? _text(zone['city']):_text(zone['name']);
+    final confirmed=await showDialog<bool>(
+      context:context,
+      builder:(dialogContext)=>AlertDialog(
+        title:const Text('Activar conductor'),
+        content:Text('$name quedará aprobado en $zoneName y podrá conectarse '
+          'para recibir solicitudes.'),
+        actions:[
+          TextButton(
+            onPressed:()=>Navigator.pop(dialogContext,false),
+            child:const Text('Cancelar')),
+          FilledButton(
+            onPressed:()=>Navigator.pop(dialogContext,true),
+            child:const Text('Activar')),
+        ],
+      ),
+    );
+    if(confirmed!=true || !mounted) return;
+    setActivationBusy(true);
+    try {
+      await supabase.rpc('admin_driver_activate',params:{
+        'p_driver_id':document['driver_id'],
+        'p_zone_id':zone['id'],
+        'p_channel':widget.channel,
+      });
+      if(!mounted) return;
+      Navigator.of(detailContext).pop();
+      _reload();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content:Text('Conductor activado en $zoneName.')));
+    } catch(error) {
+      setActivationBusy(false);
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content:Text('No se pudo activar: $error')));
+    }
+  }
+
+  Future<void> _details(
+    Map<String,dynamic> document,
+    List<Map<String,dynamic>> zones,
+  ) async {
     // Short-lived links for authenticated administrators, never public assets.
     final signed=<String,String>{};
     final slots=<String,String>{
@@ -171,9 +227,30 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
     }
     if(!mounted) return;
     final parts=_map(document['review_parts']);
+    String? selectedZoneId=_text(document['zone_id']).isEmpty
+      ? null:_text(document['zone_id']);
+    var activationBusy=false;
     await showDialog<void>(
       context:context,
-      builder:(dialogContext)=>AlertDialog(
+      builder:(dialogContext)=>StatefulBuilder(
+        builder:(context,setDialogState) {
+          final allPhotosApproved=parts.values.whereType<Map>().every((part) {
+            final photo=_text(part['path']).isNotEmpty;
+            return !photo || _text(part['status'])=='approved';
+          });
+          final verified=_text(document['status'])=='verified';
+          final alreadyActive=_text(document['approval_status'])=='approved' &&
+            _text(document['zone_id']).isNotEmpty;
+          Map<String,dynamic>? selectedZone;
+          for(final zone in zones) {
+            if(_text(zone['id'])==selectedZoneId) {
+              selectedZone=zone;
+              break;
+            }
+          }
+          final canActivate=allPhotosApproved && verified && !alreadyActive &&
+            selectedZone!=null && !activationBusy;
+          return AlertDialog(
         title:const Text('Revisión individual de identidad'),
         content:SizedBox(width:690,child:SingleChildScrollView(
           child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -244,6 +321,36 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
               }),
             ],
             const SizedBox(height:12),
+            if(!alreadyActive) ...[
+              if(_text(document['zone_id']).isEmpty)
+                DropdownButtonFormField<String>(
+                  value:selectedZoneId,
+                  decoration:const InputDecoration(
+                    border:OutlineInputBorder(),
+                    labelText:'Zona del conductor',
+                  ),
+                  items:zones.map((zone)=>DropdownMenuItem<String>(
+                    value:_text(zone['id']),
+                    child:Text(_text(zone['name']).isEmpty
+                      ? _text(zone['city']):_text(zone['name'])),
+                  )).toList(),
+                  onChanged:_busy ? null:(value)=>setDialogState(
+                    ()=>selectedZoneId=value),
+                ),
+              if(!allPhotosApproved || !verified)
+                const Padding(
+                  padding:EdgeInsets.only(top:8),
+                  child:Text('Aprueba todas las fotografías para activar.')),
+              const SizedBox(height:10),
+              FilledButton.icon(
+                onPressed:canActivate ? ()=>_activateDriver(
+                  document,selectedZone!,dialogContext,
+                  (busy)=>setDialogState(()=>activationBusy=busy)) : null,
+                icon:const Icon(Icons.verified_user_rounded),
+                label:Text(activationBusy ? 'Activando…':'Activar conductor'),
+              ),
+            ] else
+              Chip(label:Text('Activo · ${_text(document['zone_name'])}')),
             const Text('La aprobación del conductor y del vehículo '
               'es independiente de estas fotografías.'),
           ]),
@@ -252,6 +359,8 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
           TextButton(onPressed:()=>Navigator.pop(dialogContext),
             child:const Text('Cerrar')),
         ],
+      );
+        },
       ),
     );
   }
@@ -272,6 +381,7 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
         }
         final data=snapshot.data!;
         final docs=_list(data['documents']);
+        final zones=_list(data['zones']);
         return Card(child:Padding(padding:const EdgeInsets.all(16),
           child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
             const Text('Verificación manual de identidad',
@@ -298,9 +408,14 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
                 title:Text(_text(doc['full_name']).isNotEmpty
                   ? _text(doc['full_name']):'Conductor'),
                 subtitle:Text('Carné ${_text(doc['document_number'])} · '
-                  '${_text(doc['status'])}'),
-                trailing:const Icon(Icons.chevron_right),
-                onTap:()=>_details(doc),
+                  '${_statusLabel(_text(doc['status']))}'),
+                trailing:Row(mainAxisSize:MainAxisSize.min,children:[
+                  if(_text(doc['approval_status'])=='approved' &&
+                      _text(doc['zone_id']).isNotEmpty)
+                    Chip(label:Text('Activo · ${_text(doc['zone_name'])}')),
+                  const Icon(Icons.chevron_right),
+                ]),
+                onTap:()=>_details(doc,zones),
               ),
             ]),
           ),
