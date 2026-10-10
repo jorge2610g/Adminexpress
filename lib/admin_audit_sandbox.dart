@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+
 import 'core/supabase_client.dart';
 
-const Color _auditBlue = Color(0xFF2563EB);
-const Color _auditDark = Color(0xFF0F172A);
-const Color _auditMuted = Color(0xFF64748B);
+const Color _auditBlue = AdminColors.blue;
+const Color _auditDark = AdminColors.ink;
+const Color _auditMuted = AdminColors.muted;
 
 List<Map<String, dynamic>> _auditMaps(Object? value) {
   if (value is! List) return const <Map<String, dynamic>>[];
@@ -657,7 +659,7 @@ class _AuditGroupCard extends StatelessWidget {
         border: Border.all(
           color: active
               ? const Color(0xFFBFDBFE)
-              : const Color(0xFFDDE6F0),
+              : AdminColors.border,
         ),
         boxShadow: const [
           BoxShadow(
@@ -680,7 +682,7 @@ class _AuditGroupCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: active
                           ? const Color(0xFFDBEAFE)
-                          : const Color(0xFFF1F5F9),
+                          : AdminColors.bg,
                       borderRadius: BorderRadius.circular(13),
                     ),
                     child: Icon(
@@ -773,7 +775,7 @@ class _AuditGroupCard extends StatelessWidget {
               final passengerColumn = _RoleColumn(
                 title: 'Pasajeros de prueba',
                 icon: Icons.person_outline_rounded,
-                roleTone: const Color(0xFF2563EB),
+                roleTone: AdminColors.blue,
                 members: passengers,
                 emptyText: 'Sin pasajero asignado',
                 addLabel: 'Añadir pasajero',
@@ -843,7 +845,7 @@ class _RoleColumn extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: AdminColors.surfaceSoft,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
@@ -1008,7 +1010,7 @@ class _EmptyAuditState extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(19),
-        border: Border.all(color: const Color(0xFFDDE6F0)),
+        border: Border.all(color: AdminColors.border),
       ),
       child: Column(
         children: [
