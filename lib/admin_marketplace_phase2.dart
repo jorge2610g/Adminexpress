@@ -1789,7 +1789,6 @@ class _AdminMarketplacePhase2PageState
                       ),
                     ],
                   ),
-                ),
               ),
             ],
           );
