@@ -129,9 +129,10 @@ class _AdminEnvironmentReportsPageState
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final cardWidth = width < 650
+        // PDF page 31: four metric columns on the standard desktop panel.
+        final cardWidth = width < 520
             ? width
-            : width < 1000
+            : width < 870
                 ? (width - 12) / 2
                 : (width - 36) / 4;
         return Wrap(
@@ -240,31 +241,46 @@ class _AdminEnvironmentReportsPageState
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              const AdminPageHero(
-                title: 'Reportes',
-                subtitle: 'Resumen general de Express. Una sola pantalla, sin cambiar el modo del panel ni seleccionar país o zona.',
-                icon: Icons.bar_chart_rounded,
+              const Text(
+                'Reportes',
+                style: AdminText.pageTitle,
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Resumen general de Express. Una sola pantalla, sin cambiar el modo del panel ni seleccionar país o zona.',
+                style: AdminText.caption,
               ),
               const SizedBox(height: 14),
-              Wrap(
-                spacing: 8, runSpacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _pickFrom,
-                    icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                    label: Text('Desde ' + _date(from)),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _pickTo,
-                    icon: const Icon(Icons.event_outlined, size: 16),
-                    label: Text('Hasta ' + _date(to.subtract(const Duration(days: 1)))),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _refresh,
-                    icon: const Icon(Icons.refresh_rounded, size: 16),
-                    label: const Text('Actualizar'),
-                  ),
-                ],
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AdminColors.surface,
+                  border: Border.all(color: AdminColors.borderSoft),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _pickFrom,
+                      icon: const Icon(Icons.calendar_today_outlined, size: 16),
+                      label: Text('Desde ' + _date(from)),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _pickTo,
+                      icon: const Icon(Icons.event_outlined, size: 16),
+                      label: Text('Hasta ' +
+                          _date(to.subtract(const Duration(days: 1)))),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _refresh,
+                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      label: const Text('Actualizar'),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 18),
               if (reports.isEmpty)
