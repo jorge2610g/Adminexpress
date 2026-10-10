@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 
 import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
@@ -495,44 +496,23 @@ class _AdminDriverDocumentRequirementsPanelState
         final data = snapshot.data ??
             (requirements: <Map<String, dynamic>>[], zones: <Map<String, dynamic>>[]);
 
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const CircleAvatar(
-                      backgroundColor: AdminColors.blueSoft,
-                      child: Icon(Icons.folder_shared_outlined, color: AdminColors.blue),
-                    ),
-                    const SizedBox(width: 11),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Documentos requeridos para conductores',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            'Crea, edita o elimina los documentos que debe cargar cada conductor según país o ciudad.',
-                            style: TextStyle(fontSize: 11, color: AdminColors.muted),
-                          ),
-                        ],
-                      ),
-                    ),
-                    FilledButton.icon(
-                      onPressed: () => _edit(zones: data.zones),
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Nuevo documento'),
-                    ),
-                  ],
+        return AdminCard(
+          elevated: true,
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AdminSectionHeading(
+                title: 'Documentos requeridos para conductores',
+                subtitle: 'Crea, edita o elimina los documentos que debe cargar cada conductor según país o ciudad.',
+                icon: Icons.folder_shared_outlined,
+                trailing: FilledButton.icon(
+                  onPressed: () => _edit(zones: data.zones),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Nuevo documento'),
                 ),
-                const SizedBox(height: 14),
+              ),
+              const SizedBox(height: 14),
                 if (data.requirements.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 18),
@@ -547,8 +527,17 @@ class _AdminDriverDocumentRequirementsPanelState
                         color: row['active'] == false
                             ? AdminColors.surfaceSoft
                             : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE4E7EC)),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AdminColors.border),
+                        boxShadow: row['active'] == false
+                            ? null
+                            : const [
+                                BoxShadow(
+                                  color: Color(0x0A0F172A),
+                                  blurRadius: 12,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
                       ),
                       child: Row(
                         children: [
@@ -572,17 +561,29 @@ class _AdminDriverDocumentRequirementsPanelState
                                   spacing: 6,
                                   runSpacing: 4,
                                   children: [
-                                    Chip(label: Text(_scopeLabel(row))),
+                                    AdminStatusChip(
+                                      _scopeLabel(row),
+                                      tone: AdminStatusTone.info,
+                                      dot: false,
+                                    ),
                                     if (row['required'] == true)
-                                      const Chip(label: Text('Obligatorio')),
+                                      const AdminStatusChip(
+                                        'Obligatorio',
+                                        tone: AdminStatusTone.danger,
+                                        dot: false,
+                                      ),
                                     if (row['require_front'] == true)
-                                      const Chip(label: Text('Frente')),
+                                      const AdminStatusChip('Frente', dot: false),
                                     if (row['require_back'] == true)
-                                      const Chip(label: Text('Reverso')),
+                                      const AdminStatusChip('Reverso', dot: false),
                                     if (row['require_selfie'] == true)
-                                      const Chip(label: Text('Selfie')),
+                                      const AdminStatusChip(
+                                        'Selfie',
+                                        tone: AdminStatusTone.purple,
+                                        dot: false,
+                                      ),
                                     if (row['active'] == false)
-                                      const Chip(label: Text('Inactivo')),
+                                      const AdminStatusChip('Inactivo', dot: false),
                                   ],
                                 ),
                               ],
@@ -602,8 +603,7 @@ class _AdminDriverDocumentRequirementsPanelState
                       ),
                     ),
                   ),
-              ],
-            ),
+            ],
           ),
         );
       },
