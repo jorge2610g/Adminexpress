@@ -1912,6 +1912,40 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     foregroundColor: adminBlue,
                   ),
                 ),
+          rowAction: _isZoneMonitor
+              ? null
+              : (row) => PopupMenuButton<String>(
+                    tooltip: 'Acciones',
+                    icon: const Icon(Icons.more_horiz_rounded,
+                        color: adminBlue),
+                    onSelected: (value) async {
+                      if (value == 'edit') {
+                        final changed = await showAdminDriverEditor(
+                          context,
+                          row['user_id'].toString(),
+                          channel: adminChannel,
+                        );
+                        if (changed && mounted) _refresh();
+                        return;
+                      }
+                      await _driverStatus(row['user_id'].toString(), value);
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Text('Ver / editar ficha'),
+                      ),
+                      PopupMenuDivider(),
+                      PopupMenuItem(value: 'approved', child: Text('Aprobar')),
+                      PopupMenuItem(
+                        value: 'pending', child: Text('Marcar pendiente'),
+                      ),
+                      PopupMenuItem(value: 'rejected', child: Text('Rechazar')),
+                      PopupMenuItem(
+                        value: 'suspended', child: Text('Suspender'),
+                      ),
+                    ],
+                  ),
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
             final online = (row['online_status'] ?? 'offline').toString();
@@ -2125,6 +2159,35 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           rows: snapshot.data ?? const [],
           serverFilters: _userGeoFilters(),
           showQaFilter: true,
+          rowAction: _isZoneMonitor
+              ? null
+              : (row) => PopupMenuButton<String>(
+                    tooltip: 'Acciones',
+                    icon: const Icon(Icons.more_vert_rounded,
+                        color: adminBlue),
+                    onSelected: (value) async {
+                      if (value == 'edit') {
+                        final changed = await showAdminUserEditor(
+                          context,
+                          row['user_id'].toString(),
+                          channel: adminChannel,
+                        );
+                        if (changed && mounted) _refresh();
+                        return;
+                      }
+                      await _accountStatus(row['user_id'].toString(), value);
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Text('Ver / editar perfil'),
+                      ),
+                      PopupMenuDivider(),
+                      PopupMenuItem(value: 'active', child: Text('Activar')),
+                      PopupMenuItem(value: 'suspended', child: Text('Suspender')),
+                      PopupMenuItem(value: 'blocked', child: Text('Bloquear')),
+                    ],
+                  ),
           item: (row) => Container(
             margin: const EdgeInsets.only(bottom: 7),
             decoration: BoxDecoration(
@@ -4590,6 +4653,7 @@ class _Records extends StatefulWidget {
   final String statusField;
   final List<String>? statusOptions;
   final Widget? headerAction;
+  final Widget Function(Map<String, dynamic>)? rowAction;
 
   const _Records({
     required this.title,
@@ -4602,6 +4666,7 @@ class _Records extends StatefulWidget {
     this.statusField = 'status',
     this.statusOptions,
     this.headerAction,
+    this.rowAction,
   });
 
   @override
@@ -4771,6 +4836,7 @@ class _RecordsState extends State<_Records> {
             kind: tableKind!,
             rows: visible,
             detailBuilder: widget.item,
+            rowAction: widget.rowAction,
             tryOpen: (row) {
               final item = widget.item(row);
               if (item is _OperationCard && item.onTap != null) {
