@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_detail_dialog_frame.dart';
 import 'core/admin_widgets.dart';
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
@@ -143,126 +144,6 @@ Future<void> showAdminTripDetail(
       channel: channel,
     ),
   );
-}
-
-class _DialogFrame extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final Widget child;
-  final List<Widget> actions;
-
-  const _DialogFrame({
-    required this.title,
-    required this.subtitle,
-    required this.child,
-    required this.actions,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final width = size.width < 920 ? size.width - 28 : 900.0;
-    final height = size.height * .90;
-
-    return Dialog(
-      insetPadding: const EdgeInsets.all(14),
-      backgroundColor: Colors.transparent,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: width,
-          maxHeight: height,
-        ),
-        child: Material(
-          color: AdminColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              // The 54 Claude artboards use a light, compact dialog heading,
-              // not the blue page hero used inside full-size screens.
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 18, 18, 16),
-                decoration: const BoxDecoration(
-                  color: AdminColors.surface,
-                  border: Border(
-                    bottom: BorderSide(color: AdminColors.border),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: AdminColors.blueSoft,
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                      child: const Icon(
-                        Icons.manage_accounts_rounded,
-                        color: AdminColors.blue,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              color: AdminColors.ink,
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -.25,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            subtitle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AdminColors.muted,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
-                  child: child,
-                ),
-              ),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
-                decoration: const BoxDecoration(
-                  color: AdminColors.surface,
-                  border: Border(
-                    top: BorderSide(color: AdminColors.border),
-                  ),
-                ),
-                child: Wrap(
-                  alignment: WrapAlignment.end,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: actions,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _Section extends StatelessWidget {
@@ -980,7 +861,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     }
 
     return SizedBox(
-      width: 430,
+      width: double.infinity,
       child: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
@@ -1026,6 +907,25 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                 style: const TextStyle(color: _detailMuted, fontSize: 11),
               ),
             ],
+            if (document != null && _text(document['expires_at'], '').isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Text(
+                'Vencimiento: ${_date(document['expires_at'])}',
+                style: const TextStyle(color: _detailMuted, fontSize: 11),
+              ),
+            ],
+            if (document != null &&
+                _text(document['rejection_reason'], '').isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Motivo: ${_text(document['rejection_reason'])}',
+                style: const TextStyle(
+                  color: AdminColors.danger,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             if (document == null)
               const Text(
@@ -1043,7 +943,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                 runSpacing: 7,
                 children: slots.map(photoButton).toList(),
               ),
-            const Spacer(),
+            const SizedBox(height: 10),
             if (document != null && slots.isEmpty)
               Wrap(
                 spacing: 8,
@@ -1231,8 +1131,22 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     final qa = _map(detail['qa']);
     final partner = _map(detail['partner']);
 
-    return _DialogFrame(
+    return AdminDetailDialogFrame(
       title: 'Ficha del conductor',
+      icon: Icons.badge_outlined,
+      status: loading
+          ? null
+          : switch (approvalStatus) {
+              'approved' => 'Aprobado',
+              'rejected' => 'Rechazado',
+              'suspended' => 'Suspendido',
+              _ => 'Pendiente',
+            },
+      statusTone: switch (approvalStatus) {
+        'approved' => AdminStatusTone.success,
+        'rejected' || 'suspended' => AdminStatusTone.danger,
+        _ => AdminStatusTone.warning,
+      },
       subtitle: loading
           ? 'Cargando información completa...'
           : _text(user['email'], widget.userId),
@@ -1551,27 +1465,17 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
-                                SizedBox(
-                                  height: 272,
-                                  child: ListView.separated(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: scopedRequirements.length,
-                                    separatorBuilder: (_, __) =>
-                                        const SizedBox(width: 10),
-                                    itemBuilder: (context, index) {
-                                      final requirement =
-                                          scopedRequirements[index];
-                                      final document = _documentForRequirement(
+                                for (final requirement in scopedRequirements)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: _requirementCard(
+                                      requirement,
+                                      _documentForRequirement(
                                         requirement,
                                         documents,
-                                      );
-                                      return _requirementCard(
-                                        requirement,
-                                        document,
-                                      );
-                                    },
+                                      ),
+                                    ),
                                   ),
-                                ),
                               ],
                             );
                           },
@@ -1706,8 +1610,20 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
     final qa = _map(detail['qa']);
     final recentTrips = _maps(detail['recent_trips']);
 
-    return _DialogFrame(
+    return AdminDetailDialogFrame(
       title: 'Ficha del usuario',
+      icon: Icons.person_outline_rounded,
+      status: loading
+          ? null
+          : switch (accountStatus) {
+              'active' => 'Activa',
+              'suspended' => 'Suspendida',
+              'blocked' => 'Bloqueada',
+              _ => 'Pendiente',
+            },
+      statusTone: accountStatus == 'active'
+          ? AdminStatusTone.success
+          : AdminStatusTone.danger,
       subtitle: loading ? 'Cargando perfil...' : _text(user['email'], widget.userId),
       actions: [
         TextButton(
@@ -1907,8 +1823,9 @@ class _TripDetailDialogState extends State<_TripDetailDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return _DialogFrame(
+    return AdminDetailDialogFrame(
       title: 'Detalle del viaje',
+      icon: Icons.route_rounded,
       subtitle: 'Información operativa, cobro, historial y participantes.',
       actions: [
         TextButton(
