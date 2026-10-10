@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 
 import 'admin_control_sections.dart';
 import 'admin_environment_store.dart';
@@ -1040,32 +1041,16 @@ class _AdminDriverSubscriptionsPageState
       child: ListView(
         padding: const EdgeInsets.fromLTRB(22, 20, 22, 32),
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Suscripciones de conductores',
-                      style:
-                          TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Planes, vigencias y pagos por zona.',
-                      style: TextStyle(color: AdminColors.muted),
-                    ),
-                  ],
+          AdminPageHero(
+                title: 'Suscripciones de conductores',
+                subtitle: 'Planes, vigencias y pagos por zona.',
+                icon: Icons.workspace_premium_rounded,
+                trailing: IconButton(
+                  tooltip: 'Actualizar',
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh_rounded, color: Colors.white),
                 ),
               ),
-              IconButton(
-                tooltip: 'Actualizar',
-                onPressed: _load,
-                icon: const Icon(Icons.refresh_rounded),
-              ),
-            ],
-          ),
           if (error != null) ...[
             const SizedBox(height: 12),
             _AdminSubNotice(text: error!, warning: true),
