@@ -1944,7 +1944,13 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Nueva zona' : 'Editar zona'),
+          title: AdminStageEditDialogTitle(
+            title: row == null ? 'Nueva zona' : 'Editar zona',
+            subtitle: widget.channel == 'preview'
+                ? 'Preview · Cobertura y ubicación'
+                : 'Producción · Cobertura y ubicación',
+            icon: Icons.location_on_outlined,
+          ),
           content: SizedBox(
             width: 500,
             child: SingleChildScrollView(
@@ -2673,10 +2679,10 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            (row == null ? 'Crear servicio' : 'Editar servicio') +
-                ' · ' +
-                zoneName,
+          title: AdminStageEditDialogTitle(
+            title: row == null ? 'Crear servicio' : 'Editar servicio',
+            subtitle: zoneName,
+            icon: Icons.apps_outlined,
           ),
           content: SizedBox(
             width: 580,
@@ -3346,9 +3352,15 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null
-              ? 'Crear zona de seguridad'
-              : 'Editar zona de seguridad'),
+          title: AdminStageEditDialogTitle(
+            title: row == null
+                ? 'Crear zona de seguridad'
+                : 'Editar zona de seguridad',
+            subtitle: widget.channel == 'preview'
+                ? 'Preview · Sectores de prevención'
+                : 'Producción · Sectores de prevención',
+            icon: Icons.shield_outlined,
+          ),
           content: SizedBox(
             width: 780,
             child: SingleChildScrollView(
