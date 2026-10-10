@@ -1,3 +1,18 @@
+### Retorno Google al panel Preview (2026-10-10)
+
+El botón «Acceder con Google · Preview» usa un `redirectTo` exacto:
+`https://admin.expressviajes.online/preview/`. En el proyecto Supabase
+**principal**, esa dirección tiene que existir en Authentication → URL
+Configuration → Redirect URLs. Si falta, el navegador puede regresar
+a la Site URL global (en Express, la web pública de pasajeros).
+**No alterar la Site URL ni eliminar URLs de OAuth existentes.**
+
+La nueva cuenta QA de Google debe completar el flujo real y abrir el
+panel Preview antes de restringir los permisos del administrador original.
+`docs/ADMIN_PREVIEW_GOOGLE_OAUTH_CALLBACK_2026-10-10.md`.
+
+---
+
 ### Accesos y credenciales de Admin Preview / Producción
 
 Ambas páginas usan todavía el **mismo proyecto Supabase principal**.
