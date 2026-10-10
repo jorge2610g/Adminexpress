@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -294,18 +295,10 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 20, 22, 30),
       children: [
-        const Text(
-          'Laboratorio de carga QA',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w900,
-            color: AdminColors.ink,
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Genera conductores y solicitudes sintéticas en la ciudad QA que elijas y permite simular demanda para Express Preview. La operación real sigue centrada en Trinidad; LOADTEST y la demanda QA no alteran la tarifa real de producción.',
-          style: TextStyle(color: AdminColors.muted, height: 1.45),
+        const AdminPageHero(
+          title: 'Laboratorio de carga QA',
+          subtitle: 'Genera conductores y solicitudes sintéticas en la ciudad QA que elijas y permite simular demanda para Express Preview. LOADTEST no altera la tarifa real de producción.',
+          icon: Icons.speed_rounded,
         ),
         const SizedBox(height: 12),
         _scopeBanner(),
