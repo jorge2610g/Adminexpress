@@ -162,7 +162,7 @@ class _DialogFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final width = size.width < 920 ? size.width - 28 : 900.0;
-    final height = size.height * .88;
+    final height = size.height * .90;
 
     return Dialog(
       insetPadding: const EdgeInsets.all(14),
@@ -174,32 +174,34 @@ class _DialogFrame extends StatelessWidget {
         ),
         child: Material(
           color: AdminColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
+              // The 54 Claude artboards use a light, compact dialog heading,
+              // not the blue page hero used inside full-size screens.
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(22, 18, 18, 18),
+                padding: const EdgeInsets.fromLTRB(20, 18, 18, 16),
                 decoration: const BoxDecoration(
-                  gradient: AdminGradients.hero,
+                  color: AdminColors.surface,
+                  border: Border(
+                    bottom: BorderSide(color: AdminColors.border),
+                  ),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 42,
-                      height: 42,
+                      width: 38,
+                      height: 38,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .12),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: .16),
-                        ),
+                        color: AdminColors.blueSoft,
+                        borderRadius: BorderRadius.circular(11),
                       ),
                       child: const Icon(
-                        Icons.admin_panel_settings_rounded,
-                        color: Colors.white,
-                        size: 21,
+                        Icons.manage_accounts_rounded,
+                        color: AdminColors.blue,
+                        size: 20,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -210,8 +212,8 @@ class _DialogFrame extends StatelessWidget {
                           Text(
                             title,
                             style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
+                              color: AdminColors.ink,
+                              fontSize: 19,
                               fontWeight: FontWeight.w800,
                               letterSpacing: -.25,
                             ),
@@ -222,7 +224,7 @@ class _DialogFrame extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: AdminColors.headerMuted,
+                              color: AdminColors.muted,
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
                             ),
@@ -241,9 +243,9 @@ class _DialogFrame extends StatelessWidget {
               ),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
                 decoration: const BoxDecoration(
-                  color: AdminColors.surfaceSoft,
+                  color: AdminColors.surface,
                   border: Border(
                     top: BorderSide(color: AdminColors.border),
                   ),
