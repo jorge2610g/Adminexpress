@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
+import 'core/admin_design_tokens.dart';
 
-const Color _auditBlue = Color(0xFF2563EB);
-const Color _auditDark = Color(0xFF0F172A);
-const Color _auditMuted = Color(0xFF64748B);
+const Color _auditBlue = AdminColors.blue;
+const Color _auditDark = AdminColors.ink;
+const Color _auditMuted = AdminColors.muted;
 
 List<Map<String, dynamic>> _auditMaps(Object? value) {
   if (value is! List) return const <Map<String, dynamic>>[];
