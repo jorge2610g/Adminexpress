@@ -19,6 +19,14 @@ const supabaseUrl = _productionUrl;
 const supabasePublishableKey = _productionPublishableKey;
 const adminRuntimeChannel = adminIsPreview ? 'preview' : 'production';
 
+/// Canonical Google OAuth return destination of the published Preview panel.
+/// Supabase Auth must explicitly allowlist this URL under Authentication >
+/// URL Configuration > Redirect URLs. NEVER change the global Site URL to
+/// solve Preview sign-in; that would alter unrelated passenger redirects.
+const adminPreviewGoogleOAuthRedirectUrl =
+    'https://admin.expressviajes.online/preview/';
+
+
 /// A separate web LocalStorage session for Admin Preview.
 /// Production deliberately keeps Supabase's original/default storage key
 /// so no existing Production administrator is unexpectedly signed out.
