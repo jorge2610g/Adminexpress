@@ -3123,11 +3123,18 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
               LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
-                  final cardWidth = width < 680
+                  // Claude artboard 37 uses three catalog cards across
+                  // the 1032px administrator viewport.
+                  final cardWidth = width < 640
                       ? width
-                      : width < 1050
+                      : width < 900
                           ? (width - 12) / 2
                           : (width - 24) / 3;
+                  if (rows.isEmpty) {
+                    return const _Empty(
+                      text: 'Esta zona todavía no tiene servicios configurados.',
+                    );
+                  }
                   return Wrap(
                     spacing: 12,
                     runSpacing: 12,
@@ -3147,7 +3154,13 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                             enabled
                                 ? 'Disponible en $zoneName'
                                 : 'No disponible',
-                            row['vehicle_type']?.toString() ?? 'car',
+                            switch (row['vehicle_type']?.toString()) {
+                              'motorcycle' => 'Moto',
+                              'car' => 'Auto',
+                              'xl' => 'XL',
+                              'any' => 'Cualquiera',
+                              _ => row['vehicle_type']?.toString() ?? 'Auto',
+                            },
                             if (row['allow_bidding'] == true) 'Ofertas',
                             if (row['allow_fixed_price'] == true) 'Precio fijo',
                             if (row['passenger_visible'] == true)
@@ -8043,7 +8056,15 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                 _ReadOnlyRow(label: 'Empresa', value: 'Express Delivery'),
                 _ReadOnlyRow(label: 'País', value: country.text),
                 _ReadOnlyRow(label: 'Moneda', value: currency.text),
-                _ReadOnlyRow(label: 'Dispatch', value: dispatchMode),
+                _ReadOnlyRow(
+                  label: 'Dispatch',
+                  value: switch (dispatchMode) {
+                    'broadcast' => 'Broadcast',
+                    'progressive' => 'Progresivo',
+                    'manual' => 'Manual',
+                    _ => dispatchMode,
+                  },
+                ),
               ],
             ),
           ],
@@ -8765,7 +8786,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                   'Cambios operativos centralizados para pasajero, conductor y administración.',
               stats: [
                 ('Respaldo pagos', paymentCount.toString()),
-                ('Ofertas', row['allow_counteroffers'] != false ? 'Activas' : 'Off'),
+                ('Ofertas', row['allow_counteroffers'] != false ? 'Activas' : 'Inactivas'),
                 ('Mantenimiento', row['maintenance_mode'] == true ? 'Activo' : 'Normal'),
               ],
             ),
@@ -8773,9 +8794,9 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
             LayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.maxWidth;
-                final cardWidth = width < 720
+                final cardWidth = width < 660
                     ? width
-                    : width < 1120
+                    : width < 900
                         ? (width - 12) / 2
                         : (width - 24) / 3;
                 final cards = <Widget>[
@@ -8786,7 +8807,9 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                         'Respaldo global para versiones antiguas. La configuración vigente está en Zonas y Pagos / Billetera.',
                     accent: const Color(0xFF6941C6),
                     chips: [
-                      '$paymentCount respaldos activos',
+                      paymentCount == 1
+                          ? '1 respaldo activo'
+                          : '$paymentCount respaldos activos',
                       'No define la zona',
                     ],
                     onTap: () => _payments(row),
@@ -8808,8 +8831,8 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                     subtitle: 'SOS, compartir viaje, chat, llamadas y lugares guardados.',
                     accent: const Color(0xFF0E9384),
                     chips: [
-                      row['sos_enabled'] != false ? 'SOS activo' : 'SOS off',
-                      row['share_trip_enabled'] != false ? 'Compartir activo' : 'Compartir off',
+                      row['sos_enabled'] != false ? 'SOS activo' : 'SOS inactivo',
+                      row['share_trip_enabled'] != false ? 'Compartir activo' : 'Compartir inactivo',
                     ],
                     onTap: () => _safety(row),
                   ),
