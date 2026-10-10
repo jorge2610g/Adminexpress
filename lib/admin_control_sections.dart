@@ -16,7 +16,6 @@ import 'admin_country_coverage.dart';
 import 'admin_admob_settings.dart';
 import 'admin_distance_fares.dart';
 import 'admin_zone_coverage_editor.dart';
-import 'core/admin_zone_coverage_label.dart';
 import 'core/admin_zone_summary_card.dart';
 
 const Color _blue = AdminColors.blue;
