@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+
 import 'core/supabase_client.dart';
 
 /// Admin > Publicidad (AdMob). Both websites share the main Supabase project,
@@ -182,7 +184,7 @@ class _AdminAdMobSettingsPageState extends State<AdminAdMobSettingsPage> {
             Row(
               children: [
                 const Icon(Icons.admin_panel_settings_outlined,
-                    color: Color(0xFF2563EB)),
+                    color: AdminColors.blue),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text('Admin · Publicidad (Google AdMob)',
@@ -199,7 +201,7 @@ class _AdminAdMobSettingsPageState extends State<AdminAdMobSettingsPage> {
                   : 'Administra los anuncios de pasajeros y los ID públicos '
                     'de tu cuenta AdMob. Los anuncios reales siguen apagados '
                     'hasta activarlos y tener una APK configurada.',
-              style: const TextStyle(color: Color(0xFF64748B)),
+              style: const TextStyle(color: AdminColors.muted),
             ),
             const SizedBox(height: 16),
             SwitchListTile.adaptive(
@@ -244,7 +246,7 @@ class _AdminAdMobSettingsPageState extends State<AdminAdMobSettingsPage> {
               _idInput(_bannerId, 'ID de unidad Banner (Ad Unit ID)',
                   'ca-app-pub-1234567890123456/1234567890'),
               const Card(
-                color: Color(0xFFFFF7E6),
+                color: AdminColors.warnSoft,
                 elevation: 0,
                 child: Padding(
                   padding: EdgeInsets.all(12),
