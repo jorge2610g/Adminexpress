@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
 
 import 'core/supabase_client.dart';
 
@@ -1677,34 +1678,19 @@ class _AdminMarketplacePhase2PageState
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Delivery · Configuración',
-                          style: TextStyle(
-                            color: _ink,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Cada bloque abre su propia administración para mantener el panel compacto.',
-                          style: TextStyle(color: _muted),
-                        ),
-                      ],
-                    ),
+              AdminPageHero(
+                title: 'Delivery · Configuración',
+                subtitle: 'Cada bloque abre su propia administración para mantener el panel compacto.',
+                icon: Icons.delivery_dining_rounded,
+                trailing: OutlinedButton.icon(
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Actualizar'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white54),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Actualizar'),
-                  ),
-                ],
+                ),
               ),
               const SizedBox(height: 22),
               LayoutBuilder(
