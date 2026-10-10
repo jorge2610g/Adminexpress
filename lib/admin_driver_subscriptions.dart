@@ -1050,7 +1050,615 @@ class _AdminDriverSubscriptionsPageState
                   icon: const Icon(Icons.refresh_rounded, color: AdminColors.blue),
                 ),
               ),
-              const SizedBox(height: 4),
+          if (error != null) ...[
+            const SizedBox(height: 12),
+            _AdminSubNotice(text: error!, warning: true),
+          ],
+          const SizedBox(height: 14),
+          if (zones.isNotEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_city_rounded),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Zona',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: selectedZoneKey,
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          labelText: 'Administrar suscripciones de',
+                        ),
+                        items: [
+                          for (final zone in zones)
+                            DropdownMenuItem<String>(
+                              value: zone['zone_key']?.toString(),
+                              child: Text(
+                                (zone['name'] ?? 'Zona').toString() +
+                                    ' · ' +
+                                    (zone['currency_code'] ?? 'BOB').toString(),
+                              ),
+                            ),
+                        ],
+                        onChanged: savingSettings
+                            ? null
+                            : (value) {
+                                if (value == null ||
+                                    value == selectedZoneKey) {
+                                  return;
+                                }
+                                setState(() {
+                                  selectedZoneKey = value;
+                                  plans = const [];
+                                  drivers = const [];
+                                  payments = const [];
+                                  settings = const {};
+                                  loading = true;
+                                });
+                                unawaited(_load());
+                              },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+          _AdminSubNotice(
+            text: subscriptionMethods.isEmpty
+                ? 'Configurando ' +
+                    zoneName +
+                    '. Todavía no hay métodos habilitados para pagar suscripciones.'
+                : 'Configurando ' +
+                    zoneName +
+                    '. Métodos de suscripción: ' +
+                    subscriptionMethods
+                        .map(
+                          (method) =>
+                              method['display_name']?.toString() ??
+                              method['provider_key']?.toString() ??
+                              'Método',
+                        )
+                        .join(', ') +
+                    '.',
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: selectedZone == null
+                  ? null
+                  : () async {
+                      final changed =
+                          await showAdminZonePaymentMethodsEditor(
+                        context,
+                        selectedZone!,
+                      );
+                      if (changed && mounted) await _load();
+                    },
+              icon: const Icon(Icons.tune_rounded),
+              label: const Text('Editar métodos de suscripción'),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _SettingsCard(
+            enabled: enabled,
+            enforce: enforce,
+            providerEnabled: providerEnabled,
+            providerConfigured: providerConfigured,
+            qrValidity: qrValidity,
+            showQrProvider: hasVeriPagosSubscription,
+            saving: savingSettings,
+            onSave: _saveSettings,
+          ),
+          if (hasVeriPagosSubscription) ...[
+            const SizedBox(height: 14),
+            _ProviderCard(
+              configured: providerConfigured,
+              credentialsConfigured: providerCredentialsConfigured,
+              enabled: providerEnabled,
+              saving: providerSaving,
+              verifying: providerVerifying,
+              onConfigure: _configureProvider,
+              onVerify: _verifyProvider,
+            ),
+          ],
+          if (hasMercadoPagoSubscription) ...[
+            const SizedBox(height: 14),
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(18),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      child: Icon(Icons.account_balance_wallet_rounded),
+                    ),
+                    SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Mercado Pago · Suscripciones',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Método habilitado para esta zona. Las credenciales se administran en Pagos / Billetera y pueden convivir con otros métodos.',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Planes · $zoneName',
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: selectedZoneKey == null ? null : () => _editPlan(),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Nuevo plan'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (plans.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(0xFFD97706),
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'No se pudieron cargar los planes en esta vista. '
+                        'El resto del módulo seguirá funcionando mientras se reintenta.',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: _load,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Recargar planes'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final plan in plans)
+                  SizedBox(
+                    width: 280,
+                    child: _AdminPlanCard(
+                      plan: plan,
+                      price: _money(
+                        plan['amount'],
+                        plan['currency_code']?.toString(),
+                      ),
+                      benefits: _benefits(plan),
+                      onEdit: () => _editPlan(plan),
+                    ),
+                  ),
+              ],
+            ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Conductores reales (' + realDrivers.length.toString() + ')',
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 300,
+                child: TextField(
+                  controller: search,
+                  onSubmitted: (_) => _load(),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: 'Buscar conductor',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: IconButton(
+                      onPressed: _load,
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            qaDrivers.isEmpty
+                ? 'Los usuarios de prueba no se mezclan con los conductores reales.'
+                : qaDrivers.length.toString() +
+                    ' conductores QA están separados y no cuentan como reales.',
+            style: const TextStyle(color: AdminColors.muted),
+          ),
+          const SizedBox(height: 10),
+          if (realDrivers.isEmpty)
+            const _AdminSubNotice(text: 'No hay conductores reales para mostrar.')
+          else
+            for (final driver in realDrivers)
+              Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.two_wheeler_rounded),
+                  ),
+                  title: Text(
+                    driver['full_name']?.toString().trim().isNotEmpty == true
+                        ? driver['full_name'].toString()
+                        : driver['email']?.toString() ?? 'Conductor',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  subtitle: Text(
+                    (driver['plan_name']?.toString() ?? 'Sin plan') +
+                        ' · ' +
+                        _remaining(driver['expires_at']) +
+                        '\n' +
+                        (driver['email']?.toString() ?? ''),
+                  ),
+                  isThreeLine: true,
+                  trailing: FilledButton(
+                    onPressed: () => _assignPlan(driver),
+                    child: Text(
+                      driver['plan_id'] == null ? 'Asignar' : 'Editar',
+                    ),
+                  ),
+                ),
+              ),
+          if (qaDrivers.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: ExpansionTile(
+                leading: const Icon(Icons.science_outlined),
+                title: Text(
+                  'Conductores de prueba (' + qaDrivers.length.toString() + ')',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                subtitle: const Text(
+                  'Usuarios QA del laboratorio de carga. No cuentan como conductores reales.',
+                ),
+                children: [
+                  for (final driver in qaDrivers)
+                    ListTile(
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.science_outlined),
+                      ),
+                      title: Text(
+                        driver['full_name']?.toString().trim().isNotEmpty == true
+                            ? driver['full_name'].toString()
+                            : driver['email']?.toString() ?? 'Conductor QA',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        (driver['plan_name']?.toString() ?? 'Sin plan') +
+                            ' · ' +
+                            _remaining(driver['expires_at']) +
+                            '\n' +
+                            (driver['email']?.toString() ?? ''),
+                      ),
+                      isThreeLine: true,
+                    ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Pagos de suscripciones',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Hoy'),
+                    selected: paymentPeriod == 'today',
+                    onSelected: (_) {
+                      setState(() => paymentPeriod = 'today');
+                      unawaited(_load());
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Semana'),
+                    selected: paymentPeriod == 'week',
+                    onSelected: (_) {
+                      setState(() => paymentPeriod = 'week');
+                      unawaited(_load());
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Mes'),
+                    selected: paymentPeriod == 'month',
+                    onSelected: (_) {
+                      setState(() => paymentPeriod = 'month');
+                      unawaited(_load());
+                    },
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final picked = await showDateRangePicker(
+                        context: context,
+                        firstDate: DateTime(now.year - 3),
+                        lastDate: DateTime(now.year + 1, 12, 31),
+                        initialDateRange: paymentCustomRange ??
+                            DateTimeRange(
+                              start: DateTime(now.year, now.month, now.day),
+                              end: DateTime(now.year, now.month, now.day),
+                            ),
+                      );
+                      if (picked == null || !mounted) return;
+                      setState(() {
+                        paymentCustomRange = picked;
+                        paymentPeriod = 'custom';
+                      });
+                      await _load();
+                    },
+                    icon: const Icon(Icons.date_range_outlined, size: 17),
+                    label: const Text('Fecha'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (payments.isEmpty)
+            const _AdminSubNotice(text: 'Todavía no hay pagos registrados.')
+          else
+            for (final payment in payments.take(30))
+              Card(
+                margin: const EdgeInsets.only(bottom: 7),
+                child: ListTile(
+                  leading: const Icon(Icons.receipt_long_rounded),
+                  title: Text(
+                    _money(
+                      payment['amount'],
+                      payment['currency_code']?.toString(),
+                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  subtitle: Text(
+                    _date(payment['created_at']) +
+                        ' · ' +
+                        (payment['provider']?.toString() ?? 'veripagos'),
+                  ),
+                  trailing: Text(
+                    payment['status']?.toString() ?? 'pending',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsCard extends StatefulWidget {
+  final bool enabled;
+  final bool enforce;
+  final bool providerEnabled;
+  final bool providerConfigured;
+  final String qrValidity;
+  final bool showQrProvider;
+  final bool saving;
+  final Future<void> Function({
+    required bool enabled,
+    required bool enforce,
+    required bool providerEnabled,
+    required String qrValidity,
+  }) onSave;
+
+  const _SettingsCard({
+    required this.enabled,
+    required this.enforce,
+    required this.providerEnabled,
+    required this.providerConfigured,
+    required this.qrValidity,
+    required this.showQrProvider,
+    required this.saving,
+    required this.onSave,
+  });
+
+  @override
+  State<_SettingsCard> createState() => _SettingsCardState();
+}
+
+class _SettingsCardState extends State<_SettingsCard> {
+  late bool enabled;
+  late bool enforce;
+  late bool providerEnabled;
+  late TextEditingController validity;
+
+  @override
+  void initState() {
+    super.initState();
+    enabled = widget.enabled;
+    enforce = widget.enforce;
+    providerEnabled = widget.providerEnabled;
+    validity = TextEditingController(text: widget.qrValidity);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SettingsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.enabled != widget.enabled) enabled = widget.enabled;
+    if (oldWidget.enforce != widget.enforce) enforce = widget.enforce;
+    if (oldWidget.providerEnabled != widget.providerEnabled) {
+      providerEnabled = widget.providerEnabled;
+    }
+    if (oldWidget.qrValidity != widget.qrValidity) {
+      validity.text = widget.qrValidity;
+    }
+  }
+
+  @override
+  void dispose() {
+    validity.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Configuración',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Mostrar suscripciones al conductor'),
+              subtitle: const Text(
+                'Permite ver planes y contador sin bloquear la operación.',
+              ),
+              value: enabled,
+              onChanged: (v) => setState(() => enabled = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Exigir suscripción para trabajar'),
+              subtitle: const Text(
+                'Déjalo apagado durante QA. Al activarlo, solo conductores con plan vigente podrán ponerse online u ofertar.',
+              ),
+              value: enforce,
+              onChanged: (v) => setState(() => enforce = v),
+            ),
+            if (widget.showQrProvider) ...[
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Habilitar QR Bolivia'),
+                subtitle: Text(
+                  widget.providerConfigured
+                      ? 'VeriPagos tiene configuración guardada.'
+                      : 'Primero completa la conexión con VeriPagos.',
+                ),
+                value: providerEnabled,
+                onChanged: widget.providerConfigured
+                    ? (v) => setState(() => providerEnabled = v)
+                    : null,
+              ),
+              SizedBox(
+                width: 220,
+                child: TextField(
+                  controller: validity,
+                  decoration: const InputDecoration(
+                    labelText: 'Vigencia QR',
+                    helperText: 'Ej.: 0/00:15',
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: widget.saving
+                  ? null
+                  : () => widget.onSave(
+                        enabled: enabled,
+                        enforce: enforce,
+                        providerEnabled: providerEnabled,
+                        qrValidity: validity.text.trim(),
+                      ),
+              icon: const Icon(Icons.save_rounded),
+              label: const Text('Guardar configuración'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProviderCard extends StatelessWidget {
+  final bool configured;
+  final bool credentialsConfigured;
+  final bool enabled;
+  final bool saving;
+  final bool verifying;
+  final VoidCallback onConfigure;
+  final VoidCallback onVerify;
+
+  const _ProviderCard({
+    required this.configured,
+    required this.credentialsConfigured,
+    required this.enabled,
+    required this.saving,
+    required this.verifying,
+    required this.onConfigure,
+    required this.onVerify,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final serviceActive = configured && enabled;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              backgroundColor: configured
+                  ? AdminColors.okSoft
+                  : const Color(0xFFFFF3E0),
+              child: const Icon(Icons.qr_code_2_rounded),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'QR Bolivia · VeriPagos',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 4),
                   Text(
                     configured
                         ? 'Credenciales guardadas y conexión verificada.'
