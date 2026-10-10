@@ -322,6 +322,7 @@ jobs:
           flutter test test/admin_mockup_widgets_test.dart
           flutter test test/admin_records_table_test.dart
           flutter test test/admin_delivery_row_test.dart
+          flutter test test/admin_detail_dialog_frame_test.dart
           flutter test test/admin_sos_row_test.dart
           flutter test test/admin_plain_page_heading_test.dart
           flutter test test/admin_live_zone_strip_test.dart
