@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'core/supabase_client.dart';
+import 'core/admin_design_tokens.dart';
 import 'admin_environment_store.dart';
 
-const Color _detailBlue = Color(0xFF2563EB);
-const Color _detailDark = Color(0xFF0F172A);
-const Color _detailMuted = Color(0xFF64748B);
-const Color _detailBorder = Color(0xFFE2E8F0);
-const Color _detailSoft = Color(0xFFF8FAFC);
+const Color _detailBlue = AdminColors.blue;
+const Color _detailDark = AdminColors.ink;
+const Color _detailMuted = AdminColors.muted;
+const Color _detailBorder = AdminColors.border;
+const Color _detailSoft = AdminColors.surfaceSoft;
 
 List<Map<String, dynamic>> _maps(Object? value) {
   if (value is! List) return const [];
@@ -157,45 +158,107 @@ class _DialogFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final maxWidth = width < 900 ? width - 28 : 820.0;
+    final size = MediaQuery.sizeOf(context);
+    final maxWidth = size.width < 900 ? size.width - 28 : 860.0;
+
     return AlertDialog(
       insetPadding: const EdgeInsets.all(14),
-      titlePadding: const EdgeInsets.fromLTRB(22, 20, 22, 8),
-      contentPadding: const EdgeInsets.fromLTRB(22, 6, 22, 6),
-      actionsPadding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: _detailDark,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-            ),
+      titlePadding: EdgeInsets.zero,
+      contentPadding: EdgeInsets.zero,
+      actionsPadding: EdgeInsets.zero,
+      title: Container(
+        width: maxWidth,
+        padding: const EdgeInsets.fromLTRB(22, 20, 18, 18),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0F2854), Color(0xFF174B91), Color(0xFF0D6B8D)],
+            stops: [0, .55, 1],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: _detailMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AdminRadius.card),
           ),
-        ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(.16)),
+              ),
+              child: const Icon(
+                Icons.admin_panel_settings_outlined,
+                color: Colors.white,
+                size: 21,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFFD7E7FA),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       content: SizedBox(
         width: maxWidth,
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * .72,
+            maxHeight: size.height * .72,
           ),
-          child: child,
+          child: DecoratedBox(
+            decoration: const BoxDecoration(color: AdminColors.surface),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(22, 18, 22, 10),
+              child: child,
+            ),
+          ),
         ),
       ),
-      actions: actions,
+      actions: [
+        Container(
+          width: maxWidth,
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
+          decoration: const BoxDecoration(
+            color: AdminColors.surface,
+            border: Border(top: BorderSide(color: AdminColors.divider)),
+            borderRadius: BorderRadius.vertical(
+              bottom: Radius.circular(AdminRadius.card),
+            ),
+          ),
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: actions,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -218,23 +281,33 @@ class _Section extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _detailSoft,
+        color: AdminColors.surfaceSoft,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _detailBorder),
+        border: Border.all(color: AdminColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: _detailBlue),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: _detailDark,
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AdminColors.blueSoft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: AdminColors.blue),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AdminColors.ink,
+                  ),
                 ),
               ),
             ],
