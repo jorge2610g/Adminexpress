@@ -1410,47 +1410,21 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(22, 20, 22, 30),
             children: [
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final header = const _Header(
-                    title: 'Express Delivery',
-                    subtitle: 'Bienvenido al panel de control de tu empresa.',
-                    badge: 'Activa',
-                  );
-                  final liveButton = FilledButton.icon(
-                    onPressed: () => _goTo(1),
-                    icon: const Icon(Icons.bolt_rounded, size: 17),
-                    label: const Text('Ver en vivo'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(0, 38),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                    ),
-                  );
-
-                  if (constraints.maxWidth < 680) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        header,
-                        const SizedBox(height: 12),
-                        liveButton,
-                      ],
-                    );
-                  }
-
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Expanded(child: _Header(
-                        title: 'Express Delivery',
-                        subtitle: 'Bienvenido al panel de control de tu empresa.',
-                        badge: 'Activa',
-                      )),
-                      const SizedBox(width: 16),
-                      liveButton,
-                    ],
-                  );
-                },
+              _Header(
+                title: 'Express',
+                subtitle: 'Bienvenido al panel de control de tu empresa.',
+                badge: 'Activa',
+                trailing: FilledButton.icon(
+                  onPressed: () => _goTo(1),
+                  icon: const Icon(Icons.bolt_rounded, size: 18),
+                  label: const Text('Ver en vivo'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AdminColors.surface,
+                    foregroundColor: AdminColors.headerMid,
+                    minimumSize: const Size(0, 42),
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               LayoutBuilder(
@@ -2660,20 +2634,13 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 70,
-      margin: const EdgeInsets.fromLTRB(18, 14, 18, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AdminColors.border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 22,
-            offset: Offset(0, 8),
-          ),
-        ],
+      height: 72,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: const BoxDecoration(
+        color: AdminColors.surface,
+        border: Border(
+          bottom: BorderSide(color: AdminColors.border),
+        ),
       ),
       child: Row(
         children: [
@@ -2711,6 +2678,25 @@ class _TopBar extends StatelessWidget {
             ],
           ),
           const Spacer(),
+          if (adminIsPreview) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+              decoration: BoxDecoration(
+                color: AdminColors.previewSoft,
+                border: Border.all(color: const Color(0xFFF5D58A)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'NUEVA UI · QA',
+                style: TextStyle(
+                  color: AdminColors.previewInk,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
           if (showNewTrip) ...[
             FilledButton.icon(
               onPressed: onNewTrip,
@@ -2793,11 +2779,13 @@ class _Header extends StatelessWidget {
   final String title;
   final String subtitle;
   final String? badge;
+  final Widget? trailing;
 
   const _Header({
     required this.title,
     required this.subtitle,
     this.badge,
+    this.trailing,
   });
 
   @override
@@ -2806,6 +2794,7 @@ class _Header extends StatelessWidget {
       title: title,
       subtitle: subtitle,
       badge: badge,
+      trailing: trailing,
     );
   }
 }
@@ -4607,28 +4596,10 @@ class _RecordsState extends State<_Records> {
     return ListView(
       padding: const EdgeInsets.all(22),
       children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final header = _Header(title: widget.title, subtitle: widget.subtitle);
-            final action = widget.headerAction;
-            if (action == null) return header;
-            if (constraints.maxWidth < 700) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  header,
-                  const SizedBox(height: 8),
-                  Align(alignment: Alignment.centerRight, child: action),
-                ],
-              );
-            }
-            return Stack(
-              children: [
-                header,
-                Positioned(right: 18, top: 18, child: action),
-              ],
-            );
-          },
+        _Header(
+          title: widget.title,
+          subtitle: widget.subtitle,
+          trailing: widget.headerAction,
         ),
         const SizedBox(height: 16),
         Container(
