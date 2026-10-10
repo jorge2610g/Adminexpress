@@ -2,6 +2,63 @@ import 'package:flutter/material.dart';
 
 import 'admin_design_tokens.dart';
 
+/// Standard page title for artboards that deliberately omit the blue hero
+/// (Marketplace, Delivery Fase 2, Prioridad, Finanzas, QA and reports).
+/// This is presentation-only and preserves the caller's actions.
+class AdminPlainPageHeading extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final Widget? trailing;
+
+  const AdminPlainPageHeading({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 710;
+        final copy = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title, style: AdminText.pageTitle),
+            const SizedBox(height: 4),
+            Text(subtitle, style: AdminText.caption),
+          ],
+        );
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              copy,
+              if (trailing != null) ...[
+                const SizedBox(height: 12),
+                trailing!,
+              ],
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(child: copy),
+            if (trailing != null) ...[
+              const SizedBox(width: 14),
+              trailing!,
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+
 class AdminPageHero extends StatelessWidget {
   final String title;
   final String subtitle;
