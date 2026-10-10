@@ -6,6 +6,7 @@ import 'core/supabase_client.dart';
 import 'core/admin_environment_navigation.dart';
 import 'core/admin_design_tokens.dart';
 import 'core/admin_widgets.dart';
+import 'core/admin_records_table.dart';
 import 'admin_environment_store.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
@@ -4664,6 +4665,16 @@ class _RecordsState extends State<_Records> {
       return matchesText && matchesStatus && matchesQa;
     }).toList();
 
+    final tableKind = switch (widget.title) {
+      'Viajes' => AdminRecordsKind.trips,
+      'Delivery' => AdminRecordsKind.delivery,
+      'Conductores' => AdminRecordsKind.drivers,
+      'Usuarios' => AdminRecordsKind.users,
+      _ => null,
+    };
+    final showDesktopTable =
+        tableKind != null && MediaQuery.sizeOf(context).width >= 1080;
+
     String statusLabel(String value) => switch (value.toLowerCase()) {
       'approved' => 'Activos',
       'pending' => 'Pendientes',
@@ -4771,6 +4782,20 @@ class _RecordsState extends State<_Records> {
                   : widget.empty,
               style: const TextStyle(color: adminMuted),
             ),
+          )
+        else if (showDesktopTable)
+          AdminRecordsTable(
+            kind: tableKind,
+            rows: visible,
+            detailBuilder: widget.item,
+            tryOpen: (row) {
+              final item = widget.item(row);
+              if (item is _OperationCard && item.onTap != null) {
+                item.onTap!();
+                return true;
+              }
+              return false;
+            },
           )
         else
           ...visible.map(widget.item),
