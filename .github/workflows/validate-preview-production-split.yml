@@ -250,6 +250,12 @@ jobs:
           assert "'p_channel': adminRuntimeChannel" in login
           assert 'Acceso de Prueba · sesión independiente' in login
           assert 'Acceso de Producción' in login
+          # Google OAuth callback must never silently target the passenger web.
+          assert "redirectTo: adminPreviewGoogleOAuthRedirectUrl" in login
+          assert "redirectTo: Uri.base.toString()" not in login
+          assert "adminPreviewGoogleOAuthRedirectUrl =" in config
+          assert "'https://admin.expressviajes.online/preview/'" in config
+          assert "'https://expressviajes.online/'" not in config
           assert login.count('supabase.auth.signOut(scope: SignOutScope.local)') == 3
           assert 'supabase.auth.signOut()' not in login
           assert 'adminPreviewAuthSessionStorageKey' in config
