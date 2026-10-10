@@ -17,6 +17,7 @@ import 'admin_admob_settings.dart';
 import 'admin_distance_fares.dart';
 import 'admin_zone_coverage_editor.dart';
 import 'core/admin_zone_coverage_label.dart';
+import 'core/admin_zone_summary_card.dart';
 
 const Color _blue = AdminColors.blue;
 const Color _dark = AdminColors.ink;
@@ -2514,103 +2515,20 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               const _Empty(text: 'No hay zonas configuradas.')
             else
               ...rows.map(
-                (row) => Container(
-                  margin: const EdgeInsets.only(bottom: 7),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: const Color(0xFFE7ECF3)),
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 5,
-                    ),
-                    leading: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: AdminColors.blueSoft,
-                      child: Icon(
-                        row['active'] == true
-                            ? Icons.location_on_rounded
-                            : Icons.location_off_outlined,
-                        color: _blue,
-                      ),
-                    ),
-                    title: Text(
-                      row['name']?.toString() ?? 'Zona',
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    subtitle: Text(
-                      (row['city'] ?? '—').toString() +
-                          ' · ' +
-                          (row['country'] ?? '—').toString() +
-                          ' · ' +
-                          (row['currency_code'] ?? 'BOB').toString() +
-                          ' · Cobertura: ' +
-                          adminZoneCoverageSummary(row) +
-                          '\nClave: ' +
-                          (row['zone_key'] ?? '—').toString() +
-                          ' · Registro: ' +
-                          (row['driver_registration_enabled'] == false
-                              ? 'OFF'
-                              : 'ON') +
-                          ' · Inicio: ' +
-                          ((row['passenger_landing_mode'] ?? 'direct')
-                                      .toString() ==
-                                  'auto'
-                              ? 'Automático'
-                              : (row['passenger_landing_mode'] ?? 'direct')
-                                          .toString() ==
-                                      'always'
-                                  ? 'Panel'
-                                  : 'Directo'),
-                    ),
-                    isThreeLine: true,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _MiniStatus(
-                          text: row['country_active'] == false
-                              ? 'País OFF'
-                              : row['active'] == true
-                                  ? 'Activa'
-                                  : 'Inactiva',
-                          positive: row['active'] == true &&
-                              row['country_active'] != false,
-                        ),
-                        const SizedBox(width: 4),
-                        IconButton(
-                          tooltip: 'Aliados / sindicatos',
-                          onPressed: () => _showPartners(row),
-                          icon: const Icon(Icons.groups_2_outlined, size: 19),
-                        ),
-                        IconButton(
-                          tooltip: 'Métodos de pago',
-                          onPressed: () async {
-                            final changed =
-                                await showAdminZonePaymentMethodsEditor(
-                              context,
-                              row,
-                              channel: widget.channel,
-                            );
-                            if (changed && mounted) {
-                              setState(() => revision++);
-                            }
-                          },
-                          icon: const Icon(
-                            Icons.account_balance_wallet_outlined,
-                            size: 18,
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Editar zona',
-                          onPressed: () => _edit(row),
-                          icon: const Icon(Icons.edit_outlined, size: 18),
-                        ),
-                      ],
-                    ),
-                  ),
+                (row) => AdminZoneSummaryCard(
+                  zone: row,
+                  onPartners: () => _showPartners(row),
+                  onPayments: () async {
+                    final changed = await showAdminZonePaymentMethodsEditor(
+                      context,
+                      row,
+                      channel: widget.channel,
+                    );
+                    if (changed && mounted) {
+                      setState(() => revision++);
+                    }
+                  },
+                  onEdit: () => _edit(row),
                 ),
               ),
           ],
