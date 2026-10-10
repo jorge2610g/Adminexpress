@@ -174,8 +174,8 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
     BuildContext detailContext,
     void Function(bool) setActivationBusy,
   ) async {
-    final name=_text(currentDocument['full_name']).isEmpty
-      ? 'El conductor':_text(currentDocument['full_name']);
+    final name=_text(document['full_name']).isEmpty
+      ? 'El conductor':_text(document['full_name']);
     final zoneName=_text(zone['name']).isEmpty
       ? _text(zone['city']):_text(zone['name']);
     final confirmed=await showDialog<bool>(
