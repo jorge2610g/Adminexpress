@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'core/admin_design_tokens.dart';
 import 'core/admin_widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
 
