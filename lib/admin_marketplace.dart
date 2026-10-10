@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+
 import 'core/supabase_client.dart';
 
-const _blue = Color(0xFF2563EB);
-const _ink = Color(0xFF0F172A);
-const _muted = Color(0xFF64748B);
-const _bg = Color(0xFFF1F5F9);
+const _blue = AdminColors.blue;
+const _ink = AdminColors.ink;
+const _muted = AdminColors.muted;
+const _bg = AdminColors.bg;
 
 class AdminMarketplacePage extends StatefulWidget {
   final String channel;
@@ -734,13 +736,13 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: active ? const Color(0xFFE8F8EF) : const Color(0xFFF2F4F7),
+        color: active ? AdminColors.okSoft : const Color(0xFFF2F4F7),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: active ? const Color(0xFF14804A) : _muted,
+          color: active ? AdminColors.ok : _muted,
           fontSize: 10,
           fontWeight: FontWeight.w800,
         ),
@@ -769,7 +771,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
+                  color: AdminColors.blueSoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.storefront_rounded, color: _blue),
@@ -1256,7 +1258,7 @@ class _MerchantProductsPageState extends State<_MerchantProductsPage> {
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: row['active'] == true
-                        ? const Color(0xFFE8F8EF)
+                        ? AdminColors.okSoft
                         : const Color(0xFFF2F4F7),
                     child: const Icon(Icons.inventory_2_outlined),
                   ),
