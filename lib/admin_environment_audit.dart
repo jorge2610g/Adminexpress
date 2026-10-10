@@ -128,19 +128,41 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              AdminPageHero(
-                title: 'Auditoría',
-                subtitle: 'Historial general de Express, ordenado por fecha. Las acciones reales y de pruebas están identificadas en una misma pantalla.',
-                icon: Icons.history_rounded,
-                trailing: OutlinedButton.icon(
-                  onPressed: _refresh,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Actualizar'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white54),
-                  ),
-                ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final header = const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Auditoría', style: AdminText.pageTitle),
+                      SizedBox(height: 4),
+                      Text(
+                        'Historial general de Express, ordenado por fecha. Las acciones reales y de pruebas están identificadas en una misma pantalla.',
+                        style: AdminText.caption,
+                      ),
+                    ],
+                  );
+                  final action = OutlinedButton.icon(
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Actualizar'),
+                  );
+                  return constraints.maxWidth < 650
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            header,
+                            const SizedBox(height: 12),
+                            action,
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(child: header),
+                            const SizedBox(width: 12),
+                            action,
+                          ],
+                        );
+                },
               ),
               const SizedBox(height: 14),
               if (rows.isEmpty)
