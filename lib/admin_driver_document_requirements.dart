@@ -128,6 +128,7 @@ class _AdminDriverDocumentRequirementsPanelState
     bool requireBack = row?['require_back'] == true;
     bool requireSelfie = row?['require_selfie'] == true;
     bool active = row?['active'] != false;
+    String? formError;
 
     final save = await showDialog<bool>(
       context: context,
@@ -145,6 +146,25 @@ class _AdminDriverDocumentRequirementsPanelState
               child: SingleChildScrollView(
                 child: Column(
                   children: [
+                    if (formError != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AdminColors.dangerSoft,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          formError!,
+                          style: const TextStyle(
+                            color: AdminColors.danger,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -316,7 +336,23 @@ class _AdminDriverDocumentRequirementsPanelState
                 child: const Text('Cancelar'),
               ),
               FilledButton.icon(
-                onPressed: () => Navigator.pop(dialogContext, true),
+                onPressed: () {
+                  String? validation;
+                  if (label.text.trim().isEmpty || code.text.trim().isEmpty) {
+                    validation = 'Completa el nombre visible y el código interno.';
+                  } else if (scope != 'global' &&
+                      (countryCode == null || countryCode!.isEmpty)) {
+                    validation = 'Selecciona el país al que corresponde el requisito.';
+                  } else if (scope == 'zone' &&
+                      (zoneId == null || zoneId!.isEmpty)) {
+                    validation = 'Selecciona la ciudad donde aplica el requisito.';
+                  }
+                  if (validation != null) {
+                    setLocal(() => formError = validation);
+                    return;
+                  }
+                  Navigator.pop(dialogContext, true);
+                },
                 icon: const Icon(Icons.save_outlined),
                 label: const Text('Guardar'),
               ),
