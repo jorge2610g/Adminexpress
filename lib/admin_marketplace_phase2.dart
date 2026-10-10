@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/admin_design_tokens.dart';
 import 'core/admin_widgets.dart';
+import 'core/admin_stage_edit_dialog_title.dart';
 
 import 'core/supabase_client.dart';
 
@@ -172,8 +173,10 @@ class _AdminMarketplacePhase2PageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            'Delivery · ' + (row['zone_name']?.toString() ?? 'Zona'),
+          title: AdminStageEditDialogTitle(
+            title: 'Delivery · ${row['zone_name']?.toString() ?? 'Zona'}',
+            subtitle: widget.channel == 'preview' ? 'Preview · Tarifas' : 'Producción · Tarifas',
+            icon: Icons.delivery_dining_outlined,
           ),
           content: SizedBox(
             width: 680,
@@ -428,8 +431,10 @@ class _AdminMarketplacePhase2PageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            'Express Plus · ' + (row['zone_name']?.toString() ?? ''),
+          title: AdminStageEditDialogTitle(
+            title: 'Express Plus · ${row['zone_name']?.toString() ?? ''}',
+            subtitle: widget.channel == 'preview' ? 'Preview · Suscripciones' : 'Producción · Suscripciones',
+            icon: Icons.bolt_outlined,
           ),
           content: SizedBox(
             width: 560,
@@ -578,8 +583,10 @@ class _AdminMarketplacePhase2PageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            'Plus · ' + (merchant['name']?.toString() ?? 'Comercio'),
+          title: AdminStageEditDialogTitle(
+            title: 'Plus · ${merchant['name']?.toString() ?? 'Comercio'}',
+            subtitle: widget.channel == 'preview' ? 'Preview · Beneficios' : 'Producción · Beneficios',
+            icon: Icons.local_offer_outlined,
           ),
           content: SizedBox(
             width: 480,
@@ -695,8 +702,10 @@ class _AdminMarketplacePhase2PageState
     final save = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(
-          'Logística · ' + (merchant['name']?.toString() ?? ''),
+        title: AdminStageEditDialogTitle(
+          title: 'Logística · ${merchant['name']?.toString() ?? ''}',
+          subtitle: widget.channel == 'preview' ? 'Preview · Comercio' : 'Producción · Comercio',
+          icon: Icons.store_outlined,
         ),
         content: SizedBox(
           width: 560,
