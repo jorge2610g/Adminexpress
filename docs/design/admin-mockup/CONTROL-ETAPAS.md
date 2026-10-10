@@ -110,9 +110,10 @@
 - **Zonas de operación:** tarjetas responsive con nombre, país, ciudad, moneda, modo de cobertura, estado e información de registro; los accesos existentes a Aliados, Métodos de pago y Editar permanecen conectados con sus funciones originales.
 - **Demanda y precios:** siete indicadores presentados en siete columnas cuando hay ancho, cuatro o dos en tablet/móvil; formulario de demanda reorganizado en filas adaptativas, sin cambiar parámetros ni algoritmo.
 - **Diálogos:** cabeceras de edición de zona, país, servicio, seguridad y demanda visualmente unificadas con el diseño de Claude. Se conservaron permisos por entorno y acciones originales.
+- **Builds:** encabezado plano y tarjetas con borde alineados al artboard, manteniendo intacta la cadena de crear candidato → certificar → aprobar → promover → publicar y `productionAccess`.
 - Pruebas widget añadidas: selección exclusiva de cobertura, resumen y acciones de zona, siete indicadores de demanda, y cuatro campos de formulario a tamaños móviles y de escritorio; integradas en el workflow de Flutter.
 
-**Pendientes para aprobar E7**: faltan detalles visuales e interacciones de los demás artboards 37–49 (incluidos Builds, Configuración y Avanzada, aliados y seguridad), capturas comparativas de Flutter, validación en QA de radio/polígono y pruebas autorizadas por roles/canales. Estas mejoras **no certifican la Etapa 7**, ni se publicaron todavía en Preview. No habilitar publicaciones de builds ni usar cambios reales de zona para pruebas de diseño.
+**Pendientes para aprobar E7**: faltan detalles visuales e interacciones de los demás artboards 37–49 (incluidos los subestados de Builds, Configuración y Avanzada, aliados y seguridad), capturas comparativas de Flutter, validación en QA de radio/polígono y pruebas autorizadas por roles/canales. Estas mejoras **no certifican la Etapa 7**, ni se publicaron todavía en Preview. No habilitar publicaciones de builds ni usar cambios reales de zona para pruebas de diseño.
 
 ## E8 — QA y socios (5)
 
