@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
+import 'core/admin_design_tokens.dart';
 
-const _bg = Color(0xFFF1F5F9);
-const _ink = Color(0xFF0F172A);
-const _muted = Color(0xFF64748B);
+const _bg = AdminColors.bg;
+const _ink = AdminColors.ink;
+const _muted = AdminColors.muted;
 
 /// One chronological audit trail for Express. Entries retain their origin
 /// so QA actions are never mistaken for real Production operations.

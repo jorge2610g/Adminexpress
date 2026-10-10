@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
+import 'core/admin_design_tokens.dart';
 
-const _blue = Color(0xFF2563EB);
-const _ink = Color(0xFF0F172A);
-const _muted = Color(0xFF64748B);
-const _bg = Color(0xFFF1F5F9);
+const _blue = AdminColors.blue;
+const _ink = AdminColors.ink;
+const _muted = AdminColors.muted;
+const _bg = AdminColors.bg;
 
 class AdminMarketplacePhase2Page extends StatefulWidget {
   final bool ordersOnly;

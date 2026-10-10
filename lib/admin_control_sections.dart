@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'core/supabase_client.dart';
+import 'core/admin_design_tokens.dart';
 import 'admin_environment_store.dart';
 import 'admin_driver_document_requirements.dart';
 import 'admin_country_coverage.dart';
@@ -13,9 +14,9 @@ import 'admin_distance_fares.dart';
 import 'admin_zone_coverage_editor.dart';
 import 'core/admin_zone_coverage_label.dart';
 
-const Color _blue = Color(0xFF2563EB);
-const Color _dark = Color(0xFF0F172A);
-const Color _muted = Color(0xFF64748B);
+const Color _blue = AdminColors.blue;
+const Color _dark = AdminColors.ink;
+const Color _muted = AdminColors.muted;
 
 class AdminDispatchPage extends StatefulWidget {
   final String channel;
@@ -3902,16 +3903,21 @@ class _AdminHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF0B57D0), Color(0xFF5B74F5)],
+          colors: [Color(0xFF0F2854), Color(0xFF174B91), Color(0xFF0D6B8D)],
+          stops: [0, .55, 1],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AdminRadius.hero),
         boxShadow: const [
-          BoxShadow(color: Color(0x2A0B57D0), blurRadius: 24, offset: Offset(0, 10)),
+          BoxShadow(
+            color: Color(0x25174B91),
+            blurRadius: 26,
+            offset: Offset(0, 10),
+          ),
         ],
       ),
       child: LayoutBuilder(
@@ -3919,13 +3925,14 @@ class _AdminHero extends StatelessWidget {
           final info = Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 50,
+                height: 50,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.16),
+                  color: Colors.white.withOpacity(.12),
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white.withOpacity(.18)),
                 ),
-                child: Icon(icon, color: Colors.white, size: 26),
+                child: Icon(icon, color: Colors.white, size: 25),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -3936,17 +3943,19 @@ class _AdminHero extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -.35,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
                     Text(
                       subtitle,
                       style: const TextStyle(
-                        color: Color(0xFFE7EEFF),
-                        fontSize: 11,
-                        height: 1.35,
+                        color: Color(0xFFD7E7FA),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
                       ),
                     ),
                   ],
@@ -3961,12 +3970,15 @@ class _AdminHero extends StatelessWidget {
             children: stats
                 .map(
                   (stat) => Container(
-                    constraints: const BoxConstraints(minWidth: 105),
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+                    constraints: const BoxConstraints(minWidth: 110),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 13,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(.13),
+                      color: Colors.white.withOpacity(.12),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(.14)),
+                      border: Border.all(color: Colors.white.withOpacity(.16)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3975,13 +3987,18 @@ class _AdminHero extends StatelessWidget {
                           stat.$2,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
                           stat.$1,
-                          style: const TextStyle(color: Color(0xFFE7EEFF), fontSize: 9),
+                          style: const TextStyle(
+                            color: Color(0xFFD7E7FA),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -3993,14 +4010,14 @@ class _AdminHero extends StatelessWidget {
           if (constraints.maxWidth < 780) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [info, const SizedBox(height: 14), statRow],
+              children: [info, const SizedBox(height: 16), statRow],
             );
           }
           return Row(
             children: [
               Expanded(child: info),
               const SizedBox(width: 20),
-              statRow,
+              Flexible(child: statRow),
             ],
           );
         },
@@ -4028,76 +4045,79 @@ class _AdminModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Ink(
-        padding: const EdgeInsets.all(17),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE4EAF2)),
-          boxShadow: const [
-            BoxShadow(color: Color(0x0D101828), blurRadius: 18, offset: Offset(0, 7)),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: accent.withOpacity(.10),
-                    borderRadius: BorderRadius.circular(12),
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(17),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: accent.withOpacity(.10),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: accent, size: 22),
                   ),
-                  child: Icon(icon, color: accent, size: 22),
+                  const Spacer(),
+                  if (onTap != null)
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 17,
+                      color: AdminColors.muted,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(title, style: AdminText.sectionTitle),
+              const SizedBox(height: 5),
+              Text(
+                subtitle,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AdminColors.muted,
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
                 ),
-                const Spacer(),
-                if (onTap != null)
-                  const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: _muted),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: _dark),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              subtitle,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10, color: _muted, height: 1.4),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: chips
-                  .map(
-                    (chip) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F7FA),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: const Color(0xFFE7ECF3)),
-                      ),
-                      child: Text(
-                        chip,
-                        style: const TextStyle(
-                          color: _dark,
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w700,
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: chips
+                    .map(
+                      (chip) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AdminColors.surfaceSoft,
+                          borderRadius: BorderRadius.circular(AdminRadius.pill),
+                          border: Border.all(color: AdminColors.border),
+                        ),
+                        child: Text(
+                          chip,
+                          style: const TextStyle(
+                            color: AdminColors.ink,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
+                    )
+                    .toList(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -8978,8 +8998,8 @@ class _Header extends StatelessWidget {
         Text(
           title,
           style: const TextStyle(
-            fontSize: 23,
-            fontWeight: FontWeight.w900,
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
             color: Colors.white,
             letterSpacing: -.35,
           ),
@@ -8990,88 +9010,77 @@ class _Header extends StatelessWidget {
           style: const TextStyle(
             color: Color(0xFFD7E7FA),
             height: 1.4,
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
         ),
       ],
     );
 
+    Widget leading() => Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(.12),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white.withOpacity(.18)),
+          ),
+          child: const Icon(
+            Icons.dashboard_customize_rounded,
+            color: Colors.white,
+            size: 22,
+          ),
+        );
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF102A56), Color(0xFF174B91), Color(0xFF0D6B8D)],
+          colors: [Color(0xFF0F2854), Color(0xFF174B91), Color(0xFF0D6B8D)],
+          stops: [0, .55, 1],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AdminRadius.hero),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x2B174B91),
-            blurRadius: 24,
-            offset: Offset(0, 9),
+            color: Color(0x25174B91),
+            blurRadius: 26,
+            offset: Offset(0, 10),
           ),
         ],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          if (action == null) {
-            return Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(.12),
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(color: Colors.white.withOpacity(.16)),
-                  ),
-                  child: const Icon(
-                    Icons.dashboard_customize_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 13),
-                Expanded(child: copy),
-              ],
-            );
-          }
-
           if (constraints.maxWidth < 680) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                copy,
-                const SizedBox(height: 14),
-                action!,
+                Row(
+                  children: [
+                    leading(),
+                    const SizedBox(width: 13),
+                    Expanded(child: copy),
+                  ],
+                ),
+                if (action != null) ...[
+                  const SizedBox(height: 14),
+                  action!,
+                ],
               ],
             );
           }
-
           return Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.12),
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(color: Colors.white.withOpacity(.16)),
-                ),
-                child: const Icon(
-                  Icons.dashboard_customize_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
+              leading(),
               const SizedBox(width: 13),
               Expanded(child: copy),
-              const SizedBox(width: 16),
-              action!,
+              if (action != null) ...[
+                const SizedBox(width: 16),
+                action!,
+              ],
             ],
           );
         },
@@ -9092,14 +9101,14 @@ class _Kpi extends StatelessWidget {
       width: 220,
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFDDE6F0)),
+        color: AdminColors.surface,
+        borderRadius: BorderRadius.circular(AdminRadius.card),
+        border: Border.all(color: AdminColors.border),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 20,
-            offset: Offset(0, 8),
+            color: Color(0x100F172A),
+            blurRadius: 18,
+            offset: Offset(0, 7),
           ),
         ],
       ),
@@ -9109,12 +9118,12 @@ class _Kpi extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: const Color(0xFFE1ECFF),
-              borderRadius: BorderRadius.circular(13),
+              color: AdminColors.blueSoft,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.auto_graph_rounded,
-              color: _blue,
+              color: AdminColors.blue,
               size: 20,
             ),
           ),
@@ -9128,20 +9137,13 @@ class _Kpi extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 23,
                     height: 1,
-                    fontWeight: FontWeight.w900,
-                    color: _dark,
+                    fontWeight: FontWeight.w800,
+                    color: AdminColors.ink,
                     letterSpacing: -.5,
                   ),
                 ),
                 const SizedBox(height: 5),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: _muted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                Text(title, style: AdminText.label),
               ],
             ),
           ),
@@ -9190,14 +9192,14 @@ class _SettingsCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        color: AdminColors.surface,
+        borderRadius: BorderRadius.circular(AdminRadius.card),
+        border: Border.all(color: AdminColors.border),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0D101828),
-            blurRadius: 20,
-            offset: Offset(0, 8),
+            blurRadius: 18,
+            offset: Offset(0, 7),
           ),
         ],
       ),
@@ -9211,32 +9213,30 @@ class _SettingsCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
+                  color: AdminColors.blueSoft,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(_settingsIcon(title), color: _blue, size: 20),
+                child: Icon(
+                  _settingsIcon(title),
+                  color: AdminColors.blue,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: _dark,
-                      ),
-                    ),
+                    Text(title, style: AdminText.sectionTitle),
                     if (subtitle != null) ...[
                       const SizedBox(height: 3),
                       Text(
                         subtitle!,
                         style: const TextStyle(
-                          color: _muted,
-                          fontSize: 10,
-                          height: 1.35,
+                          color: AdminColors.muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          height: 1.4,
                         ),
                       ),
                     ],
@@ -9246,8 +9246,8 @@ class _SettingsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Divider(height: 1, color: Color(0xFFEEF1F5)),
-          const SizedBox(height: 8),
+          const Divider(),
+          const SizedBox(height: 10),
           ...children,
         ],
       ),
@@ -9412,23 +9412,32 @@ class _MiniStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg =
-        positive ? const Color(0xFFE8F8EF) : const Color(0xFFF2F4F7);
-    final fg =
-        positive ? const Color(0xFF14804A) : const Color(0xFF667085);
+    final bg = positive ? AdminColors.okSoft : const Color(0xFFF2F4F7);
+    final fg = positive ? AdminColors.ok : const Color(0xFF667085);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AdminRadius.pill),
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: fg,
-          fontSize: 9,
-          fontWeight: FontWeight.w900,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: TextStyle(
+              color: fg,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -9440,11 +9449,28 @@ class _Empty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Text(text, style: const TextStyle(color: _muted)),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(30),
+      decoration: BoxDecoration(
+        color: AdminColors.surface,
+        borderRadius: BorderRadius.circular(AdminRadius.card),
+        border: Border.all(color: AdminColors.border),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.inbox_outlined,
+            size: 34,
+            color: AdminColors.subtle,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: AdminText.muted,
+          ),
+        ],
       ),
     );
   }
@@ -9459,15 +9485,12 @@ class _Loading extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(22),
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 25,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+        Text(title, style: AdminText.pageTitle),
         const SizedBox(height: 18),
-        const LinearProgressIndicator(),
+        const ClipRRect(
+          borderRadius: BorderRadius.all(Radius.circular(20)),
+          child: LinearProgressIndicator(minHeight: 5),
+        ),
       ],
     );
   }
@@ -9485,23 +9508,48 @@ class _Error extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline_rounded, size: 46),
-              const SizedBox(height: 10),
-              Text(error.toString()),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Reintentar'),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 520),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AdminColors.surface,
+          borderRadius: BorderRadius.circular(AdminRadius.card),
+          border: Border.all(color: AdminColors.border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AdminColors.dangerSoft,
+                borderRadius: BorderRadius.circular(14),
               ),
-            ],
-          ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                color: AdminColors.danger,
+                size: 25,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'No se pudo cargar el módulo',
+              style: AdminText.sectionTitle,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              error.toString(),
+              textAlign: TextAlign.center,
+              style: AdminText.muted,
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Reintentar'),
+            ),
+          ],
         ),
       ),
     );

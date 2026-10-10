@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import 'core/supabase_client.dart';
+import 'core/admin_design_tokens.dart';
 import 'admin_environment_store.dart';
 
-const Color _detailBlue = Color(0xFF2563EB);
-const Color _detailDark = Color(0xFF0F172A);
-const Color _detailMuted = Color(0xFF64748B);
-const Color _detailBorder = Color(0xFFE2E8F0);
-const Color _detailSoft = Color(0xFFF8FAFC);
+const Color _detailBlue = AdminColors.blue;
+const Color _detailDark = AdminColors.ink;
+const Color _detailMuted = AdminColors.muted;
+const Color _detailBorder = AdminColors.border;
+const Color _detailSoft = AdminColors.surfaceSoft;
 
 List<Map<String, dynamic>> _maps(Object? value) {
   if (value is! List) return const [];
@@ -87,6 +86,17 @@ Future<List<Map<String, dynamic>>> _zones(String channel) async {
   return _maps(raw);
 }
 
+Future<List<Map<String, dynamic>>> _driverDocumentRequirements(
+  String channel,
+) async {
+  if (channel == 'preview') {
+    return const AdminEnvironmentStore('preview')
+        .previewList('driver_document_requirements');
+  }
+  final raw = await supabase.rpc('admin_driver_document_requirement_list');
+  return _maps(raw);
+}
+
 Future<bool> showAdminDriverEditor(
   BuildContext context,
   String userId, {
@@ -148,45 +158,107 @@ class _DialogFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final maxWidth = width < 900 ? width - 28 : 820.0;
+    final size = MediaQuery.sizeOf(context);
+    final maxWidth = size.width < 900 ? size.width - 28 : 860.0;
+
     return AlertDialog(
       insetPadding: const EdgeInsets.all(14),
-      titlePadding: const EdgeInsets.fromLTRB(22, 20, 22, 8),
-      contentPadding: const EdgeInsets.fromLTRB(22, 6, 22, 6),
-      actionsPadding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: _detailDark,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-            ),
+      titlePadding: EdgeInsets.zero,
+      contentPadding: EdgeInsets.zero,
+      actionsPadding: EdgeInsets.zero,
+      title: Container(
+        width: maxWidth,
+        padding: const EdgeInsets.fromLTRB(22, 20, 18, 18),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0F2854), Color(0xFF174B91), Color(0xFF0D6B8D)],
+            stops: [0, .55, 1],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: _detailMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AdminRadius.card),
           ),
-        ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(.16)),
+              ),
+              child: const Icon(
+                Icons.admin_panel_settings_outlined,
+                color: Colors.white,
+                size: 21,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFFD7E7FA),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       content: SizedBox(
         width: maxWidth,
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * .72,
+            maxHeight: size.height * .72,
           ),
-          child: child,
+          child: DecoratedBox(
+            decoration: const BoxDecoration(color: AdminColors.surface),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(22, 18, 22, 10),
+              child: child,
+            ),
+          ),
         ),
       ),
-      actions: actions,
+      actions: [
+        Container(
+          width: maxWidth,
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
+          decoration: const BoxDecoration(
+            color: AdminColors.surface,
+            border: Border(top: BorderSide(color: AdminColors.divider)),
+            borderRadius: BorderRadius.vertical(
+              bottom: Radius.circular(AdminRadius.card),
+            ),
+          ),
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: actions,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -209,23 +281,33 @@ class _Section extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _detailSoft,
+        color: AdminColors.surfaceSoft,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _detailBorder),
+        border: Border.all(color: AdminColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: _detailBlue),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: _detailDark,
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AdminColors.blueSoft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: AdminColors.blue),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AdminColors.ink,
+                  ),
                 ),
               ),
             ],
@@ -304,6 +386,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
   bool saving = false;
   String? error;
   List<Map<String, dynamic>> zones = const [];
+  List<Map<String, dynamic>> requirements = const [];
   Map<String, dynamic> detail = const {};
 
   final fullName = TextEditingController();
@@ -351,6 +434,8 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
         },
       );
       final loadedZones = await _zones(widget.channel);
+      final loadedRequirements =
+          await _driverDocumentRequirements(widget.channel);
       final loaded = _map(detailValue);
       final user = _map(loaded['user']);
       final driver = _map(loaded['driver']);
@@ -372,6 +457,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
       setState(() {
         detail = loaded;
         zones = loadedZones;
+        requirements = loadedRequirements;
         accountStatus = _text(user['account_status'], 'active');
         approvalStatus = _text(driver['approval_status'], 'pending');
         onlineStatus = _text(driver['online_status'], 'offline');
@@ -484,29 +570,513 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     }
   }
 
-  Future<void> _openDriverAsset(String? path) async {
+  Future<void> _previewDriverAsset(
+    String? path, {
+    String title = 'Vista previa',
+  }) async {
     final value = path?.trim() ?? '';
     if (value.isEmpty) return;
     try {
       final signed = await supabase.storage
           .from('driver-onboarding')
           .createSignedUrl(value, 3600);
-      final ok = await launchUrl(
-        Uri.parse(signed),
-        mode: LaunchMode.platformDefault,
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(title),
+          content: SizedBox(
+            width: 720,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 620),
+              child: InteractiveViewer(
+                minScale: .8,
+                maxScale: 4,
+                child: Image.network(
+                  signed,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const SizedBox(
+                    height: 240,
+                    child: Center(
+                      child: Text('No se pudo visualizar esta fotografía.'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
       );
-      if (!ok && mounted) {
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo abrir el archivo.')),
+          SnackBar(content: Text('No se pudo abrir la fotografía: $e')),
+        );
+      }
+    }
+  }
+
+  List<Map<String, dynamic>> _applicableRequirements(
+    Map<String, dynamic> driver,
+  ) {
+    final currentCountry =
+        _text(driver['country_code'], '').trim().toUpperCase();
+    final currentZone = _text(driver['zone_id'], '');
+    final chosen = <String, ({int rank, Map<String, dynamic> row})>{};
+
+    for (final row in requirements) {
+      final rowCountry =
+          _text(row['country_code'], '').trim().toUpperCase();
+      final rowZone = _text(row['zone_id'], '');
+      final matchesGlobal = rowCountry.isEmpty && rowZone.isEmpty;
+      final matchesCountry =
+          rowCountry == currentCountry && rowZone.isEmpty;
+      final matchesZone =
+          currentZone.isNotEmpty && rowZone == currentZone;
+      if (!matchesGlobal && !matchesCountry && !matchesZone) continue;
+
+      final rank = matchesZone ? 3 : matchesCountry ? 2 : 1;
+      final code = _text(row['code'], _text(row['id'])).toLowerCase();
+      final previous = chosen[code];
+      if (previous == null || rank >= previous.rank) {
+        chosen[code] = (rank: rank, row: row);
+      }
+    }
+
+    final result = chosen.values
+        .map((entry) => entry.row)
+        .where((row) => row['active'] != false)
+        .toList();
+    result.sort((a, b) {
+      final left = int.tryParse(_text(a['sort_order'], '100')) ?? 100;
+      final right = int.tryParse(_text(b['sort_order'], '100')) ?? 100;
+      if (left != right) return left.compareTo(right);
+      return _text(a['label']).compareTo(_text(b['label']));
+    });
+    return result;
+  }
+
+  Map<String, dynamic>? _documentForRequirement(
+    Map<String, dynamic> requirement,
+    List<Map<String, dynamic>> documents,
+  ) {
+    final requirementId = _text(requirement['id'], '');
+    if (requirementId.isNotEmpty) {
+      for (final doc in documents) {
+        if (_text(doc['requirement_id'], '') == requirementId) return doc;
+      }
+    }
+    final code = _text(requirement['code'], '').toLowerCase();
+    if (code.isNotEmpty) {
+      for (final doc in documents) {
+        if (_text(doc['document_type'], '').toLowerCase() == code) return doc;
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _photoPart(
+    Map<String, dynamic> document,
+    String slot,
+  ) {
+    final parts = _map(document['review_parts']);
+    final saved = _map(parts[slot]);
+    final directPath = switch (slot) {
+      'front' => _text(document['front_object_path'], ''),
+      'back' => _text(document['back_object_path'], ''),
+      'selfie' => _text(document['selfie_object_path'], ''),
+      _ => '',
+    };
+    final documentStatus =
+        _text(document['status'], 'pending').toLowerCase();
+    final fallbackStatus = documentStatus == 'verified'
+        ? 'approved'
+        : documentStatus == 'rejected'
+            ? 'rejected'
+            : 'pending';
+    return <String, dynamic>{
+      'path': _text(saved['path'], directPath),
+      'status': _text(saved['status'], fallbackStatus).toLowerCase(),
+      'version': int.tryParse(_text(saved['version'], '0')) ?? 0,
+      'reason': _text(
+        saved['reason'],
+        documentStatus == 'rejected'
+            ? _text(document['rejection_reason'], '')
+            : '',
+      ),
+    };
+  }
+
+  String _photoLabel(String slot) => switch (slot) {
+    'front' => 'Frente',
+    'back' => 'Reverso',
+    'selfie' => 'Foto facial',
+    _ => 'Fotografía',
+  };
+
+  Future<String?> _rejectionReason(String title) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Rechazar $title'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Motivo del rechazo',
+            hintText: 'Indica claramente qué debe corregir el conductor.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final reason = controller.text.trim();
+              if (reason.length < 5) return;
+              Navigator.pop(dialogContext, reason);
+            },
+            child: const Text('Confirmar rechazo'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
+
+  bool _isIdentityRequirement(Map<String, dynamic> requirement) {
+    final code = _text(requirement['code'], '').toLowerCase();
+    const identityCodes = <String>{
+      'identity_card',
+      'national_id',
+      'id_card',
+      'identity',
+      'carnet',
+      'cedula',
+      'cédula',
+    };
+    return identityCodes.contains(code);
+  }
+
+  Future<void> _reviewPhoto(
+    Map<String, dynamic> document,
+    Map<String, dynamic> requirement,
+    String slot,
+    String nextStatus,
+    int expectedVersion, {
+    String? reason,
+  }) async {
+    if (saving) return;
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    try {
+      await supabase.rpc(
+        _isIdentityRequirement(requirement)
+            ? 'admin_driver_kyc_bolivia_manual_review_part'
+            : 'admin_driver_document_review_part_v2',
+        params: {
+          'p_document_id': document['id'],
+          'p_slot': slot,
+          'p_status': nextStatus,
+          'p_reason': reason,
+          'p_expected_version': expectedVersion,
+          'p_channel': widget.channel,
+        },
+      );
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${_text(requirement['label'], 'Documento')} · '
+              '${_photoLabel(slot)}: '
+              '${nextStatus == 'approved' ? 'aprobada' : 'rechazada'}.',
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo abrir el archivo: $e')),
-        );
+        setState(() => error = 'No se pudo actualizar la fotografía. $e');
       }
+    } finally {
+      if (mounted) setState(() => saving = false);
     }
+  }
+
+  Future<void> _openPhotoReview(
+    Map<String, dynamic> document,
+    Map<String, dynamic> requirement,
+    String slot,
+  ) async {
+    final part = _photoPart(document, slot);
+    final path = _text(part['path'], '');
+    if (path.isEmpty) return;
+    final signed = await supabase.storage
+        .from('driver-onboarding')
+        .createSignedUrl(path, 3600);
+    if (!mounted) return;
+
+    final label = _photoLabel(slot);
+    final status = _text(part['status'], 'pending');
+    final version = part['version'] is int
+        ? part['version'] as int
+        : int.tryParse(_text(part['version'], '0')) ?? 0;
+    final reason = _text(part['reason'], '');
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${_text(requirement['label'], 'Documento')} · $label'),
+        content: SizedBox(
+          width: 720,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxHeight: 520),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _detailSoft,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _detailBorder),
+                  ),
+                  child: InteractiveViewer(
+                    minScale: .8,
+                    maxScale: 4,
+                    child: Image.network(
+                      signed,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const SizedBox(
+                        height: 240,
+                        child: Center(
+                          child: Text('No se pudo visualizar esta fotografía.'),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(
+                      status == 'approved'
+                          ? Icons.check_circle_rounded
+                          : status == 'rejected'
+                              ? Icons.cancel_rounded
+                              : Icons.hourglass_top_rounded,
+                      color: status == 'approved'
+                          ? const Color(0xFF067647)
+                          : status == 'rejected'
+                              ? const Color(0xFFB42318)
+                              : const Color(0xFFB54708),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      status == 'approved'
+                          ? 'Aprobada'
+                          : status == 'rejected'
+                              ? 'Rechazada'
+                              : 'Pendiente',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+                if (reason.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text('Motivo: $reason'),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cerrar'),
+          ),
+          OutlinedButton.icon(
+            onPressed: saving
+                ? null
+                : () async {
+                    final rejection = await _rejectionReason(
+                      '${_text(requirement['label'], 'documento')} · $label',
+                    );
+                    if (rejection == null || !dialogContext.mounted) return;
+                    Navigator.pop(dialogContext);
+                    await _reviewPhoto(
+                      document,
+                      requirement,
+                      slot,
+                      'rejected',
+                      version,
+                      reason: rejection,
+                    );
+                  },
+            icon: const Icon(Icons.cancel_outlined),
+            label: const Text('Rechazar'),
+          ),
+          FilledButton.icon(
+            onPressed: saving || status == 'approved'
+                ? null
+                : () async {
+                    Navigator.pop(dialogContext);
+                    await _reviewPhoto(
+                      document,
+                      requirement,
+                      slot,
+                      'approved',
+                      version,
+                    );
+                  },
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text('Aprobar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _requirementCard(
+    Map<String, dynamic> requirement,
+    Map<String, dynamic>? document,
+  ) {
+    final overallStatus = document == null
+        ? 'pending'
+        : _text(document['status'], 'pending').toLowerCase();
+    final label = _text(requirement['label'], 'Documento');
+    final number = document == null
+        ? ''
+        : _text(document['document_number'], '');
+    final slots = <(String, String, IconData)>[
+      if (requirement['require_front'] == true)
+        ('front', 'Ver frente', Icons.credit_card_rounded),
+      if (requirement['require_back'] == true)
+        ('back', 'Ver reverso', Icons.flip_to_back_rounded),
+      if (requirement['require_selfie'] == true)
+        ('selfie', 'Ver foto facial', Icons.face_rounded),
+    ];
+
+    Widget photoButton((String, String, IconData) slot) {
+      final part = document == null
+          ? <String, dynamic>{'status': 'pending', 'path': ''}
+          : _photoPart(document, slot.$1);
+      final status = _text(part['status'], 'pending');
+      final path = _text(part['path'], '');
+      final statusColor = status == 'approved'
+          ? const Color(0xFF067647)
+          : status == 'rejected'
+              ? const Color(0xFFB42318)
+              : _detailMuted;
+      return OutlinedButton.icon(
+        onPressed: document == null || path.isEmpty
+            ? null
+            : () => _openPhotoReview(document, requirement, slot.$1),
+        icon: Icon(
+          status == 'approved'
+              ? Icons.check_circle_rounded
+              : status == 'rejected'
+                  ? Icons.cancel_rounded
+                  : slot.$3,
+          size: 16,
+          color: statusColor,
+        ),
+        label: Text(slot.$2),
+      );
+    }
+
+    return SizedBox(
+      width: 430,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _detailBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Chip(label: Text(_friendlyDocumentStatus(overallStatus))),
+              ],
+            ),
+            if (number.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Número: $number',
+                style: const TextStyle(color: _detailMuted, fontSize: 11),
+              ),
+            ],
+            const SizedBox(height: 10),
+            if (document == null)
+              const Text(
+                'El conductor todavía no cargó este requisito.',
+                style: TextStyle(color: _detailMuted, fontSize: 11),
+              )
+            else if (slots.isEmpty)
+              const Text(
+                'Este requisito no exige fotografías.',
+                style: TextStyle(color: _detailMuted, fontSize: 11),
+              )
+            else
+              Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: slots.map(photoButton).toList(),
+              ),
+            const Spacer(),
+            if (document != null && slots.isEmpty)
+              Wrap(
+                spacing: 8,
+                children: [
+                  if (overallStatus != 'verified')
+                    FilledButton.icon(
+                      onPressed: saving
+                          ? null
+                          : () => _reviewDocument(document, 'verified'),
+                      icon: const Icon(Icons.check_circle_outline, size: 16),
+                      label: const Text('Aprobar requisito'),
+                    ),
+                  if (overallStatus != 'rejected')
+                    OutlinedButton.icon(
+                      onPressed: saving
+                          ? null
+                          : () => _reviewDocument(document, 'rejected'),
+                      icon: const Icon(Icons.cancel_outlined, size: 16),
+                      label: const Text('Rechazar'),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _reviewDocument(
@@ -725,7 +1295,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                               children: [
                                 if (profilePhotoPath.isNotEmpty)
                                   OutlinedButton.icon(
-                                    onPressed: () => _openDriverAsset(
+                                    onPressed: () => _previewDriverAsset(
                                       profilePhotoPath,
                                     ),
                                     icon: const Icon(Icons.account_circle_outlined),
@@ -733,7 +1303,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                   ),
                                 for (var i = 0; i < vehiclePhotos.length; i++)
                                   OutlinedButton.icon(
-                                    onPressed: () => _openDriverAsset(vehiclePhotos[i]),
+                                    onPressed: () => _previewDriverAsset(vehiclePhotos[i]),
                                     icon: const Icon(Icons.directions_car_outlined),
                                     label: Text('Foto vehículo ${i + 1}'),
                                   ),
@@ -963,170 +1533,55 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                       _Section(
                         title: 'Documentos e identidad',
                         icon: Icons.badge_rounded,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Revisa las imágenes y aprueba o rechaza cada '
-                              'documento. No necesitas editar datos técnicos.',
-                              style: TextStyle(color: _detailMuted, fontSize: 12),
-                            ),
-                            const SizedBox(height: 12),
-                            if (documents.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 10),
-                                child: Text(
-                                  'El conductor todavía no cargó documentos.',
-                                  style: TextStyle(color: _detailMuted, fontSize: 11),
+                        child: Builder(
+                          builder: (context) {
+                            final scopedRequirements =
+                                _applicableRequirements(driver);
+                            if (scopedRequirements.isEmpty) {
+                              return const Text(
+                                'No hay requisitos activos configurados para este conductor.',
+                                style: TextStyle(
+                                  color: _detailMuted,
+                                  fontSize: 11,
                                 ),
-                              )
-                            else
-                              ...documents.map((doc) {
-                                final status = (doc['status'] ?? 'pending').toString();
-                                final expiry = doc['expires_at'];
-                                final rejectionNote = (doc['notes'] ?? '').toString();
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 9),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: _detailSoft,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: _detailBorder),
+                              );
+                            }
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Cada tarjeta corresponde a un requisito activo de su país o zona. '
+                                  'Abre cada fotografía para aprobarla o rechazarla sin salir del panel.',
+                                  style: TextStyle(
+                                    color: _detailMuted,
+                                    fontSize: 12,
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Wrap(
-                                        spacing: 9,
-                                        runSpacing: 7,
-                                        crossAxisAlignment: WrapCrossAlignment.center,
-                                        children: [
-                                          Text(
-                                            _friendlyDriverDocumentType(
-                                              doc['document_type'],
-                                            ),
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                          Chip(
-                                            label: Text(
-                                              _friendlyDocumentStatus(status),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      if (_text(doc['document_number'], '').isNotEmpty)
-                                        Text('Número: ${doc['document_number']}',
-                                          style: const TextStyle(
-                                            color: _detailMuted, fontSize: 11,
-                                          )),
-                                      if (expiry != null)
-                                        Text('Vencimiento: ${_date(expiry)}',
-                                          style: const TextStyle(
-                                            color: _detailMuted, fontSize: 11,
-                                          )),
-                                      if (status == 'rejected' && rejectionNote.isNotEmpty)
-                                        Text(rejectionNote,
-                                          style: const TextStyle(
-                                            color: Color(0xFFB42318), fontSize: 11,
-                                          )),
-                                      const SizedBox(height: 9),
-                                      Wrap(
-                                        spacing: 7,
-                                        runSpacing: 8,
-                                        children: [
-                                          if (_text(doc['front_object_path'], '').isNotEmpty)
-                                            OutlinedButton.icon(
-                                              onPressed: () => _openDriverAsset(
-                                                doc['front_object_path']?.toString(),
-                                              ),
-                                              icon: const Icon(Icons.credit_card_rounded, size: 16),
-                                              label: const Text('Ver frente'),
-                                            ),
-                                          if (_text(doc['back_object_path'], '').isNotEmpty)
-                                            OutlinedButton.icon(
-                                              onPressed: () => _openDriverAsset(
-                                                doc['back_object_path']?.toString(),
-                                              ),
-                                              icon: const Icon(Icons.flip_to_back_rounded, size: 16),
-                                              label: const Text('Ver reverso'),
-                                            ),
-                                          if (_text(doc['selfie_object_path'], '').isNotEmpty)
-                                            OutlinedButton.icon(
-                                              onPressed: () => _openDriverAsset(
-                                                doc['selfie_object_path']?.toString(),
-                                              ),
-                                              icon: const Icon(Icons.face_rounded, size: 16),
-                                              label: const Text('Ver foto facial'),
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 9),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 7,
-                                        children: [
-                                          if (status != 'verified')
-                                            FilledButton.icon(
-                                              onPressed: saving ? null :
-                                                  () => _reviewDocument(doc, 'verified'),
-                                              icon: const Icon(Icons.check_circle_outline, size: 17),
-                                              label: const Text('Aprobar'),
-                                            ),
-                                          if (status != 'rejected')
-                                            OutlinedButton.icon(
-                                              onPressed: saving ? null :
-                                                  () => _reviewDocument(doc, 'rejected'),
-                                              icon: const Icon(Icons.cancel_outlined, size: 17),
-                                              label: const Text('Rechazar'),
-                                            ),
-                                          if (status != 'pending')
-                                            TextButton.icon(
-                                              onPressed: saving ? null :
-                                                  () => _reviewDocument(doc, 'pending'),
-                                              icon: const Icon(Icons.restart_alt, size: 17),
-                                              label: const Text('Reabrir revisión'),
-                                            ),
-                                        ],
-                                      ),
-                                    ],
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  height: 255,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: scopedRequirements.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(width: 10),
+                                    itemBuilder: (context, index) {
+                                      final requirement =
+                                          scopedRequirements[index];
+                                      final document = _documentForRequirement(
+                                        requirement,
+                                        documents,
+                                      );
+                                      return _requirementCard(
+                                        requirement,
+                                        document,
+                                      );
+                                    },
                                   ),
-                                );
-                              }),
-                            const Divider(),
-                            const Text(
-                              'Revisión de identidad',
-                              style: TextStyle(fontWeight: FontWeight.w900),
-                            ),
-                            if (verifications.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8),
-                                child: Text('Aún no se realizó la revisión.',
-                                  style: TextStyle(color: _detailMuted, fontSize: 11)),
-                              )
-                            else
-                              ...verifications.take(3).map((v) {
-                                final status = _text(v['status'], 'pending');
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 7),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.fact_check_outlined, size: 18),
-                                      const SizedBox(width: 9),
-                                      const Expanded(
-                                        child: Text('Verificación manual',
-                                          style: TextStyle(fontWeight: FontWeight.w600)),
-                                      ),
-                                      Chip(label: Text(
-                                        _friendlyDocumentStatus(status),
-                                      )),
-                                    ],
-                                  ),
-                                );
-                              }),
-                          ],
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ),
                       _Section(

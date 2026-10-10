@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'core/supabase_client.dart';
 import 'core/admin_environment_navigation.dart';
+import 'core/admin_design_tokens.dart';
 import 'admin_environment_store.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
@@ -19,89 +20,122 @@ import 'admin_detail_dialogs.dart';
 import 'admin_environment_reports.dart';
 import 'admin_environment_audit.dart';
 import 'admin_manual_identity.dart';
+import 'admin_driver_document_requirements.dart';
 
-const Color adminBlue = Color(0xFF2563EB);
-const Color adminDark = Color(0xFF0F172A);
-const Color adminMuted = Color(0xFF64748B);
-const Color adminBg = Color(0xFFF1F5F9);
-const Color adminNavy = Color(0xFF0B1220);
-const Color adminNavySoft = Color(0xFF111C31);
-const Color adminCyan = Color(0xFF22D3EE);
+const Color adminBlue = AdminColors.blue;
+const Color adminDark = AdminColors.ink;
+const Color adminMuted = AdminColors.muted;
+const Color adminBg = AdminColors.bg;
+const Color adminNavy = AdminColors.sidebar;
+const Color adminNavySoft = AdminColors.sidebarSoft;
+const Color adminCyan = AdminColors.cyan;
 
 
 ThemeData _expressAdminTheme(BuildContext context) {
   final base = Theme.of(context);
   final scheme = ColorScheme.fromSeed(
-    seedColor: adminBlue,
+    seedColor: AdminColors.blue,
     brightness: Brightness.light,
-    surface: Colors.white,
+    surface: AdminColors.surface,
   );
 
-  OutlineInputBorder inputBorder(Color color) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: color),
+  OutlineInputBorder inputBorder(Color color, {double width = 1}) =>
+      OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AdminRadius.control),
+        borderSide: BorderSide(color: color, width: width),
+      );
+
+  final textTheme = base.textTheme
+      .apply(
+        bodyColor: AdminColors.ink,
+        displayColor: AdminColors.ink,
+      )
+      .copyWith(
+        titleLarge: AdminText.pageTitle,
+        titleMedium: AdminText.sectionTitle,
+        bodyMedium: AdminText.body,
+        bodySmall: AdminText.muted,
+        labelLarge: const TextStyle(
+          color: AdminColors.ink,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+        labelMedium: AdminText.label,
       );
 
   return base.copyWith(
     colorScheme: scheme,
-    scaffoldBackgroundColor: adminBg,
-    canvasColor: Colors.white,
-    dividerColor: const Color(0xFFEAECF0),
-    cardColor: Colors.white,
+    textTheme: textTheme,
+    scaffoldBackgroundColor: AdminColors.bg,
+    canvasColor: AdminColors.surface,
+    dividerColor: AdminColors.divider,
+    cardColor: AdminColors.surface,
     cardTheme: CardThemeData(
-      color: Colors.white,
-      surfaceTintColor: Colors.white,
+      color: AdminColors.surface,
+      surfaceTintColor: AdminColors.surface,
       elevation: 0,
       margin: EdgeInsets.zero,
-      shadowColor: const Color(0x1A0F172A),
+      shadowColor: const Color(0x140F172A),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFDDE6F0)),
+        borderRadius: BorderRadius.circular(AdminRadius.card),
+        side: const BorderSide(color: AdminColors.border),
       ),
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.white,
-      foregroundColor: adminDark,
-      surfaceTintColor: Colors.white,
+      backgroundColor: AdminColors.surface,
+      foregroundColor: AdminColors.ink,
+      surfaceTintColor: AdminColors.surface,
       elevation: 0,
       centerTitle: false,
-      toolbarHeight: 60,
+      toolbarHeight: 64,
       titleTextStyle: TextStyle(
-        color: adminDark,
-        fontSize: 14,
-        fontWeight: FontWeight.w900,
+        color: AdminColors.ink,
+        fontSize: 15,
+        fontWeight: FontWeight.w800,
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       isDense: true,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AdminColors.surface,
       contentPadding: const EdgeInsets.symmetric(
-        horizontal: 12,
+        horizontal: 13,
         vertical: 12,
       ),
-      labelStyle: const TextStyle(
-        color: adminMuted,
+      labelStyle: AdminText.label,
+      floatingLabelStyle: const TextStyle(
+        color: AdminColors.blue,
         fontSize: 11,
+        fontWeight: FontWeight.w800,
       ),
       hintStyle: const TextStyle(
-        color: Color(0xFF98A2B3),
-        fontSize: 11,
+        color: AdminColors.subtle,
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
       ),
-      border: inputBorder(const Color(0xFFD0D5DD)),
-      enabledBorder: inputBorder(const Color(0xFFD0D5DD)),
-      focusedBorder: inputBorder(adminBlue),
-      errorBorder: inputBorder(const Color(0xFFD92D20)),
+      helperStyle: const TextStyle(
+        color: AdminColors.muted,
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+      ),
+      border: inputBorder(AdminColors.borderStrong),
+      enabledBorder: inputBorder(AdminColors.borderStrong),
+      focusedBorder: inputBorder(AdminColors.blue, width: 1.5),
+      errorBorder: inputBorder(AdminColors.danger),
+      focusedErrorBorder: inputBorder(AdminColors.danger, width: 1.5),
+      disabledBorder: inputBorder(AdminColors.border),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         minimumSize: const Size(0, 40),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        backgroundColor: AdminColors.blue,
+        foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(AdminRadius.control),
         ),
         textStyle: const TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -109,14 +143,15 @@ ThemeData _expressAdminTheme(BuildContext context) {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(0, 40),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        side: const BorderSide(color: Color(0xFFD0D5DD)),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+        side: const BorderSide(color: AdminColors.borderStrong),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(AdminRadius.control),
         ),
-        foregroundColor: adminDark,
+        foregroundColor: AdminColors.ink,
+        backgroundColor: AdminColors.surface,
         textStyle: const TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -125,79 +160,180 @@ ThemeData _expressAdminTheme(BuildContext context) {
       style: TextButton.styleFrom(
         minimumSize: const Size(0, 38),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        foregroundColor: AdminColors.blue,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(AdminRadius.control),
         ),
         textStyle: const TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
       ),
     ),
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(
+        foregroundColor: AdminColors.ink,
         minimumSize: const Size(38, 38),
         maximumSize: const Size(42, 42),
         padding: const EdgeInsets.all(8),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(AdminRadius.control),
         ),
       ),
     ),
     chipTheme: base.chipTheme.copyWith(
-      backgroundColor: Colors.white,
-      selectedColor: const Color(0xFFEAF2FF),
+      backgroundColor: AdminColors.surface,
+      selectedColor: AdminColors.blueSoft,
       disabledColor: const Color(0xFFF2F4F7),
       side: const BorderSide(color: Color(0xFFE4E7EC)),
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       labelStyle: const TextStyle(
-        color: adminDark,
-        fontSize: 10,
+        color: AdminColors.ink,
+        fontSize: 11,
         fontWeight: FontWeight.w700,
       ),
       secondaryLabelStyle: const TextStyle(
-        color: adminBlue,
-        fontSize: 10,
-        fontWeight: FontWeight.w900,
+        color: AdminColors.blue,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AdminRadius.pill),
+      ),
+    ),
+    dataTableTheme: const DataTableThemeData(
+      headingRowColor: WidgetStatePropertyAll(AdminColors.surfaceSoft),
+      dataRowColor: WidgetStatePropertyAll(AdminColors.surface),
+      headingRowHeight: 44,
+      dataRowMinHeight: 52,
+      dataRowMaxHeight: 62,
+      horizontalMargin: 16,
+      columnSpacing: 24,
+      dividerThickness: 1,
+      headingTextStyle: TextStyle(
+        color: AdminColors.muted,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: .35,
+      ),
+      dataTextStyle: TextStyle(
+        color: AdminColors.ink,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    tabBarTheme: const TabBarThemeData(
+      labelColor: AdminColors.blue,
+      unselectedLabelColor: AdminColors.muted,
+      indicatorColor: AdminColors.blue,
+      dividerColor: AdminColors.border,
+      indicatorSize: TabBarIndicatorSize.tab,
+      labelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w800,
+      ),
+      unselectedLabelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+    switchTheme: SwitchThemeData(
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        return states.contains(WidgetState.selected)
+            ? AdminColors.blue
+            : const Color(0xFFC5CEDD);
+      }),
+      thumbColor: const WidgetStatePropertyAll(Colors.white),
+      trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(4),
+      ),
+      side: const BorderSide(color: AdminColors.borderStrong),
+      fillColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return AdminColors.blue;
+        return Colors.transparent;
+      }),
+    ),
+    listTileTheme: const ListTileThemeData(
+      textColor: AdminColors.ink,
+      iconColor: AdminColors.muted,
+      dense: true,
+      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      titleTextStyle: TextStyle(
+        color: AdminColors.ink,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
+      subtitleTextStyle: TextStyle(
+        color: AdminColors.muted,
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
       ),
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
+      backgroundColor: AdminColors.surface,
+      surfaceTintColor: AdminColors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AdminRadius.card),
       ),
       titleTextStyle: const TextStyle(
-        color: adminDark,
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
+        color: AdminColors.ink,
+        fontSize: 19,
+        fontWeight: FontWeight.w800,
+      ),
+    ),
+    dividerTheme: const DividerThemeData(
+      color: AdminColors.divider,
+      thickness: 1,
+      space: 1,
+    ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(
+      color: AdminColors.blue,
+      linearTrackColor: Color(0xFFE8EEF7),
+      circularTrackColor: Color(0xFFE8EEF7),
+    ),
+    scrollbarTheme: const ScrollbarThemeData(
+      thumbColor: WidgetStatePropertyAll(Color(0xFFB8C4D4)),
+      trackColor: WidgetStatePropertyAll(Colors.transparent),
+      radius: Radius.circular(20),
+      thickness: WidgetStatePropertyAll(6),
+    ),
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: AdminColors.ink,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      textStyle: const TextStyle(
+        color: Colors.white,
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
       ),
     ),
     popupMenuTheme: PopupMenuThemeData(
-      color: Colors.white,
-      surfaceTintColor: Colors.white,
+      color: AdminColors.surface,
+      surfaceTintColor: AdminColors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AdminColors.border),
       ),
       textStyle: const TextStyle(
-        color: adminDark,
-        fontSize: 11,
+        color: AdminColors.ink,
+        fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: adminDark,
+      backgroundColor: AdminColors.ink,
       contentTextStyle: const TextStyle(
         color: Colors.white,
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AdminRadius.control),
       ),
     ),
   );
@@ -1302,35 +1438,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 18:
-        return DefaultTabController(
-          key: ValueKey('unified-identity-$adminZoneId-$adminChannel'),
-          length: 2,
-          child: Column(
-            children: [
-              const Material(
-                color: Colors.white,
-                child: TabBar(tabs: [
-                  Tab(icon: Icon(Icons.fact_check_outlined),
-                      text: 'Revisión de documentos'),
-                  Tab(icon: Icon(Icons.settings_outlined),
-                      text: 'Requisitos de identidad'),
-                ]),
-              ),
-              Expanded(child: TabBarView(children: [
-                AdminManualIdentityPage(
-                  channel: adminChannel,
-                  countryCode: adminCountryCode,
-                  zoneId: adminZoneId,
-                ),
-                AdminIdentitySecurityPage(
-                  channel: adminChannel,
-                  countryCode: adminCountryCode,
-                  zoneId: adminZoneId,
-                ),
-              ])),
-            ],
-          ),
-        );
+        return _driverList();
       case 19:
         return AdminAdvancedSettingsPage(channel: adminChannel);
       case 20:
@@ -1369,11 +1477,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 27:
-        return AdminManualIdentityPage(
-          channel: adminChannel,
-          countryCode: adminCountryCode,
-          zoneId: adminZoneId,
-        );
+        return _driverList();
       case 28:
         return AdminDynamicPricingPage(
           channel: adminChannel,
@@ -1769,6 +1873,69 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     );
   }
 
+  Future<void> _openDriverRequirements() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(18),
+        child: SizedBox(
+          width: 940,
+          height: 720,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.rule_folder_outlined, color: adminBlue),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ajuste de requisitos',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: adminDark,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Configura los documentos exigidos para el país y la zona seleccionados.',
+                            style: TextStyle(color: adminMuted, fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Cerrar',
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(18),
+                  child: AdminDriverDocumentRequirementsPanel(
+                    channel: adminChannel,
+                    countryCode: adminCountryCode,
+                    zoneId: adminZoneId,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (mounted) _refresh();
+  }
+
   Widget _driverList() {
     return FutureBuilder<List<Map<String, dynamic>>>(
       key: ValueKey('drivers-' + revision.toString()),
@@ -1789,17 +1956,70 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           empty: 'Todavía no hay conductores registrados.',
           rows: snapshot.data ?? const [],
           showQaFilter: false,
+          statusField: 'approval_status',
+          statusOptions: const [
+            'approved',
+            'pending',
+            'rejected',
+            'suspended',
+          ],
+          headerAction: _isZoneMonitor
+              ? null
+              : FilledButton.icon(
+                  onPressed: _openDriverRequirements,
+                  icon: const Icon(Icons.rule_folder_outlined, size: 17),
+                  label: const Text('Ajuste de requisitos'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: adminBlue,
+                  ),
+                ),
+          listHeader: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 760) {
+                return const SizedBox.shrink();
+              }
+              const style = TextStyle(
+                color: AdminColors.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: .4,
+              );
+              return Container(
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: AdminColors.surfaceSoft,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(AdminRadius.card),
+                  ),
+                  border: Border.all(color: AdminColors.border),
+                ),
+                child: const Row(
+                  children: [
+                    SizedBox(width: 260, child: Text('CONDUCTOR', style: style)),
+                    SizedBox(width: 12),
+                    Expanded(child: Text('VEHÍCULO', style: style)),
+                    SizedBox(width: 120, child: Text('CIUDAD', style: style)),
+                    SizedBox(width: 118, child: Text('APROBACIÓN', style: style)),
+                    SizedBox(width: 118, child: Text('ESTADO', style: style)),
+                    SizedBox(width: 40),
+                  ],
+                ),
+              );
+            },
+          ),
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
             final online = (row['online_status'] ?? 'offline').toString();
             final name = row['full_name']?.toString().trim();
 
             return Container(
-              margin: const EdgeInsets.only(bottom: 7),
+              margin: const EdgeInsets.only(bottom: 2),
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: const Color(0xFFE7ECF3)),
-                borderRadius: BorderRadius.circular(11),
+                color: AdminColors.surface,
+                border: Border.all(color: AdminColors.divider),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -1907,7 +2127,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                       ),
                       child: Row(
                         children: [
-                          SizedBox(width: 240, child: identity),
+                          SizedBox(width: 260, child: identity),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -2250,7 +2470,6 @@ class _Navigation extends StatelessWidget {
           ('FINANZAS', [9, 8, 22]),
           ('ANÁLISIS', [10, 14]),
           ('COMUNICACIÓN', [15]),
-          ('SEGURIDAD', [18]),
           ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
           ('HERRAMIENTAS QA', [20, 21]),
         ];
@@ -2626,16 +2845,18 @@ class _TopBar extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          FilledButton.icon(
-            onPressed: onNewTrip,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Nuevo viaje'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 40),
-              padding: const EdgeInsets.symmetric(horizontal: 15),
+          if (showNewTrip) ...[
+            FilledButton.icon(
+              onPressed: onNewTrip,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Nuevo viaje'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsets.symmetric(horizontal: 15),
+              ),
             ),
-          ),
-          const SizedBox(width: 7),
+            const SizedBox(width: 7),
+          ],
           IconButton(
             tooltip: 'Actualizar',
             onPressed: onRefresh,
@@ -4510,6 +4731,10 @@ class _Records extends StatefulWidget {
   final Widget Function(Map<String, dynamic>) item;
   final bool showQaFilter;
   final Widget? serverFilters;
+  final String statusField;
+  final List<String>? statusOptions;
+  final Widget? headerAction;
+  final Widget? listHeader;
 
   const _Records({
     required this.title,
@@ -4519,6 +4744,10 @@ class _Records extends StatefulWidget {
     required this.item,
     this.showQaFilter = false,
     this.serverFilters,
+    this.statusField = 'status',
+    this.statusOptions,
+    this.headerAction,
+    this.listHeader,
   });
 
   @override
@@ -4539,13 +4768,15 @@ class _RecordsState extends State<_Records> {
 
   @override
   Widget build(BuildContext context) {
-    final statuses = widget.rows
-        .map((row) => row['status']?.toString())
-        .whereType<String>()
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final statuses = widget.statusOptions != null
+        ? List<String>.from(widget.statusOptions!)
+        : (widget.rows
+            .map((row) => row[widget.statusField]?.toString())
+            .whereType<String>()
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort());
 
     final visible = widget.rows.where((row) {
       final matchesText = query.isEmpty ||
@@ -4554,7 +4785,7 @@ class _RecordsState extends State<_Records> {
               .join(' ')
               .contains(query.toLowerCase());
       final matchesStatus =
-          status == null || row['status']?.toString() == status;
+          status == null || row[widget.statusField]?.toString() == status;
       final isQa = row['is_qa'] == true;
       final matchesQa = !widget.showQaFilter ||
           qaFilter == 'all' ||
@@ -4563,10 +4794,42 @@ class _RecordsState extends State<_Records> {
       return matchesText && matchesStatus && matchesQa;
     }).toList();
 
+    String statusLabel(String value) => switch (value.toLowerCase()) {
+      'approved' => 'Activos',
+      'pending' => 'Pendientes',
+      'rejected' => 'Rechazados',
+      'suspended' => 'Suspendidos',
+      'active' => 'Activos',
+      'blocked' => 'Bloqueados',
+      _ => value,
+    };
+
     return ListView(
       padding: const EdgeInsets.all(22),
       children: [
-        _Header(title: widget.title, subtitle: widget.subtitle),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final header = _Header(title: widget.title, subtitle: widget.subtitle);
+            final action = widget.headerAction;
+            if (action == null) return header;
+            if (constraints.maxWidth < 700) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  header,
+                  const SizedBox(height: 8),
+                  Align(alignment: Alignment.centerRight, child: action),
+                ],
+              );
+            }
+            return Stack(
+              children: [
+                header,
+                Positioned(right: 18, top: 18, child: action),
+              ],
+            );
+          },
+        ),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(10),
@@ -4601,7 +4864,18 @@ class _RecordsState extends State<_Records> {
               ),
               for (final value in statuses.take(5))
                 ChoiceChip(
-                  label: Text(value),
+                  label: Text(
+                    statusLabel(value) +
+                        ' (' +
+                        widget.rows
+                            .where(
+                              (row) =>
+                                  row[widget.statusField]?.toString() == value,
+                            )
+                            .length
+                            .toString() +
+                        ')',
+                  ),
                   selected: status == value,
                   onSelected: (_) => setState(() => status = value),
                 ),
@@ -4642,6 +4916,10 @@ class _RecordsState extends State<_Records> {
           ),
         ),
         const SizedBox(height: 12),
+        if (visible.isNotEmpty && widget.listHeader != null) ...[
+          widget.listHeader!,
+          const SizedBox(height: 2),
+        ],
         if (visible.isEmpty)
           Container(
             padding: const EdgeInsets.all(28),
@@ -4783,33 +5061,47 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final value = text.toLowerCase();
-    final positive =
-        value == 'approved' || value == 'online' || value == 'active';
-    final warning = value == 'pending';
-    final bg = positive
-        ? const Color(0xFFE8F8EF)
-        : warning
-            ? const Color(0xFFFFF3E7)
-            : const Color(0xFFF2F4F7);
-    final fg = positive
-        ? const Color(0xFF14804A)
-        : warning
-            ? const Color(0xFFC76B16)
-            : const Color(0xFF475467);
+    final value = text.trim().toLowerCase();
+
+    final (label, bg, fg) = switch (value) {
+      'approved' => ('Aprobado', AdminColors.okSoft, AdminColors.ok),
+      'active' => ('Activo', AdminColors.okSoft, AdminColors.ok),
+      'online' => ('En línea', AdminColors.okSoft, AdminColors.ok),
+      'pending' => ('Pendiente', AdminColors.warnSoft, AdminColors.warn),
+      'rejected' => ('Rechazado', AdminColors.dangerSoft, AdminColors.danger),
+      'suspended' => ('Suspendido', const Color(0xFFF2F4F7), const Color(0xFF475467)),
+      'blocked' => ('Bloqueado', AdminColors.dangerSoft, AdminColors.danger),
+      'offline' => ('Desconectado', const Color(0xFFF2F4F7), const Color(0xFF475467)),
+      'disconnected' => ('Desconectado', const Color(0xFFF2F4F7), const Color(0xFF475467)),
+      'in_trip' => ('En viaje', AdminColors.blueSoft, AdminColors.blue),
+      'no_signal' => ('Sin señal', AdminColors.orangeSoft, AdminColors.orange),
+      _ => (text, const Color(0xFFF2F4F7), const Color(0xFF475467)),
+    };
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AdminRadius.pill),
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: fg,
-          fontSize: 9,
-          fontWeight: FontWeight.w800,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: fg,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
