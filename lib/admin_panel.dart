@@ -313,14 +313,16 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // These administration modules cover the entire Express system rather than
   // an operational country, zone, or a separate Preview/Production mode.
   static const Set<int> _globalSections = {10, 12, 14}; // Reports, Builds, Audit
-  // The only Preview modules vetted for shared-database scoped operations.
-  // Driver priority (25) is audited: server filters QA drivers, settings
-  // use Preview-only shadow RPC writes; subscriptions (22) use scoped
-  // QA driver candidates and shadow plans/settings, without real payments.
-  // Dispatch (13) is a shadow-only QA simulator: no real requests/push/RPC.
-  // All other unscoped modules fail closed.
+  // Shared Supabase: users, drivers, zones and their travel/pricing data
+  // require QA-scoped access. Financial/integration pages may use the real
+  // provider only after the payer, payee and zone are proven QA-owned.
+  // Build status (12) is read-only in Preview (productionAccess=false).
+  // Dynamic demand (28) uses channel-scoped settings and Preview-only
+  // synthetic overrides. Dispatch (13) still uses QA-only shadow requests.
+  // Other modules must remain fail-closed pending server-side QA checks;
+  // hiding a button alone does not isolate their SECURITY DEFINER RPCs.
   static const Set<int> _previewScopedModules = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 13, 14, 16, 17, 18, 22, 25, 27,
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 16, 17, 18, 22, 25, 27, 28,
   };
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
