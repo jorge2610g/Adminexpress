@@ -765,55 +765,25 @@ class _AdminDriverSubscriptionsPageState
       expiry = DateTime.now().toUtc().add(Duration(days: customDays));
     }
     try {
-      if (_environment.isPreview) {
-        // An assignment is valid ONLY for a driver returned by the QA-only
-        // server RPC; never accept a real driver through this mock flow.
-        if (driver['is_qa'] != true) {
-          throw StateError('Solo se permiten conductores QA en Preview');
-        }
-        final driverId =
-            (driver['driver_id'] ?? driver['user_id'])?.toString() ?? '';
-        if (driverId.isEmpty || driverId == 'null') {
-          throw StateError('El conductor QA no tiene un identificador válido');
-        }
-        final selectedPlan = plans.firstWhere(
-          (plan) => _adminSubscriptionInt(plan['id']) == selected,
-        );
-        final normalDays = _adminSubscriptionInt(selectedPlan['days']);
-        if (expiry == null) {
-          // With "0 days", use the plan's full period, not an unlimited
-          // subscription. Preview can then test expiry and renewals safely.
-          if (normalDays <= 0) {
-            throw StateError('El plan QA debe tener una duración positiva');
-          }
-          expiry = DateTime.now().toUtc().add(Duration(days: normalDays));
-        }
-        await _environment.previewUpsert(
-          'driver_subscriptions',
-          driverId,
-          <String, dynamic>{
-            'driver_id': driverId,
-            'zone_key': selectedZoneKey,
-            'is_qa': true,
-            'plan_id': selected,
-            'plan_name': selectedPlan['name'],
-            'expires_at': expiry.toIso8601String(),
-            'assigned_at': DateTime.now().toUtc().toIso8601String(),
-            'notes': 'Asignado desde Adminexpress Preview',
-            'status': 'active',
-          },
-        );
-      } else {
-        await supabase.rpc(
-          'admin_set_driver_subscription',
-          params: {
-            'p_driver_id': driver['driver_id'],
-            'p_plan_id': selected,
-            'p_expires_at': expiry?.toIso8601String(),
-            'p_notes': 'Asignado desde Adminexpress',
-          },
-        );
+      if (_environment.isPreview && driver['is_qa'] != true) {
+        throw StateError('En Preview solamente se administran conductores de prueba.');
       }
+      final driverId =
+          (driver['driver_id'] ?? driver['user_id'])?.toString() ?? '';
+      if (driverId.isEmpty || driverId == 'null') {
+        throw StateError('El conductor no tiene un identificador válido');
+      }
+      // Assign to the real subscription ledger. Billing provider, plan and
+      // expiry are shared with Production, including for registered QA actors.
+      await supabase.rpc(
+        'admin_set_driver_subscription',
+        params: {
+          'p_driver_id': driverId,
+          'p_plan_id': selected,
+          'p_expires_at': expiry?.toIso8601String(),
+          'p_notes': 'Asignado desde Adminexpress',
+        },
+      );
       _snack('Suscripción activada.');
       await _load();
     } catch (e) {
