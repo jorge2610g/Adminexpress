@@ -257,9 +257,9 @@ jobs:
               print('WARNING: temporary all-modules Preview UI enabled on dedicated QA PR only.')
           else:
               assert normal_guard in panel
-          for safe in ['0','1','2','3','4','5','6','7','8','10','11','13','14','16','17','18','22','25','27']:
+          for safe in ['0','1','2','3','4','5','6','7','8','10','11','12','13','14','16','17','18','22','25','27','28']:
               assert safe in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
-          for blocked in ['9','12','15','19','20','21','23','24','26','28']:
+          for blocked in ['9','15','19','20','21','23','24','26']:
               assert blocked not in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
           assert 'if (adminIsPreview) return _ExpressPanelAccess.denied;' in login
           # Preview and Production share the Supabase project, but MUST NOT
@@ -349,6 +349,17 @@ jobs:
           assert "REVOKE ALL" in sql
           assert "INSERT INTO" not in sql.upper()
           assert "UPDATE public." not in sql
+          # Live data is never mutated by Android Builds in Preview.
+          assert 'productionAccess: allowProduction && !adminIsPreview' in panel
+          release = Path('lib/admin_single_app_release.dart').read_text()
+          assert "supabase.rpc('admin_build_list')" in release
+          # Demand pricing is segmented by channel, and overrides are QA-only.
+          demand = Path('lib/admin_dynamic_pricing.dart').read_text()
+          assert "'admin_dynamic_pricing_qa_state_scoped'" in demand
+          assert "'p_channel': widget.channel" in demand
+          assert "'admin_update_dynamic_pricing_settings'" in demand
+          assert "'p_channel': channel" in demand
+          assert "'admin_set_dynamic_pricing_qa_override'" in demand
           # Server calls for Priority (25) are scoped by channel and QA driver.
           priority = Path('lib/admin_driver_priority.dart').read_text()
           assert "'admin_driver_priority_state_scoped'" in priority
