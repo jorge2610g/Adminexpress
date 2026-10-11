@@ -336,7 +336,12 @@ jobs:
           set -euo pipefail
           test "$(git -C preview-source rev-parse HEAD)" = "$PREVIEW_SHA"
           grep -q "admin_zone_list_scoped" preview-source/lib/admin_detail_dialogs.dart
-          grep -q "admin_driver_kyc_bolivia_manual_review_part" preview-source/lib/admin_bolivia_kyc.dart
+          grep -q "admin_driver_kyc_bolivia_manual_review_part" preview-source/lib/admin_detail_dialogs.dart
+          grep -q "title: 'Documentos e identidad'" preview-source/lib/admin_detail_dialogs.dart
+          if test -f preview-source/lib/admin_bolivia_kyc.dart || test -f preview-source/lib/admin_manual_identity.dart; then
+            echo "ERROR: standalone legacy identity screens returned."
+            exit 1
+          fi
           grep -q "AdminEnvironmentLinkButton" preview-source/lib/admin_panel.dart
           grep -q "const supabaseUrl = _productionUrl;" preview-source/lib/core/supabase_client.dart
           python3 - <<'PY'
