@@ -70,12 +70,12 @@ jobs:
           grep -Fq "admin_driver_document_requirement_list" lib/admin_driver_document_requirements.dart
           grep -Fq "admin_upsert_driver_document_requirement" lib/admin_driver_document_requirements.dart
           grep -Fq "admin_delete_driver_document_requirement" lib/admin_driver_document_requirements.dart
-          grep -Fq "AdminEnvironmentStore(widget.channel)" lib/admin_country_coverage.dart
-          grep -Fq "usesSharedOperationalConfiguration" lib/admin_country_coverage.dart
-          grep -Fq "existingCodes.contains(code)" lib/admin_country_coverage.dart
-          grep -Fq "'active': false" lib/admin_country_coverage.dart
-          grep -Fq "'driver_registration_enabled': false" lib/admin_country_coverage.dart
-          grep -Fq "'service_countries'," lib/admin_country_coverage.dart
+          if grep -Fq "AdminEnvironmentStore" lib/admin_country_coverage.dart; then
+            echo "ERROR: country coverage still contains obsolete Preview shadow routing."
+            exit 1
+          fi
+          grep -Fq "admin_country_list" lib/admin_country_coverage.dart
+          grep -Fq "admin_upsert_country_coverage_v2" lib/admin_country_coverage.dart
           grep -q "admin_driver_document_requirement_list" lib/admin_driver_document_requirements.dart
 
           for legacy in             "'admin_set_driver_approval'"             "'admin_set_account_status'"             "'admin_resolve_emergency'"; do
@@ -212,8 +212,10 @@ jobs:
           assert "Tarifas de prueba guardadas solo en Preview." not in distance
           assert "Ambas páginas Admin usan estas reglas." not in distance
           countries = Path('lib/admin_country_coverage.dart').read_text()
-          assert 'AdminEnvironmentStore(widget.channel)' in countries
-          assert "AdminEnvironmentStore('production')" not in countries
+          assert 'AdminEnvironmentStore' not in countries
+          assert 'previewUpsert(' not in countries
+          assert "'admin_country_list'" in countries
+          assert "'admin_upsert_country_coverage_v2'" in countries
           controls = Path('lib/admin_control_sections.dart').read_text()
           for name in ['_AdminZonesPageState','_AdminGeoSafetyPageState',
                        '_AdminServicesPageState','_AdminFaresPageState',
