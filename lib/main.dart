@@ -20,9 +20,8 @@ Future<void> main() async {
     await Supabase.initialize(
       url: supabaseUrl,
       publishableKey: supabasePublishableKey,
-      // Preview and Production have distinct browser sessions on the same
-      // origin. Keep Production's DEFAULT storage key unchanged for existing
-      // sessions; only Preview receives its own session key.
+      // The two sites use different Supabase Auth projects and browser sessions.
+      // Keep the Production default session key unchanged.
       authOptions: adminIsPreview
           ? FlutterAuthClientOptions(
               localStorage: SharedPreferencesLocalStorage(
@@ -435,7 +434,7 @@ class _AdminLoginState extends State<_AdminLogin> {
                             const SizedBox(height: 8),
                             const Text(
                               'Necesitas permisos administrativos para el canal '
-                              'de Prueba en Supabase principal.',
+                              'de Prueba en Express Preview.',
                               style: TextStyle(
                                 color: Color(0xFF667085),
                                 fontSize: 11,
