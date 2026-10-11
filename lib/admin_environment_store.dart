@@ -2,10 +2,9 @@ import 'core/supabase_client.dart';
 
 /// Environment-aware storage used by Adminexpress.
 ///
-/// The websites now use independent Supabase projects. Several Preview editors
-/// still use `admin_environment_config` QA shadow storage rather than the
-/// operational tables; those workflows require a separate parity migration
-/// before they can be certified end to end.
+/// Both sites connect to the SAME Supabase project, but Preview editors
+/// use `admin_environment_config` QA shadow storage instead of operational
+/// tables. Direct unscoped writes must never be used from Preview.
 ///
 /// Runtime-sensitive records (trips, identity reviews, wallets, payments)
 /// additionally require server-side channel/identity assertions. This client
