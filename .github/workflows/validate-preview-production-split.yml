@@ -4,12 +4,7 @@ on:
   push:
     branches:
       - main
-      - feature/delivery-modules-merchant-dashboard
-      - refactor/unified-preview-production-panel
-      - fix/admin-live-channel-badges-20261006
-      - fix/admin-geo-scope-identity-20261007
-      - fix/admin-audit-readiness-20261007
-      - feat/admin-runtime-scope-isolation-20261007
+      - chatgpt/admin-preview-independent-20261010
   pull_request:
     branches:
       - main
@@ -29,6 +24,13 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
+      - name: Test single Supabase backend in both build channels
+        run: |
+          flutter test --dart-define=ADMIN_ENV=production test/admin_independent_backend_test.dart
+          flutter test --dart-define=ADMIN_ENV=preview test/admin_independent_backend_test.dart
+      - name: Verify 54 Claude designs and eight staged gates
+        run: python3 .github/scripts/verify_admin_mockup_stages.py
+
       - name: Enforce identical Preview and Production panel tree
         run: |
           if grep -q "AdminPreviewModulePage" lib/admin_panel.dart; then
@@ -45,7 +47,6 @@ jobs:
           grep -q "AdminSettingsPage(channel: adminChannel)" lib/admin_panel.dart
           grep -q "AdminServicesPage(" lib/admin_panel.dart
           grep -q "AdminGeoSafetyPage(" lib/admin_panel.dart
-          grep -q "AdminIdentitySecurityPage(" lib/admin_panel.dart
           grep -q "AdminAdvancedSettingsPage(channel: adminChannel)" lib/admin_panel.dart
           grep -q "AdminDriverSubscriptionsPage(" lib/admin_panel.dart
 
@@ -62,17 +63,19 @@ jobs:
           grep -q "admin_trip_detail_v2" lib/admin_detail_dialogs.dart
           grep -q "admin_update_driver_profile_v2" lib/admin_detail_dialogs.dart
           grep -q "admin_update_user_profile_v2" lib/admin_detail_dialogs.dart
-          if grep -Fq "const AdminEnvironmentStore('production')" lib/admin_driver_document_requirements.dart; then
-            echo "ERROR: document requirements Preview must not read/write Production."
+          if grep -Fq "AdminEnvironmentStore" lib/admin_driver_document_requirements.dart; then
+            echo "ERROR: document requirements still contain obsolete Preview shadow routing."
             exit 1
           fi
-          grep -Fq "AdminEnvironmentStore(widget.channel)" lib/admin_driver_document_requirements.dart
-          grep -Fq "AdminEnvironmentStore(widget.channel)" lib/admin_country_coverage.dart
-          grep -Fq "if (!_environment.isPreview) return;" lib/admin_country_coverage.dart
-          grep -Fq "existingCodes.contains(code)" lib/admin_country_coverage.dart
-          grep -Fq "'active': false" lib/admin_country_coverage.dart
-          grep -Fq "'driver_registration_enabled': false" lib/admin_country_coverage.dart
-          grep -Fq "'service_countries'," lib/admin_country_coverage.dart
+          grep -Fq "admin_driver_document_requirement_list" lib/admin_driver_document_requirements.dart
+          grep -Fq "admin_upsert_driver_document_requirement" lib/admin_driver_document_requirements.dart
+          grep -Fq "admin_delete_driver_document_requirement" lib/admin_driver_document_requirements.dart
+          if grep -Fq "AdminEnvironmentStore" lib/admin_country_coverage.dart; then
+            echo "ERROR: country coverage still contains obsolete Preview shadow routing."
+            exit 1
+          fi
+          grep -Fq "admin_country_list" lib/admin_country_coverage.dart
+          grep -Fq "admin_upsert_country_coverage_v2" lib/admin_country_coverage.dart
           grep -q "admin_driver_document_requirement_list" lib/admin_driver_document_requirements.dart
 
           for legacy in             "'admin_set_driver_approval'"             "'admin_set_account_status'"             "'admin_resolve_emergency'"; do
@@ -102,8 +105,8 @@ jobs:
             'only Reports, Builds and Audit bypass zone scope':
               'static const Set<int> _globalSections = {10, 12, 14};' in panel
               and '!_globalSections.contains(selectedSection)' in panel,
-            'environment switch hidden for system-global modules':
-              'if (!_globalSections.contains(section))\n                          _environmentSwitcher(),' in panel,
+            'single environment banner is rendered for every module':
+              panel.count('_environmentSwitcher(),') == 1,
             'country/zone switch hidden for system-global modules':
               'if (_requiresZoneScope(section))\n                          _globalGeoScopeSwitcher(),' in panel,
             'other sections still require selected zone':
@@ -144,32 +147,27 @@ jobs:
           print('PASS: global Builds, Audit, Reports; operational geo + access guards intact.')
           PY
 
-      - name: Guard manual-only identity dashboard and environment separation
+      - name: Guard identity consolidation inside driver record
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          code = Path('lib/admin_control_sections.dart').read_text()
-          module = code.split('class AdminIdentitySecurityPage extends StatelessWidget {', 1)[1].split(
-              'class _PolygonEditor extends StatelessWidget {', 1)[0]
-          forbidden = [
-              'admin_identity_verification_list_scoped',
-              'admin_identity_settings_get',
-              'admin_identity_resolve',
-              'identity_verifications',
-              'identity_verification_settings',
-          ]
-          # Comments can document retired tables, but active UI cannot query them.
-          statements = '\n'.join(line for line in module.splitlines() if not line.strip().startswith('///'))
-          assert all(legacy not in statements for legacy in forbidden), 'Legacy identity requests remain in the live screen'
-          assert "('Motor', 'Manual')" in module, 'Automatic provider still appears as active'
-          assert 'AdminDriverDocumentRequirementsPanel(' in module, 'Document requirements must remain available'
-          assert 'channel: channel' in module and 'zoneId: zoneId' in module, 'Keep environment and zone scope'
-          manual = Path('lib/admin_manual_identity.dart').read_text()
-          assert 'AdminBoliviaKycPanel(' in manual, 'Manual document reviews must remain accessible'
-          print('PASS: production/preview identity UI is manual-only, no legacy session feed.')
+          panel = Path('lib/admin_panel.dart').read_text()
+          detail = Path('lib/admin_detail_dialogs.dart').read_text()
+          controls = Path('lib/admin_control_sections.dart').read_text()
+          assert "title: 'Documentos e identidad'" in detail
+          assert 'admin_driver_document_review_part_v2' in detail
+          assert 'admin_driver_kyc_bolivia_manual_review_part' in detail
+          assert '_reviewPhoto(' in detail
+          assert "case 18:" in panel and "case 27:" in panel
+          assert 'AdminManualIdentityPage' not in panel
+          assert 'AdminIdentitySecurityPage' not in panel
+          assert 'class AdminIdentitySecurityPage' not in controls
+          assert not Path('lib/admin_manual_identity.dart').exists()
+          assert not Path('lib/admin_bolivia_kyc.dart').exists()
+          print('PASS: identity review is consolidated in the driver record; standalone legacy screens removed.')
           PY
 
-      - name: Guard shared Supabase and fail-closed Preview routing
+      - name: Guard single Supabase, all Preview modules and per-actor protections
         shell: bash
         run: |
           python3 - <<'PY'
@@ -199,22 +197,25 @@ jobs:
           # All QA business configuration editors must target shadow storage,
           # never silently resolve to the live production store.
           docs = Path('lib/admin_driver_document_requirements.dart').read_text()
-          assert docs.count('AdminEnvironmentStore(widget.channel)') == 3
-          # Distance fare editor must never read or mutate live fare tiers from Preview.
+          assert 'AdminEnvironmentStore' not in docs
+          assert 'admin_driver_document_requirement_list' in docs
+          assert 'admin_upsert_driver_document_requirement' in docs
+          assert 'admin_delete_driver_document_requirement' in docs
+          # Fare tiers are shared business configuration in both Admin sites.
           distance = Path('lib/admin_distance_fares.dart').read_text()
-          assert "AdminEnvironmentStore(widget.channel)" in distance
-          assert "if (_environment.isPreview) {" in distance
-          assert "_environment.previewGet(" in distance
-          assert "_environment.previewUpsert(" in distance
-          assert distance.count("'zone_distance_fare_steps'") >= 2
-          assert "_qaRecordKey(zone, service)" in distance
+          assert 'AdminEnvironmentStore' not in distance
+          assert 'previewGet(' not in distance
+          assert 'previewUpsert(' not in distance
           assert "'admin_distance_fare_steps_replace'" in distance
           assert "'admin_distance_fare_steps_get'" in distance
-          assert "Tarifas de prueba guardadas solo en Preview." in distance
+          assert "'p_channel': widget.channel" in distance
+          assert "Tarifas de prueba guardadas solo en Preview." not in distance
           assert "Ambas páginas Admin usan estas reglas." not in distance
           countries = Path('lib/admin_country_coverage.dart').read_text()
-          assert 'AdminEnvironmentStore(widget.channel)' in countries
-          assert "AdminEnvironmentStore('production')" not in countries
+          assert 'AdminEnvironmentStore' not in countries
+          assert 'previewUpsert(' not in countries
+          assert "'admin_country_list'" in countries
+          assert "'admin_upsert_country_coverage_v2'" in countries
           controls = Path('lib/admin_control_sections.dart').read_text()
           for name in ['_AdminZonesPageState','_AdminGeoSafetyPageState',
                        '_AdminServicesPageState','_AdminFaresPageState',
@@ -225,16 +226,25 @@ jobs:
           payment_editor = controls.split('Future<bool> showAdminZonePaymentMethodsEditor(',1)[1].split('class ',1)[0]
           assert 'AdminEnvironmentStore(channel);' in payment_editor
           zones_editor = controls.split('class _AdminZonesPageState',1)[1].split('class ',1)[0]
-          assert "row?['id'] != null && !_environment.isPreview" in zones_editor
+          assert "row?['id'] != null && _environment.usesSharedOperationalConfiguration" in zones_editor
           assert "'polygon': coverageMode == 'polygon'" in zones_editor
-          assert "if (_environment.isPreview)" in zones_editor
-          assert "AdminManualIdentityPage(" in panel and "AdminIdentitySecurityPage(" in panel
+          assert "usesSharedOperationalConfiguration" in zones_editor
+          detail = Path('lib/admin_detail_dialogs.dart').read_text()
+          assert "title: 'Documentos e identidad'" in detail
+          assert 'AdminManualIdentityPage' not in panel
+          assert 'AdminIdentitySecurityPage' not in panel
           assert "AdminDistanceFaresEditor(" in Path('lib/admin_control_sections.dart').read_text()
           assert 'productionAccess: allowProduction && !adminIsPreview' in panel
-          assert '_previewScopedModules' not in panel
-          assert 'if (adminIsPreview && !_previewScopedModules.contains(value))' not in panel
-          for i in range(29):
-              assert f'case {i}:' in panel, f'Admin module {i} missing'
+          # Preview and Production expose the same module pages. Only actor
+          # operations (users, drivers, trips and deliveries) are channel-
+          # scoped. Server-side QA validation must never be replaced by a
+          # hidden or disabled menu entry.
+          assert 'static const Set<int> _previewScopedModules' not in panel
+          assert 'Este módulo todavía no tiene aislamiento seguro por canal.' not in panel
+          for module_id in range(29):
+              assert f'case {module_id}:' in panel, f'Missing module {module_id}'
+          assert 'if (_isZoneMonitor &&' in panel
+          assert 'productionAccess: allowProduction && !adminIsPreview' in panel
           assert 'if (adminIsPreview) return _ExpressPanelAccess.denied;' in login
           # Preview and Production share the Supabase project, but MUST NOT
           # persist the same browser login session / OAuth callback session.
@@ -263,17 +273,14 @@ jobs:
           assert '--base-href /preview/' in workflow
           assert 'path: build/site' in workflow
           assert 'preview_source_sha' in workflow
-          assert 'production_snapshot_run_id' in workflow
-          assert 'production-snapshot' in workflow
+          assert 'production_snapshot_run_id' in workflow, 'Preview must require a durable Production snapshot'
+          assert 'name: production-snapshot' in workflow
           assert 'retention-days: 90' in workflow
-          assert 'cmp /tmp/exact-prod-manifest /tmp/after-prod-manifest' in workflow
           assert 'Verify live Preview SHA and unchanged Production marker' in workflow
-          assert 'EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df' in workflow
-          assert '  workflow_dispatch:' in workflow
-          assert "github.ref == 'refs/heads/main'" in workflow
-          assert "preview_authorized_sha:" in Path('docs/PREVIEW_AUTHORIZED.md').read_text()
-          assert 'cancel-in-progress: false' in workflow
-          assert 'Build approved Preview alongside Production' in workflow
+          assert "inputs.confirm_production == 'PUBLICAR PRODUCCION'" in workflow
+          assert 'snapshot_source_run_id' in workflow
+          assert 'run-id: 38080952559' not in workflow, 'Hard-coded expired Production artifact must not return'
+          assert "[deploy-preview-only]" not in workflow, 'Push-tag deployment path must stay retired'
           assert "const supabaseUrl = _productionUrl;" in workflow
           navigation = Path('lib/core/admin_environment_navigation.dart').read_text()
           assert "adminIsPreview ? 'Ir a Producción' : 'Ir a Prueba'" in navigation
@@ -281,7 +288,95 @@ jobs:
           assert "webOnlyWindowName: '_self'" in navigation
           assert 'AdminEnvironmentLinkButton()' in panel
           assert 'AdminEnvironmentLinkButton()' in login
-          print('PASS: same physical Supabase; immutable Preview channel; unsafe modules fail closed.')
+          assert '_previewUnlockAllModules' not in panel, 'Shared-backend Preview must not bypass unscoped module guard'
+          # Dispatch (13) must be a pure QA shadow simulation:
+          # production RPCs remain in an entirely separate code path.
+          assert "if (widget.channel == 'preview') return _buildPreviewDispatch();" in controls
+          assert "AdminEnvironmentStore(widget.channel)" in controls
+          dispatch_qa = controls.split(
+              "// Preview dispatch is an entirely synthetic simulator.", 1
+          )[1].split("  @override\n  Widget build(BuildContext context)", 1)[0]
+          assert "'manual_dispatch_rides'" in dispatch_qa
+          assert "admin_preview_driver_subscription_candidates" in dispatch_qa
+          assert "_qaDispatchStore.previewUpsert(" in dispatch_qa
+          assert "ride['is_qa'] != true" in dispatch_qa
+          assert "chosen.first['name']" in dispatch_qa
+          assert "widget.zoneId" in dispatch_qa
+          for unsafe in ["'admin_assign_ride_v2'", "'admin_assign_delivery_v2'",
+                         "'admin_open_service_requests_v2'", "'admin_available_drivers_v2'",
+                         "supabase.functions.invoke("]:
+              assert unsafe not in dispatch_qa, unsafe
+          # Subscription plans, payments and gateway must be the real shared
+          # backend in both Admin sites; only the selected driver is QA.
+          subscriptions = Path('lib/admin_driver_subscriptions.dart').read_text()
+          assert "'admin_preview_driver_subscription_candidates'" in subscriptions
+          preview_code = subscriptions.split('if (_environment.isPreview) {', 1)[1].split('return;', 1)[0]
+          assert "'admin_driver_subscriptions'" not in preview_code
+          assert "'admin_preview_driver_subscription_candidates'" in preview_code
+          assert "'driver_subscription_plans'" in preview_code
+          assert "'admin_zone_subscription_settings'" in preview_code
+          assert "'admin_subscription_payment_list_v2'" in preview_code
+          assert "'driver-subscription-admin'" in preview_code
+          assert "if (_environment.isPreview && driver['is_qa'] != true)" in subscriptions
+          assert "'admin_set_driver_subscription'" in subscriptions
+          assert "onPressed: selectedZone == null" in subscriptions
+          assert "usesSharedOperationalConfiguration" in subscriptions
+          # Server RPC is additive, auth-guarded and read-only; never copies
+          # any live driver subscription into client side QA data.
+          sql = Path('docs/preview/migrations/20261011_shared_db_subscriptions_qa_candidates.sql').read_text()
+          assert "admin_environment_allowed('preview')" in sql
+          assert "audit_test_group_members" in sql
+          assert "REVOKE ALL" in sql
+          assert "INSERT INTO" not in sql.upper()
+          assert "UPDATE public." not in sql
+          # Shared global settings must be inherited, not silently mocked.
+          controls = Path('lib/admin_control_sections.dart').read_text()
+          settings = controls.split('class _AdminSettingsPageState',1)[1].split('class ',1)[0]
+          advanced = controls.split('class _AdminAdvancedSettingsPageState',1)[1].split('class ',1)[0]
+          assert "final row = _map(await supabase.rpc('admin_settings_get'))" in settings
+          assert "Configuración global compartida con Producción" in settings
+          assert "final value = await supabase.rpc('admin_settings_get')" in advanced
+          assert "usesSharedOperationalConfiguration" in advanced
+          assert "onPressed: !_environment.usesSharedOperationalConfiguration ? null" in advanced
+          # Live data is never mutated by Android Builds in Preview.
+          assert 'productionAccess: allowProduction && !adminIsPreview' in panel
+          release = Path('lib/admin_single_app_release.dart').read_text()
+          assert "supabase.rpc('admin_build_list')" in release
+          # Demand pricing is segmented by channel, and overrides are QA-only.
+          demand = Path('lib/admin_dynamic_pricing.dart').read_text()
+          assert "'admin_dynamic_pricing_qa_state_scoped'" in demand
+          assert "'p_channel': widget.channel" in demand
+          assert "'admin_update_dynamic_pricing_settings'" in demand
+          assert "'p_channel': channel" in demand
+          assert "'admin_set_dynamic_pricing_qa_override'" in demand
+          # Server calls for Priority (25) are scoped by channel and QA driver.
+          priority = Path('lib/admin_driver_priority.dart').read_text()
+          assert "'admin_driver_priority_state_scoped'" in priority
+          assert "'admin_update_driver_priority_settings_v2'" in priority
+          assert "'p_channel': widget.channel" in priority
+          assert "widget.channel == 'preview'" in priority
+          assert "'p_enabled': widget.channel == 'preview'" in priority
+          assert "'p_zone_id': zoneId" in priority
+
+          # Regression: subscriptions is section 22 and must be accessible
+          # with the shared backend, while permission checks remain in each operation.
+          assert "('Suscripciones', Icons.workspace_premium_rounded)" in panel
+          assert "case 22:" in panel
+          assert "return AdminDriverSubscriptionsPage(" in panel
+          assert "'Este módulo todavía no tiene aislamiento seguro por canal." not in panel
+          # Enforce user-visible build diagnostic: the older open tab can
+          # still run outdated Flutter JS even if /version.json changed.
+          page = Path('web/index.html').read_text()
+          assert "__EXPRESS_PREVIEW_BUILD_SHA__" in page
+          assert "document.addEventListener('visibilitychange', checkVersion)" in page
+          assert "button.textContent = 'Recargar'" in page
+          assert "__EXPRESS_PREVIEW_BUILD_SHA__" in workflow
+          assert "data['commit'] = os.environ['PREVIEW_SHA']" in workflow
+          assert "data['environment'] = 'preview'" in workflow
+          assert "data['supabase_project_ref'] = 'zgpijrznvaskgcmauwxx'" in workflow
+          assert "EXPECTED_PREVIEW_SHA" in workflow
+          assert "Production SHA unexpectedly changed" in workflow
+          print('PASS: same physical Supabase; full Preview navigation; actor and release guards retained.')
           PY
 
       - name: Analyze admin modules
@@ -289,6 +384,20 @@ jobs:
           flutter analyze --no-fatal-warnings --no-fatal-infos \
             lib/admin_panel.dart \
             lib/main.dart \
+            lib/partner_panel.dart \
+            lib/core/admin_widgets.dart \
+            lib/core/admin_design_tokens.dart \
+            lib/core/admin_records_table.dart \
+            lib/core/admin_delivery_row.dart \
+            lib/core/admin_sos_row.dart \
+            lib/core/admin_live_zone_strip.dart \
+            lib/admin_environment_reports.dart \
+            lib/admin_environment_audit.dart \
+            lib/admin_marketplace.dart \
+            lib/admin_marketplace_phase2.dart \
+            lib/admin_driver_priority.dart \
+            lib/admin_dynamic_pricing.dart \
+            lib/admin_driver_subscriptions.dart \
             lib/core/supabase_client.dart \
             lib/admin_single_app_release.dart \
             lib/admin_environment_reports.dart \
@@ -301,10 +410,25 @@ jobs:
             lib/admin_marketplace_phase2.dart \
             lib/admin_driver_priority.dart \
             lib/admin_dynamic_pricing.dart \
-            lib/admin_manual_identity.dart \
             lib/admin_driver_document_requirements.dart \
             lib/admin_country_coverage.dart \
             lib/admin_distance_fares.dart
+      - name: Verify responsive mockup components
+        run: |
+          flutter test test/admin_mockup_widgets_test.dart
+          flutter test test/admin_records_table_test.dart
+          flutter test test/admin_delivery_row_test.dart
+          flutter test test/admin_detail_dialog_frame_test.dart
+          flutter test test/admin_priority_metrics_test.dart
+          flutter test test/admin_stage_edit_dialog_title_test.dart
+          flutter test test/admin_zone_coverage_mode_selector_test.dart
+          flutter test test/admin_demand_stats_grid_test.dart
+          flutter test test/admin_zone_summary_card_test.dart
+          flutter test test/admin_responsive_form_grid_test.dart
+          flutter test test/admin_responsive_split_test.dart
+          flutter test test/admin_sos_row_test.dart
+          flutter test test/admin_plain_page_heading_test.dart
+          flutter test test/admin_live_zone_strip_test.dart
       - name: Verify active polygon vs radio zone labels
         run: flutter test test/admin_zone_coverage_label_test.dart
       - name: Verify invalid environment channel fails closed in release and QA

@@ -13,7 +13,7 @@ Ningún push dispara despliegues (decisión C). Producción solo se publica con 
 Bytes de Producción (decisión B): se conservan con el artifact `production-snapshot` (retención de 90 días) creado con `snapshot_source_run_id` a partir del artifact `github-pages` de un build de Producción conocido. El workflow verifica que el sitio publicado coincide byte a byte antes de publicar Preview.
 
 ```
-preview_authorized_sha: b5fb7c80d9dd066675434456bcb70c161bc75c15
+preview_authorized_sha: 6e1b5ee838c81efb01bf41aeb34c4f90c0fddbe0
 ```
 
 ## Cambios autorizados para esta revisión QA (2026-10-11)
@@ -33,3 +33,11 @@ Pages > Run workflow` en la rama `main`, con `preview_only=true`,
 `preview_source_sha=b5fb7c80d9dd066675434456bcb70c161bc75c15` y
 `production_snapshot_run_id=38117120868`. Dejar
 `confirm_production` vacío. Ningún paso reconstruye Producción.
+
+
+## Reparación integral Preview 2026-10-11
+
+- Preview autorizado: `6e1b5ee838c81efb01bf41aeb34c4f90c0fddbe0`.
+- Los módulos administrativos usan la base Supabase compartida según el alcance normal del administrador.
+- Se retiraron guards heredados de `production` en RPC activas que bloqueaban Preview, manteniendo `is_admin()`.
+- La publicación real de Producción continúa protegida por el flujo manual de release.
