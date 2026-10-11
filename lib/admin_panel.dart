@@ -315,9 +315,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   static const Set<int> _globalSections = {10, 12, 14}; // Reports, Builds, Audit
   // The only Preview modules vetted for shared-database scoped operations.
   // Driver priority (25) is audited: server filters QA drivers, settings
-  // use Preview-only shadow RPC writes; other unscoped modules fail closed.
+  // use Preview-only shadow RPC writes; subscriptions (22) use scoped
+  // QA driver candidates and shadow plans/settings, without real payments.
+  // All other unscoped modules fail closed.
   static const Set<int> _previewScopedModules = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 14, 16, 17, 18, 25, 27,
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 14, 16, 17, 18, 22, 25, 27,
   };
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
