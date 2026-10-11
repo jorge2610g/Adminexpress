@@ -1,3 +1,9 @@
+## 2026-10-11 — Preview: Zonas (7) y Cobertura (17) bloqueadas
+- `lib/admin_panel.dart`: 7 y 17 salen de `_previewScopedModules`. Sus escrituras (zonas, liquidaciones, socios, polígonos, zonas de seguridad) llaman RPC con `admin_assert_environment('production')` y modificaban datos reales desde una sesión de Preview.
+- `.github/workflows/validate-preview-production-split.yml`: las aserciones pasan 7 y 17 a la lista de bloqueados. Es un cambio de criterio documentado, no una desactivación de guardia.
+- Sin cambios de base de datos. Producción no cambia.
+- Pendiente: reabrir Zonas y Cobertura en Preview solo cuando sus RPC de escritura sean por canal.
+
 ## 2026-10-11 — Spec: desbloqueo Preview de Suscripciones (22) y Prioridad (25), sin cambios de código
 - Especificación en `docs/specs/SPEC-2026-10-11-preview-suscripciones-prioridad.md`. Base `420db6c`; referencia de solo lectura `chatgpt/admin-preview-independent-20261010` @ `aaae599`.
 - Las dos historias no tienen ancestro común (`merge-base` vacío): no hay cherry-pick. Alcance mínimo: set `_previewScopedModules` (+22, +25), `lib/admin_driver_subscriptions.dart` (bf5ead2 y 27d207e), cierre fail-closed de canal en `lib/admin_environment_store.dart`, test y SQL documental, y aserciones de CI de 22/25.

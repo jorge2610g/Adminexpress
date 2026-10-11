@@ -241,8 +241,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   static const Set<int> _globalSections = {10, 12, 14}; // Reports, Builds, Audit
   // The only Preview modules vetted for shared-database scoped operations.
   // Every other module may run unscoped RPCs and must fail closed in QA.
+  // Zones (7) and Coverage (17) are blocked in Preview: their write RPCs run
+  // admin_assert_environment('production') and would change real zones and
+  // settlements from a Preview session.
   static const Set<int> _previewScopedModules = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 14, 16, 17, 18, 27,
+    0, 1, 2, 3, 4, 5, 6, 8, 10, 11, 14, 16, 18, 27,
   };
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
