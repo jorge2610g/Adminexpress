@@ -768,70 +768,6 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     );
   }
 
-  /// Vehicle summary card for the documents carousel. Read-only; technical
-  /// fields are edited in the vehicle section above.
-  Widget _vehicleSummaryCard(Map<String, dynamic> vehicle) {
-    return SizedBox(
-      width: 320,
-      child: Container(
-        margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: _detailSoft,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _detailBorder),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Vehículo',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 10),
-            if (vehicle.isEmpty)
-              const Text(
-                'El conductor todavía no registró vehículo.',
-                style: TextStyle(color: _detailMuted, fontSize: 11),
-              )
-            else
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final entry in <(String, String)>[
-                    ('Marca', _text(vehicle['brand'], '—')),
-                    ('Modelo', _text(vehicle['model'], '—')),
-                    ('Año', _text(vehicle['year'], '—')),
-                    ('Color', _text(vehicle['color'], '—')),
-                    ('Placa', _text(vehicle['plate'], '—')),
-                    ('Tipo', _text(vehicle['vehicle_type'], '—')),
-                  ])
-                    Container(
-                      width: 136,
-                      padding: const EdgeInsets.all(9),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _detailBorder),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(entry.$1,
-                            style: const TextStyle(color: _detailMuted, fontSize: 10)),
-                          const SizedBox(height: 3),
-                          Text(entry.$2,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-      ),
-    );
-  }
-
   /// Identity document card: per-photo review only. Document-level
   /// approve/reject is hidden so identity status comes from review_parts
   /// (the DB trigger sets status to 'verified' when all photos are approved).
@@ -1489,7 +1425,6 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                   ),
                                 ));
                               }),
-                                    _vehicleSummaryCard(activeVehicle),
                                   ],
                                 ),
                               ),
