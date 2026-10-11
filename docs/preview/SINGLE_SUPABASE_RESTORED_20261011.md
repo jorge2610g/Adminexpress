@@ -47,3 +47,15 @@ compilaciones web de Producción y Preview, resguardo de los módulos no
 verificados y tarifas simuladas.
 
 Este commit solicita publicar exclusivamente la nueva versión `/preview/`.
+
+## Primer desbloqueo por auditoría · 2026-10-11
+
+El módulo «Prioridad conductores» se habilita en Preview después de verificar
+las dos RPC implicadas: la lectura `admin_driver_priority_state_scoped`
+restringe los conductores por grupo QA y zona; la escritura
+`admin_update_driver_priority_settings_v2` requiere autorización por canal
+y persiste Preview en `admin_environment_config`, sin editar los parámetros
+reales de prioridad. El cliente impide conmutar las opciones de Producción
+cuando está en Preview. Los demás módulos no auditados permanecen bloqueados
+hasta que su backend esté aislado por canal. CI compartida:
+https://github.com/jorge2610g/Adminexpress/actions/runs/38107841701.
