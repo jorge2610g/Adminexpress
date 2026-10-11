@@ -365,11 +365,11 @@ jobs:
           assert "'p_zone_id': zoneId" in priority
 
           # Regression: subscriptions is section 22 and must be accessible
-          # with the shared backend, while unsafe modules remain guarded.
+          # with the shared backend, while permission checks remain in each operation.
           assert "('Suscripciones', Icons.workspace_premium_rounded)" in panel
           assert "case 22:" in panel
           assert "return AdminDriverSubscriptionsPage(" in panel
-          assert "'Este módulo todavía no tiene aislamiento seguro por canal." in panel
+          assert "'Este módulo todavía no tiene aislamiento seguro por canal." not in panel
           # Enforce user-visible build diagnostic: the older open tab can
           # still run outdated Flutter JS even if /version.json changed.
           page = Path('web/index.html').read_text()
@@ -380,7 +380,7 @@ jobs:
           assert "admin_preview_driver_subscription_candidates" in workflow
           assert "('build/site/preview/version.json', 'preview', 'zgpijrznvaskgcmauwxx')" in workflow
           assert "data['supabase_project_ref'] = 'zgpijrznvaskgcmauwxx'" in workflow
-          print('PASS: same physical Supabase; immutable Preview channel; unsafe modules fail closed.')
+          print('PASS: same physical Supabase; full Preview navigation; actor and release guards retained.')
           PY
 
       - name: Analyze admin modules
