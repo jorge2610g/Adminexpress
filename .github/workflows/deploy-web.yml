@@ -257,6 +257,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Stamp QA HTML with its actually compiled commit. An old tab
+          # can display its version and offer an explicit refresh on update.
+          sed -i "s#__EXPRESS_PREVIEW_BUILD_SHA__#${PREVIEW_SHA}#g" preview-source/build/web/index.html
+          grep -Fq "const buildSha = '${PREVIEW_SHA}'" preview-source/build/web/index.html
+          # Verify the module implementation itself exists in the generated
+          # Flutter JavaScript, not only in a version.json marker.
+          grep -Fq "admin_preview_driver_subscription_candidates" preview-source/build/web/main.dart.js
           sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${PREVIEW_SHA}#g" preview-source/build/web/index.html
           if [ -f preview-source/build/web/flutter_bootstrap.js ]; then
             sed -i "s#main.dart.js#main.dart.js?v=${PREVIEW_SHA}#g" preview-source/build/web/flutter_bootstrap.js
@@ -325,9 +332,17 @@ jobs:
           print('PASS: expected Preview SHA is live; Production SHA and channel unchanged')
           PY
             then
-              exit 0
+              # A healthy version.json alone is insufficient: verify
+              # the matching index AND compiled subscription code are live.
+              if curl -fsSL --max-time 30 -H "Cache-Control: no-cache" "$BASE/preview/index.html?check=$EXPECTED_PREVIEW_SHA" -o /tmp/preview-live-index.html \
+                && curl -fsSL --max-time 45 -H "Cache-Control: no-cache" "$BASE/preview/main.dart.js?v=$EXPECTED_PREVIEW_SHA" -o /tmp/preview-live-main.dart.js \
+                && grep -Fq "const buildSha = '$EXPECTED_PREVIEW_SHA'" /tmp/preview-live-index.html \
+                && grep -Fq "admin_preview_driver_subscription_candidates" /tmp/preview-live-main.dart.js; then
+                echo "PASS: version marker, stamped HTML, and QA subscription JavaScript are all live."
+                exit 0
+              fi
             fi
-            echo "Public Pages version not confirmed on attempt $attempt of 12."
+            echo "Public Pages version and compiled QA bundle not confirmed on attempt $attempt of 12."
             sleep 10
           done
           echo "::error::Published version could not be verified. Review GitHub Pages immediately."
