@@ -3473,10 +3473,16 @@ class _LiveZoneStrip extends StatelessWidget {
 class _LiveSidePanel extends StatefulWidget {
   final List<Map<String, dynamic>> trips;
   final List<Map<String, dynamic>> drivers;
+  final String? selectedTripId;
+  final ValueChanged<String?> onTripSelected;
+  final VoidCallback onShowDrivers;
 
   const _LiveSidePanel({
     required this.trips,
     required this.drivers,
+    required this.selectedTripId,
+    required this.onTripSelected,
+    required this.onShowDrivers,
   });
 
   @override
@@ -3554,20 +3560,65 @@ class _LiveSidePanelState extends State<_LiveSidePanel> {
                         'Conductores (' + widget.drivers.length.toString() + ')',
                     selected: showDrivers,
                     onTap: () {
-                      if (!showDrivers) setState(() => showDrivers = true);
+                      if (!showDrivers) {
+                        setState(() => showDrivers = true);
+                        widget.onShowDrivers();
+                      }
                     },
                   ),
                 ),
               ],
             ),
           ),
+          if (!showDrivers && widget.selectedTripId != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
+              color: const Color(0xFFEFF6FF),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.filter_center_focus_rounded,
+                    size: 16,
+                    color: adminBlue,
+                  ),
+                  const SizedBox(width: 7),
+                  const Expanded(
+                    child: Text(
+                      'Vista enfocada en un solo viaje',
+                      style: TextStyle(
+                        color: adminBlue,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => widget.onTripSelected(null),
+                    icon: const Icon(Icons.close_rounded, size: 15),
+                    label: const Text('Mostrar todo'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: adminBlue,
+                      textStyle: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: showDrivers
                 ? _LiveDriverList(
                     drivers: widget.drivers,
                     trips: widget.trips,
                   )
-                : _LiveTripList(trips: widget.trips),
+                : _LiveTripList(
+                    trips: widget.trips,
+                    selectedTripId: widget.selectedTripId,
+                    onSelected: widget.onTripSelected,
+                  ),
           ),
         ],
       ),
@@ -3693,7 +3744,14 @@ class _LiveTab extends StatelessWidget {
 
 class _LiveTripList extends StatelessWidget {
   final List<Map<String, dynamic>> trips;
-  const _LiveTripList({required this.trips});
+  final String? selectedTripId;
+  final ValueChanged<String?> onSelected;
+
+  const _LiveTripList({
+    required this.trips,
+    required this.selectedTripId,
+    required this.onSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -3709,11 +3767,11 @@ class _LiveTripList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(12),
       itemCount: trips.length,
-      separatorBuilder: (_, __) =>
-          const Divider(height: 1, color: Color(0xFFEEF1F5)),
+      separatorBuilder: (_, __) => const SizedBox(height: 6),
       itemBuilder: (context, index) {
         final row = trips[index];
         final id = (row['id'] ?? '').toString();
+        final selected = id.isNotEmpty && id == selectedTripId;
         final shortId = id.length > 7 ? id.substring(0, 7).toUpperCase() : id;
         final status = (row['status'] ?? 'activo').toString();
         final channel =
@@ -3728,91 +3786,130 @@ class _LiveTripList extends StatelessWidget {
         final destination =
             (row['destination_address'] ?? 'Destino').toString();
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 9,
-                height: 9,
-                margin: const EdgeInsets.only(top: 4),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF246BFD),
-                  shape: BoxShape.circle,
+        return Material(
+          color: selected ? const Color(0xFFEFF6FF) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            onTap: id.isEmpty ? null : () => onSelected(id),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: selected
+                      ? const Color(0xFF93C5FD)
+                      : const Color(0x00FFFFFF),
                 ),
               ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 9,
+                    height: 9,
+                    margin: const EdgeInsets.only(top: 4),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? const Color(0xFF0B57D0)
+                          : const Color(0xFF246BFD),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            shortId.isEmpty ? 'Viaje activo' : '#' + shortId,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              color: adminDark,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                shortId.isEmpty ? 'Viaje activo' : '#' + shortId,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  color: selected ? adminBlue : adminDark,
+                                ),
+                              ),
                             ),
+                            if (selected)
+                              const Padding(
+                                padding: EdgeInsets.only(right: 6),
+                                child: Icon(
+                                  Icons.visibility_rounded,
+                                  size: 15,
+                                  color: adminBlue,
+                                ),
+                              ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: channelBackground,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                channelLabel,
+                                style: TextStyle(
+                                  color: channelForeground,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F0FF),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                status,
+                                style: const TextStyle(
+                                  color: adminBlue,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          pickup + '  →  ' + destination,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: adminMuted,
+                            fontSize: 8,
+                            height: 1.3,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: channelBackground,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            channelLabel,
-                            style: TextStyle(
-                              color: channelForeground,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F0FF),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            status,
-                            style: const TextStyle(
-                              color: adminBlue,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w800,
-                            ),
+                        const SizedBox(height: 5),
+                        Text(
+                          selected
+                              ? 'Seleccionado · el mapa muestra solo este viaje'
+                              : 'Toca para ver este recorrido en el mapa',
+                          style: TextStyle(
+                            color: selected ? adminBlue : const Color(0xFF98A2B3),
+                            fontSize: 8,
+                            fontWeight:
+                                selected ? FontWeight.w800 : FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      pickup + '  →  ' + destination,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: adminMuted,
-                        fontSize: 8,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
