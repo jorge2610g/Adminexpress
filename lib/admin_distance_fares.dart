@@ -6,8 +6,9 @@ import 'core/admin_widgets.dart';
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
 
-/// Both builds use the same RPC contract against physically separate
-/// Supabase projects. Preview fares affect ONLY sandbox test passengers.
+/// Production distance fares use the existing operational RPCs.
+/// Preview reads/writes only the isolated QA shadow: it MUST NEVER alter
+/// zone_distance_fare_steps consumed by real passenger fare calculations.
 class AdminDistanceFaresEditor extends StatefulWidget {
   const AdminDistanceFaresEditor({
     super.key,
@@ -43,6 +44,9 @@ class _Step {
 
 class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
   AdminEnvironmentStore get _environment => AdminEnvironmentStore(widget.channel);
+
+  String _qaRecordKey(String zoneId, String serviceKey) =>
+      '$zoneId::$serviceKey';
 
   final List<_Step> _steps = <_Step>[];
   String? _service;
@@ -104,14 +108,19 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
       return;
     }
     try {
-      final raw = await supabase.rpc(
-        'admin_distance_fare_steps_get',
-        params: {
-          'p_channel': widget.channel,
-          'p_zone_id': zone,
-          'p_service_key': service,
-        },
-      );
+      final raw = _environment.isPreview
+          ? await _environment.previewGet(
+              'zone_distance_fare_steps',
+              recordKey: _qaRecordKey(zone, service),
+            )
+          : await supabase.rpc(
+              'admin_distance_fare_steps_get',
+              params: {
+                'p_channel': widget.channel,
+                'p_zone_id': zone,
+                'p_service_key': service,
+              },
+            );
       if (!mounted || revision != _revision) return;
       if (raw is! Map) throw StateError('Respuesta de tarifas no válida');
       final data = Map<String, dynamic>.from(raw);
@@ -162,17 +171,29 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
       _error = null;
     });
     try {
-      await supabase.rpc('admin_distance_fare_steps_replace', params: {
-        'p_channel': widget.channel,
-        'p_zone_id': zone,
-        'p_service_key': service,
-        'p_steps': steps,
-      });
+      if (_environment.isPreview) {
+        await _environment.previewUpsert(
+          'zone_distance_fare_steps',
+          _qaRecordKey(zone, service),
+          <String, dynamic>{
+            'zone_id': zone,
+            'service_key': service,
+            'steps': steps,
+          },
+        );
+      } else {
+        await supabase.rpc('admin_distance_fare_steps_replace', params: {
+          'p_channel': widget.channel,
+          'p_zone_id': zone,
+          'p_service_key': service,
+          'p_steps': steps,
+        });
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(
             _environment.isPreview
-                ? 'Tarifas guardadas en la base independiente de Preview.'
+                ? 'Tarifas de prueba guardadas solo en Preview.'
                 : 'Tarifas escalonadas de Producción guardadas.')),
       );
       await _load();
@@ -220,8 +241,8 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Text(
-                  'PREVIEW · Tarifas reales de prueba: afectan solo a los viajes '
-                  'de Express Preview, nunca a Producción.',
+                  'PREVIEW · Simulación QA: estos escalones no modifican '
+                  'las tarifas de pasajeros ni los precios de Producción.',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                 ),
               ),
