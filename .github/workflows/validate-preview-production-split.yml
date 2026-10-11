@@ -54,7 +54,6 @@ jobs:
           grep -q "AdminSettingsPage(channel: adminChannel)" lib/admin_panel.dart
           grep -q "AdminServicesPage(" lib/admin_panel.dart
           grep -q "AdminGeoSafetyPage(" lib/admin_panel.dart
-          grep -q "AdminIdentitySecurityPage(" lib/admin_panel.dart
           grep -q "AdminAdvancedSettingsPage(channel: adminChannel)" lib/admin_panel.dart
           grep -q "AdminDriverSubscriptionsPage(" lib/admin_panel.dart
 
@@ -111,8 +110,8 @@ jobs:
             'only Reports, Builds and Audit bypass zone scope':
               'static const Set<int> _globalSections = {10, 12, 14};' in panel
               and '!_globalSections.contains(selectedSection)' in panel,
-            'environment switch hidden for system-global modules':
-              'if (!_globalSections.contains(section))\n                          _environmentSwitcher(),' in panel,
+            'single environment banner is rendered for every module':
+              panel.count('_environmentSwitcher(),') == 1,
             'country/zone switch hidden for system-global modules':
               'if (_requiresZoneScope(section))\n                          _globalGeoScopeSwitcher(),' in panel,
             'other sections still require selected zone':
@@ -153,29 +152,24 @@ jobs:
           print('PASS: global Builds, Audit, Reports; operational geo + access guards intact.')
           PY
 
-      - name: Guard manual-only identity dashboard and environment separation
+      - name: Guard identity consolidation inside driver record
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          code = Path('lib/admin_control_sections.dart').read_text()
-          module = code.split('class AdminIdentitySecurityPage extends StatelessWidget {', 1)[1].split(
-              'class _PolygonEditor extends StatelessWidget {', 1)[0]
-          forbidden = [
-              'admin_identity_verification_list_scoped',
-              'admin_identity_settings_get',
-              'admin_identity_resolve',
-              'identity_verifications',
-              'identity_verification_settings',
-          ]
-          # Comments can document retired tables, but active UI cannot query them.
-          statements = '\n'.join(line for line in module.splitlines() if not line.strip().startswith('///'))
-          assert all(legacy not in statements for legacy in forbidden), 'Legacy identity requests remain in the live screen'
-          assert "('Motor', 'Manual')" in module, 'Automatic provider still appears as active'
-          assert 'AdminDriverDocumentRequirementsPanel(' in module, 'Document requirements must remain available'
-          assert 'channel: channel' in module and 'zoneId: zoneId' in module, 'Keep environment and zone scope'
-          manual = Path('lib/admin_manual_identity.dart').read_text()
-          assert 'AdminBoliviaKycPanel(' in manual, 'Manual document reviews must remain accessible'
-          print('PASS: production/preview identity UI is manual-only, no legacy session feed.')
+          panel = Path('lib/admin_panel.dart').read_text()
+          detail = Path('lib/admin_detail_dialogs.dart').read_text()
+          controls = Path('lib/admin_control_sections.dart').read_text()
+          assert "title: 'Documentos e identidad'" in detail
+          assert 'admin_driver_document_review_part_v2' in detail
+          assert 'admin_driver_kyc_bolivia_manual_review_part' in detail
+          assert '_reviewPhoto(' in detail
+          assert "case 18:" in panel and "case 27:" in panel
+          assert 'AdminManualIdentityPage' not in panel
+          assert 'AdminIdentitySecurityPage' not in panel
+          assert 'class AdminIdentitySecurityPage' not in controls
+          assert not Path('lib/admin_manual_identity.dart').exists()
+          assert not Path('lib/admin_bolivia_kyc.dart').exists()
+          print('PASS: identity review is consolidated in the driver record; standalone legacy screens removed.')
           PY
 
       - name: Guard single Supabase, all Preview modules and per-actor protections
@@ -237,7 +231,10 @@ jobs:
           assert "row?['id'] != null && _environment.usesSharedOperationalConfiguration" in zones_editor
           assert "'polygon': coverageMode == 'polygon'" in zones_editor
           assert "usesSharedOperationalConfiguration" in zones_editor
-          assert "AdminManualIdentityPage(" in panel and "AdminIdentitySecurityPage(" in panel
+          detail = Path('lib/admin_detail_dialogs.dart').read_text()
+          assert "title: 'Documentos e identidad'" in detail
+          assert 'AdminManualIdentityPage' not in panel
+          assert 'AdminIdentitySecurityPage' not in panel
           assert "AdminDistanceFaresEditor(" in Path('lib/admin_control_sections.dart').read_text()
           assert 'productionAccess: allowProduction && !adminIsPreview' in panel
           # Preview and Production expose the same module pages. Only actor
@@ -409,7 +406,6 @@ jobs:
             lib/admin_marketplace_phase2.dart \
             lib/admin_driver_priority.dart \
             lib/admin_dynamic_pricing.dart \
-            lib/admin_manual_identity.dart \
             lib/admin_driver_document_requirements.dart \
             lib/admin_country_coverage.dart \
             lib/admin_distance_fares.dart

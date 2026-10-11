@@ -214,7 +214,8 @@ jobs:
           set -euo pipefail
           test "$(git -C preview-source rev-parse HEAD)" = "$PREVIEW_SHA"
           grep -q "admin_zone_list_scoped" preview-source/lib/admin_detail_dialogs.dart
-          grep -q "admin_driver_kyc_bolivia_manual_review_part" preview-source/lib/admin_bolivia_kyc.dart
+          grep -q "admin_driver_kyc_bolivia_manual_review_part" preview-source/lib/admin_detail_dialogs.dart
+          grep -q "title: 'Documentos e identidad'" preview-source/lib/admin_detail_dialogs.dart
           grep -q "AdminEnvironmentLinkButton" preview-source/lib/admin_panel.dart
           # The owner intentionally deleted the second Supabase project.
           # Both channels now use the same backend but NOT the same data access.
@@ -225,7 +226,8 @@ jobs:
             echo "ERROR: deleted Supabase project reference remains in active client."
             exit 1
           fi
-          # Navigation parity was requested: all 29 pages open in Preview.
+          # Historical numeric route slots remain compatible, while duplicate
+          # identity screens resolve to the unified driver record.
           # Actor-channel guards stay in backend RPCs and production release
           # controls stay disabled for Preview administrators.
           python3 - <<'PY'

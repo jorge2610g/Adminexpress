@@ -4,7 +4,6 @@ import 'core/admin_design_tokens.dart';
 import 'core/admin_detail_dialog_frame.dart';
 import 'core/admin_widgets.dart';
 import 'core/supabase_client.dart';
-import 'admin_environment_store.dart';
 
 const Color _detailBlue = AdminColors.blue;
 const Color _detailDark = AdminColors.ink;
@@ -78,24 +77,12 @@ String _friendlyDocumentStatus(Object? raw) {
   }
 }
 
-Future<List<Map<String, dynamic>>> _zones(String channel) async {
-  if (channel == 'preview') {
-    // Only the retired shared-database QA mode reads shadow configuration.
-    return const AdminEnvironmentStore('preview').previewList('service_zones');
-  }
-  // The real Preview site has its own service_zones and admin RPCs.
-
+Future<List<Map<String, dynamic>>> _zones() async {
   final raw = await supabase.rpc('admin_zone_list_scoped');
   return _maps(raw);
 }
 
-Future<List<Map<String, dynamic>>> _driverDocumentRequirements(
-  String channel,
-) async {
-  if (channel == 'preview') {
-    return const AdminEnvironmentStore('preview')
-        .previewList('driver_document_requirements');
-  }
+Future<List<Map<String, dynamic>>> _driverDocumentRequirements() async {
   final raw = await supabase.rpc('admin_driver_document_requirement_list');
   return _maps(raw);
 }
@@ -293,9 +280,9 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
           'p_channel': widget.channel,
         },
       );
-      final loadedZones = await _zones(widget.channel);
+      final loadedZones = await _zones();
       final loadedRequirements =
-          await _driverDocumentRequirements(widget.channel);
+          await _driverDocumentRequirements();
       final loaded = _map(detailValue);
       final user = _map(loaded['user']);
       final driver = _map(loaded['driver']);
@@ -1555,7 +1542,7 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
           'p_channel': widget.channel,
         },
       );
-      final loadedZones = await _zones(widget.channel);
+      final loadedZones = await _zones();
       final loaded = _map(detailValue);
       final user = _map(loaded['user']);
       fullName.text = _text(user['full_name'], '');

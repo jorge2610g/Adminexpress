@@ -24,7 +24,6 @@ import 'admin_dynamic_pricing.dart';
 import 'admin_detail_dialogs.dart';
 import 'admin_environment_reports.dart';
 import 'admin_environment_audit.dart';
-import 'admin_manual_identity.dart';
 import 'admin_driver_document_requirements.dart';
 
 const Color adminBlue = AdminColors.blue;
@@ -359,7 +358,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Notificaciones / Avisos', Icons.notifications_active_rounded),
     ('Servicios', Icons.apps_rounded),
     ('Cobertura y seguridad', Icons.gpp_good_rounded),
-    ('Verificación de identidad', Icons.verified_user_rounded),
+    ('Conductores', Icons.drive_eta_rounded), // ruta 18: alias legado
     ('Configuración avanzada', Icons.tune_rounded),
     ('Entornos de prueba', Icons.science_rounded),
     ('Carga QA', Icons.speed_rounded),
@@ -368,7 +367,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Delivery Fase 2 / Express Plus', Icons.delivery_dining_rounded),
     ('Prioridad conductores', Icons.workspace_premium_outlined),
     ('Pedidos Delivery', Icons.receipt_long_rounded),
-    ('Verificación manual', Icons.fact_check_outlined),
+    ('Conductores', Icons.drive_eta_rounded), // ruta 27: alias legado
     ('Demanda y precios', Icons.trending_up_rounded),
   ];
 
@@ -1228,10 +1227,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                             onExit: widget.onExit,
                             showNewTrip: !_isZoneMonitor,
                           ),
-                        if (!_globalSections.contains(section))
-                          _environmentSwitcher(),
-                        if (_globalSections.contains(section))
-                          _environmentSwitcher(),
+                        _environmentSwitcher(),
                         if (_requiresZoneScope(section))
                           _globalGeoScopeSwitcher(),
                         Expanded(
@@ -1379,35 +1375,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 18:
-        return DefaultTabController(
-          key: ValueKey('unified-identity-$adminZoneId-$adminChannel'),
-          length: 2,
-          child: Column(
-            children: [
-              const Material(
-                color: Colors.white,
-                child: TabBar(tabs: [
-                  Tab(icon: Icon(Icons.fact_check_outlined),
-                      text: 'Revisión de documentos'),
-                  Tab(icon: Icon(Icons.settings_outlined),
-                      text: 'Requisitos de identidad'),
-                ]),
-              ),
-              Expanded(child: TabBarView(children: [
-                AdminManualIdentityPage(
-                  channel: adminChannel,
-                  countryCode: adminCountryCode,
-                  zoneId: adminZoneId,
-                ),
-                AdminIdentitySecurityPage(
-                  channel: adminChannel,
-                  countryCode: adminCountryCode,
-                  zoneId: adminZoneId,
-                ),
-              ])),
-            ],
-          ),
-        );
+        // Compatibilidad con índices históricos: identidad ya vive dentro
+        // de la ficha del conductor, no en un módulo separado.
+        return _driverList();
       case 19:
         return AdminAdvancedSettingsPage(channel: adminChannel);
       case 20:
@@ -1446,11 +1416,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 27:
-        return AdminManualIdentityPage(
-          channel: adminChannel,
-          countryCode: adminCountryCode,
-          zoneId: adminZoneId,
-        );
+        // Alias legado del antiguo módulo de verificación manual.
+        return _driverList();
       case 28:
         return AdminDynamicPricingPage(
           channel: adminChannel,
