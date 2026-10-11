@@ -106,96 +106,67 @@ class _AdminDriverSubscriptionsPageState
     String? zoneKey = selectedZoneKey;
 
     if (_environment.isPreview) {
+      // Shared, real plans, payment history and provider; QA actor list.
+      // No extra billing environment, duplicate credentials or fake charges.
       try {
-        zoneRows = (await _environment.previewList('service_zones'))
+        final rawZones = await supabase.rpc(
+          'admin_zone_list_for_country',
+          params: {'p_country_code': widget.countryCode},
+        );
+        zoneRows = _maps(rawZones)
             .where((row) => row['id']?.toString() == widget.zoneId)
             .toList();
-        zoneKey = zoneRows.isEmpty
-            ? null
-            : zoneRows.first['zone_key']?.toString();
-
-        final allPlans =
-            await _environment.previewList('driver_subscription_plans');
-        final zonePlans = allPlans
-            .where((row) => row['zone_key']?.toString() == zoneKey)
-            .toList()
-          ..sort((a, b) =>
-              ((a['sort_order'] as num?)?.toInt() ?? 100)
-                  .compareTo((b['sort_order'] as num?)?.toInt() ?? 100));
-
-        Map<String, dynamic> zoneSettings = {};
-        if (zoneKey != null && zoneKey.isNotEmpty) {
-          zoneSettings = await _environment.previewGet(
-            'driver_subscription_settings',
-            recordKey: zoneKey,
-          );
-          if (zoneSettings.isEmpty) {
-            zoneSettings = await _environment.previewGet(
-              'driver_subscription_settings',
-            );
-          }
-        }
-
-        // QA-only server RPC: never download production driver subscriptions
-        // and filter them in a Preview browser.
-        final rawDrivers = await supabase.rpc(
+        zoneKey = zoneRows.isEmpty ? null : zoneRows.first['zone_key']?.toString();
+        final qaRows = await supabase.rpc(
           'admin_preview_driver_subscription_candidates',
           params: {
             'p_zone_id': widget.zoneId,
             'p_search': search.text.trim(),
           },
         );
-        final qaDrivers = _maps(rawDrivers);
-        final assignments =
-            await _environment.previewList('driver_subscriptions');
-        final mergedDrivers = qaDrivers.map((driver) {
-          final driverId =
-              (driver['driver_id'] ?? driver['user_id'])?.toString();
-          Map<String, dynamic>? assignment;
-          for (final row in assignments) {
-            if (row['driver_id']?.toString() == driverId) {
-              assignment = row;
-              break;
-            }
-          }
-          return <String, dynamic>{
-            ...driver,
-            if (assignment != null) ...assignment,
-          };
-        }).toList();
-
-        final range = _paymentBounds();
-        final allPayments =
-            await _environment.previewList('subscription_payments');
-        final zonePayments = allPayments.where((row) {
-          if (zoneKey != null &&
-              row['zone_key']?.toString() != zoneKey) {
-            return false;
-          }
-          final created =
-              DateTime.tryParse(row['created_at']?.toString() ?? '');
-          if (created == null) return true;
-          final local = created.toLocal();
-          return !local.isBefore(range.from) && local.isBefore(range.to);
-        }).toList();
-
-        final providerSettings =
-            await _environment.previewGet('driver_subscription_provider');
-
+        List<Map<String, dynamic>> livePlans = [];
+        Map<String, dynamic> liveSettings = {};
+        List<Map<String, dynamic>> livePayments = [];
+        if (zoneKey != null && zoneKey.isNotEmpty) {
+          livePlans = _maps(await supabase
+              .from('driver_subscription_plans')
+              .select('*')
+              .eq('zone_key', zoneKey)
+              .order('sort_order'));
+          final liveRow = await supabase.rpc(
+            'admin_zone_subscription_settings',
+            params: {'p_zone_key': zoneKey},
+          );
+          if (liveRow is Map) liveSettings = Map<String, dynamic>.from(liveRow);
+          final range = _paymentBounds();
+          livePayments = _maps(await supabase.rpc(
+            'admin_subscription_payment_list_v2',
+            params: {
+              'p_zone_key': zoneKey,
+              'p_from': range.from.toUtc().toIso8601String(),
+              'p_to': range.to.toUtc().toIso8601String(),
+              'p_status': null,
+              'p_limit': 100,
+              'p_offset': 0,
+            },
+          ));
+        }
+        final providerResponse = await supabase.functions.invoke(
+          'driver-subscription-admin',
+          body: const {'action': 'get'},
+        );
+        final providerData = providerResponse.data is Map
+            ? Map<String, dynamic>.from(providerResponse.data as Map)
+            : <String, dynamic>{'connected': false};
         if (mounted) {
           setState(() {
             zones = zoneRows;
             selectedZoneKey = zoneKey;
-            plans = zonePlans;
-            settings = zoneSettings;
-            drivers = mergedDrivers;
-            payments = zonePayments;
-            provider = providerSettings.isEmpty
-                ? <String, dynamic>{
-                    'connected': false,
-                    'settings': <String, dynamic>{},
-                  }
-                : providerSettings;
+            plans = livePlans;
+            settings = liveSettings;
+            drivers = _maps(qaRows);
+            payments = livePayments;
+            provider = providerData;
             loading = false;
             error = null;
           });
@@ -204,7 +175,8 @@ class _AdminDriverSubscriptionsPageState
         if (mounted) {
           setState(() {
             loading = false;
-            error = 'Preview: ' + e.toString();
+            error = 'No se pudieron cargar las suscripciones compartidas: ' +
+                e.toString();
           });
         }
       }
@@ -556,7 +528,7 @@ class _AdminDriverSubscriptionsPageState
     }
 
     try {
-      if (_environment.isPreview) {
+      if (!_environment.usesSharedOperationalConfiguration) {
         final planId = plan?['id'] is num
             ? (plan!['id'] as num).toInt()
             : DateTime.now().millisecondsSinceEpoch;
@@ -654,12 +626,12 @@ class _AdminDriverSubscriptionsPageState
       if (ok != true) return;
     }
 
-    if (!_environment.isPreview &&
+    if (_environment.usesSharedOperationalConfiguration &&
         isBolivia && providerEnabled && provider['configured'] != true) {
       _snack('Configura y verifica primero VeriPagos.');
       return;
     }
-    if (!_environment.isPreview &&
+    if (_environment.usesSharedOperationalConfiguration &&
         isBolivia &&
         providerEnabled &&
         provider['status_endpoint_ready'] != true) {
@@ -671,7 +643,7 @@ class _AdminDriverSubscriptionsPageState
 
     setState(() => savingSettings = true);
     try {
-      if (_environment.isPreview) {
+      if (!_environment.usesSharedOperationalConfiguration) {
         await _environment.previewUpsert(
           'driver_subscription_settings',
           zoneKey,
@@ -938,7 +910,7 @@ class _AdminDriverSubscriptionsPageState
 
     setState(() => providerSaving = true);
     try {
-      if (_environment.isPreview) {
+      if (!_environment.usesSharedOperationalConfiguration) {
         await _environment.previewUpsert(
           'driver_subscription_provider',
           'default',
@@ -980,7 +952,7 @@ class _AdminDriverSubscriptionsPageState
         }
       }
 
-      _snack(_environment.isPreview
+      _snack(!_environment.usesSharedOperationalConfiguration
           ? 'Proveedor simulado en Preview. No se verificó ni se conectó '
               'un sistema de cobros real.'
           : 'VeriPagos conectado: generación y verificación de pagos operativas.');
@@ -998,7 +970,7 @@ class _AdminDriverSubscriptionsPageState
   Future<void> _verifyProvider() async {
     setState(() => providerVerifying = true);
     try {
-      if (_environment.isPreview) {
+      if (!_environment.usesSharedOperationalConfiguration) {
         final current =
             await _environment.previewGet('driver_subscription_provider');
         await _environment.previewUpsert(
@@ -1030,7 +1002,7 @@ class _AdminDriverSubscriptionsPageState
         }
       }
 
-      _snack(_environment.isPreview
+      _snack(!_environment.usesSharedOperationalConfiguration
           ? 'Preview: se comprobó la configuración simulada; '
               'no se contactó con VeriPagos.'
           : 'Conexión VeriPagos verificada correctamente.');
@@ -1177,7 +1149,7 @@ class _AdminDriverSubscriptionsPageState
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
-              onPressed: selectedZone == null || _environment.isPreview
+              onPressed: selectedZone == null
                   ? null
                   : () async {
                       final changed =
@@ -1191,7 +1163,7 @@ class _AdminDriverSubscriptionsPageState
               label: const Text('Editar métodos de suscripción'),
             ),
           ),
-          if (_environment.isPreview)
+          if (!_environment.usesSharedOperationalConfiguration)
             const _AdminSubNotice(
               text: 'Preview: los métodos de cobro reales no pueden '
                   'editarse desde esta pantalla. Los planes y ajustes QA '
@@ -1285,8 +1257,8 @@ class _AdminDriverSubscriptionsPageState
                     Expanded(
                       child: Text(
                         _environment.isPreview
-                            ? 'Todavía no hay planes de prueba. '
-                                'Selecciona Nuevo plan para crear uno sin cobros reales.'
+                            ? 'No hay planes configurados para esta zona. '
+                                'Selecciona Nuevo plan para crearlo en Express.'
                             : 'No se pudieron cargar los planes en esta vista. '
                                 'El resto del módulo seguirá funcionando mientras se reintenta.',
                       ),
