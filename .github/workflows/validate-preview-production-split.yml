@@ -292,7 +292,7 @@ jobs:
           if qa_guard in panel:
               assert "run-id: 38080952559" in workflow, 'QA must use last available known-good published Production artifact'
           else:
-              assert "run-id: 37969274447" in workflow, 'Unexpected Production artifact for Preview-only Pages update'
+              assert "run-id: 38080952559" in workflow, 'QA must preserve the approved Production artifact'
           assert 'Verify live Preview SHA and unchanged Production marker' in workflow
           assert 'EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df' in workflow
           assert "contains(github.event.head_commit.message, '[deploy-preview-only]')" in workflow
