@@ -35,6 +35,28 @@ jobs:
         run: |
           flutter test --dart-define=ADMIN_ENV=production test/admin_independent_backend_test.dart
           flutter test --dart-define=ADMIN_ENV=preview test/admin_independent_backend_test.dart
+      - name: Guard Preview-only payments and credentials
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path('docs/preview/edge-functions')
+          zone = (root / 'zone-payment-admin/index.ts').read_text()
+          market = (root / 'marketplace-payments/index.ts').read_text()
+          assert "xbphilqezmwfjfpdbwad" in zone and "xbphilqezmwfjfpdbwad" in market
+          assert "{p_channel: 'preview'}" in zone
+          assert "No autorizado para Preview" in zone
+          assert "!accessToken.startsWith('TEST-')" in zone
+          assert "!publicKey.startsWith('TEST-')" in zone
+          assert "!String(cfg.access_token).startsWith('TEST-')" in market
+          assert "data.sandbox_init_point || data.init_point" in market
+          assert "zgpijrznvaskgcmauwxx" not in zone + market
+          sql = (Path('docs/preview/migrations')
+            / '20261010_preview_admob_zone_coverage.sql').read_text()
+          assert "p_channel <> 'preview'" in sql
+          assert "zgpijrznvaskgcmauwxx" not in sql
+          print('PASS: QA payment source requires TEST credentials and preview-only admin rights.')
+          PY
+
       - name: Verify 54 Claude designs and eight staged gates
         run: python3 .github/scripts/verify_admin_mockup_stages.py
 
@@ -364,5 +386,5 @@ jobs:
         run: flutter test test/admin_environment_store_test.dart
       - name: Build admin production web smoke test
         run: flutter build web --release --dart-define=ADMIN_ENV=production
-      - name: Build admin shared-database Preview web smoke test
+      - name: Build admin independent Preview web smoke test
         run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
