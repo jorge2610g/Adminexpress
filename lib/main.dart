@@ -61,24 +61,20 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
   int revision = 0;
 
   Future<({ _ExpressPanelAccess access, String? channel })> _resolveAccess() async {
-    final isAdmin = await supabase.rpc('is_admin') == true;
-    if (isAdmin) {
-      final raw = await supabase.rpc('admin_access_context');
-      if (raw is Map) {
-        final access = Map<String, dynamic>.from(raw);
-        final channel = access['runtime_environment']?.toString();
-        final allowed = access['allowed'] == true &&
-            (channel == 'preview' || channel == 'production') &&
-            await supabase.rpc(
-                  'admin_environment_allowed',
-                  params: {'p_channel': channel},
-                ) ==
-                true;
-        if (allowed) {
-          return (access: _ExpressPanelAccess.admin, channel: channel);
-        }
+    final rawAccess = await supabase.rpc('admin_access_context');
+    if (rawAccess is Map) {
+      final access = Map<String, dynamic>.from(rawAccess);
+      final channel = access['runtime_environment']?.toString();
+      final allowed = access['allowed'] == true &&
+          (channel == 'preview' || channel == 'production') &&
+          await supabase.rpc(
+                'admin_environment_allowed',
+                params: {'p_channel': channel},
+              ) ==
+              true;
+      if (allowed) {
+        return (access: _ExpressPanelAccess.admin, channel: channel);
       }
-      return (access: _ExpressPanelAccess.denied, channel: null);
     }
 
     final raw = await supabase.rpc('partner_my_dashboard');
@@ -199,28 +195,20 @@ class _AdminLoginState extends State<_AdminLogin> {
     try {
       await supabase.auth.signInWithPassword(email: mail, password: pass);
 
-      final isAdmin = await supabase.rpc('is_admin') == true;
-      if (isAdmin) {
-        final raw = await supabase.rpc('admin_access_context');
-        final access = raw is Map
-            ? Map<String, dynamic>.from(raw)
-            : <String, dynamic>{};
-        final channel = access['runtime_environment']?.toString();
-        final allowed = access['allowed'] == true &&
-            (channel == 'preview' || channel == 'production') &&
-            await supabase.rpc(
-                  'admin_environment_allowed',
-                  params: {'p_channel': channel},
-                ) ==
-                true;
+      final rawAccess = await supabase.rpc('admin_access_context');
+      final access = rawAccess is Map
+          ? Map<String, dynamic>.from(rawAccess)
+          : <String, dynamic>{};
+      final channel = access['runtime_environment']?.toString();
+      final hasAdminAccess = access['allowed'] == true &&
+          (channel == 'preview' || channel == 'production') &&
+          await supabase.rpc(
+                'admin_environment_allowed',
+                params: {'p_channel': channel},
+              ) ==
+              true;
 
-        if (!allowed) {
-          await supabase.auth.signOut(scope: SignOutScope.local);
-          throw Exception(
-            'Esta cuenta no tiene un entorno administrativo válido.',
-          );
-        }
-
+      if (hasAdminAccess) {
         if (mounted) widget.onSignedIn();
         return;
       }
