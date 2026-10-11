@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'admin_panel.dart';
 import 'core/supabase_client.dart';
-import 'core/admin_environment_navigation.dart';
 import 'partner_panel.dart';
 
 const adminExpressVersion = 'Adminexpress v1.0.1 · build 2';
@@ -19,18 +18,7 @@ Future<void> main() async {
     await Supabase.initialize(
       url: supabaseUrl,
       publishableKey: supabasePublishableKey,
-      // Preview and Production have distinct browser sessions on the same
-      // origin. Keep Production's DEFAULT storage key unchanged for existing
-      // sessions; only Preview receives its own session key.
-      authOptions: adminIsPreview
-          ? FlutterAuthClientOptions(
-              localStorage: SharedPreferencesLocalStorage(
-                persistSessionKey: adminPreviewAuthSessionStorageKey,
-              ),
-            )
-          : const FlutterAuthClientOptions(),
-    );
-  } catch (e) {
+    );  } catch (e) {
     startupError = e;
   }
 
@@ -45,7 +33,7 @@ class AdminExpressApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: adminIsPreview ? 'Adminexpress · Prueba' : 'Adminexpress · Producción',
+      title: 'Adminexpress · Central',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -72,27 +60,32 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
   StreamSubscription<AuthState>? subscription;
   int revision = 0;
 
-  Future<_ExpressPanelAccess> _resolveAccess() async {
+  Future<({ _ExpressPanelAccess access, String? channel })> _resolveAccess() async {
     final isAdmin = await supabase.rpc('is_admin') == true;
     if (isAdmin) {
-      // Access is checked server-side for the compiled page's environment,
-      // including OAuth redirects and restored browser sessions.
-      final allowed = await supabase.rpc(
-        'admin_environment_allowed',
-        params: {'p_channel': adminRuntimeChannel},
-      ) == true;
-      return allowed
-          ? _ExpressPanelAccess.admin
-          : _ExpressPanelAccess.denied;
+      final raw = await supabase.rpc('admin_access_context');
+      if (raw is Map) {
+        final access = Map<String, dynamic>.from(raw);
+        final channel = access['runtime_environment']?.toString();
+        final allowed = access['allowed'] == true &&
+            (channel == 'preview' || channel == 'production') &&
+            await supabase.rpc(
+                  'admin_environment_allowed',
+                  params: {'p_channel': channel},
+                ) ==
+                true;
+        if (allowed) {
+          return (access: _ExpressPanelAccess.admin, channel: channel);
+        }
+      }
+      return (access: _ExpressPanelAccess.denied, channel: null);
     }
-    // Preview must not query real partner data in shared Supabase.
-    if (adminIsPreview) return _ExpressPanelAccess.denied;
 
     final raw = await supabase.rpc('partner_my_dashboard');
     if (raw is List && raw.isNotEmpty) {
-      return _ExpressPanelAccess.partner;
+      return (access: _ExpressPanelAccess.partner, channel: 'production');
     }
-    return _ExpressPanelAccess.denied;
+    return (access: _ExpressPanelAccess.denied, channel: null);
   }
 
   @override
@@ -124,7 +117,7 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
       );
     }
 
-    return FutureBuilder<_ExpressPanelAccess>(
+    return FutureBuilder<({ _ExpressPanelAccess access, String? channel })>(
       key: ValueKey(
         'access-' + session.user.id + '-' + revision.toString(),
       ),
@@ -145,21 +138,23 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
           );
         }
 
-        switch (snapshot.data ?? _ExpressPanelAccess.denied) {
+        final resolved = snapshot.data ??
+            (access: _ExpressPanelAccess.denied, channel: null);
+
+        switch (resolved.access) {
           case _ExpressPanelAccess.admin:
-            return ExpressAdminPanel(onExit: _logout);
+            return ExpressAdminPanel(
+              onExit: _logout,
+              initialChannel: resolved.channel!,
+            );
           case _ExpressPanelAccess.partner:
             return PartnerExpressPanel(onExit: _logout);
           case _ExpressPanelAccess.denied:
             return _AccessDenied(
-              title: adminIsPreview
-                  ? 'Cuenta sin acceso a Prueba'
-                  : 'Cuenta sin acceso a Producción',
-              message: adminIsPreview
-                  ? 'La cuenta ingresada no está autorizada para Preview. '
-                    'Cierra sesión y utiliza las credenciales de prueba.'
-                  : 'Esta cuenta no tiene acceso administrativo a '
-                    'Producción ni una organización asignada.',
+              title: 'Cuenta sin acceso administrativo',
+              message:
+                  'Esta cuenta no tiene un entorno administrativo habilitado. '
+                  'Cierra sesión y utiliza las credenciales correspondientes.',
               onExit: _logout,
             );
         }
@@ -203,32 +198,42 @@ class _AdminLoginState extends State<_AdminLogin> {
 
     try {
       await supabase.auth.signInWithPassword(email: mail, password: pass);
+
       final isAdmin = await supabase.rpc('is_admin') == true;
-      final allowedForPage = isAdmin &&
-          await supabase.rpc(
-                'admin_environment_allowed',
-                params: {'p_channel': adminRuntimeChannel},
-              ) ==
-              true;
-      if (isAdmin && !allowedForPage) {
-        // Reject the wrong administrator identity before entering the panel.
-        await supabase.auth.signOut(scope: SignOutScope.local);
-        throw Exception(
-          'Esta cuenta no tiene autorización para este entorno. '
-          'Utiliza las credenciales administrativas correspondientes.',
-        );
+      if (isAdmin) {
+        final raw = await supabase.rpc('admin_access_context');
+        final access = raw is Map
+            ? Map<String, dynamic>.from(raw)
+            : <String, dynamic>{};
+        final channel = access['runtime_environment']?.toString();
+        final allowed = access['allowed'] == true &&
+            (channel == 'preview' || channel == 'production') &&
+            await supabase.rpc(
+                  'admin_environment_allowed',
+                  params: {'p_channel': channel},
+                ) ==
+                true;
+
+        if (!allowed) {
+          await supabase.auth.signOut(scope: SignOutScope.local);
+          throw Exception(
+            'Esta cuenta no tiene un entorno administrativo válido.',
+          );
+        }
+
+        if (mounted) widget.onSignedIn();
+        return;
       }
-      var hasPartnerAccess = false;
-      if (!isAdmin && !adminIsPreview) {
-        final raw = await supabase.rpc('partner_my_dashboard');
-        hasPartnerAccess = raw is List && raw.isNotEmpty;
-      }
-      if (!allowedForPage && !hasPartnerAccess) {
+
+      final raw = await supabase.rpc('partner_my_dashboard');
+      final hasPartnerAccess = raw is List && raw.isNotEmpty;
+      if (!hasPartnerAccess) {
         await supabase.auth.signOut(scope: SignOutScope.local);
         throw Exception(
           'Esta cuenta no tiene acceso de administrador ni de organización.',
         );
       }
+
       if (mounted) widget.onSignedIn();
     } catch (e) {
       if (!mounted) return;
@@ -239,7 +244,7 @@ class _AdminLoginState extends State<_AdminLogin> {
   }
 
   Future<void> _googleLogin() async {
-    if (!adminIsPreview || busy) return;
+    if (busy) return;
     setState(() {
       busy = true;
       error = null;
@@ -247,7 +252,7 @@ class _AdminLoginState extends State<_AdminLogin> {
     try {
       final started = await supabase.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: adminPreviewGoogleOAuthRedirectUrl,
+        redirectTo: adminGoogleOAuthRedirectUrl,
       );
       if (!started && mounted) {
         setState(() => error = 'No se pudo iniciar sesión con Google.');
@@ -288,16 +293,12 @@ class _AdminLoginState extends State<_AdminLogin> {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Text(
-                            adminIsPreview
-                                ? 'Acceso de Prueba · sesión independiente'
-                                : 'Acceso de Producción',
+                          const Text(
+                            'Acceso central · entorno según tu cuenta',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: adminIsPreview
-                                  ? const Color(0xFF935B0B)
-                                  : const Color(0xFF156C41),
+                              color: Color(0xFF156C41),
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -363,35 +364,31 @@ class _AdminLoginState extends State<_AdminLogin> {
                               label: const Text('Ingresar al panel'),
                             ),
                           ),
-                          if (adminIsPreview) ...[
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 46,
-                              child: OutlinedButton.icon(
-                                onPressed: busy ? null : _googleLogin,
-                                icon: const Icon(Icons.account_circle_outlined),
-                                label: const Text('Acceder con Google · Preview'),
-                              ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 46,
+                            child: OutlinedButton.icon(
+                              onPressed: busy ? null : _googleLogin,
+                              icon: const Icon(Icons.account_circle_outlined),
+                              label: const Text('Acceder con Google'),
                             ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Necesitas permisos administrativos para el canal '
-                              'de Prueba en Supabase principal.',
-                              style: TextStyle(
-                                color: Color(0xFF667085),
-                                fontSize: 11,
-                              ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Preview o Producción se asignan automáticamente '
+                            'según la cuenta autenticada.',
+                            style: TextStyle(
+                              color: Color(0xFF667085),
+                              fontSize: 11,
                             ),
-                          ],
+                          ),
                           const SizedBox(height: 12),
                           const Center(
-                            child: AdminEnvironmentLinkButton(),
-                          ),
-                          const SizedBox(height: 7),
-                          const Center(
                             child: Text(
-                              'Cada página utiliza su canal autorizado.',
+                              'Una sola página administrativa. El canal de datos '
+                              'lo determina tu usuario.',
+                              textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 11, color: Color(0xFF667085),
                               ),
