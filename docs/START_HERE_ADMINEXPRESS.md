@@ -1,156 +1,106 @@
 # ADMINEXPRESS — START HERE
 
-> Handoff operativo del panel administrativo de Express.
->
-> **ACTUALIZACIÓN 2026-10-04:** leer primero `AGENTS.md` y `docs/AI_HANDOFF_2026-10-04.md`. Ese handoff contiene el estado vigente de SMS por rol, release gate, Producción 1.5.87+131, QA Auto/Moto/Mixto, aislamiento Preview/Producción y correcciones del laboratorio.
->
-> Última actualización: 2026-10-04.
+> **Última actualización:** 2026-10-11  
+> Este es el punto de entrada vigente.
 
-## 1. Rol del repositorio
+## 1. Qué es Adminexpress
 
-`Adminexpress` es el único frontend administrativo de Express.
+`Adminexpress` es el frontend administrativo web de Express.
 
-No debe compilarse dentro del APK/AAB y no debe volver a copiarse a `Expressdelivery`.
+URL canónica:
 
-URL web:
+`https://admin.expressviajes.online/`
 
-`https://jorge2610g.github.io/Adminexpress/`
-
-Repositorio de la app operativa:
+Aplicación operativa móvil:
 
 `jorge2610g/Expressdelivery`
 
-## 2. Backend
+No volver a copiar el panel administrativo al APK/AAB.
 
-Supabase project ref:
+## 2. Arquitectura actual
+
+Existe una sola web y un solo Supabase principal:
 
 `zgpijrznvaskgcmauwxx`
 
-Adminexpress comparte el backend con la app Express.
+Preview y Producción se separan por **usuario**, no por URL.
 
-Seguridad de acceso:
+La cuenta define:
 
-- autenticación Supabase;
-- RPC `is_admin`;
-- funciones administrativas SECURITY DEFINER con validación de administrador.
+- entorno;
+- rol;
+- zona/ciudad;
+- módulos permitidos.
 
-## 3. Módulos administrativos
+`/preview/` es solo una redirección de compatibilidad.
 
-El panel contiene:
+## 3. Seguridad de acceso
 
-- Dashboard;
-- operación;
-- Viajes;
-- Delivery;
-- Conductores;
-- Usuarios;
-- Seguridad/SOS;
-- Zonas;
-- Tarifas;
-- Pagos/Billetera;
-- Reportes;
-- Configuración;
-- Despacho;
-- Auditoría;
-- App Builder.
+RPC principales:
 
-Archivos principales:
+- `admin_current_runtime_environment()`
+- `admin_environment_allowed(p_channel)`
+- `admin_access_context()`
+- `admin_set_panel_access_v2(...)`
 
-- `lib/main.dart`
-- `lib/admin_panel.dart`
-- `lib/admin_control_sections.dart`
+Datos de autorización:
 
-## 4. App Builder Android
+- `admin_users`
+- `account_runtime_bindings`
 
-El botón Compilar Android no ejecuta Flutter en el navegador.
+Nunca confiar únicamente en que un botón esté oculto. La autorización debe existir también en backend.
 
-Los pushes de Expressdelivery no disparan builds Android. Adminexpress es el punto de inicio intencional: crea el `build_jobs` y el scheduler de GitHub Actions recoge únicamente trabajos que estén en cola.
+## 4. Roles y operadores
 
-Flujo:
+Roles implementados:
 
-1. Adminexpress crea un registro en `build_jobs`.
-2. El workflow `Build Express Android` de `jorge2610g/Expressdelivery` toma el trabajo.
-3. GitHub Actions instala Flutter.
-4. Recupera la firma Android mediante un worker protegido por GitHub OIDC.
-5. Compila APK release.
-6. Compila AAB release.
-7. Crea un GitHub Artifact temporal.
-8. Crea un GitHub Release permanente con APK/AAB.
-9. Actualiza `build_jobs` con estado `ready`, URLs y `signing_mode=production`.
-10. Adminexpress muestra Descargar APK / Descargar AAB / Publicar actualización.
+- `super_admin`
+- `zone_monitor`
 
-## 5. Firma Android
+Los operadores por ciudad usan el **mismo panel**. Se les asigna zona y módulos, no una nueva página.
 
-La identidad de firma debe permanecer estable para todas las actualizaciones futuras.
+## 5. Identidad de conductor
 
-Implementación actual:
+La revisión de documentos e identidad está dentro de la ficha del conductor.
 
-- archivo JKS: bucket privado `android-signing`;
-- alias: `express-release`;
-- passwords: Supabase Vault;
-- worker: `android-build-worker`;
-- autenticación del worker: token OIDC de GitHub Actions;
-- no hay passwords/JKS dentro del repositorio.
+No recrear opciones laterales separadas de identidad.
 
-No regenerar el JKS salvo que exista un plan explícito de migración de firma.
+## 6. Deploy web
 
-## 6. Publicación de actualización
+Workflow:
 
-Compilar y publicar son acciones distintas.
+`.github/workflows/deploy-web.yml`
 
-Un build `ready` puede descargarse/probarse sin anunciarse a clientes.
+Construye un solo bundle raíz.
 
-`admin_publish_build` publica la versión en `app_releases`.
+No volver a:
 
-La app móvil consulta `latest_app_release('android')` y compara el `build_number` con el instalado.
+- `ADMIN_ENV`;
+- build `/preview/`;
+- selector Preview/Producción;
+- `_previewScopedModules`;
+- `PREVIEW_AUTHORIZED` como selector de otro bundle.
 
-## 7. Separación con Expressdelivery
+## 7. App Builder Android
 
-Desde 2026-09-30 se retiraron de `Expressdelivery`:
+Adminexpress crea `build_jobs`. Expressdelivery/GitHub Actions compila APK/AAB.
 
-- `admin_panel.dart`;
-- `admin_control_sections.dart`;
-- rutas web Admin;
-- prototipos antiguos no usados.
+La identidad de firma debe permanecer estable.
 
-Toda función administrativa nueva debe agregarse aquí.
+No regenerar keystore ni publicar Play Store sin autorización explícita.
 
-## 8. Regla de documentación
+## 8. IA / agentes
 
-Cuando cambie:
+Todas las IAs autorizadas —incluyendo Claude/Cloud— pueden programar en el repositorio según `docs/AI_AGENT_POLICY.md`.
 
-- el App Builder;
-- firma Android;
-- Google Play;
-- modelo de releases;
-- seguridad Admin;
-- deploy;
-- backend administrativo;
+No existe una regla vigente de “Claude solo revisa”.
 
-actualizar este documento y `docs/CHANGELOG_ACTIVE.md`.
+## 9. Documentos a leer
 
+1. `AGENTS.md`
+2. `docs/AI_HANDOFF_2026-10-11.md`
+3. `docs/AI_AGENT_POLICY.md`
+4. `docs/admin-central-access.md`
+5. `docs/CHANGELOG_ACTIVE.md`
 
-## 9. Dirección visual de la app operativa
-
-La app `jorge2610g/Expressdelivery` adoptó la referencia **Express Dual**: una sola app para Cliente + Conductor + Delivery.
-
-Adminexpress sigue siendo un producto web separado. No copiar esta UI administrativa dentro del APK/AAB.
-
-La compilación Android continúa iniciándose únicamente desde App Builder cuando el administrador lo decide.
-
-
-## 10. Runtime Scope de administración (2026-10-07)
-
-Adminexpress usa una sola UI con dos workspaces de datos aislados:
-
-- Prueba -> Preview/QA/shadow;
-- Producción -> clientes y operación real.
-
-El cambio de entorno reconstruye el contenido para no conservar estado/caché del entorno anterior. Las acciones sensibles deben usar RPC con `p_channel` y Supabase valida tanto el permiso del administrador como el runtime del registro objetivo.
-
-Archivo central:
-- `lib/admin_runtime_scope.dart`
-
-Backend versionado en Expressdelivery:
-- `20261007230500_admin_runtime_scope_isolation.sql`
-- `20261007232000_admin_runtime_scope_document_fix.sql`
+Los documentos marcados **HISTÓRICO / SUPERADO** no deben usarse para diseñar cambios nuevos.
