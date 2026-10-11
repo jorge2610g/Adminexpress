@@ -3686,7 +3686,7 @@ class AdminIdentitySecurityPage extends StatelessWidget {
       children: [
         const _Header(
           title: 'Verificación de identidad',
-          subtitle: 'Documentos de conductores y revisión manual de fotografías. '
+          subtitle: 'Requisitos de documentos de conductores. '
               'Los servicios de identidad automáticos y la verificación por SMS '
               'están deshabilitados.',
         ),
@@ -3694,8 +3694,8 @@ class AdminIdentitySecurityPage extends StatelessWidget {
         const _AdminHero(
           icon: Icons.verified_user_rounded,
           title: 'Centro de identidad',
-          subtitle: 'Las aprobaciones se realizan manualmente desde la pestaña '
-              'Revisión de documentos. Los registros históricos de servicios '
+          subtitle: 'Las aprobaciones se realizan desde la ficha de cada conductor, '
+              'en Conductores. Los registros históricos de servicios '
               'anteriores no son solicitudes activas.',
           stats: [
             ('Motor', 'Manual'),

@@ -1,3 +1,8 @@
+## 2026-10-11 — Verificación de identidad solo en la ficha del conductor
+- `lib/admin_panel.dart` (sección 18, «Verificación de identidad»): se quitó la pestaña «Revisión de documentos», que duplicaba la ficha del conductor. Queda solo «Requisitos de identidad». La ruta 27 («Verificación manual») sigue en código pero no aparece en el menú.
+- `lib/admin_control_sections.dart`: el texto de la sección indica que las aprobaciones se hacen desde la ficha de cada conductor.
+- Pendiente de decisión: cómo ver la lista de conductores con identidad por revisar (filtro en Conductores).
+
 ## 2026-10-11 — Carrusel de documentos en la ficha del conductor
 - `lib/admin_detail_dialogs.dart`: «Documentos e identidad» pasa a carrusel horizontal (izquierda a derecha), una tarjeta por documento. Identidad primero, luego el resto en el orden recibido, y al final una tarjeta «Vehículo» de solo lectura.
 - Se quitó la franja «Revisión de identidad / Verificación manual» (lista legada de `identity_verifications`, sin acciones). Las tarjetas de identidad siguen mostrando su estado y sus fotos.

@@ -1302,34 +1302,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 18:
-        return DefaultTabController(
-          key: ValueKey('unified-identity-$adminZoneId-$adminChannel'),
-          length: 2,
-          child: Column(
-            children: [
-              const Material(
-                color: Colors.white,
-                child: TabBar(tabs: [
-                  Tab(icon: Icon(Icons.fact_check_outlined),
-                      text: 'Revisión de documentos'),
-                  Tab(icon: Icon(Icons.settings_outlined),
-                      text: 'Requisitos de identidad'),
-                ]),
-              ),
-              Expanded(child: TabBarView(children: [
-                AdminManualIdentityPage(
-                  channel: adminChannel,
-                  countryCode: adminCountryCode,
-                  zoneId: adminZoneId,
-                ),
-                AdminIdentitySecurityPage(
-                  channel: adminChannel,
-                  countryCode: adminCountryCode,
-                  zoneId: adminZoneId,
-                ),
-              ])),
-            ],
-          ),
+        // La revisión de identidad se hace solo en la ficha de cada conductor.
+        // Esta sección queda con los requisitos de documentos.
+        return AdminIdentitySecurityPage(
+          key: ValueKey('identity-requirements-$adminZoneId-$adminChannel'),
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
         );
       case 19:
         return AdminAdvancedSettingsPage(channel: adminChannel);
