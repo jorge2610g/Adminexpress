@@ -201,17 +201,15 @@ jobs:
           assert 'admin_driver_document_requirement_list' in docs
           assert 'admin_upsert_driver_document_requirement' in docs
           assert 'admin_delete_driver_document_requirement' in docs
-          # Distance fare editor must never read or mutate live fare tiers from Preview.
+          # Fare tiers are shared business configuration in both Admin sites.
           distance = Path('lib/admin_distance_fares.dart').read_text()
-          assert "AdminEnvironmentStore(widget.channel)" in distance
-          assert "usesSharedOperationalConfiguration" in distance
-          assert "_environment.previewGet(" in distance
-          assert "_environment.previewUpsert(" in distance
-          assert distance.count("'zone_distance_fare_steps'") >= 2
-          assert "_qaRecordKey(zone, service)" in distance
+          assert 'AdminEnvironmentStore' not in distance
+          assert 'previewGet(' not in distance
+          assert 'previewUpsert(' not in distance
           assert "'admin_distance_fare_steps_replace'" in distance
           assert "'admin_distance_fare_steps_get'" in distance
-          assert "Tarifas de prueba guardadas solo en Preview." in distance
+          assert "'p_channel': widget.channel" in distance
+          assert "Tarifas de prueba guardadas solo en Preview." not in distance
           assert "Ambas páginas Admin usan estas reglas." not in distance
           countries = Path('lib/admin_country_coverage.dart').read_text()
           assert 'AdminEnvironmentStore(widget.channel)' in countries
