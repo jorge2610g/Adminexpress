@@ -87,13 +87,13 @@ jobs:
           EOF
 
       # GitHub Pages serves two URLs built with separate ADMIN_ENV values.
-      # The source selects a physically independent Supabase project for Preview.
+      # Both sites use one Supabase project, with distinct authenticated data channels.
       - name: Preserve production site
         run: |
           mkdir -p build/site
           cp -a build/web/. build/site/
 
-      - name: Build independent Admin Preview
+      - name: Build shared-backend Admin Preview
         run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
 
       - name: Bust Preview web cache
@@ -115,7 +115,7 @@ jobs:
           from pathlib import Path
           for name, label, project in [
               ('build/site/version.json', 'production', 'zgpijrznvaskgcmauwxx'),
-              ('build/site/preview/version.json', 'preview', 'xbphilqezmwfjfpdbwad'),
+              ('build/site/preview/version.json', 'preview', 'zgpijrznvaskgcmauwxx'),
           ]:
               path = Path(name)
               data = json.loads(path.read_text())
@@ -208,7 +208,7 @@ jobs:
           ref: ${{ env.PREVIEW_SHA }}
           path: preview-source
 
-      - name: Validate QA commit and project isolation
+      - name: Validate pinned QA commit and shared-backend fail-closed Preview
         shell: bash
         run: |
           set -euo pipefail
@@ -216,34 +216,25 @@ jobs:
           grep -q "admin_zone_list_scoped" preview-source/lib/admin_detail_dialogs.dart
           grep -q "admin_driver_kyc_bolivia_manual_review_part" preview-source/lib/admin_bolivia_kyc.dart
           grep -q "AdminEnvironmentLinkButton" preview-source/lib/admin_panel.dart
-          grep -Fq "const supabaseUrl = adminIsPreview ? _previewUrl : _productionUrl;" preview-source/lib/core/supabase_client.dart
-          grep -Fq "const _previewUrl = 'https://xbphilqezmwfjfpdbwad.supabase.co';" preview-source/lib/core/supabase_client.dart
-          # Keep ordinary Preview fail-closed. A temporary all-modules
-          # prelaunch UI review is permitted only when its SHA belongs to the
-          # dedicated, owner-approved QA branch; Production remains unchanged.
-          if grep -Fq "if (adminIsPreview && !_previewScopedModules.contains(value))" preview-source/lib/admin_panel.dart; then
-            echo "PASS: Preview retains audited-module guard."
-          elif grep -Fq "static const bool _previewUnlockAllModules = true;" preview-source/lib/admin_panel.dart \
-            && grep -Fq "!_previewUnlockAllModules &&" preview-source/lib/admin_panel.dart; then
-            git -C preview-source fetch --no-tags origin refs/heads/chatgpt/admin-preview-independent-20261010:refs/remotes/origin/chatgpt/admin-preview-independent-20261010
-            git -C preview-source merge-base --is-ancestor "$PREVIEW_SHA" refs/remotes/origin/chatgpt/admin-preview-independent-20261010 || {
-              echo "ERROR: Preview-unlock SHA is not on approved QA branch."
-              exit 1
-            }
-            echo "WARNING: all Preview module UIs unlocked for owner-approved QA; RPC isolation must be checked before any operational testing."
-          else
-            echo "ERROR: Preview module guard is missing or unapproved."
+          # The owner intentionally deleted the second Supabase project.
+          # Both channels now use the same backend but NOT the same data access.
+          grep -Fq "const supabaseUrl = _productionUrl;" preview-source/lib/core/supabase_client.dart
+          grep -Fq "const supabasePublishableKey = _productionPublishableKey;" preview-source/lib/core/supabase_client.dart
+          grep -Fq "const adminRuntimeChannel = adminIsPreview ? 'preview' : 'production';" preview-source/lib/core/supabase_client.dart
+          if grep -Fq "xbphilqezmwfjfpdbwad" preview-source/lib/core/supabase_client.dart; then
+            echo "ERROR: deleted Supabase project reference remains in active client."
             exit 1
           fi
-          if ! grep -Fq "const _previewPublishableKey =" preview-source/lib/core/supabase_client.dart; then
-            echo "ERROR: dedicated Preview publishable key missing."
+          # On one physical DB it is UNSAFE to unlock unaudited modules.
+          grep -Fq "if (adminIsPreview && !_previewScopedModules.contains(value))" preview-source/lib/admin_panel.dart
+          if grep -Fq "static const bool _previewUnlockAllModules = true;" preview-source/lib/admin_panel.dart; then
+            echo "ERROR: Preview bypass must not be enabled on the production database."
             exit 1
           fi
-          if grep -q 'const supabaseUrl = _productionUrl;' preview-source/lib/core/supabase_client.dart; then
-            echo "ERROR: Preview still points to Production."
-            exit 1
-          fi
-          echo "PASS: pinned Preview uses a physically independent Supabase project."
+          # Preview fare edits MUST write to the QA shadow, never real passenger fares.
+          grep -Fq "_environment.previewUpsert(" preview-source/lib/admin_distance_fares.dart
+          grep -Fq "_environment.previewGet(" preview-source/lib/admin_distance_fares.dart
+          echo "PASS: one backend; preview channel and session isolated, unscoped operations blocked."
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -258,7 +249,7 @@ jobs:
         working-directory: preview-source
         run: flutter analyze --no-fatal-warnings --no-fatal-infos lib/admin_detail_dialogs.dart lib/admin_panel.dart lib/core/supabase_client.dart
 
-      - name: Build Preview only (dedicated Supabase database)
+      - name: Build Preview only (shared Supabase, isolated data channel)
         working-directory: preview-source
         run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
 
@@ -280,7 +271,7 @@ jobs:
           path = Path('build/site/preview/version.json')
           data = json.loads(path.read_text())
           data['environment'] = 'preview'
-          data['supabase_project_ref'] = 'xbphilqezmwfjfpdbwad'
+          data['supabase_project_ref'] = 'zgpijrznvaskgcmauwxx'
           data['data_channel'] = 'preview'
           data['commit'] = os.environ['PREVIEW_SHA']
           data['deployed_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -329,7 +320,7 @@ jobs:
           assert production.get('environment') == 'production', 'Production channel unexpectedly changed'
           assert preview.get('commit') == os.environ['EXPECTED_PREVIEW_SHA'], 'New Preview SHA not yet published'
           assert preview.get('environment') == 'preview', 'Preview channel unexpectedly changed'
-          assert preview.get('supabase_project_ref') == 'xbphilqezmwfjfpdbwad', 'Preview database project is incorrect'
+          assert preview.get('supabase_project_ref') == 'zgpijrznvaskgcmauwxx', 'Preview must use the shared Supabase project'
           assert production.get('supabase_project_ref') == 'zgpijrznvaskgcmauwxx', 'Production database project is incorrect'
           print('PASS: expected Preview SHA is live; Production SHA and channel unchanged')
           PY
