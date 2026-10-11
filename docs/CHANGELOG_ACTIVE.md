@@ -1,3 +1,10 @@
+## 2026-10-11 — Preview: Tarifas (8) bloqueada
+- Autorizado por el propietario («sí, ciérrala ya»).
+- `lib/admin_panel.dart`: 8 (Tarifas) sale de `_previewScopedModules`. El guardado de tarifas por distancia llama `admin_distance_fare_steps_replace` en ambos canales y escribe `zone_distance_fare_steps`, que usan pasajeros reales.
+- `.github/workflows/validate-preview-production-split.yml`: 8 pasa a la lista de bloqueados y sale de las listas de seguros.
+- Pendiente: reabrir Tarifas en Preview solo con la versión QA sombra (commits `20066e0` y `4fc00ef` de ChatGPT) y la RPC por canal verificada en la base.
+- Sin cambios de base de datos. Producción no cambia.
+
 ## 2026-10-11 — Preview: Suscripciones (22) y Prioridad (25) desbloqueadas con sus guardas (port de ChatGPT)
 - Autorizado por el propietario en el chat («Haslo confirmado»).
 - `lib/admin_panel.dart`: 22 y 25 en `_previewScopedModules`.

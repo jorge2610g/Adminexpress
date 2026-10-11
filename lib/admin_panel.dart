@@ -246,8 +246,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // settlements from a Preview session.
   // Subscriptions (22) and driver priority (25) use QA-only candidates and
   // Preview shadow storage; real payments and real drivers stay out of Preview.
+  // Tarifas (8) is blocked in Preview: distance-fare saves write real
+  // zone_distance_fare_steps through admin_distance_fare_steps_replace.
   static const Set<int> _previewScopedModules = {
-    0, 1, 2, 3, 4, 5, 6, 8, 10, 11, 14, 16, 18, 22, 25, 27,
+    0, 1, 2, 3, 4, 5, 6, 10, 11, 14, 16, 18, 22, 25, 27,
   };
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);

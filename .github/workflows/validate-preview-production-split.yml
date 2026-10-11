@@ -196,9 +196,9 @@ jobs:
           assert 'productionAccess: allowProduction && !adminIsPreview' in panel
           assert 'static const Set<int> _previewScopedModules' in panel
           assert 'if (adminIsPreview && !_previewScopedModules.contains(value))' in panel
-          for safe in ['0','1','2','3','4','5','6','8','10','11','14','16','18','22','25','27']:
+          for safe in ['0','1','2','3','4','5','6','10','11','14','16','18','22','25','27']:
               assert safe in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
-          for blocked in ['7','9','12','13','15','17','19','20','21','23','24','26','28']:
+          for blocked in ['7','8','9','12','13','15','17','19','20','21','23','24','26','28']:
               assert blocked not in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
           assert 'if (adminIsPreview) return _ExpressPanelAccess.denied;' in login
           assert '--dart-define=ADMIN_ENV=production' in workflow
@@ -228,7 +228,7 @@ jobs:
           assert "return channel == 'preview';" in env_store
           assert "return channel == 'production';" in env_store
           assert "bool get isProduction => !isPreview;" not in env_store
-          for safe in ['0','1','2','3','4','5','6','8','10','11','14','16','18','22','25','27']:
+          for safe in ['0','1','2','3','4','5','6','10','11','14','16','18','22','25','27']:
               assert safe in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
           # Subscriptions (22) must not download real driver data to Preview.
           subscriptions = Path('lib/admin_driver_subscriptions.dart').read_text()
