@@ -370,10 +370,12 @@ jobs:
           assert "__EXPRESS_PREVIEW_BUILD_SHA__" in page
           assert "document.addEventListener('visibilitychange', checkVersion)" in page
           assert "button.textContent = 'Recargar'" in page
-          assert "const buildSha = '${PREVIEW_SHA}'" in workflow
-          assert "admin_preview_driver_subscription_candidates" in workflow
-          assert "('build/site/preview/version.json', 'preview', 'zgpijrznvaskgcmauwxx')" in workflow
+          assert "__EXPRESS_PREVIEW_BUILD_SHA__" in workflow
+          assert "data['commit'] = os.environ['PREVIEW_SHA']" in workflow
+          assert "data['environment'] = 'preview'" in workflow
           assert "data['supabase_project_ref'] = 'zgpijrznvaskgcmauwxx'" in workflow
+          assert "EXPECTED_PREVIEW_SHA" in workflow
+          assert "Production SHA unexpectedly changed" in workflow
           print('PASS: same physical Supabase; full Preview navigation; actor and release guards retained.')
           PY
 
