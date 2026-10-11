@@ -1,3 +1,25 @@
+# CHANGELOG ACTIVO
+
+> **Regla de lectura:** la entrada más reciente define la arquitectura vigente. Entradas anteriores se conservan como historial de decisiones y no deben usarse para restaurar comportamientos retirados.
+
+## 2026-10-11 — Adminexpress central por usuario, rol, zona y permisos
+
+- Se retiró la arquitectura de dos páginas administrativas separadas.
+- URL canónica única: `https://admin.expressviajes.online/`.
+- `/preview/` queda como redirección de compatibilidad; ya no contiene otro bundle Flutter.
+- Preview/Producción se determina por la cuenta autenticada mediante `admin_current_runtime_environment()` y `admin_access_context()`.
+- `admin_users.allowed_modules` permite limitar módulos por usuario.
+- `admin_users.zone_id` y el rol permiten operadores por ciudad/zona dentro del mismo panel.
+- `admin_set_panel_access_v2` asigna entorno, rol, zona y módulos.
+- Se retiró `ADMIN_ENV` como frontera web, `_previewScopedModules`, el selector manual de entorno y el mecanismo `PREVIEW_AUTHORIZED`.
+- La verificación de identidad/documentos se consolida en la ficha del conductor; no debe volver a existir navegación lateral duplicada.
+- `Deploy Adminexpress Central` construye un solo bundle raíz.
+- Claude/Cloud, ChatGPT, Codex y otras IAs autorizadas pueden programar y editar todo el repositorio dentro de sus permisos técnicos; ver `docs/AI_AGENT_POLICY.md`.
+- Se versionaron las migraciones `20261011210000_admin_runtime_environment_by_identity.sql` y `20261011211000_single_admin_access_scope.sql`.
+- Respaldo previo: `backup/main-before-single-admin-by-user-20261011`.
+
+---
+
 ## 2026-10-10 — Google OAuth de Preview retornaba a la web de pasajeros
 
 - Vídeo de QA: seleccionar Google en `/preview/` termina en `https://expressviajes.online/` en vez del panel. No se confirmó ingreso administrativo; no retirar permisos del administrador anterior.

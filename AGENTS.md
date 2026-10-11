@@ -1,184 +1,151 @@
-## Arquitectura obligatoria — 2026-10-09: dos páginas en Supabase principal
-- Producción (`/`): Supabase `zgpijrznvaskgcmauwxx`, canal `production`.
-- Preview (`/preview/`): **el mismo** Supabase `zgpijrznvaskgcmauwxx`, canal `preview`.
-- `ADMIN_ENV` es inmutable por compilación y determina la página/canal, nunca la base de datos.
-- Queda prohibida la conexión de Adminexpress con el proyecto secundario antiguo `xbphilqezmwfjfpdbwad`; no borrarlo ni migrarlo.
-- Los usuarios QA se identifican por `account_runtime_bindings.environment='preview'` y las RPC operativas toman `p_channel='preview'`, con `admin_assert_target_environment`.
-- Configuración QA usa `admin_environment_config` con entorno preview; zonas, servicios, tarifas y ajustes jamás deben escribir registros reales.
-- **IMPORTANTE:** tener dos páginas no aísla un RPC sin parámetro de entorno. El guard `_previewScopedModules` bloquea módulos no auditados antes de ejecutar sus llamadas. No quitarlo para recuperar funcionalidad sin RPCs con aislamiento comprobado.
-- Builds, pagos, billetera, suscripciones, marketplace y otras funciones no auditadas se bloquean desde Preview.
-- Mantener la UI y rutas de Producción, firmas Android y datos reales sin cambios; publicar exclusivamente la página Preview hasta que se valide.
-- Validar `flutter analyze`, ambos `flutter build web`, consulta/revisión QA real y ausencia de escrituras Production en tests de aislamiento.
-
----
-
-> **Regla global confirmada 2026-10-08:** las secciones `Reportes` (10),
-> `Builds` (12) y `Auditoría` (14) son únicas a nivel de Express, **sin**
-> selector Prueba/Producción ni obligación país/zona. Builds requiere permiso
-> `allow_production` para crear/aprobar/publicar; Reportes y Auditoría
-> consultan simultáneamente solo los entornos autorizados, mostrando los
-> datos QA separados o con etiquetas. **NO** aplicar esta excepción a Viajes,
-> Usuarios, Conductores, Configuración, Laboratorio QA ni otras funciones
-> operativas: deben seguir aisladas por canal y geografía.
-> Revisar `docs/CHANGELOG_ACTIVE.md` antes de cambiar navegación.
->
 # AGENTS.md — Adminexpress
 
-Este repositorio es el panel administrativo web de Express. Este archivo está dirigido a IAs/agentes de código y desarrolladores que necesiten editarlo sin romper Producción, Preview, App Builder o el backend compartido.
+> **Arquitectura vigente desde 2026-10-11.**
+> Este archivo es la regla principal para IAs/agentes de código y desarrolladores.
+> Cualquier documento anterior que contradiga este archivo queda superado.
 
 ## Leer antes de editar
 
-1. `docs/AI_HANDOFF_2026-10-04.md`
-2. `docs/START_HERE_ADMINEXPRESS.md`
-3. `docs/admin-preview-production.md`
-4. `docs/CHANGELOG_ACTIVE.md`
-5. `docs/FLOATING_DRIVER_OFFERS_ADMIN.md` — control Admin de ofertas sobre otras apps
+1. `docs/START_HERE_ADMINEXPRESS.md`
+2. `docs/AI_HANDOFF_2026-10-11.md`
+3. `docs/AI_AGENT_POLICY.md`
+4. `docs/admin-central-access.md`
+5. `docs/CHANGELOG_ACTIVE.md`
 
-El handoff de 2026-10-04 es el estado más reciente y prevalece sobre documentación histórica contradictoria.
+Los archivos marcados **HISTÓRICO / SUPERADO** sirven solo para trazabilidad.
 
-## Responsabilidad
+## Política de IA
 
-Adminexpress contiene:
-- Dashboard
-- Viajes
-- Delivery
-- Conductores
-- Usuarios
-- Seguridad/SOS
-- Zonas
-- Tarifas
-- Pagos/Billetera
-- Suscripciones
-- Reportes
-- Configuración
-- Despacho
-- Auditoría
-- Laboratorio QA
-- App Builder
-- release/Preview/Producción
+Claude/Cloud, ChatGPT, Codex y cualquier otra IA autorizada por el propietario **pueden programar y editar todo el repositorio** dentro de sus permisos técnicos reales.
 
-La app pasajero/conductor vive en `jorge2610g/Expressdelivery`.
+No existe una regla vigente que limite a Claude/Cloud a arquitectura o revisión.
 
-Nunca copiar el panel de vuelta al APK.
+Pueden trabajar sobre:
+
+- `lib/`, `test/`, `web/`;
+- `supabase/` y migraciones;
+- `.github/` y workflows;
+- `docs/`;
+- ramas, commits, PR y merges;
+- despliegues cuando el propietario haya autorizado ese alcance.
+
+La documentación no crea credenciales ni permisos externos. Si un agente no tiene acceso técnico, debe decirlo y no simular cambios.
+
+## Arquitectura obligatoria
+
+Adminexpress tiene **una sola web administrativa**:
+
+`https://admin.expressviajes.online/`
+
+Reglas:
+
+- `/preview/` ya no es otro panel; solo redirige a la raíz.
+- Un solo proyecto Supabase: `zgpijrznvaskgcmauwxx`.
+- Preview/Producción se determina por la **cuenta autenticada**.
+- No existe selector manual Preview/Producción dentro de la misma cuenta.
+- No existe un build distinto con `ADMIN_ENV`.
+- No volver a crear dos árboles de navegación ni dos bundles web.
+- No reintroducir `_previewScopedModules`.
+- No reintroducir `PREVIEW_AUTHORIZED` como mecanismo de publicación de otro bundle.
+
+## Acceso por usuario
+
+La sesión administrativa se resuelve con:
+
+- `admin_current_runtime_environment()`
+- `admin_environment_allowed(p_channel)`
+- `admin_access_context()`
+- `admin_set_panel_access_v2(...)`
+
+Tablas/campos relevantes:
+
+- `admin_users.access_role`
+- `admin_users.zone_id`
+- `admin_users.allowed_modules`
+- `admin_users.allow_preview`
+- `admin_users.allow_production`
+- `account_runtime_bindings.environment`
+
+El usuario puede quedar ligado a:
+
+- entorno `preview` o `production`;
+- rol;
+- zona/ciudad;
+- módulos concretos.
+
+No crear otra web para operadores de ciudad. Todos usan el mismo panel.
+
+## Roles actuales
+
+- `super_admin`: administración general.
+- `zone_monitor`: acceso de zona, solo lectura y módulos operativos definidos.
+
+Se pueden añadir nuevos roles en el mismo modelo de permisos.
+
+## Identidad de conductor
+
+La validación de identidad/documentos está integrada en la **ficha del conductor**.
+
+No volver a mostrar entradas laterales separadas:
+
+- Verificación de identidad;
+- Verificación manual.
+
+El código de componentes antiguos puede permanecer temporalmente para compatibilidad/rollback, pero no debe crear navegación duplicada.
 
 ## Backend
 
-Supabase ref correcto:
+Supabase principal:
 
 `zgpijrznvaskgcmauwxx`
 
-Comparte backend con Expressdelivery.
+Adminexpress comparte backend con `jorge2610g/Expressdelivery`.
 
-## Regla Preview / Producción
+La seguridad debe existir en backend/RPC; ocultar un botón no sustituye autorización.
 
-Existe UNA sola UI.
+## Módulos globales
 
-El selector:
-- Producción
-- Prueba
+Builds, Reportes y Auditoría siguen siendo módulos globales de Express.
 
-solo cambia la capa de datos/canal.
-
-No crear árboles separados de navegación ni páginas duplicadas por entorno.
-
-Preview nunca debe escribir configuración/datos operativos reales de Producción.
-
-Workflow de validación:
-
-`.github/workflows/validate-preview-production-split.yml`
-
-Debe seguir en verde.
-
-## SMS
-
-Configuración > Seguridad contiene switches independientes:
-
-- Verificación SMS · Pasajeros
-- Verificación SMS · Conductores
-
-Ambos OFF por defecto.
-
-No activarlos automáticamente al desplegar.
-
-Se activarán cuando el proveedor SMS/Twilio esté configurado.
-
-## QA load lab
-
-Archivo UI:
-
-`lib/admin_load_lab.dart`
-
-Edge Function vive en Expressdelivery:
-
-`supabase/functions/express-load-lab/index.ts`
-
-El panel debe ofrecer:
-
-- entorno Prueba / Producción
-- ciudad
-- servicio QA:
-  - Mixto · Auto + Moto
-  - Solo Auto
-  - Solo Moto
-- conductores
-- solicitudes
-- radio
-- demanda
-- Crear escenario
-- Limpiar prueba
-
-El backend usa:
-- Preview -> channel preview
-- Producción -> channel production
-- Iquique -> CLP
-- Trinidad -> BOB
-
-No volver a generar todo como Moto.
+Los módulos operativos pueden requerir zona/ciudad según el rol.
 
 ## App Builder
 
-No compila localmente en navegador.
+Adminexpress no compila Android dentro del navegador.
 
-Crea `build_jobs` y Expressdelivery/GitHub Actions compila.
+Flujo:
 
-Regla crítica:
+`Adminexpress -> build_jobs -> GitHub Actions Expressdelivery -> APK/AAB -> release`
 
-Producción solo desde el mismo SHA del Preview aprobado.
-
-No saltarse `app_release_gate`.
-
-## Branding
-
-La marca global debe decir **Express**.
-
-No volver a poner “Express Delivery” como nombre global del panel. “Delivery” solo para el módulo de delivery.
-
-Usar el logo oficial.
+No regenerar firma Android ni publicar Google Play sin autorización explícita.
 
 ## Secretos
 
-Nunca guardar:
-- Supabase service role
-- Twilio secrets
-- Mercado Pago secrets
-- GitHub tokens
-- keystore
-- passwords de firma
+Nunca guardar en Git:
+
+- Supabase service role;
+- Twilio secrets;
+- Mercado Pago secrets;
+- GitHub tokens;
+- keystore;
+- passwords de firma.
 
 ## Antes de merge
 
-- `flutter analyze`
-- build web
-- Validate Admin Preview Production Split
-- revisar Preview/Producción
-- actualizar documentación si cambia una regla operativa
+Para cambios sustanciales:
+
+- ejecutar las validaciones disponibles;
+- mantener compilación web en verde;
+- validar permisos backend;
+- actualizar migraciones si cambia Supabase;
+- actualizar documentación vigente en la misma entrega.
 
 ## No hacer
 
-- no mezclar Preview con Producción
-- no activar SMS por defecto
-- no regenerar firma Android
-- no construir Producción desde SHA distinto al Preview aprobado
-- no usar pasarela administrativa para cobrar viajes normales
-- no simplificar el laboratorio QA borrando aislamiento
-- no ocultar errores backend como `[object Object]`
+- no volver a dos paneles;
+- no decidir entorno por URL/build;
+- no mezclar datos Preview/Producción fuera de las reglas del usuario;
+- no dar más módulos a un operador que los autorizados;
+- no activar SMS/AdMob/funciones sensibles por defecto;
+- no publicar Producción o Google Play sin autorización explícita;
+- no usar documentos históricos como instrucciones vigentes.
