@@ -1,0 +1,70 @@
+name: Validate Admin Pages Deployment Guard
+
+# Checks only. This workflow never publishes GitHub Pages.
+on:
+  push:
+    branches:
+      - claude/preview-deploy-guard-2026-10-11
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check guard policy without deployment
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          workflow = Path('.github/workflows/deploy-web.yml').read_text()
+          authorized = Path('docs/PREVIEW_AUTHORIZED.md').read_text()
+          assert re.search(r'^on:\n  workflow_dispatch:', workflow, re.M), 'Manual-only releases required'
+          header = workflow.split('permissions:',1)[0]
+          assert '\n  push:' not in header, 'Deploy on push is unsafe'
+          assert 'cancel-in-progress: false' in workflow
+          assert "github.ref == 'refs/heads/main' && inputs.preview_only == true" in workflow
+          assert "github.ref == 'refs/heads/main' && inputs.snapshot_source_run_id != ''" in workflow
+          assert "github.ref == 'refs/heads/main' && inputs.preview_only != true" in workflow
+          assert "inputs.confirm_production == 'PUBLICAR PRODUCCION'" in workflow
+          assert 'docs/PREVIEW_AUTHORIZED.md' in workflow
+          assert 'preview_source_sha' in workflow
+          assert 'production_snapshot_run_id' in workflow
+          assert 'production-snapshot' in workflow
+          assert 'retention-days: 90' in workflow
+          assert 'cmp /tmp/exact-prod-manifest /tmp/after-prod-manifest' in workflow
+          assert 'test "$(git -C approved-preview rev-parse HEAD)"' in workflow
+          assert 'steps.approved_preview.outputs.preview_sha' in workflow
+          assert 'Build approved Preview alongside Production' in workflow
+          assert "data['commit'] = os.environ['APPROVED_SHA']" in workflow
+          assert 'zgpijrznvaskgcmauwxx' in workflow
+          assert 'github-pages' in workflow
+          assert 'EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df' in workflow
+          assert 'preview_authorized_sha:' in authorized
+          sha_matches = re.findall(r'^preview_authorized_sha: ([a-f0-9]{40})$', authorized, re.M)
+          assert len(sha_matches)==1, sha_matches
+          Path('/tmp/authorized_preview_sha').write_text(sha_matches[0])
+          print('PASS: releases are manual and main-only, Production explicit, QA authorized')
+          PY
+      - name: Verify authorized QA code at exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(cat /tmp/authorized_preview_sha)"
+          git fetch --no-tags --depth=1 origin "$SHA"
+          for FILE in lib/admin_panel.dart lib/admin_driver_subscriptions.dart lib/core/supabase_client.dart; do
+            git cat-file -e "$SHA:$FILE"
+          done
+          git show "$SHA:lib/admin_panel.dart" > /tmp/admin_panel.dart
+          git show "$SHA:lib/core/supabase_client.dart" > /tmp/supabase_client.dart
+          grep -Fq '22, 25, 27' /tmp/admin_panel.dart
+          grep -Fq 'const supabaseUrl = _productionUrl;' /tmp/supabase_client.dart
+          if grep -Fq 'xbphilqezmwfjfpdbwad' /tmp/supabase_client.dart; then
+            echo 'ERROR: deleted Supabase project in authorized QA commit'
+            exit 1
+          fi
+          echo "PASS: authorized commit $SHA contains QA-only subscriptions and one Supabase backend"
