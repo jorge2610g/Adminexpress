@@ -1,3 +1,9 @@
+## 2026-10-11 — Rediseño fase 1: capa de diseño portada de forma aditiva (sin uso en pantallas)
+- Rama `claude/redesign-phase1-core-2026-10-11` desde `128eca4`. Port desde `aaae599` (`chatgpt/admin-preview-independent-20261010`) por ruta: 14 archivos nuevos en `lib/core/` y 15 tests nuevos en `test/`. No hay ancestro común, así que no se usan merge, rebase ni cherry-pick.
+- Excluido: `test/admin_independent_backend_test.dart`. Usa `adminPreviewAuthSessionStorageKey` y `adminPreviewGoogleOAuthRedirectUrl`, que solo existen en el `lib/core/supabase_client.dart` de `aaae599`. Ese archivo no se toca.
+- Ninguna pantalla usa todavía los archivos nuevos. No se modificó ningún archivo existente, salvo esta entrada. Sin cambios de comportamiento, base de datos ni workflows. Producción no cambia.
+- Validación: `flutter analyze` de los archivos nuevos: 0 errores, 0 warnings y 1 info. `flutter test` de los 15 tests nuevos: 33 pasan. `lib/admin_panel.dart`: 0 errores, 6 warnings y 69 infos, igual que en `128eca4`.
+
 ## 2026-10-11 — Preview: Tarifas (8) bloqueada
 - Autorizado por el propietario («sí, ciérrala ya»).
 - `lib/admin_panel.dart`: 8 (Tarifas) sale de `_previewScopedModules`. El guardado de tarifas por distancia llama `admin_distance_fare_steps_replace` en ambos canales y escribe `zone_distance_fare_steps`, que usan pasajeros reales.
