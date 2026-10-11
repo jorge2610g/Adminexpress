@@ -307,26 +307,21 @@ jobs:
                          "'admin_open_service_requests_v2'", "'admin_available_drivers_v2'",
                          "supabase.functions.invoke("]:
               assert unsafe not in dispatch_qa, unsafe
-          # QA subscription assignment must expire on plan's actual duration.
-          subscription_patch = Path('lib/admin_driver_subscriptions.dart').read_text()
-          assert "driver['is_qa'] != true" in subscription_patch
-          assert "normalDays <= 0" in subscription_patch
-          assert "'plan_name': selectedPlan['name']" in subscription_patch
-          assert "'zone_key': selectedZoneKey" in subscription_patch
-          assert "expiry.toIso8601String()" in subscription_patch
-          # Subscriptions (22) must not download real driver data to Preview.
+          # Subscription plans, payments and gateway must be the real shared
+          # backend in both Admin sites; only the selected driver is QA.
           subscriptions = Path('lib/admin_driver_subscriptions.dart').read_text()
           assert "'admin_preview_driver_subscription_candidates'" in subscriptions
-          assert "'p_zone_id': widget.zoneId" in subscriptions
-          assert "'p_search': search.text.trim()" in subscriptions
           preview_code = subscriptions.split('if (_environment.isPreview) {', 1)[1].split('return;', 1)[0]
           assert "'admin_driver_subscriptions'" not in preview_code
           assert "'admin_preview_driver_subscription_candidates'" in preview_code
-          assert "'driver_subscriptions'" in preview_code
-          assert "_environment.previewUpsert(" in subscriptions
-          assert "selectedZone == null || _environment.isPreview" in subscriptions
-          assert "if (driver['is_qa'] == true) return true;" in subscriptions
-          assert "if (!_environment.isPreview &&" in subscriptions
+          assert "'driver_subscription_plans'" in preview_code
+          assert "'admin_zone_subscription_settings'" in preview_code
+          assert "'admin_subscription_payment_list_v2'" in preview_code
+          assert "'driver-subscription-admin'" in preview_code
+          assert "if (_environment.isPreview && driver['is_qa'] != true)" in subscriptions
+          assert "'admin_set_driver_subscription'" in subscriptions
+          assert "onPressed: selectedZone == null" in subscriptions
+          assert "usesSharedOperationalConfiguration" in subscriptions
           # Server RPC is additive, auth-guarded and read-only; never copies
           # any live driver subscription into client side QA data.
           sql = Path('docs/preview/migrations/20261011_shared_db_subscriptions_qa_candidates.sql').read_text()
