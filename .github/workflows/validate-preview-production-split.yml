@@ -1,10 +1,10 @@
-name: Validate Admin Preview Production Split
+name: Validate Adminexpress Central Access
 
 on:
   push:
     branches:
       - main
-      - chatgpt/admin-preview-independent-20261010
+      - feat/single-admin-by-user-20261011
   pull_request:
     branches:
       - main
@@ -17,427 +17,85 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+
       - name: Install dependencies
         run: flutter pub get
-      - name: Test single Supabase backend in both build channels
+
+      - name: Verify single canonical backend and login routing
+        shell: bash
         run: |
-          if [ -f test/admin_independent_backend_test.dart ]; then
-            flutter test --dart-define=ADMIN_ENV=production test/admin_independent_backend_test.dart
-            flutter test --dart-define=ADMIN_ENV=preview test/admin_independent_backend_test.dart
-          else
-            echo "SKIP: admin_independent_backend_test.dart is QA-branch only on this ref."
+          set -euo pipefail
+          grep -Fq "const supabaseUrl = _productionUrl;" lib/core/supabase_client.dart
+          grep -Fq "https://admin.expressviajes.online/" lib/core/supabase_client.dart
+          grep -Fq "admin_access_context" lib/main.dart
+          if grep -Fq "supabase.rpc('is_admin')" lib/main.dart; then
+            echo "ERROR: login still rejects scoped admin roles before reading their access context."
+            exit 1
           fi
-      - name: Verify 54 Claude designs and eight staged gates
+          if grep -Fq "ADMIN_ENV" lib/core/supabase_client.dart; then
+            echo "ERROR: web build still decides Preview/Production."
+            exit 1
+          fi
+          echo "PASS: authenticated account decides the runtime environment."
+
+      - name: Verify user role, zone and module permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "allowed_modules" lib/admin_panel.dart
+          grep -Fq "_sectionModuleKeys" lib/admin_panel.dart
+          grep -Fq "_sectionAllowed" lib/admin_panel.dart
+          grep -Fq "allowedSections: _allowedSections" lib/admin_panel.dart
+          grep -Fq "admin_country_list_scoped" lib/admin_panel.dart
+          grep -Fq "admin_zone_list_for_country" lib/admin_panel.dart
+          python3 - <<'PY'
+          from pathlib import Path
+          panel = Path('lib/admin_panel.dart').read_text()
+          assert "if (index == 18 || index == 27) return false;" in panel
+          assert "readOnly: _readOnly" in panel
+          assert "if (!_sectionAllowed(value)) return;" in panel
+          assert "_previewScopedModules" not in panel
+          assert "AdminEnvironmentLinkButton" not in panel
+          print("PASS: module navigation is user-scoped; old standalone identity routes are unreachable.")
+          PY
+
+      - name: Verify database migration for central access
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="supabase/migrations/20261011211000_single_admin_access_scope.sql"
+          test -f "$FILE"
+          grep -Fq "add column if not exists allowed_modules text[]" "$FILE"
+          grep -Fq "create or replace function public.admin_access_context()" "$FILE"
+          grep -Fq "admin_set_panel_access_v2" "$FILE"
+          grep -Fq "public.is_admin()" "$FILE"
+          grep -Fq "account_runtime_bindings" "$FILE"
+          echo "PASS: database changes are versioned and super-admin guarded."
+
+      - name: Verify canonical deployment workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=".github/workflows/deploy-web.yml"
+          grep -Fq "name: Deploy Adminexpress Central" "$FILE"
+          grep -Fq "flutter build web --release --base-href /" "$FILE"
+          grep -Fq '"mode": "account_scoped"' "$FILE"
+          grep -Fq "Redirect old Preview URL to the central admin" "$FILE"
+          if grep -Fq -- "--base-href /preview/" "$FILE"; then
+            echo "ERROR: a second Preview web bundle is still being built."
+            exit 1
+          fi
+          echo "PASS: one web bundle is deployed; /preview/ only redirects to the canonical URL."
+
+      - name: Verify 54 admin design gates
         run: python3 .github/scripts/verify_admin_mockup_stages.py
 
-      - name: Enforce identical Preview and Production panel tree
+      - name: Analyze central admin
         run: |
-          if grep -q "AdminPreviewModulePage" lib/admin_panel.dart; then
-            echo "ERROR: Preview cannot use a different page tree from Production."
-            exit 1
-          fi
-          if grep -q "get groups => channel == 'preview'" lib/admin_panel.dart; then
-            echo "ERROR: Navigation must be identical in Preview and Production."
-            exit 1
-          fi
-          grep -q "AdminZonesPage(" lib/admin_panel.dart
-          grep -q "AdminFaresPage(" lib/admin_panel.dart
-          grep -q "AdminPaymentsPage(" lib/admin_panel.dart
-          grep -q "AdminSettingsPage(channel: adminChannel)" lib/admin_panel.dart
-          grep -q "AdminServicesPage(" lib/admin_panel.dart
-          grep -q "AdminGeoSafetyPage(" lib/admin_panel.dart
-          grep -q "AdminAdvancedSettingsPage(channel: adminChannel)" lib/admin_panel.dart
-          grep -q "AdminDriverSubscriptionsPage(" lib/admin_panel.dart
-
-      - name: Enforce hard Admin runtime scope
-        run: |
-          test -f lib/admin_runtime_scope.dart
-          grep -q "AdminRuntimeScope(" lib/admin_panel.dart
-          grep -q "KeyedSubtree(" lib/admin_panel.dart
-          grep -q "admin_set_driver_approval_v2" lib/admin_panel.dart
-          grep -q "admin_set_account_status_v2" lib/admin_panel.dart
-          grep -q "admin_resolve_emergency_v2" lib/admin_panel.dart
-          grep -q "admin_driver_detail_v2" lib/admin_detail_dialogs.dart
-          grep -q "admin_user_detail_v2" lib/admin_detail_dialogs.dart
-          grep -q "admin_trip_detail_v2" lib/admin_detail_dialogs.dart
-          grep -q "admin_update_driver_profile_v2" lib/admin_detail_dialogs.dart
-          grep -q "admin_update_user_profile_v2" lib/admin_detail_dialogs.dart
-          if grep -Fq "AdminEnvironmentStore" lib/admin_driver_document_requirements.dart; then
-            echo "ERROR: document requirements still contain obsolete Preview shadow routing."
-            exit 1
-          fi
-          grep -Fq "admin_driver_document_requirement_list" lib/admin_driver_document_requirements.dart
-          grep -Fq "admin_upsert_driver_document_requirement" lib/admin_driver_document_requirements.dart
-          grep -Fq "admin_delete_driver_document_requirement" lib/admin_driver_document_requirements.dart
-          if grep -Fq "AdminEnvironmentStore" lib/admin_country_coverage.dart; then
-            echo "ERROR: country coverage still contains obsolete Preview shadow routing."
-            exit 1
-          fi
-          grep -Fq "admin_country_list" lib/admin_country_coverage.dart
-          grep -Fq "admin_upsert_country_coverage_v2" lib/admin_country_coverage.dart
-          grep -q "admin_driver_document_requirement_list" lib/admin_driver_document_requirements.dart
-
-          for legacy in             "'admin_set_driver_approval'"             "'admin_set_account_status'"             "'admin_resolve_emergency'"; do
-            if grep -q "$legacy" lib/admin_panel.dart; then
-              echo "ERROR: sensitive Admin action still bypasses runtime scope: $legacy"
-              exit 1
-            fi
-          done
-
-          for legacy in             "'admin_driver_detail'"             "'admin_user_detail'"             "'admin_trip_detail'"             "'admin_update_driver_profile'"             "'admin_update_user_profile'"             "'admin_upsert_driver_document'"; do
-            if grep -q "$legacy" lib/admin_detail_dialogs.dart; then
-              echo "ERROR: detail/editor RPC still bypasses runtime scope: $legacy"
-              exit 1
-            fi
-          done
-
-      - name: Assert Builds, Audit and Reports are system-global without breaking operational scope
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          panel = Path('lib/admin_panel.dart').read_text()
-          builds = Path('lib/admin_single_app_release.dart').read_text()
-          reports = Path('lib/admin_environment_reports.dart').read_text()
-          audit = Path('lib/admin_environment_audit.dart').read_text()
-          checks = {
-            'only Reports, Builds and Audit bypass zone scope':
-              'static const Set<int> _globalSections = {10, 12, 14};' in panel
-              and '!_globalSections.contains(selectedSection)' in panel,
-            'single environment banner is rendered for every module':
-              panel.count('_environmentSwitcher(),') == 1,
-            'country/zone switch hidden for system-global modules':
-              'if (_requiresZoneScope(section))\n                          _globalGeoScopeSwitcher(),' in panel,
-            'other sections still require selected zone':
-              'if (_requiresZoneScope(value) && !_scopeReady)' in panel,
-            'Builds cache scope excludes country/zone':
-              'countryCode: _requiresZoneScope(section)' in panel
-              and 'zoneId: _requiresZoneScope(section)' in panel,
-            'zone monitor access stays restricted':
-              'if (_isZoneMonitor &&' in panel,
-            'Builds publication controls require production access permission':
-              'return AdminSingleAppReleasePage(' in panel
-              and 'productionAccess: allowProduction' in panel
-              and 'bool get canManage => widget.productionAccess;' in builds,
-            'unified Reports view only queries authorized environments':
-              'includePreview: allowPreview' in panel
-              and 'includeProduction: allowProduction' in panel
-              and "supabase.rpc('admin_report_summary_v2'" in reports
-              and "if (widget.includeProduction)" in reports
-              and "if (widget.includePreview)" in reports
-              and "'p_channel': channel" in reports
-              and "widget.channel" not in reports,
-            'unified Audit retains origin and chronological ordering':
-              "supabase.rpc('admin_audit_list_v2'" in audit
-              and 'source_channel' in audit
-              and "rows.sort(" in audit
-              and "if (widget.includeProduction)" in audit
-              and "if (widget.includePreview)" in audit
-              and "'p_channel': channel" in audit
-              and "widget.channel" not in audit,
-            'no Preview/Production UI switch embedded in shared pages':
-              "SegmentedButton" not in reports
-              and "SegmentedButton" not in audit
-              and "SegmentedButton" not in builds,
-          }
-          for description, success in checks.items():
-            if not success:
-              raise SystemExit('FAIL: ' + description)
-          print('PASS: global Builds, Audit, Reports; operational geo + access guards intact.')
-          PY
-
-      - name: Guard identity consolidation inside driver record
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          panel = Path('lib/admin_panel.dart').read_text()
-          detail = Path('lib/admin_detail_dialogs.dart').read_text()
-          controls = Path('lib/admin_control_sections.dart').read_text()
-          assert "title: 'Documentos e identidad'" in detail
-          assert 'admin_driver_document_review_part_v2' in detail
-          assert 'admin_driver_kyc_bolivia_manual_review_part' in detail
-          assert '_reviewPhoto(' in detail
-          assert "case 18:" in panel and "case 27:" in panel
-          assert 'AdminManualIdentityPage' not in panel
-          assert 'AdminIdentitySecurityPage' not in panel
-          assert 'class AdminIdentitySecurityPage' not in controls
-          assert not Path('lib/admin_manual_identity.dart').exists()
-          assert not Path('lib/admin_bolivia_kyc.dart').exists()
-          print('PASS: identity review is consolidated in the driver record; standalone legacy screens removed.')
-          PY
-
-      - name: Guard single Supabase, all Preview modules and per-actor protections
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          config = Path('lib/core/supabase_client.dart').read_text()
-          panel = Path('lib/admin_panel.dart').read_text()
-          env_store = Path('lib/admin_environment_store.dart').read_text()
-          login = Path('lib/main.dart').read_text()
-          workflow = Path('.github/workflows/deploy-web.yml').read_text()
-          assert 'zgpijrznvaskgcmauwxx' in config
-          assert 'xbphilqezmwfjfpdbwad' not in config
-          assert 'const supabaseUrl = _productionUrl;' in config
-          assert 'const supabasePublishableKey = _productionPublishableKey;' in config
-          assert "adminRuntimeChannel = adminIsPreview ? 'preview' : 'production'" in config
-          assert 'validateAdminDeployment()' in config
-          assert "String adminChannel = adminIsPreview ? 'preview' : 'production';" in panel
-          assert 'SegmentedButton<String>(' not in panel.split('Widget _environmentSwitcher() {')[1].split('void _goTo(', 1)[0]
-          assert 'allowPreview = adminIsPreview' in panel
-          assert 'allowProduction = !adminIsPreview' in panel
-          assert "admin_zone_list_for_country" in panel
-          assert "admin_country_list_scoped" in panel
-          assert "void _assertValidChannel()" in env_store
-          assert "throw StateError('Canal administrativo inválido: operación bloqueada')" in env_store
-          assert "return channel == 'preview';" in env_store
-          assert "return channel == 'production';" in env_store
-          assert "bool get isProduction => !isPreview;" not in env_store
-          # All QA business configuration editors must target shadow storage,
-          # never silently resolve to the live production store.
-          docs = Path('lib/admin_driver_document_requirements.dart').read_text()
-          assert 'AdminEnvironmentStore' not in docs
-          assert 'admin_driver_document_requirement_list' in docs
-          assert 'admin_upsert_driver_document_requirement' in docs
-          assert 'admin_delete_driver_document_requirement' in docs
-          # Fare tiers are shared business configuration in both Admin sites.
-          distance = Path('lib/admin_distance_fares.dart').read_text()
-          assert 'AdminEnvironmentStore' not in distance
-          assert 'previewGet(' not in distance
-          assert 'previewUpsert(' not in distance
-          assert "'admin_distance_fare_steps_replace'" in distance
-          assert "'admin_distance_fare_steps_get'" in distance
-          assert "'p_channel': widget.channel" in distance
-          assert "Tarifas de prueba guardadas solo en Preview." not in distance
-          assert "Ambas páginas Admin usan estas reglas." not in distance
-          countries = Path('lib/admin_country_coverage.dart').read_text()
-          assert 'AdminEnvironmentStore' not in countries
-          assert 'previewUpsert(' not in countries
-          assert "'admin_country_list'" in countries
-          assert "'admin_upsert_country_coverage_v2'" in countries
-          controls = Path('lib/admin_control_sections.dart').read_text()
-          for name in ['_AdminZonesPageState','_AdminGeoSafetyPageState',
-                       '_AdminServicesPageState','_AdminFaresPageState',
-                       '_AdminSettingsPageState']:
-              section = controls.split('class '+name,1)[1].split('class ',1)[0]
-              assert 'AdminEnvironmentStore(widget.channel);' in section, name
-              assert "const AdminEnvironmentStore('production')" not in section, name
-          payment_editor = controls.split('Future<bool> showAdminZonePaymentMethodsEditor(',1)[1].split('class ',1)[0]
-          assert 'AdminEnvironmentStore(channel);' in payment_editor
-          zones_editor = controls.split('class _AdminZonesPageState',1)[1].split('class ',1)[0]
-          assert "row?['id'] != null && _environment.usesSharedOperationalConfiguration" in zones_editor
-          assert "'polygon': coverageMode == 'polygon'" in zones_editor
-          assert "usesSharedOperationalConfiguration" in zones_editor
-          detail = Path('lib/admin_detail_dialogs.dart').read_text()
-          assert "title: 'Documentos e identidad'" in detail
-          assert 'AdminManualIdentityPage' not in panel
-          assert 'AdminIdentitySecurityPage' not in panel
-          assert "AdminDistanceFaresEditor(" in Path('lib/admin_control_sections.dart').read_text()
-          assert 'productionAccess: allowProduction && !adminIsPreview' in panel
-          # Preview and Production expose the same module pages. Only actor
-          # operations (users, drivers, trips and deliveries) are channel-
-          # scoped. Server-side QA validation must never be replaced by a
-          # hidden or disabled menu entry.
-          assert 'static const Set<int> _previewScopedModules' not in panel
-          assert 'Este módulo todavía no tiene aislamiento seguro por canal.' not in panel
-          for module_id in range(29):
-              assert f'case {module_id}:' in panel, f'Missing module {module_id}'
-          assert 'if (_isZoneMonitor &&' in panel
-          assert 'productionAccess: allowProduction && !adminIsPreview' in panel
-          assert 'if (adminIsPreview) return _ExpressPanelAccess.denied;' in login
-          # Preview and Production share the Supabase project, but MUST NOT
-          # persist the same browser login session / OAuth callback session.
-          assert 'authOptions: adminIsPreview' in login
-          assert 'persistSessionKey: adminPreviewAuthSessionStorageKey' in login
-          assert ': const FlutterAuthClientOptions()' in login
-          assert 'SharedPreferencesLocalStorage(' in login
-          assert login.count("'admin_environment_allowed'") >= 2
-          assert 'if (isAdmin && !allowedForPage)' in login
-          assert 'if (!allowedForPage && !hasPartnerAccess)' in login
-          assert "'p_channel': adminRuntimeChannel" in login
-          assert 'Acceso de Prueba · sesión independiente' in login
-          assert 'Acceso de Producción' in login
-          # Google OAuth callback must never silently target the passenger web.
-          assert "redirectTo: adminPreviewGoogleOAuthRedirectUrl" in login
-          assert "redirectTo: Uri.base.toString()" not in login
-          assert "adminPreviewGoogleOAuthRedirectUrl =" in config
-          assert "'https://admin.expressviajes.online/preview/'" in config
-          assert "'https://expressviajes.online/'" not in config
-          assert login.count('supabase.auth.signOut(scope: SignOutScope.local)') == 3
-          assert 'supabase.auth.signOut()' not in login
-          assert 'adminPreviewAuthSessionStorageKey' in config
-          assert 'express-admin-preview-zgpijrznvaskgcmauwxx-session-v1' in config
-          assert '--dart-define=ADMIN_ENV=production' in workflow
-          assert '--dart-define=ADMIN_ENV=preview' in workflow
-          assert '--base-href /preview/' in workflow
-          assert 'path: build/site' in workflow
-          assert 'preview_source_sha' in workflow
-          assert 'production_snapshot_run_id' in workflow, 'Preview must require a durable Production snapshot'
-          assert 'name: production-snapshot' in workflow
-          assert 'retention-days: 90' in workflow
-          assert 'Verify live Preview SHA and unchanged Production marker' in workflow
-          assert "inputs.confirm_production == 'PUBLICAR PRODUCCION'" in workflow
-          assert 'snapshot_source_run_id' in workflow
-          assert 'run-id: 38080952559' not in workflow, 'Hard-coded expired Production artifact must not return'
-          assert "[deploy-preview-only]" not in workflow, 'Push-tag deployment path must stay retired'
-          assert "const supabaseUrl = _productionUrl;" in workflow
-          navigation = Path('lib/core/admin_environment_navigation.dart').read_text()
-          assert "adminIsPreview ? 'Ir a Producción' : 'Ir a Prueba'" in navigation
-          assert "Uri.base.resolve(adminIsPreview ? '../' : 'preview/')" in navigation
-          assert "webOnlyWindowName: '_self'" in navigation
-          assert 'AdminEnvironmentLinkButton()' in panel
-          assert 'AdminEnvironmentLinkButton()' in login
-          assert '_previewUnlockAllModules' not in panel, 'Shared-backend Preview must not bypass unscoped module guard'
-          # Dispatch (13) must be a pure QA shadow simulation:
-          # production RPCs remain in an entirely separate code path.
-          assert "if (widget.channel == 'preview') return _buildPreviewDispatch();" in controls
-          assert "AdminEnvironmentStore(widget.channel)" in controls
-          dispatch_qa = controls.split(
-              "// Preview dispatch is an entirely synthetic simulator.", 1
-          )[1].split("  @override\n  Widget build(BuildContext context)", 1)[0]
-          assert "'manual_dispatch_rides'" in dispatch_qa
-          assert "admin_preview_driver_subscription_candidates" in dispatch_qa
-          assert "_qaDispatchStore.previewUpsert(" in dispatch_qa
-          assert "ride['is_qa'] != true" in dispatch_qa
-          assert "chosen.first['name']" in dispatch_qa
-          assert "widget.zoneId" in dispatch_qa
-          for unsafe in ["'admin_assign_ride_v2'", "'admin_assign_delivery_v2'",
-                         "'admin_open_service_requests_v2'", "'admin_available_drivers_v2'",
-                         "supabase.functions.invoke("]:
-              assert unsafe not in dispatch_qa, unsafe
-          # Subscription plans, payments and gateway must be the real shared
-          # backend in both Admin sites; only the selected driver is QA.
-          subscriptions = Path('lib/admin_driver_subscriptions.dart').read_text()
-          assert "'admin_preview_driver_subscription_candidates'" in subscriptions
-          preview_code = subscriptions.split('if (_environment.isPreview) {', 1)[1].split('return;', 1)[0]
-          assert "'admin_driver_subscriptions'" not in preview_code
-          assert "'admin_preview_driver_subscription_candidates'" in preview_code
-          assert "'driver_subscription_plans'" in preview_code
-          assert "'admin_zone_subscription_settings'" in preview_code
-          assert "'admin_subscription_payment_list_v2'" in preview_code
-          assert "'driver-subscription-admin'" in preview_code
-          assert "if (_environment.isPreview && driver['is_qa'] != true)" in subscriptions
-          assert "'admin_set_driver_subscription'" in subscriptions
-          assert "onPressed: selectedZone == null" in subscriptions
-          assert "usesSharedOperationalConfiguration" in subscriptions
-          # Server RPC is additive, auth-guarded and read-only; never copies
-          # any live driver subscription into client side QA data.
-          sql = Path('docs/preview/migrations/20261011_shared_db_subscriptions_qa_candidates.sql').read_text()
-          assert "admin_environment_allowed('preview')" in sql
-          assert "audit_test_group_members" in sql
-          assert "REVOKE ALL" in sql
-          assert "INSERT INTO" not in sql.upper()
-          assert "UPDATE public." not in sql
-          # Shared global settings must be inherited, not silently mocked.
-          controls = Path('lib/admin_control_sections.dart').read_text()
-          settings = controls.split('class _AdminSettingsPageState',1)[1].split('class ',1)[0]
-          advanced = controls.split('class _AdminAdvancedSettingsPageState',1)[1].split('class ',1)[0]
-          assert "final row = _map(await supabase.rpc('admin_settings_get'))" in settings
-          assert "Configuración global compartida con Producción" in settings
-          assert "final value = await supabase.rpc('admin_settings_get')" in advanced
-          assert "usesSharedOperationalConfiguration" in advanced
-          assert "onPressed: !_environment.usesSharedOperationalConfiguration ? null" in advanced
-          # Live data is never mutated by Android Builds in Preview.
-          assert 'productionAccess: allowProduction && !adminIsPreview' in panel
-          release = Path('lib/admin_single_app_release.dart').read_text()
-          assert "supabase.rpc('admin_build_list')" in release
-          # Demand pricing is segmented by channel, and overrides are QA-only.
-          demand = Path('lib/admin_dynamic_pricing.dart').read_text()
-          assert "'admin_dynamic_pricing_qa_state_scoped'" in demand
-          assert "'p_channel': widget.channel" in demand
-          assert "'admin_update_dynamic_pricing_settings'" in demand
-          assert "'p_channel': channel" in demand
-          assert "'admin_set_dynamic_pricing_qa_override'" in demand
-          # Server calls for Priority (25) are scoped by channel and QA driver.
-          priority = Path('lib/admin_driver_priority.dart').read_text()
-          assert "'admin_driver_priority_state_scoped'" in priority
-          assert "'admin_update_driver_priority_settings_v2'" in priority
-          assert "'p_channel': widget.channel" in priority
-          assert "widget.channel == 'preview'" in priority
-          assert "'p_enabled': widget.channel == 'preview'" in priority
-          assert "'p_zone_id': zoneId" in priority
-
-          # Regression: subscriptions is section 22 and must be accessible
-          # with the shared backend, while permission checks remain in each operation.
-          assert "('Suscripciones', Icons.workspace_premium_rounded)" in panel
-          assert "case 22:" in panel
-          assert "return AdminDriverSubscriptionsPage(" in panel
-          assert "'Este módulo todavía no tiene aislamiento seguro por canal." not in panel
-          # Enforce user-visible build diagnostic: the older open tab can
-          # still run outdated Flutter JS even if /version.json changed.
-          page = Path('web/index.html').read_text()
-          assert "__EXPRESS_PREVIEW_BUILD_SHA__" in page
-          assert "document.addEventListener('visibilitychange', checkVersion)" in page
-          assert "button.textContent = 'Recargar'" in page
-          assert "__EXPRESS_PREVIEW_BUILD_SHA__" in workflow
-          assert "data['commit'] = os.environ['PREVIEW_SHA']" in workflow
-          assert "data['environment'] = 'preview'" in workflow
-          assert "data['supabase_project_ref'] = 'zgpijrznvaskgcmauwxx'" in workflow
-          assert "EXPECTED_PREVIEW_SHA" in workflow
-          assert "Production SHA unexpectedly changed" in workflow
-          print('PASS: same physical Supabase; full Preview navigation; actor and release guards retained.')
-          PY
-
-      - name: Analyze admin modules
-        run: |
-          flutter analyze --no-fatal-warnings --no-fatal-infos \
-            lib/admin_panel.dart \
-            lib/main.dart \
-            lib/partner_panel.dart \
-            lib/core/admin_widgets.dart \
-            lib/core/admin_design_tokens.dart \
-            lib/core/admin_records_table.dart \
-            lib/core/admin_delivery_row.dart \
-            lib/core/admin_sos_row.dart \
-            lib/core/admin_live_zone_strip.dart \
-            lib/admin_environment_reports.dart \
-            lib/admin_environment_audit.dart \
-            lib/admin_marketplace.dart \
-            lib/admin_marketplace_phase2.dart \
-            lib/admin_driver_priority.dart \
-            lib/admin_dynamic_pricing.dart \
-            lib/admin_driver_subscriptions.dart \
-            lib/core/supabase_client.dart \
-            lib/admin_single_app_release.dart \
-            lib/admin_environment_reports.dart \
-            lib/admin_environment_audit.dart \
-            lib/admin_control_sections.dart \
-            lib/admin_driver_subscriptions.dart \
-            lib/admin_environment_store.dart \
-            lib/core/admin_environment_navigation.dart \
-            lib/admin_marketplace.dart \
-            lib/admin_marketplace_phase2.dart \
-            lib/admin_driver_priority.dart \
-            lib/admin_dynamic_pricing.dart \
-            lib/admin_driver_document_requirements.dart \
-            lib/admin_country_coverage.dart \
-            lib/admin_distance_fares.dart
-      - name: Verify responsive mockup components
-        run: |
-          flutter test test/admin_mockup_widgets_test.dart
-          flutter test test/admin_records_table_test.dart
-          flutter test test/admin_delivery_row_test.dart
-          flutter test test/admin_detail_dialog_frame_test.dart
-          flutter test test/admin_priority_metrics_test.dart
-          flutter test test/admin_stage_edit_dialog_title_test.dart
-          flutter test test/admin_zone_coverage_mode_selector_test.dart
-          flutter test test/admin_demand_stats_grid_test.dart
-          flutter test test/admin_zone_summary_card_test.dart
-          flutter test test/admin_responsive_form_grid_test.dart
-          flutter test test/admin_responsive_split_test.dart
-          flutter test test/admin_sos_row_test.dart
-          flutter test test/admin_plain_page_heading_test.dart
-          flutter test test/admin_live_zone_strip_test.dart
-      - name: Verify active polygon vs radio zone labels
-        run: flutter test test/admin_zone_coverage_label_test.dart
-      - name: Verify invalid environment channel fails closed in release and QA
-        run: flutter test test/admin_environment_store_test.dart
-      - name: Build admin production web smoke test
-        run: flutter build web --release --dart-define=ADMIN_ENV=production
-      - name: Build admin shared-database Preview web smoke test
-        run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
+          flutter analyze --no-fatal-warnings --no-fatal-infos             lib/main.dart             lib/admin_panel.dart             lib/core/supabase_client.dart             lib/admin_detail_dialogs.dart             lib/admin_control_sections.dart
