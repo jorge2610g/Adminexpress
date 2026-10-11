@@ -51,3 +51,8 @@ CI ya no debe exigir archivos de identidad retirados. La validación exige que l
 - Existen funciones `SECURITY DEFINER` ejecutables por `anon`; requieren revisión individual porque algunas pertenecen al arranque/login público y otras pueden necesitar restricción.
 - Existen índices marcados como no usados y claves foráneas sin índice de apoyo. No se eliminan índices por contador de uso sin revisar tráfico real y planes de consulta.
 - Persisten ramas de código shadow dentro de módulos antiguos; donde `usesSharedOperationalConfiguration` es siempre `true`, esas ramas son candidatas a simplificación posterior, pero se deben retirar por módulo para no borrar los simuladores QA que sí son intencionales.
+
+
+## Archivo pendiente retirado del árbol activo
+
+`docs/preview/migrations/20261011_dispatch_channel_qa_membership_guard_pending.sql` era una propuesta no desplegada marcada PENDING. Se retiró del árbol activo para que no pueda confundirse con migración vigente. La copia histórica permanece en `archive/legacy-code-20261011`.
