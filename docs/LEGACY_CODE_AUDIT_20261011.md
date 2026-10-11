@@ -56,3 +56,16 @@ CI ya no debe exigir archivos de identidad retirados. La validación exige que l
 ## Archivo pendiente retirado del árbol activo
 
 `docs/preview/migrations/20261011_dispatch_channel_qa_membership_guard_pending.sql` era una propuesta no desplegada marcada PENDING. Se retiró del árbol activo para que no pueda confundirse con migración vigente. La copia histórica permanece en `archive/legacy-code-20261011`.
+
+
+## CI y migraciones históricas retiradas
+
+Se retiraron del árbol activo dos workflows especializados que solo escuchaban ramas de feature antiguas y cuya validación ya está cubierta por `validate-preview-production-split.yml`:
+- `.github/workflows/driver-onboarding-validate.yml`
+- `.github/workflows/validate-zone-payment-providers.yml`
+
+También se retiraron dos SQL históricos exclusivos del proyecto Preview eliminado `xbphilqezmwfjfpdbwad`, porque contradicen el backend Supabase único actual:
+- `docs/preview/migrations/20261010_distance_fares_preview_only.sql`
+- `docs/preview/migrations/20261010_preview_admob_zone_coverage.sql`
+
+Sus versiones completas siguen en `archive/legacy-code-20261011`.
