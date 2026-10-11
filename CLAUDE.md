@@ -38,6 +38,12 @@ Los documentos marcados **HISTÓRICO / SUPERADO** no son instrucciones vigentes.
 - `account_runtime_bindings.environment` fija `preview` o `production`.
 - La verificación de identidad está integrada en la ficha del conductor; no debe recrearse un menú duplicado.
 
+## Paridad obligatoria Preview / Producción
+
+Para cualquier cambio no visual, Claude/Cloud y cualquier otro agente deben aplicar `docs/PREVIEW_PRODUCTION_PARITY_RULE.md`.
+
+En resumen: una sola implementación compartida, más una rama temporal `preview/<slug>` para validar el mismo cambio con datos Preview antes del merge. No crear una segunda versión permanente del código.
+
 ## Reglas de seguridad
 
 - No guardar service-role keys, passwords, tokens, keystores ni secretos en Git.

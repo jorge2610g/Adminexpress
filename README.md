@@ -46,6 +46,14 @@ Los operadores de ciudad usan el mismo panel. No se crea otra web para ellos.
 
 El modelo permite añadir nuevos roles sin duplicar frontend.
 
+## Regla de paridad
+
+Los cambios de flujo/backend deben quedar sincronizados entre Preview y Producción en la misma entrega.
+
+Para QA se usa una rama temporal `preview/<slug>` con **el mismo código funcional**. No mantener lógica separada por entorno.
+
+Ver `docs/PREVIEW_PRODUCTION_PARITY_RULE.md`.
+
 ## Identidad
 
 La revisión de identidad y documentos se realiza dentro de la **ficha del conductor**.

@@ -48,6 +48,19 @@ Reglas:
 - No reintroducir `_previewScopedModules`.
 - No reintroducir `PREVIEW_AUTHORIZED` como mecanismo de publicación de otro bundle.
 
+## Regla obligatoria de paridad Preview / Producción
+
+Todo cambio **no visual** de flujo, backend, permisos, RPC, SQL, configuración o comportamiento debe quedar funcionando también en Preview antes de considerarse terminado.
+
+- el código es único y compartido;
+- para cada cambio funcional/backend se crea una rama temporal `preview/<slug>` para validar el mismo commit con datos Preview;
+- esa rama NO puede convertirse en otra implementación permanente;
+- si QA exige correcciones, se corrige la rama principal del cambio y Preview se vuelve a sincronizar al mismo código;
+- no se acepta “Producción ahora y Preview después” salvo excepción explícita del propietario;
+- cambios visuales puros quedan fuera si no alteran flujo, consultas, permisos ni acciones.
+
+Contrato completo: `docs/PREVIEW_PRODUCTION_PARITY_RULE.md`.
+
 ## Acceso por usuario
 
 La sesión administrativa se resuelve con:

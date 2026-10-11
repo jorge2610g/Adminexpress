@@ -59,6 +59,16 @@ Roles implementados:
 
 Los operadores por ciudad usan el **mismo panel**. Se les asigna zona y módulos, no una nueva página.
 
+## 5. Regla de paridad Preview / Producción
+
+Todo cambio funcional o backend debe validarse también en Preview con el mismo código antes del merge.
+
+Se usa una rama temporal `preview/<slug>` como rama de validación, nunca como segunda implementación permanente.
+
+Los cambios visuales puros pueden omitirla si no alteran comportamiento.
+
+Leer: `docs/PREVIEW_PRODUCTION_PARITY_RULE.md`.
+
 ## 5. Identidad de conductor
 
 La revisión de documentos e identidad está dentro de la ficha del conductor.
