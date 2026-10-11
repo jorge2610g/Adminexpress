@@ -3,7 +3,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'core/supabase_client.dart';
-import 'core/admin_environment_navigation.dart';
 import 'admin_environment_store.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
@@ -205,7 +204,13 @@ ThemeData _expressAdminTheme(BuildContext context) {
 
 class ExpressAdminPanel extends StatefulWidget {
   final VoidCallback onExit;
-  const ExpressAdminPanel({super.key, required this.onExit});
+  final String initialChannel;
+
+  const ExpressAdminPanel({
+    super.key,
+    required this.onExit,
+    required this.initialChannel,
+  });
 
   @override
   State<ExpressAdminPanel> createState() => _ExpressAdminPanelState();
@@ -214,7 +219,7 @@ class ExpressAdminPanel extends StatefulWidget {
 class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   int section = 0;
   int revision = 0;
-  String adminChannel = adminIsPreview ? 'preview' : 'production';
+  late String adminChannel;
   bool allowPreview = true;
   bool allowProduction = true;
   String? liveZoneId;
@@ -255,6 +260,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   @override
   void initState() {
     super.initState();
+    adminChannel = widget.initialChannel;
     _authFuture = _authorized();
     _liveFuture = null;
   }
@@ -297,13 +303,23 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     final access = Map<String, dynamic>.from(value);
     if (access['allowed'] != true) return false;
 
-    // Both websites connect to MAIN. Backend checks allow_preview and
-    // allow_production, plus target account runtime environment.
+    final runtime = access['runtime_environment']?.toString();
+    if (runtime != 'preview' && runtime != 'production') return false;
+    if (runtime != widget.initialChannel) return false;
+
     adminAccess = access;
-    allowPreview = adminIsPreview && access['allow_preview'] != false;
-    allowProduction = !adminIsPreview && access['allow_production'] != false;
-    adminChannel = adminIsPreview ? 'preview' : 'production';
-    if (adminIsPreview ? !allowPreview : !allowProduction) return false;
+    adminChannel = runtime!;
+    allowPreview =
+        adminChannel == 'preview' && access['allow_preview'] != false;
+    allowProduction =
+        adminChannel == 'production' && access['allow_production'] != false;
+
+    if (!await supabase.rpc(
+      'admin_environment_allowed',
+      params: {'p_channel': adminChannel},
+    )) {
+      return false;
+    }
 
     if (access['role']?.toString() == 'zone_monitor') {
       adminCountryCode =
@@ -901,63 +917,45 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     });
   }
 
-  // ADMIN_ENV selects a fixed website data channel, not a database project.
-  // Preview is restricted to reviewed channel-scoped modules.
+  /// Visible runtime badge. The authenticated identity fixes the environment;
+  /// there is deliberately no in-app Preview/Production switch.
   Widget _environmentSwitcher() {
-    final preview = adminIsPreview;
-    final icon = Icon(
-      preview ? Icons.science_rounded : Icons.verified_rounded,
-      size: 19,
-      color: preview ? const Color(0xFFB54708) : const Color(0xFF14804A),
-    );
-    final title = Text(
-      preview
-          ? 'EXPRESS PREVIEW · Solo registros de prueba'
-          : 'EXPRESS PRODUCCIÓN · Datos reales',
-      style: TextStyle(
-        color: preview ? const Color(0xFF7A2E0E) : const Color(0xFF0F6848),
-        fontSize: 12,
-        fontWeight: FontWeight.w900,
-      ),
-    );
-
+    final preview = adminChannel == 'preview';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       color: preview ? const Color(0xFFFFF7E6) : const Color(0xFFE8F8EF),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // On narrow phones the button sits on its own line.
-          final badge = Row(
-            children: [
-              icon,
-              const SizedBox(width: 9),
-              Expanded(child: title),
-            ],
-          );
-          if (constraints.maxWidth < 580) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                badge,
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: const AdminEnvironmentLinkButton(),
-                ),
-              ],
-            );
-          }
-          return Row(
-            children: [
-              icon,
-              const SizedBox(width: 9),
-              Expanded(child: title),
-              const SizedBox(width: 12),
-              const AdminEnvironmentLinkButton(),
-            ],
-          );
-        },
+      child: Row(
+        children: [
+          Icon(
+            preview ? Icons.science_rounded : Icons.verified_rounded,
+            size: 19,
+            color: preview ? const Color(0xFFB54708) : const Color(0xFF14804A),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              preview
+                  ? 'EXPRESS PREVIEW · Datos de prueba'
+                  : 'EXPRESS PRODUCCIÓN · Datos reales',
+              style: TextStyle(
+                color:
+                    preview ? const Color(0xFF7A2E0E) : const Color(0xFF0F6848),
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          Text(
+            'Entorno asignado por usuario',
+            style: TextStyle(
+              color:
+                  preview ? const Color(0xFF935B0B) : const Color(0xFF156C41),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1251,7 +1249,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         return AdminSettingsPage(channel: adminChannel);
       case 12:
         return AdminSingleAppReleasePage(
-          productionAccess: allowProduction && !adminIsPreview,
+          productionAccess: allowProduction && adminChannel == 'production',
         );
       case 13:
         return AdminDispatchPage(
