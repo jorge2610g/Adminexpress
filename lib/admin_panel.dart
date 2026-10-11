@@ -239,11 +239,6 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // These administration modules cover the entire Express system rather than
   // an operational country, zone, or a separate Preview/Production mode.
   static const Set<int> _globalSections = {10, 12, 14}; // Reports, Builds, Audit
-  // The only Preview modules vetted for shared-database scoped operations.
-  // Every other module may run unscoped RPCs and must fail closed in QA.
-  static const Set<int> _previewScopedModules = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 14, 16, 17, 18, 27,
-  };
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
 
@@ -1175,22 +1170,6 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _body(int value) {
-    // Fail closed: a shared database also has REAL merchants, subscriptions,
-    // payments and releases. Never run unscoped Preview module RPCs.
-    if (adminIsPreview && !_previewScopedModules.contains(value)) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'Este módulo todavía no tiene aislamiento seguro por canal. '
-            'Está bloqueado en Prueba para proteger los datos reales. '
-            'Puedes gestionar conductores, documentos, viajes y '
-            'configuración QA desde sus secciones.',
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
     if (_requiresZoneScope(value) && !_scopeReady) {
       return const _ScopeSelectionRequired();
     }
