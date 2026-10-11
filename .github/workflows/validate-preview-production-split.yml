@@ -178,7 +178,7 @@ jobs:
           print('PASS: production/preview identity UI is manual-only, no legacy session feed.')
           PY
 
-      - name: Guard shared Supabase and fail-closed Preview routing
+      - name: Guard single Supabase, all Preview modules and per-actor protections
         shell: bash
         run: |
           python3 - <<'PY'
@@ -240,27 +240,16 @@ jobs:
           assert "AdminManualIdentityPage(" in panel and "AdminIdentitySecurityPage(" in panel
           assert "AdminDistanceFaresEditor(" in Path('lib/admin_control_sections.dart').read_text()
           assert 'productionAccess: allowProduction && !adminIsPreview' in panel
-          assert 'static const Set<int> _previewScopedModules' in panel
-          # In general, Preview is fail-closed. The owner explicitly requested
-          # a temporary all-modules visual QA pass on ONE unmerged PR branch.
-          # Main and every other branch must retain the normal guard.
-          normal_guard = 'if (adminIsPreview && !_previewScopedModules.contains(value))'
-          qa_guard = ('if (adminIsPreview &&\n'
-                      '        !_previewUnlockAllModules &&\n'
-                      '        !_previewScopedModules.contains(value))')
-          if qa_guard in panel:
-              import os
-              assert os.environ.get('GITHUB_HEAD_REF') == 'claude/admin-preview-unlock-2026-10-10', 'QA unlock forbidden outside dedicated PR'
-              assert os.environ.get('GITHUB_BASE_REF') == 'main'
-              assert 'static const bool _previewUnlockAllModules = true;' in panel
-              assert 'productionAccess: allowProduction && !adminIsPreview' in panel
-              print('WARNING: temporary all-modules Preview UI enabled on dedicated QA PR only.')
-          else:
-              assert normal_guard in panel
-          for safe in ['0','1','2','3','4','5','6','7','8','10','11','12','13','14','16','17','18','19','22','25','27','28']:
-              assert safe in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
-          for blocked in ['9','15','20','21','23','24','26']:
-              assert blocked not in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
+          # Preview and Production expose the same module pages. Only actor
+          # operations (users, drivers, trips and deliveries) are channel-
+          # scoped. Server-side QA validation must never be replaced by a
+          # hidden or disabled menu entry.
+          assert 'static const Set<int> _previewScopedModules' not in panel
+          assert 'Este módulo todavía no tiene aislamiento seguro por canal.' not in panel
+          for module_id in range(29):
+              assert f'case {module_id}:' in panel, f'Missing module {module_id}'
+          assert 'if (_isZoneMonitor &&' in panel
+          assert 'productionAccess: allowProduction && !adminIsPreview' in panel
           assert 'if (adminIsPreview) return _ExpressPanelAccess.denied;' in login
           # Preview and Production share the Supabase project, but MUST NOT
           # persist the same browser login session / OAuth callback session.
@@ -289,10 +278,7 @@ jobs:
           assert '--base-href /preview/' in workflow
           assert 'path: build/site' in workflow
           assert 'preview_source_sha' in workflow
-          if qa_guard in panel:
-              assert "run-id: 38080952559" in workflow, 'QA must use last available known-good published Production artifact'
-          else:
-              assert "run-id: 38080952559" in workflow, 'QA must preserve the approved Production artifact'
+          assert "run-id: 38080952559" in workflow, 'Preview must preserve the approved Production artifact'
           assert 'Verify live Preview SHA and unchanged Production marker' in workflow
           assert 'EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df' in workflow
           assert "contains(github.event.head_commit.message, '[deploy-preview-only]')" in workflow
