@@ -241,6 +241,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       preview_sha: ${{ steps.resolve_preview.outputs.preview_sha }}
+      production_sha: ${{ steps.production_marker.outputs.production_sha }}
     steps:
       - name: Resolve pinned Preview source
         id: resolve_preview
@@ -323,6 +324,18 @@ jobs:
           find build/site -type f ! -path 'build/site/preview/*' -print0 \
             | sort -z | xargs -0 sha256sum > /tmp/exact-prod-manifest
           echo "PASS: Production site matches published artifact exactly."
+
+      - name: Read preserved Production marker
+        id: production_marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          PRODUCTION_SHA="$(python3 -c "import json; print(json.load(open('build/site/version.json'))['commit'])")"
+          [[ "$PRODUCTION_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "ERROR: preserved Production version.json has an invalid commit."
+            exit 1
+          }
+          echo "production_sha=$PRODUCTION_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Checkout pinned Preview QA code without changing main
         uses: actions/checkout@v5
@@ -426,7 +439,7 @@ jobs:
         shell: bash
         env:
           EXPECTED_PREVIEW_SHA: ${{ needs.preview_only.outputs.preview_sha }}
-          EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df
+          EXPECTED_PRODUCTION_SHA: ${{ needs.preview_only.outputs.production_sha }}
         run: |
           set -euo pipefail
           BASE="https://admin.expressviajes.online"
