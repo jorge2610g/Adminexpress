@@ -250,7 +250,7 @@ jobs:
           if qa_guard in panel:
               import os
               assert (os.environ.get('GITHUB_HEAD_REF') or os.environ.get('GITHUB_REF','').removeprefix('refs/heads/')) in ('claude/admin-preview-unlock-2026-10-10', 'chatgpt/admin-preview-independent-20261010'), 'QA unlock forbidden outside dedicated PR'
-              assert os.environ.get('GITHUB_BASE_REF', 'main') in ('main', 'claude/admin-preview-unlock-2026-10-10')
+              assert (os.environ.get('GITHUB_BASE_REF') or 'main') in ('main', 'claude/admin-preview-unlock-2026-10-10')
               assert 'static const bool _previewUnlockAllModules = true;' in panel
               assert 'productionAccess: allowProduction && !adminIsPreview' in panel
               print('WARNING: temporary all-modules Preview UI enabled on dedicated QA PR only.')
