@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+import 'core/admin_widgets.dart';
+import 'core/admin_stage_edit_dialog_title.dart';
+
 import 'core/supabase_client.dart';
 
-const _blue = Color(0xFF2563EB);
-const _ink = Color(0xFF0F172A);
-const _muted = Color(0xFF64748B);
-const _bg = Color(0xFFF1F5F9);
+const _blue = AdminColors.blue;
+const _ink = AdminColors.ink;
+const _muted = AdminColors.muted;
+const _bg = AdminColors.bg;
 
 class AdminMarketplacePhase2Page extends StatefulWidget {
   final bool ordersOnly;
@@ -169,8 +173,10 @@ class _AdminMarketplacePhase2PageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            'Delivery · ' + (row['zone_name']?.toString() ?? 'Zona'),
+          title: AdminStageEditDialogTitle(
+            title: 'Delivery · ${row['zone_name']?.toString() ?? 'Zona'}',
+            subtitle: widget.channel == 'preview' ? 'Preview · Tarifas' : 'Producción · Tarifas',
+            icon: Icons.delivery_dining_outlined,
           ),
           content: SizedBox(
             width: 680,
@@ -425,8 +431,10 @@ class _AdminMarketplacePhase2PageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            'Express Plus · ' + (row['zone_name']?.toString() ?? ''),
+          title: AdminStageEditDialogTitle(
+            title: 'Express Plus · ${row['zone_name']?.toString() ?? ''}',
+            subtitle: widget.channel == 'preview' ? 'Preview · Suscripciones' : 'Producción · Suscripciones',
+            icon: Icons.bolt_outlined,
           ),
           content: SizedBox(
             width: 560,
@@ -575,8 +583,10 @@ class _AdminMarketplacePhase2PageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            'Plus · ' + (merchant['name']?.toString() ?? 'Comercio'),
+          title: AdminStageEditDialogTitle(
+            title: 'Plus · ${merchant['name']?.toString() ?? 'Comercio'}',
+            subtitle: widget.channel == 'preview' ? 'Preview · Beneficios' : 'Producción · Beneficios',
+            icon: Icons.local_offer_outlined,
           ),
           content: SizedBox(
             width: 480,
@@ -692,8 +702,10 @@ class _AdminMarketplacePhase2PageState
     final save = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(
-          'Logística · ' + (merchant['name']?.toString() ?? ''),
+        title: AdminStageEditDialogTitle(
+          title: 'Logística · ${merchant['name']?.toString() ?? ''}',
+          subtitle: widget.channel == 'preview' ? 'Preview · Comercio' : 'Producción · Comercio',
+          icon: Icons.store_outlined,
         ),
         content: SizedBox(
           width: 560,
@@ -1282,14 +1294,14 @@ class _AdminMarketplacePhase2PageState
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: active
-            ? const Color(0xFFE8F8EF)
+            ? AdminColors.okSoft
             : const Color(0xFFF2F4F7),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: active ? const Color(0xFF14804A) : _muted,
+          color: active ? AdminColors.ok : _muted,
           fontSize: 10,
           fontWeight: FontWeight.w800,
         ),
@@ -1304,7 +1316,12 @@ class _AdminMarketplacePhase2PageState
     required String countLabel,
     required VoidCallback onTap,
   }) {
-    return Card(
+    return Material(
+      color: AdminColors.surface,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AdminColors.border),
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
@@ -1314,7 +1331,7 @@ class _AdminMarketplacePhase2PageState
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: const Color(0xFFEAF2FF),
+                backgroundColor: AdminColors.blueSoft,
                 child: Icon(icon, color: _blue),
               ),
               const SizedBox(width: 14),
@@ -1675,41 +1692,21 @@ class _AdminMarketplacePhase2PageState
           return ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Delivery · Configuración',
-                          style: TextStyle(
-                            color: _ink,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Cada bloque abre su propia administración para mantener el panel compacto.',
-                          style: TextStyle(color: _muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Actualizar'),
-                  ),
-                ],
+              AdminPlainPageHeading(
+                title: 'Delivery · Configuración',
+                subtitle: 'Cada bloque abre su propia administración para mantener el panel compacto.',
+                trailing: OutlinedButton.icon(
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Actualizar'),
+                ),
               ),
               const SizedBox(height: 22),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final columns = constraints.maxWidth >= 1050
+                  final columns = constraints.maxWidth >= 900
                       ? 3
-                      : constraints.maxWidth >= 680
+                      : constraints.maxWidth >= 600
                           ? 2
                           : 1;
                   final gap = 12.0;
@@ -1761,13 +1758,12 @@ class _AdminMarketplacePhase2PageState
                 },
               ),
               const SizedBox(height: 18),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
+              AdminCard(
+                padding: const EdgeInsets.all(16),
+                child: Row(
                     children: [
                       const CircleAvatar(
-                        backgroundColor: Color(0xFFEAF2FF),
+                        backgroundColor: AdminColors.blueSoft,
                         child: Icon(Icons.receipt_long_rounded, color: _blue),
                       ),
                       const SizedBox(width: 12),
@@ -1793,7 +1789,6 @@ class _AdminMarketplacePhase2PageState
                       ),
                     ],
                   ),
-                ),
               ),
             ],
           );

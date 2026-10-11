@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'core/admin_design_tokens.dart';
+import 'core/admin_stage_edit_dialog_title.dart';
+
 import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
 
-const Color _countryBlue = Color(0xFF2563EB);
-const Color _countryMuted = Color(0xFF64748B);
+const Color _countryBlue = AdminColors.blue;
+const Color _countryMuted = AdminColors.muted;
 
 class AdminCountryCoveragePage extends StatefulWidget {
   final String channel;
@@ -44,6 +47,87 @@ class _AdminCountryCoveragePageState
       return rows;
     }
     return _list(await supabase.rpc('admin_country_list'));
+  }
+
+  /// Seed only the QA shadow store with non-sensitive country references.
+  /// Existing Preview records are preserved; this never edits service_countries.
+  Future<void> _seedPreviewCountryReferences() async {
+    if (!_environment.isPreview) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Preparar países de prueba'),
+        content: const Text(
+          'Se copiarán únicamente nombre, código de país, moneda y prefijo '
+          'a la configuración QA de Preview. Todos los países y registros de '
+          'conductores quedarán desactivados por defecto. No se modificarán '
+          'los países reales de Producción.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Preparar QA'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted || !_environment.isPreview) return;
+
+    try {
+      final existing = await _environment.previewList('service_countries');
+      final existingCodes = existing
+          .map((row) => row['country_code']?.toString().toUpperCase())
+          .whereType<String>()
+          .toSet();
+      final source = _list(await supabase.rpc('admin_country_list'));
+      var created = 0;
+      for (final country in source) {
+        if (!mounted || !_environment.isPreview) return;
+        final code = country['country_code']?.toString().trim().toUpperCase();
+        final currency = country['currency_code']?.toString().trim().toUpperCase();
+        if (code == null || code.length != 2 || existingCodes.contains(code)) {
+          continue;
+        }
+        if (currency == null || currency.length != 3) continue;
+        await _environment.previewUpsert(
+          'service_countries',
+          code,
+          <String, dynamic>{
+            'country_code': code,
+            'name': country['name']?.toString() ?? code,
+            'currency_code': currency,
+            'calling_code': country['calling_code']?.toString() ?? '',
+            'active': false,
+            'driver_registration_enabled': false,
+            'didit_enabled': false,
+            'manual_fallback_enabled': true,
+          },
+        );
+        existingCodes.add(code);
+        created++;
+      }
+      if (mounted) {
+        setState(() => revision++);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'QA preparado: $created países de prueba. '
+              'Producción permanece sin cambios.',
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_friendlyError(error))),
+        );
+      }
+    }
   }
 
   String _friendlyError(Object error) {
@@ -87,7 +171,13 @@ class _AdminCountryCoveragePageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Nuevo país' : 'Editar país'),
+          title: AdminStageEditDialogTitle(
+            title: row == null ? 'Nuevo país' : 'Editar país',
+            subtitle: widget.channel == 'preview'
+                ? 'Preview · Países de operación'
+                : 'Producción · Países de operación',
+            icon: Icons.public_rounded,
+          ),
           content: SizedBox(
             width: 590,
             child: SingleChildScrollView(
@@ -98,7 +188,7 @@ class _AdminCountryCoveragePageState
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF2FF),
+                      color: AdminColors.blueSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
@@ -174,7 +264,7 @@ class _AdminCountryCoveragePageState
                   const ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(Icons.verified_user_rounded,
-                        color: Color(0xFF14804A)),
+                        color: AdminColors.ok),
                     title: Text('Identidad: verificación manual'),
                     subtitle: Text(
                       'Carné frontal, reverso y selfie. La revisión '
@@ -283,7 +373,7 @@ class _AdminCountryCoveragePageState
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: positive
-            ? const Color(0xFFE8F8EF)
+            ? AdminColors.okSoft
             : const Color(0xFFF2F4F7),
         borderRadius: BorderRadius.circular(20),
       ),
@@ -291,7 +381,7 @@ class _AdminCountryCoveragePageState
         text,
         style: TextStyle(
           color: positive
-              ? const Color(0xFF14804A)
+              ? AdminColors.ok
               : const Color(0xFF667085),
           fontSize: 10,
           fontWeight: FontWeight.w900,
@@ -306,7 +396,9 @@ class _AdminCountryCoveragePageState
       backgroundColor: const Color(0xFFF7F9FC),
       appBar: AppBar(
         title: Text(
-          'Países y cobertura · Compartida',
+          _environment.isPreview
+              ? 'Países y cobertura · Preview'
+              : 'Países y cobertura · Producción',
         ),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
@@ -359,6 +451,12 @@ class _AdminCountryCoveragePageState
                       ],
                     ),
                   ),
+                  if (_environment.isPreview)
+                    OutlinedButton.icon(
+                      onPressed: _seedPreviewCountryReferences,
+                      icon: const Icon(Icons.copy_all_outlined),
+                      label: const Text('Preparar países QA'),
+                    ),
                   FilledButton.icon(
                     onPressed: () => _edit(),
                     icon: const Icon(Icons.add_rounded),
@@ -392,7 +490,7 @@ class _AdminCountryCoveragePageState
                       ),
                       leading: CircleAvatar(
                         backgroundColor: active
-                            ? const Color(0xFFEAF2FF)
+                            ? AdminColors.blueSoft
                             : const Color(0xFFF2F4F7),
                         child: Icon(
                           active
