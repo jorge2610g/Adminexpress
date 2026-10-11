@@ -57,6 +57,23 @@ La UI usa `_sectionAllowed` y `_sectionModuleKeys`.
 
 La seguridad real debe seguir reforzada por RPC/backend; ocultar un botón por sí solo no reemplaza autorización.
 
+## Regla de sincronización Preview / Producción
+
+Desde 2026-10-11, todo cambio no visual debe mantener paridad inmediata entre ambos entornos.
+
+Proceso:
+
+1. implementar una sola vez en el código compartido;
+2. crear rama temporal `preview/<slug>`;
+3. validar ese mismo cambio con cuenta/datos Preview;
+4. corregir en la rama principal si QA encuentra fallos;
+5. resincronizar Preview al mismo commit;
+6. mergear solo cuando ambos contextos sean compatibles.
+
+No mantener una rama Preview permanente divergente.
+
+Detalle: `docs/PREVIEW_PRODUCTION_PARITY_RULE.md`.
+
 ## Identidad del conductor
 
 La revisión documental/identidad ya está integrada en la ficha del conductor.
