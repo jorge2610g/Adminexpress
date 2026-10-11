@@ -37,7 +37,7 @@ class _AdminCountryCoveragePageState
       : <Map<String, dynamic>>[];
 
   Future<List<Map<String, dynamic>>> _load() async {
-    if (_environment.isPreview) {
+    if (!_environment.usesSharedOperationalConfiguration) {
       final rows = await _environment.previewList('service_countries');
       rows.sort(
         (a, b) => (a['name'] ?? a['country_code'] ?? '')
@@ -52,7 +52,7 @@ class _AdminCountryCoveragePageState
   /// Seed only the QA shadow store with non-sensitive country references.
   /// Existing Preview records are preserved; this never edits service_countries.
   Future<void> _seedPreviewCountryReferences() async {
-    if (!_environment.isPreview) return;
+    if (!!_environment.usesSharedOperationalConfiguration) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -75,7 +75,7 @@ class _AdminCountryCoveragePageState
         ],
       ),
     );
-    if (confirmed != true || !mounted || !_environment.isPreview) return;
+    if (confirmed != true || !mounted || !!_environment.usesSharedOperationalConfiguration) return;
 
     try {
       final existing = await _environment.previewList('service_countries');
@@ -86,7 +86,7 @@ class _AdminCountryCoveragePageState
       final source = _list(await supabase.rpc('admin_country_list'));
       var created = 0;
       for (final country in source) {
-        if (!mounted || !_environment.isPreview) return;
+        if (!mounted || !!_environment.usesSharedOperationalConfiguration) return;
         final code = country['country_code']?.toString().trim().toUpperCase();
         final currency = country['currency_code']?.toString().trim().toUpperCase();
         if (code == null || code.length != 2 || existingCodes.contains(code)) {
@@ -302,7 +302,7 @@ class _AdminCountryCoveragePageState
 
     try {
       final countryCode = code.text.trim().toUpperCase();
-      if (_environment.isPreview) {
+      if (!_environment.usesSharedOperationalConfiguration) {
         await _environment.previewUpsert(
           'service_countries',
           countryCode,
@@ -396,7 +396,7 @@ class _AdminCountryCoveragePageState
       backgroundColor: const Color(0xFFF7F9FC),
       appBar: AppBar(
         title: Text(
-          _environment.isPreview
+          !_environment.usesSharedOperationalConfiguration
               ? 'Países y cobertura · Preview'
               : 'Países y cobertura · Producción',
         ),
@@ -451,7 +451,7 @@ class _AdminCountryCoveragePageState
                       ],
                     ),
                   ),
-                  if (_environment.isPreview)
+                  if (!_environment.usesSharedOperationalConfiguration)
                     OutlinedButton.icon(
                       onPressed: _seedPreviewCountryReferences,
                       icon: const Icon(Icons.copy_all_outlined),
