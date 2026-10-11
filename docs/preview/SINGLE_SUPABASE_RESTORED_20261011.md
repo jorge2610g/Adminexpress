@@ -104,3 +104,27 @@ solo modifica el sitio /preview; la raíz de Producción conserva los mismos
 bytes y la misma base Supabase compartida.
 
 Pruebas CI de regresión del código: run 38110490545, success.
+
+## INCIDENTE CONFIRMADO · Preview fue sobrescrito por despliegue obsoleto (04:02 UTC)
+
+El diagnóstico anterior de caché resultó **incompleto**. Verificación del
+workflow `main` despachado manualmente el 11/oct a las 03:59 UTC (run
+`38110153058`): publicó **Preview SHA
+`d9538e66f337c36c3ba4893ba6e52967592356bc`**, una versión anterior a
+nuestro release de las 03:39 UTC. Su `_previewScopedModules` **no contiene
+22 (Suscripciones) ni 25 (Prioridad conductores)**. El flujo manual de
+`main` volvió a sobrescribir `/preview/` y provocó exactamente el bloqueo
+de la captura del usuario. Producción no se modificó en ese despacho porque
+`build` fue omitido y solo se publicó el artefacto combinado de Preview.
+
+También el intento QA `38110676142` fue cancelado cuando otro workflow
+de `main` (`38110724671`) tomó el mismo grupo de concurrencia
+`adminexpress-pages`. Este segundo manual falló antes de publicar.
+
+**Acción de corrección:** volver a publicar el commit QA actual desde rama
+`chatgpt/admin-preview-independent-20261010`, sin cambios a `main`, y
+verificar no solo `version.json` sino el SHA incrustado en `index.html`
+y la presencia efectiva de `admin_preview_driver_subscription_candidates`
+en el `main.dart.js` servido. No iniciar manualmente otro deploy desde main
+con SHAs antiguos. Mantener ambas ramas como sitios del mismo Supabase,
+con canales de datos separados.
