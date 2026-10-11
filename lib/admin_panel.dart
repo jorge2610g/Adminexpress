@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 import 'core/supabase_client.dart';
@@ -223,6 +226,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   bool allowPreview = true;
   bool allowProduction = true;
   String? liveZoneId;
+  String? selectedLiveTripId;
 
   String tripPeriod = 'today';
   DateTimeRange? tripCustomRange;
@@ -1628,6 +1632,19 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         final deliveries = _list(state['active_deliveries']);
         final emergencies = _list(state['emergencies']);
 
+        Map<String, dynamic>? selectedTrip;
+        if (selectedLiveTripId != null) {
+          for (final trip in trips) {
+            if ((trip['id'] ?? '').toString() == selectedLiveTripId) {
+              selectedTrip = trip;
+              break;
+            }
+          }
+          if (selectedTrip == null) {
+            selectedLiveTripId = null;
+          }
+        }
+
         Map<String, dynamic>? selectedZone;
         if (liveZoneId != null) {
           for (final zone in zones) {
@@ -1656,6 +1673,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                       );
                       adminCountryCode = _zoneCountryCode(zone);
                     }
+                    selectedLiveTripId = null;
                     revision++;
                     _liveFuture = _liveState();
                   });
@@ -1668,14 +1686,31 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     final side = _LiveSidePanel(
                       trips: trips,
                       drivers: drivers,
+                      selectedTripId: selectedLiveTripId,
+                      onTripSelected: (value) {
+                        setState(() {
+                          selectedLiveTripId =
+                              value == selectedLiveTripId ? null : value;
+                        });
+                      },
+                      onShowDrivers: () {
+                        if (selectedLiveTripId == null) return;
+                        setState(() => selectedLiveTripId = null);
+                      },
                     );
                     final map = _OperationsMap(
-                      key: ValueKey('live-map-' + (liveZoneId ?? 'all')),
+                      key: ValueKey(
+                        'live-map-' +
+                            (liveZoneId ?? 'all') +
+                            '-' +
+                            (selectedLiveTripId ?? 'overview'),
+                      ),
                       drivers: drivers,
                       trips: trips,
                       deliveries: deliveries,
                       emergencies: emergencies,
                       selectedZone: selectedZone,
+                      selectedTrip: selectedTrip,
                       fullScreen: true,
                     );
 
