@@ -509,6 +509,275 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     }
   }
 
+  static const Set<String> _identityDocumentTypes = <String>{
+    'identity_card',
+    'national_id',
+    'id_card',
+    'identity',
+    'carnet',
+    'cedula',
+    'cédula',
+  };
+
+  bool _isIdentityDocument(Map<String, dynamic> document) =>
+      _identityDocumentTypes.contains(
+        _text(document['document_type'], '').toLowerCase(),
+      );
+
+  String _identitySlotLabel(String slot) => switch (slot) {
+    'front' => 'Frente',
+    'back' => 'Reverso',
+    'selfie' => 'Foto facial',
+    _ => 'Fotografía',
+  };
+
+  /// Per-photo state of an identity document (front, back, selfie).
+  /// Mirrors the Preview logic: review_parts first, then document fallback.
+  Map<String, dynamic> _identityPart(
+    Map<String, dynamic> document,
+    String slot,
+  ) {
+    final saved = _map(_map(document['review_parts'])[slot]);
+    final directPath = switch (slot) {
+      'front' => _text(document['front_object_path'], ''),
+      'back' => _text(document['back_object_path'], ''),
+      'selfie' => _text(document['selfie_object_path'], ''),
+      _ => '',
+    };
+    final documentStatus = _text(document['status'], 'pending').toLowerCase();
+    final fallbackStatus = documentStatus == 'verified'
+        ? 'approved'
+        : documentStatus == 'rejected'
+            ? 'rejected'
+            : 'pending';
+    return <String, dynamic>{
+      'path': _text(saved['path'], directPath),
+      'status': _text(saved['status'], fallbackStatus).toLowerCase(),
+      'version': int.tryParse(_text(saved['version'], '0')) ?? 0,
+      'reason': _text(saved['reason'], ''),
+    };
+  }
+
+  /// Approve / reject / reactivate one identity photo through the
+  /// identity-only RPC. Never used for non-identity documents.
+  Future<void> _reviewIdentitySlot(
+    Map<String, dynamic> document,
+    String slot,
+    String nextStatus,
+  ) async {
+    if (saving) return;
+    final documentId = document['id']?.toString();
+    if (documentId == null || documentId.isEmpty) return;
+    final part = _identityPart(document, slot);
+    final oldStatus = part['status'] as String;
+    if (oldStatus == nextStatus) return;
+    final title =
+        '${_identitySlotLabel(slot)} · ${_friendlyDriverDocumentType(document['document_type'])}';
+    final note = TextEditingController();
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(nextStatus == 'rejected' ? 'Rechazar $title'
+            : nextStatus == 'approved' ? 'Aprobar $title'
+            : 'Reactivar $title'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Cambiar de ${_friendlyDocumentStatus(oldStatus)} a '
+                '${_friendlyDocumentStatus(nextStatus)}. '
+                'Las otras fotografías no cambiarán. '
+                'Aprobar esta foto no aprueba al conductor por sí solo.'),
+            if (nextStatus == 'rejected') ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: note,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Motivo del rechazo',
+                  hintText: 'Indica claramente qué debe corregir el conductor.',
+                  helperText: 'Mínimo cinco caracteres.',
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+    final reason = note.text.trim();
+    note.dispose();
+    if (accepted != true || !mounted) return;
+    if (nextStatus == 'rejected' && reason.length < 5) {
+      setState(() => error = 'Indica un motivo de rechazo de al menos cinco caracteres.');
+      return;
+    }
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    try {
+      await supabase.rpc(
+        'admin_driver_kyc_bolivia_manual_review_part',
+        params: {
+          'p_document_id': documentId,
+          'p_slot': slot,
+          'p_status': nextStatus,
+          'p_reason': nextStatus == 'rejected' ? reason : null,
+          'p_expected_version': part['version'],
+          'p_channel': widget.channel,
+        },
+      );
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(
+            '$title: ${_friendlyDocumentStatus(nextStatus)}.',
+          )),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(
+        () => error = 'No se pudo actualizar la fotografía. $e',
+      );
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  Widget _identitySlotRow(Map<String, dynamic> document, String slot) {
+    final part = _identityPart(document, slot);
+    final partStatus = part['status'] as String;
+    final path = part['path'] as String;
+    final reason = part['reason'] as String;
+    final icon = switch (slot) {
+      'front' => Icons.credit_card_rounded,
+      'back' => Icons.flip_to_back_rounded,
+      _ => Icons.face_rounded,
+    };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 9,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                _identitySlotLabel(slot),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              Chip(label: Text(_friendlyDocumentStatus(partStatus))),
+            ],
+          ),
+          if (partStatus == 'rejected' && reason.isNotEmpty)
+            Text('Motivo: $reason',
+              style: const TextStyle(color: Color(0xFFB42318), fontSize: 11)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _openDriverAsset(path),
+                icon: Icon(icon, size: 16),
+                label: const Text('Ver'),
+              ),
+              if (partStatus != 'approved')
+                FilledButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () => _reviewIdentitySlot(document, slot, 'approved'),
+                  icon: const Icon(Icons.check_circle_outline, size: 16),
+                  label: const Text('Aprobar'),
+                ),
+              if (partStatus != 'rejected')
+                OutlinedButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () => _reviewIdentitySlot(document, slot, 'rejected'),
+                  icon: const Icon(Icons.cancel_outlined, size: 16),
+                  label: const Text('Rechazar'),
+                ),
+              if (partStatus != 'pending')
+                TextButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () => _reviewIdentitySlot(document, slot, 'pending'),
+                  icon: const Icon(Icons.restart_alt, size: 16),
+                  label: const Text('Reactivar'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Identity document card: per-photo review only. Document-level
+  /// approve/reject is hidden so identity status comes from review_parts
+  /// (the DB trigger sets status to 'verified' when all photos are approved).
+  Widget _identityDocumentCard(Map<String, dynamic> document) {
+    final status = _text(document['status'], 'pending').toLowerCase();
+    final rejectionNote = (document['notes'] ?? '').toString();
+    final slots = ['front', 'back', 'selfie']
+        .where((slot) => _text(_identityPart(document, slot)['path'], '')
+            .isNotEmpty)
+        .toList();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _detailSoft,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _detailBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 9,
+            runSpacing: 7,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                _friendlyDriverDocumentType(document['document_type']),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Chip(label: Text(_friendlyDocumentStatus(status))),
+            ],
+          ),
+          if (_text(document['document_number'], '').isNotEmpty)
+            Text('Número: ${document['document_number']}',
+              style: const TextStyle(color: _detailMuted, fontSize: 11)),
+          if (status == 'rejected' && rejectionNote.isNotEmpty)
+            Text(rejectionNote,
+              style: const TextStyle(color: Color(0xFFB42318), fontSize: 11)),
+          const SizedBox(height: 9),
+          if (slots.isEmpty)
+            const Text('Sin fotografías cargadas.',
+              style: TextStyle(color: _detailMuted, fontSize: 11))
+          else
+            for (final slot in slots) _identitySlotRow(document, slot),
+        ],
+      ),
+    );
+  }
+
   Future<void> _reviewDocument(
     Map<String, dynamic> document,
     String newStatus,
@@ -982,6 +1251,9 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                               )
                             else
                               ...documents.map((doc) {
+                                if (_isIdentityDocument(doc)) {
+                                  return _identityDocumentCard(doc);
+                                }
                                 final status = (doc['status'] ?? 'pending').toString();
                                 final expiry = doc['expires_at'];
                                 final rejectionNote = (doc['notes'] ?? '').toString();

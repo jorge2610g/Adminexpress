@@ -1,3 +1,14 @@
+## 2026-10-11 — Revisión de identidad por foto en la ficha del conductor (desde Preview)
+- Rama `claude/promote-identity-prod-2026-10-11` basada en Producción `30e60582`; solo se porta la revisión de identidad de Preview (`c3a2c5c`).
+- `lib/admin_detail_dialogs.dart` (ficha del conductor, sección «Documentos e identidad»): los documentos de identidad (`identity_card`, `national_id`, `id_card`, `identity`, `carnet`, `cedula`/`cédula`) se revisan por foto (frente, reverso, selfie) con Ver / Aprobar / Rechazar / Reactivar. El rechazo exige motivo de al menos 5 caracteres.
+- RPC usada para identidad: `admin_driver_kyc_bolivia_manual_review_part` (`p_document_id`, `p_slot`, `p_status`, `p_reason`, `p_expected_version`, `p_channel`), que escribe `driver_documents.review_parts`. El estado del documento pasa a `verified` mediante el trigger de base de datos cuando todas las fotos están aprobadas.
+- En identidad se ocultan los botones de aprobación a nivel de documento; la aprobación del documento sale solo de las fotos.
+- Documentos no identitarios: sin cambios; siguen usando `admin_upsert_driver_document_v2` (Producción). No se usa `admin_driver_document_review_part_v2` (no existe en la base de datos).
+- No se portan: `admin_driver_priority`, marketplace, precios dinámicos, laboratorio de carga, auditoría sandbox, widgets `core/*`, `_previewScopedModules`, navegación de `admin_panel.dart`, ni la activación de conductor de `admin_bolivia_kyc.dart` (`admin_driver_activate`, `admin_zone_list_for_country`).
+- Pendiente de validar: `flutter analyze` y `flutter build web` (Flutter no está instalado en el entorno de la sesión); prueba en Preview antes de cualquier promoción a Producción.
+
+---
+
 ## 2026-10-09 — Admin Preview usa Supabase principal con datos QA aislados
 - `/` y `/preview/` se conservan como dos páginas distintas.
 - Ambas comparten Supabase `zgpijrznvaskgcmauwxx`; `ADMIN_ENV` fija canales `production` y `preview`.
