@@ -273,10 +273,14 @@ jobs:
           assert '--base-href /preview/' in workflow
           assert 'path: build/site' in workflow
           assert 'preview_source_sha' in workflow
-          assert "run-id: 38080952559" in workflow, 'Preview must preserve the approved Production artifact'
+          assert 'production_snapshot_run_id' in workflow, 'Preview must require a durable Production snapshot'
+          assert 'name: production-snapshot' in workflow
+          assert 'retention-days: 90' in workflow
           assert 'Verify live Preview SHA and unchanged Production marker' in workflow
-          assert 'EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df' in workflow
-          assert "contains(github.event.head_commit.message, '[deploy-preview-only]')" in workflow
+          assert "inputs.confirm_production == 'PUBLICAR PRODUCCION'" in workflow
+          assert 'snapshot_source_run_id' in workflow
+          assert 'run-id: 38080952559' not in workflow, 'Hard-coded expired Production artifact must not return'
+          assert "[deploy-preview-only]" not in workflow, 'Push-tag deployment path must stay retired'
           assert "const supabaseUrl = _productionUrl;" in workflow
           navigation = Path('lib/core/admin_environment_navigation.dart').read_text()
           assert "adminIsPreview ? 'Ir a Producción' : 'Ir a Prueba'" in navigation
