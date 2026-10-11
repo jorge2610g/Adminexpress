@@ -257,9 +257,9 @@ jobs:
               print('WARNING: temporary all-modules Preview UI enabled on dedicated QA PR only.')
           else:
               assert normal_guard in panel
-          for safe in ['0','1','2','3','4','5','6','7','8','10','11','14','16','17','18','25','27']:
+          for safe in ['0','1','2','3','4','5','6','7','8','10','11','14','16','17','18','22','25','27']:
               assert safe in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
-          for blocked in ['9','12','13','15','19','20','21','22','23','24','26','28']:
+          for blocked in ['9','12','13','15','19','20','21','23','24','26','28']:
               assert blocked not in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
           assert 'if (adminIsPreview) return _ExpressPanelAccess.denied;' in login
           # Preview and Production share the Supabase project, but MUST NOT
@@ -304,6 +304,27 @@ jobs:
           assert 'AdminEnvironmentLinkButton()' in panel
           assert 'AdminEnvironmentLinkButton()' in login
           assert '_previewUnlockAllModules' not in panel, 'Shared-backend Preview must not bypass unscoped module guard'
+          # Subscriptions (22) must not download real driver data to Preview.
+          subscriptions = Path('lib/admin_driver_subscriptions.dart').read_text()
+          assert "'admin_preview_driver_subscription_candidates'" in subscriptions
+          assert "'p_zone_id': widget.zoneId" in subscriptions
+          assert "'p_search': search.text.trim()" in subscriptions
+          preview_code = subscriptions.split('if (_environment.isPreview) {', 1)[1].split('return;', 1)[0]
+          assert "'admin_driver_subscriptions'" not in preview_code
+          assert "'admin_preview_driver_subscription_candidates'" in preview_code
+          assert "'driver_subscriptions'" in preview_code
+          assert "_environment.previewUpsert(" in subscriptions
+          assert "selectedZone == null || _environment.isPreview" in subscriptions
+          assert "if (driver['is_qa'] == true) return true;" in subscriptions
+          assert "if (!_environment.isPreview &&" in subscriptions
+          # Server RPC is additive, auth-guarded and read-only; never copies
+          # any live driver subscription into client side QA data.
+          sql = Path('docs/preview/migrations/20261011_shared_db_subscriptions_qa_candidates.sql').read_text()
+          assert "admin_environment_allowed('preview')" in sql
+          assert "audit_test_group_members" in sql
+          assert "REVOKE ALL" in sql
+          assert "INSERT INTO" not in sql.upper()
+          assert "UPDATE public." not in sql
           # Server calls for Priority (25) are scoped by channel and QA driver.
           priority = Path('lib/admin_driver_priority.dart').read_text()
           assert "'admin_driver_priority_state_scoped'" in priority
