@@ -339,8 +339,344 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
     }
   }
 
+  // Preview dispatch is an entirely synthetic simulator. Never send a QA
+  // assignment to admin_assign_ride_v2 or write public.ride_requests/trips.
+  // Preview and Production share the same physical Supabase database.
+  AdminEnvironmentStore get _qaDispatchStore =>
+      AdminEnvironmentStore(widget.channel);
+
+  Future<({
+    List<Map<String, dynamic>> rides,
+    List<Map<String, dynamic>> drivers,
+  })> _loadPreviewDispatch() async {
+    final zoneId = widget.zoneId;
+    if (zoneId == null || zoneId.isEmpty) {
+      return (rides: <Map<String, dynamic>>[], drivers: <Map<String, dynamic>>[]);
+    }
+    final results = await Future.wait<Object?>([
+      _qaDispatchStore.previewList('manual_dispatch_rides'),
+      supabase.rpc(
+        'admin_preview_driver_subscription_candidates',
+        params: <String, dynamic>{
+          'p_zone_id': zoneId,
+          'p_search': '',
+        },
+      ),
+    ]);
+    final rawRides = results[0] as List<Map<String, dynamic>>;
+    final rides = rawRides.where((row) =>
+        row['is_qa'] == true &&
+        row['channel'] == 'preview' &&
+        row['zone_id']?.toString() == zoneId &&
+        row['status'] != 'completed' &&
+        row['status'] != 'cancelled').toList()
+      ..sort((a, b) => (b['created_at']?.toString() ?? '')
+          .compareTo(a['created_at']?.toString() ?? ''));
+    final candidates = _list(results[1])
+        .where((row) => row['is_qa'] == true &&
+            row['zone_id']?.toString() == zoneId &&
+            row['driver_id'] != null)
+        .map((row) => <String, dynamic>{
+              ...row,
+              'id': row['driver_id'],
+              'name': row['full_name'],
+            })
+        .toList();
+    return (rides: rides, drivers: candidates);
+  }
+
+  Future<void> _createPreviewRide() async {
+    if (widget.channel != 'preview' ||
+        widget.zoneId == null ||
+        widget.zoneId!.isEmpty) return;
+    final pickup = TextEditingController();
+    final destination = TextEditingController();
+    final fare = TextEditingController(text: '10');
+    String category = 'motorcycle';
+    try {
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (context, setLocal) => AlertDialog(
+            title: const Text('Nuevo viaje simulado · QA'),
+            content: SizedBox(
+              width: 450,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('No se crea un viaje real ni se envían '
+                        'notificaciones a conductores.'),
+                    const SizedBox(height: 12),
+                    TextField(controller: pickup,
+                        maxLength: 150,
+                        decoration: const InputDecoration(labelText: 'Origen de prueba')),
+                    TextField(controller: destination,
+                        maxLength: 150,
+                        decoration: const InputDecoration(labelText: 'Destino de prueba')),
+                    DropdownButtonFormField<String>(
+                      initialValue: category,
+                      items: const [
+                        DropdownMenuItem(value: 'motorcycle', child: Text('Moto')),
+                        DropdownMenuItem(value: 'economy', child: Text('Auto')),
+                        DropdownMenuItem(value: 'xl', child: Text('XL')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) setLocal(() => category = value);
+                      },
+                      decoration: const InputDecoration(labelText: 'Categoría'),
+                    ),
+                    TextField(
+                      controller: fare,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Tarifa QA'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Crear simulación'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (approved != true) return;
+      final numericFare = double.tryParse(
+        fare.text.trim().replaceAll(',', '.'),
+      );
+      if (pickup.text.trim().isEmpty ||
+          destination.text.trim().isEmpty ||
+          numericFare == null ||
+          !numericFare.isFinite ||
+          numericFare < 0) {
+        if (mounted) _snack(context, 'Completa origen, destino y tarifa válida.');
+        return;
+      }
+      final key = _qaDispatchStore.createRecordKey('qa-ride');
+      await _qaDispatchStore.previewUpsert(
+        'manual_dispatch_rides',
+        key,
+        <String, dynamic>{
+          'id': key,
+          'channel': 'preview',
+          'is_qa': true,
+          'zone_id': widget.zoneId,
+          'country_code': widget.countryCode,
+          'pickup_address': pickup.text.trim(),
+          'destination_address': destination.text.trim(),
+          'category': category,
+          'proposed_fare': numericFare,
+          'passenger_name': 'Pasajero QA',
+          'status': 'searching',
+          'created_at': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+      if (!mounted) return;
+      setState(() => revision++);
+      _snack(context, 'Viaje de prueba creado, sin efectos en Producción.');
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    } finally {
+      pickup.dispose();
+      destination.dispose();
+      fare.dispose();
+    }
+  }
+
+  Future<void> _assignPreviewRide(
+    Map<String, dynamic> ride,
+    List<Map<String, dynamic>> drivers,
+  ) async {
+    if (widget.channel != 'preview' ||
+        widget.zoneId == null ||
+        ride['is_qa'] != true ||
+        ride['channel'] != 'preview' ||
+        ride['zone_id']?.toString() != widget.zoneId) {
+      if (mounted) _snack(context, 'Solicitud fuera del entorno QA.');
+      return;
+    }
+    if (drivers.isEmpty) {
+      if (mounted) _snack(context, 'No hay conductores QA en esta zona.');
+      return;
+    }
+    String? selectedDriver = drivers.first['id']?.toString();
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Asignar conductor QA (simulación)'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('La asignación no envía push, '
+                  'no cambia estados ni crea viajes reales.'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: selectedDriver,
+                decoration: const InputDecoration(labelText: 'Conductor QA'),
+                items: [
+                  for (final driver in drivers)
+                    DropdownMenuItem(
+                      value: driver['id']?.toString(),
+                      child: Text((driver['name'] ?? 'Conductor QA').toString()),
+                    ),
+                ],
+                onChanged: (id) => setLocal(() => selectedDriver = id),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: selectedDriver == null
+                  ? null : () => Navigator.pop(ctx, true),
+              child: const Text('Asignar simulación'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (approved != true || selectedDriver == null) return;
+    final chosen = drivers.where(
+      (candidate) => candidate['id']?.toString() == selectedDriver &&
+          candidate['is_qa'] == true &&
+          candidate['zone_id']?.toString() == widget.zoneId,
+    );
+    if (chosen.isEmpty) {
+      if (mounted) _snack(context, 'El conductor no está autorizado para QA.');
+      return;
+    }
+    try {
+      final updated = Map<String, dynamic>.from(ride)
+        ..['status'] = 'assigned'
+        ..['driver_id'] = selectedDriver
+        ..['driver_name'] = chosen.first['name']
+        ..['assigned_at'] = DateTime.now().toUtc().toIso8601String();
+      await _qaDispatchStore.previewUpsert(
+        'manual_dispatch_rides',
+        AdminEnvironmentStore.recordKey(ride),
+        updated,
+      );
+      if (!mounted) return;
+      setState(() => revision++);
+      _snack(context, 'Asignación QA guardada sin contactar al conductor.');
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    }
+  }
+
+  Future<void> _finishPreviewRide(Map<String, dynamic> ride) async {
+    if (widget.channel != 'preview' ||
+        ride['is_qa'] != true ||
+        ride['zone_id']?.toString() != widget.zoneId) return;
+    try {
+      final updated = Map<String, dynamic>.from(ride)
+        ..['status'] = 'completed'
+        ..['completed_at'] = DateTime.now().toUtc().toIso8601String();
+      await _qaDispatchStore.previewUpsert(
+        'manual_dispatch_rides',
+        AdminEnvironmentStore.recordKey(ride),
+        updated,
+      );
+      if (!mounted) return;
+      setState(() => revision++);
+      _snack(context, 'Viaje simulado completado. No se registró viaje real.');
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    }
+  }
+
+  Widget _buildPreviewDispatch() {
+    return FutureBuilder<
+        ({
+          List<Map<String, dynamic>> rides,
+          List<Map<String, dynamic>> drivers,
+        })>(
+      key: ValueKey('preview-manual-dispatch-$revision-${widget.zoneId}'),
+      future: _loadPreviewDispatch(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const _Loading(title: 'Cargando despacho QA');
+        }
+        if (snapshot.hasError) {
+          return _Error(error: snapshot.error,
+              onRetry: () => setState(() => revision++));
+        }
+        final data = snapshot.data;
+        return ListView(
+          padding: const EdgeInsets.all(22),
+          children: [
+            _Header(
+              title: 'Despacho manual · Simulador QA',
+              subtitle: 'Viajes y asignaciones simuladas. '
+                  'Ninguna solicitud llega a conductores ni clientes reales.',
+            ),
+            const SizedBox(height: 14),
+            Card(
+              color: AdminColors.blueSoft,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Text('Conductores QA autorizados en la zona: '
+                    '${data?.drivers.length ?? 0}'),
+              ),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: widget.zoneId == null ? null : _createPreviewRide,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Crear viaje simulado'),
+            ),
+            const SizedBox(height: 18),
+            if (data == null || data.rides.isEmpty)
+              const _Empty(text: 'No hay viajes simulados activos.')
+            else
+              for (final ride in data.rides)
+                Card(
+                  child: ListTile(
+                    title: Text('${ride['pickup_address'] ?? 'Origen'} → '
+                        '${ride['destination_address'] ?? 'Destino'}'),
+                    subtitle: Text(
+                        'QA · ${ride['status'] ?? 'searching'} · '
+                        '${ride['driver_name'] ?? 'Sin asignar'}'),
+                    trailing: ride['status'] == 'assigned'
+                        ? OutlinedButton(
+                            onPressed: () => _finishPreviewRide(ride),
+                            child: const Text('Completar QA'),
+                          )
+                        : FilledButton(
+                            onPressed: data.drivers.isEmpty ? null
+                                : () => _assignPreviewRide(ride, data.drivers),
+                            child: const Text('Asignar QA'),
+                          ),
+                  ),
+                ),
+            const SizedBox(height: 18),
+            const Text('Los datos se guardan en el almacén de pruebas '
+                'admin_environment_config. No se usan las tablas operativas '
+                'de viajes o despachos.', textAlign: TextAlign.center),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Hard separation: Flutter never calls real dispatch/assignment RPCs in
+    // Preview. The storage RPC revalidates QA permission in Supabase.
+    if (widget.channel == 'preview') return _buildPreviewDispatch();
     return FutureBuilder<
         ({
           List<Map<String, dynamic>> rides,
