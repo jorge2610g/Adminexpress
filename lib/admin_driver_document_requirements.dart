@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'core/admin_design_tokens.dart';
 import 'core/admin_widgets.dart';
 
-import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
 
 class AdminDriverDocumentRequirementsPanel extends StatefulWidget {
@@ -45,25 +44,15 @@ class _AdminDriverDocumentRequirementsPanelState
       );
     }
 
-    final store = AdminEnvironmentStore(widget.channel);
-    final List<Map<String, dynamic>> allRequirements;
-    final List<Map<String, dynamic>> allZones;
-
-    if (store.isPreview) {
-      allRequirements =
-          await store.previewList('driver_document_requirements');
-      allZones = await store.previewList('service_zones');
-    } else {
-      final values = await Future.wait([
-        supabase.rpc('admin_driver_document_requirement_list'),
-        supabase.rpc(
-          'admin_zone_list_for_country',
-          params: {'p_country_code': countryCode},
-        ),
-      ]);
-      allRequirements = _list(values[0]);
-      allZones = _list(values[1]);
-    }
+    final values = await Future.wait([
+      supabase.rpc('admin_driver_document_requirement_list'),
+      supabase.rpc(
+        'admin_zone_list_for_country',
+        params: {'p_country_code': countryCode},
+      ),
+    ]);
+    final allRequirements = _list(values[0]);
+    final allZones = _list(values[1]);
 
     final requirements = allRequirements.where((row) {
       final rowCountry = row['country_code']?.toString().trim().toUpperCase();
@@ -371,59 +360,24 @@ class _AdminDriverDocumentRequirementsPanelState
         _snack('Selecciona la ciudad.');
       } else {
         try {
-          final store = AdminEnvironmentStore(widget.channel);
-          if (store.isPreview) {
-            final normalizedCountry =
-                scope == 'global' ? null : countryCode?.trim().toUpperCase();
-            final normalizedZone = scope == 'zone' ? zoneId : null;
-            final payload = <String, dynamic>{
-              'code': code.text.trim(),
-              'label': label.text.trim(),
-              'description': description.text.trim(),
-              'country_code': normalizedCountry,
-              'zone_id': normalizedZone,
-              'required': required,
-              'require_number': requireNumber,
-              'require_front': requireFront,
-              'require_back': requireBack,
-              'require_selfie': requireSelfie,
-              'active': active,
-              'sort_order': int.tryParse(sortOrder.text.trim()) ?? 100,
-            };
-            final existingKey = row?['_record_key']?.toString().trim();
-            final recordKey = existingKey != null && existingKey.isNotEmpty
-                ? existingKey
-                : <String>[
-                    normalizedZone ??
-                        normalizedCountry ??
-                        'global',
-                    code.text.trim(),
-                  ].join(':');
-            await store.previewUpsert(
-              'driver_document_requirements',
-              recordKey,
-              payload,
-            );
-          } else {
-            await supabase.rpc(
-              'admin_upsert_driver_document_requirement',
-              params: {
-                'p_id': row?['id'],
-                'p_code': code.text.trim(),
-                'p_label': label.text.trim(),
-                'p_description': description.text.trim(),
-                'p_country_code': scope == 'global' ? null : countryCode,
-                'p_zone_id': scope == 'zone' ? zoneId : null,
-                'p_required': required,
-                'p_require_number': requireNumber,
-                'p_require_front': requireFront,
-                'p_require_back': requireBack,
-                'p_require_selfie': requireSelfie,
-                'p_active': active,
-                'p_sort_order': int.tryParse(sortOrder.text.trim()) ?? 100,
-              },
-            );
-          }
+          await supabase.rpc(
+            'admin_upsert_driver_document_requirement',
+            params: {
+              'p_id': row?['id'],
+              'p_code': code.text.trim(),
+              'p_label': label.text.trim(),
+              'p_description': description.text.trim(),
+              'p_country_code': scope == 'global' ? null : countryCode,
+              'p_zone_id': scope == 'zone' ? zoneId : null,
+              'p_required': required,
+              'p_require_number': requireNumber,
+              'p_require_front': requireFront,
+              'p_require_back': requireBack,
+              'p_require_selfie': requireSelfie,
+              'p_active': active,
+              'p_sort_order': int.tryParse(sortOrder.text.trim()) ?? 100,
+            },
+          );
           if (mounted) setState(() => revision++);
         } catch (e) {
           _snack(e.toString());
@@ -461,15 +415,10 @@ class _AdminDriverDocumentRequirementsPanelState
     if (ok != true) return;
 
     try {
-      final store = AdminEnvironmentStore(widget.channel);
-      if (store.isPreview) {
-        await store.previewSoftDelete('driver_document_requirements', row);
-      } else {
-        await supabase.rpc(
-          'admin_delete_driver_document_requirement',
-          params: {'p_id': row['id']},
-        );
-      }
+      await supabase.rpc(
+        'admin_delete_driver_document_requirement',
+        params: {'p_id': row['id']},
+      );
       if (mounted) setState(() => revision++);
     } catch (e) {
       _snack(e.toString());

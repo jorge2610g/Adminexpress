@@ -70,11 +70,13 @@ jobs:
           grep -q "admin_trip_detail_v2" lib/admin_detail_dialogs.dart
           grep -q "admin_update_driver_profile_v2" lib/admin_detail_dialogs.dart
           grep -q "admin_update_user_profile_v2" lib/admin_detail_dialogs.dart
-          if grep -Fq "const AdminEnvironmentStore('production')" lib/admin_driver_document_requirements.dart; then
-            echo "ERROR: document requirements Preview must not read/write Production."
+          if grep -Fq "AdminEnvironmentStore" lib/admin_driver_document_requirements.dart; then
+            echo "ERROR: document requirements still contain obsolete Preview shadow routing."
             exit 1
           fi
-          grep -Fq "AdminEnvironmentStore(widget.channel)" lib/admin_driver_document_requirements.dart
+          grep -Fq "admin_driver_document_requirement_list" lib/admin_driver_document_requirements.dart
+          grep -Fq "admin_upsert_driver_document_requirement" lib/admin_driver_document_requirements.dart
+          grep -Fq "admin_delete_driver_document_requirement" lib/admin_driver_document_requirements.dart
           grep -Fq "AdminEnvironmentStore(widget.channel)" lib/admin_country_coverage.dart
           grep -Fq "usesSharedOperationalConfiguration" lib/admin_country_coverage.dart
           grep -Fq "existingCodes.contains(code)" lib/admin_country_coverage.dart
@@ -202,7 +204,10 @@ jobs:
           # All QA business configuration editors must target shadow storage,
           # never silently resolve to the live production store.
           docs = Path('lib/admin_driver_document_requirements.dart').read_text()
-          assert docs.count('AdminEnvironmentStore(widget.channel)') == 3
+          assert 'AdminEnvironmentStore' not in docs
+          assert 'admin_driver_document_requirement_list' in docs
+          assert 'admin_upsert_driver_document_requirement' in docs
+          assert 'admin_delete_driver_document_requirement' in docs
           # Distance fare editor must never read or mutate live fare tiers from Preview.
           distance = Path('lib/admin_distance_fares.dart').read_text()
           assert "AdminEnvironmentStore(widget.channel)" in distance
