@@ -1,25 +1,41 @@
 # Admin > Publicidad (Google AdMob)
 
-Dentro de **Configuración → Admin** hay un interruptor general y dos interruptores por ubicación (Inicio / viaje activo).
+Dentro de Configuración existe el control de publicidad.
 
-## Dos paneles, un Supabase
-- Producción: `/` usa canal `production`, flag `ads_passenger_enabled`. Los tres ID públicos de AdMob se editan **solo aquí**.
-- Prueba: `/preview/` usa canal `preview`, flag `ads_passenger_preview_enabled` y unidades oficiales de prueba de Google. Nunca modifica los IDs reales.
-- `admin_admob_settings_get` y `admin_admob_settings_update` verifican `is_admin()` y `admin_environment_allowed(p_channel)`; la separación NO depende del frontend.
-- Los valores por defecto conservan Producción apagada.
-- Para apagar todos los anuncios, usa el switch general del entorno y presiona **Guardar publicidad**. La app aplica la preferencia al actualizar los ajustes remotos.
+## Un panel, dos contextos de datos
 
-## Tres identificadores públicos (no claves secretas)
-En `admob.google.com`, registra la app Android y una unidad Banner:
-1. **Publisher ID:** `pub-****************`.
-2. **Android App ID:** `ca-app-pub-****************~**********`.
-3. **Banner Ad Unit ID:** `ca-app-pub-****************/**********`.
+Adminexpress ya no usa dos páginas.
 
-Nunca pegar en el panel claves JSON de cuentas de servicio, tokens OAuth, API keys privadas ni credenciales bancarias.
+La cuenta autenticada determina:
 
-## Limitación técnica importante
-El **Android App ID** debe estar además compilado en `AndroidManifest.xml`. El workflow de Expressdelivery usa GitHub Actions `ADMOB_ANDROID_APP_ID` para ese fin. Guardarlo en Admin no modifica una APK ya instalada. Para anuncios reales hay que configurar ese secreto y generar un nuevo APK/AAB firmado con la misma identidad de Express; nunca prometer activación automática sin build.
+- Preview -> configuración de prueba/shadow y unidades oficiales de prueba;
+- Producción -> configuración real.
 
-`ADMOB_PASSENGER_BANNER_UNIT_ID` es el fallback de build. La app puede usar `admob_passenger_banner_unit_id` del runtime config cuando ejecute una versión que soporte actualización remota.
+Las RPC `admin_admob_settings_get` y `admin_admob_settings_update` deben validar administrador y entorno efectivo. La separación no depende de una URL `/preview/`.
 
-**Sin un ID de App válido compilado, mantener Producción OFF.** No publicar en Google Play solo por activar un switch; actualizar Data Safety y declarar anuncios al publicarlos.
+Producción permanece OFF por defecto salvo decisión explícita.
+
+## Tres identificadores públicos
+
+En AdMob se usan:
+
+1. Publisher ID.
+2. Android App ID.
+3. Banner Ad Unit ID.
+
+No guardar claves JSON de service account, tokens OAuth ni secretos en el panel o repo.
+
+## Limitación técnica
+
+El Android App ID debe estar compilado en `AndroidManifest.xml`.
+
+Activar un switch web no modifica una APK instalada.
+
+Para anuncios reales hace falta:
+
+- configuración correcta;
+- build Android firmado;
+- revisión de Data Safety/declaración de anuncios;
+- autorización de publicación.
+
+**Sin App ID válido compilado, mantener Producción OFF.**
