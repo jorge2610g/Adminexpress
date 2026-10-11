@@ -5212,11 +5212,21 @@ String _driverLiveStatus(
       online == 'online' || online == 'available' || online == 'connected';
   if (!connected) return 'offline';
 
+  final locationUpdatedAt =
+      DateTime.tryParse(driver['location_updated_at']?.toString() ?? '');
+  final latitude = _toDouble(driver['latitude']);
+  final longitude = _toDouble(driver['longitude']);
+  final locationStale = locationUpdatedAt == null
+      ? latitude == null || longitude == null
+      : DateTime.now().toUtc().difference(locationUpdatedAt.toUtc()) >
+          const Duration(minutes: 2);
+
   final noSignal = signal.contains('no_signal') ||
       signal.contains('no signal') ||
       signal.contains('lost') ||
       signal.contains('stale') ||
-      signal.contains('offline');
+      signal.contains('offline') ||
+      locationStale;
   if (noSignal) return 'signal';
 
   return 'available';
