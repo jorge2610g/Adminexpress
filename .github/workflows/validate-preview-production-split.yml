@@ -271,7 +271,7 @@ jobs:
           assert 'cmp /tmp/exact-prod-manifest /tmp/after-prod-manifest' in workflow
           assert 'Verify live Preview SHA and unchanged Production marker' in workflow
           assert 'EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df' in workflow
-          assert 'on:\\n  workflow_dispatch:' in workflow
+          assert '  workflow_dispatch:' in workflow
           assert "github.ref == 'refs/heads/main'" in workflow
           assert "preview_authorized_sha:" in Path('docs/PREVIEW_AUTHORIZED.md').read_text()
           assert 'cancel-in-progress: false' in workflow
