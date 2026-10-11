@@ -318,6 +318,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Marca de build visible solo en Preview (solo si el código tiene el marcador).
+          if grep -Fq "__EXPRESS_PREVIEW_BUILD_SHA__" preview-source/build/web/index.html; then
+            sed -i "s#__EXPRESS_PREVIEW_BUILD_SHA__#${PREVIEW_SHA}#g" preview-source/build/web/index.html
+            grep -Fq "const buildSha = '${PREVIEW_SHA}'" preview-source/build/web/index.html
+          fi
           sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${PREVIEW_SHA}#g" preview-source/build/web/index.html
           if [ -f preview-source/build/web/flutter_bootstrap.js ]; then
             sed -i "s#main.dart.js#main.dart.js?v=${PREVIEW_SHA}#g" preview-source/build/web/flutter_bootstrap.js
