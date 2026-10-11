@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+      # QA runs only when explicitly tagged [deploy-preview-only]. Production
+      # build below stays restricted to main and cannot run on this branch.
+      - chatgpt/admin-preview-independent-20261010
   workflow_dispatch:
     inputs:
       preview_only:
@@ -24,7 +27,7 @@ permissions:
 
 concurrency:
   group: adminexpress-pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -128,7 +131,7 @@ jobs:
           path: build/site
 
   preview_only:
-    if: ${{ contains(github.event.head_commit.message, '[deploy-preview-only]') || inputs.preview_only == true }}
+    if: ${{ (github.ref == 'refs/heads/chatgpt/admin-preview-independent-20261010' && contains(github.event.head_commit.message, '[deploy-preview-only]')) || (github.event_name == 'workflow_dispatch' && inputs.preview_only == true) }}
     runs-on: ubuntu-latest
     outputs:
       preview_sha: ${{ steps.resolve_preview.outputs.preview_sha }}
