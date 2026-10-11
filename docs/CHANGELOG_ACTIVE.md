@@ -1,3 +1,8 @@
+## 2026-10-11 — Preview autorizada al candidato del rediseño (092b8c3)
+
+- `docs/PREVIEW_AUTHORIZED.md`: `preview_authorized_sha` pasa de `128eca4` a `092b8c3`, el candidato `claude/redesign-rc-2026-10-11`. Incluye la corrección de canal en Ajustes, Servicios, Requisitos, Zonas, Cobertura, Tarifas, Pagos, Suscripciones y en Auditoría y Reportes, más la fase 2 del rediseño. La fase 3 (shell, ficha del conductor y textos de control) no está incluida.
+- Pendiente: lanzar `deploy-web.yml` con `preview_only=true`, `preview_source_sha=092b8c389141d5218bd210219403e192f0c67981` y `production_snapshot_run_id=38117120868`. Producción no se toca.
+
 ## 2026-10-11 — Preview autorizada leída desde main; validador de despliegue actualizado
 
 - `deploy-web.yml`: el checkout que lee `docs/PREVIEW_AUTHORIZED.md` usa `ref: main`. Un dispatch desde otra rama ya no puede aportar su propio SHA autorizado.

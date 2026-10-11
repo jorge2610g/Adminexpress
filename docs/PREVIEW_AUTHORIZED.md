@@ -15,5 +15,5 @@ Ningún push dispara despliegues (decisión C).
 Bytes de Producción (decisión B): se conservan con el artifact `production-snapshot` (retención de 90 días) creado con `snapshot_source_run_id` a partir del artifact `github-pages` de un build de Producción conocido. El workflow verifica que el sitio publicado coincide byte a byte antes de publicar Preview.
 
 ```
-preview_authorized_sha: 128eca468144cf59dbb9ea330f0adc15d77cf777
+preview_authorized_sha: 092b8c389141d5218bd210219403e192f0c67981
 ```
