@@ -71,6 +71,7 @@ end;
 $function$;
 
 revoke all on function public.admin_access_context() from public;
+revoke execute on function public.admin_access_context() from anon;
 grant execute on function public.admin_access_context() to authenticated, service_role;
 
 create or replace function public.admin_set_panel_access_v2(
@@ -163,4 +164,5 @@ end;
 $function$;
 
 revoke all on function public.admin_set_panel_access_v2(uuid,text,uuid,boolean,text,text[]) from public;
+revoke execute on function public.admin_set_panel_access_v2(uuid,text,uuid,boolean,text,text[]) from anon;
 grant execute on function public.admin_set_panel_access_v2(uuid,text,uuid,boolean,text,text[]) to authenticated, service_role;
