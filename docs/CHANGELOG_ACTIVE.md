@@ -1,3 +1,16 @@
+## 2026-10-11 — Spec: desbloqueo Preview de Suscripciones (22) y Prioridad (25), sin cambios de código
+- Especificación en `docs/specs/SPEC-2026-10-11-preview-suscripciones-prioridad.md`. Base `420db6c`; referencia de solo lectura `chatgpt/admin-preview-independent-20261010` @ `aaae599`.
+- Las dos historias no tienen ancestro común (`merge-base` vacío): no hay cherry-pick. Alcance mínimo: set `_previewScopedModules` (+22, +25), `lib/admin_driver_subscriptions.dart` (bf5ead2 y 27d207e), cierre fail-closed de canal en `lib/admin_environment_store.dart`, test y SQL documental, y aserciones de CI de 22/25.
+- Riesgo bloqueante: la carga Preview de Suscripciones de `420db6c` llama a `admin_driver_subscriptions` (sin canal, datos reales) y filtra en el navegador. No desbloquear 22 sin el port.
+- Prioridad (25): sus RPC ya reciben `p_channel` y la base separa canales en Preview y Producción; basta el guardia.
+- La RPC `admin_preview_driver_subscription_candidates` ya existe en la base (comprobado con SELECT). No se aplicó nada.
+- CI de `aaae599` ejecutada en el worktree: bloque 1 PASS, bloque 2 5/5 PASS, bloque 3 82 de 146 (64 fallos: 14 en alcance 22/25 y 50 fuera de alcance).
+- Flutter no está instalado en el entorno: no se ejecutaron `flutter analyze`, `flutter test` ni builds.
+- Sin cambios en identidad, carrusel, filtro «Identidad por revisar», visor ni RPC. Producción `30e6058` sin cambios.
+- Pendiente: decisión del propietario sobre la regla de rol (`CLAUDE.md` cargado frente al commit `8c917dc`) y sobre el alcance de las aserciones de CI.
+
+---
+
 ## 2026-10-11 — Filtro «Identidad por revisar» en Conductores
 - Nueva RPC de solo lectura `admin_identity_pending_driver_ids()` (solo administradores; devuelve IDs de conductores con identidad manual pendiente y sin ninguna aprobada). SQL en `docs/sql/2026-10-11_admin_identity_pending_driver_ids.sql`. Aplicada a la base compartida.
 - `lib/admin_panel.dart`: la lista de Conductores marca cada fila y muestra el chip «Identidad por revisar (N)». Si la RPC falla, la lista sigue sin el filtro.
