@@ -44,6 +44,16 @@ No volver a:
 - un `PREVIEW_AUTHORIZED` que seleccione otro bundle;
 - selector manual Preview/Producción dentro de la misma cuenta.
 
+## 4. Paridad funcional obligatoria
+
+Todo agente que modifique flujo, backend, permisos, SQL, RPC o configuración debe mantener paridad Preview/Producción.
+
+Debe crear o mantener una rama temporal `preview/<slug>` que valide **el mismo código** de la rama de cambio. Esa rama es QA, no una implementación paralela.
+
+La regla completa está en `docs/PREVIEW_PRODUCTION_PARITY_RULE.md`.
+
+Los cambios visuales puros están exentos solo si no modifican comportamiento, acciones, consultas, estados ni permisos.
+
 ## 4. Seguridad y validación
 
 Antes de mergear cambios sustanciales:
