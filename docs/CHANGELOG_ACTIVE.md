@@ -1,3 +1,8 @@
+## 2026-10-11 — Carrusel de documentos en la ficha del conductor
+- `lib/admin_detail_dialogs.dart`: «Documentos e identidad» pasa a carrusel horizontal (izquierda a derecha), una tarjeta por documento. Identidad primero, luego el resto en el orden recibido, y al final una tarjeta «Vehículo» de solo lectura.
+- Se quitó la franja «Revisión de identidad / Verificación manual» (lista legada de `identity_verifications`, sin acciones). Las tarjetas de identidad siguen mostrando su estado y sus fotos.
+- Sin cambios de backend, RPC ni migraciones.
+
 ## 2026-10-11 — Revisión de identidad por foto en la ficha del conductor (desde Preview)
 - Rama `claude/promote-identity-prod-2026-10-11` basada en Producción `30e60582`; solo se porta la revisión de identidad de Preview (`c3a2c5c`).
 - `lib/admin_detail_dialogs.dart` (ficha del conductor, sección «Documentos e identidad»): los documentos de identidad (`identity_card`, `national_id`, `id_card`, `identity`, `carnet`, `cedula`/`cédula`) se revisan por foto (frente, reverso, selfie) con Ver / Aprobar / Rechazar / Reactivar. El rechazo exige motivo de al menos 5 caracteres.

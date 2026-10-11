@@ -725,6 +725,48 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     );
   }
 
+  /// Vehicle summary card for the documents carousel. Read-only; technical
+  /// fields are edited in the vehicle section above.
+  Widget _vehicleSummaryCard(Map<String, dynamic> vehicle) {
+    return SizedBox(
+      width: 320,
+      child: Container(
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: _detailSoft,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _detailBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Vehículo',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            if (vehicle.isEmpty)
+              const Text(
+                'El conductor todavía no registró vehículo.',
+                style: TextStyle(color: _detailMuted, fontSize: 11),
+              )
+            else ...[
+              Text(
+                '${_text(vehicle['brand'], '—')} ${_text(vehicle['model'], '')} · ${_text(vehicle['year'], '')}',
+                style: const TextStyle(fontSize: 12),
+              ),
+              Text(
+                'Placa: ${_text(vehicle['plate'], '—')} · Color: ${_text(vehicle['color'], '—')}',
+                style: const TextStyle(color: _detailMuted, fontSize: 11),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Identity document card: per-photo review only. Document-level
   /// approve/reject is hidden so identity status comes from review_parts
   /// (the DB trigger sets status to 'verified' when all photos are approved).
@@ -931,7 +973,11 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
         ? zoneId
         : null;
     final documents = _maps(detail['documents']);
-    final verifications = _maps(detail['identity_verifications']);
+    // Carrusel: identidad primero, luego el resto en el orden recibido.
+    final orderedDocuments = [
+      ...documents.where(_isIdentityDocument),
+      ...documents.where((doc) => !_isIdentityDocument(doc)),
+    ];
     final rating = _map(detail['rating_summary']);
     final subscription = _map(detail['subscription']);
     final qa = _map(detail['qa']);
@@ -1250,15 +1296,26 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                 ),
                               )
                             else
-                              ...documents.map((doc) {
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                              ...orderedDocuments.map((doc) {
                                 if (_isIdentityDocument(doc)) {
-                                  return _identityDocumentCard(doc);
+                                  return SizedBox(
+                                    width: 320,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(right: 12),
+                                      child: _identityDocumentCard(doc),
+                                    ),
+                                  );
                                 }
                                 final status = (doc['status'] ?? 'pending').toString();
                                 final expiry = doc['expires_at'];
                                 final rejectionNote = (doc['notes'] ?? '').toString();
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 9),
+                                return SizedBox(width: 320, child: Container(
+                                  margin: const EdgeInsets.only(right: 12),
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: _detailSoft,
@@ -1365,39 +1422,12 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                       ),
                                     ],
                                   ),
-                                );
+                                ));
                               }),
-                            const Divider(),
-                            const Text(
-                              'Revisión de identidad',
-                              style: TextStyle(fontWeight: FontWeight.w900),
-                            ),
-                            if (verifications.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8),
-                                child: Text('Aún no se realizó la revisión.',
-                                  style: TextStyle(color: _detailMuted, fontSize: 11)),
-                              )
-                            else
-                              ...verifications.take(3).map((v) {
-                                final status = _text(v['status'], 'pending');
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 7),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.fact_check_outlined, size: 18),
-                                      const SizedBox(width: 9),
-                                      const Expanded(
-                                        child: Text('Verificación manual',
-                                          style: TextStyle(fontWeight: FontWeight.w600)),
-                                      ),
-                                      Chip(label: Text(
-                                        _friendlyDocumentStatus(status),
-                                      )),
-                                    ],
-                                  ),
-                                );
-                              }),
+                                    _vehicleSummaryCard(activeVehicle),
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
                       ),
