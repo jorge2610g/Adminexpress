@@ -328,7 +328,6 @@ jobs:
           assert preview.get('environment') == 'preview', 'Preview channel unexpectedly changed'
           assert preview.get('supabase_project_ref') == 'xbphilqezmwfjfpdbwad', 'Preview database project is incorrect'
           assert production.get('supabase_project_ref') == 'zgpijrznvaskgcmauwxx', 'Production database project is incorrect'
-          assert preview.get('supabase_project_ref') == 'zgpijrznvaskgcmauwxx', 'Preview project unexpectedly changed'
           print('PASS: expected Preview SHA is live; Production SHA and channel unchanged')
           PY
             then
