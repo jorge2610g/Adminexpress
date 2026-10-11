@@ -2,6 +2,19 @@
 
 > **Regla de lectura:** la entrada más reciente define la arquitectura vigente. Entradas anteriores se conservan como historial de decisiones y no deben usarse para restaurar comportamientos retirados.
 
+## 2026-10-11 — Regla obligatoria de paridad Preview / Producción
+
+- Todo cambio no visual de flujo, backend, permisos, RPC, SQL, configuración o comportamiento debe quedar funcionando también en Preview antes de merge.
+- El código sigue siendo único y compartido; Preview y Producción no vuelven a tener implementaciones separadas.
+- Para cambios funcionales/backend se crea una rama temporal `preview/<slug>` para validar el mismo código con datos Preview.
+- Si QA detecta fallos, la corrección se hace en la rama principal del cambio y la rama Preview se sincroniza al mismo commit.
+- No se permite “Producción ahora y Preview después” salvo excepción explícita del propietario.
+- Los cambios visuales puros quedan exentos si no alteran flujo, consultas, permisos, estados ni acciones.
+- Se añadió checklist de PR en `.github/PULL_REQUEST_TEMPLATE.md`.
+- Regla completa: `docs/PREVIEW_PRODUCTION_PARITY_RULE.md`.
+
+---
+
 ## 2026-10-11 — Adminexpress central por usuario, rol, zona y permisos
 
 - Se retiró la arquitectura de dos páginas administrativas separadas.
