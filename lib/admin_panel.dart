@@ -313,17 +313,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // These administration modules cover the entire Express system rather than
   // an operational country, zone, or a separate Preview/Production mode.
   static const Set<int> _globalSections = {10, 12, 14}; // Reports, Builds, Audit
-  // Shared Supabase: users, drivers, zones and their travel/pricing data
-  // require QA-scoped access. Financial/integration pages may use the real
-  // provider only after the payer, payee and zone are proven QA-owned.
-  // Build status (12) is read-only in Preview (productionAccess=false).
-  // Dynamic demand (28) uses channel-scoped settings and Preview-only
-  // synthetic overrides. Dispatch (13) still uses QA-only shadow requests.
-  // Other modules must remain fail-closed pending server-side QA checks;
-  // hiding a button alone does not isolate their SECURITY DEFINER RPCs.
-  static const Set<int> _previewScopedModules = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 16, 17, 18, 19, 22, 25, 27, 28,
-  };
+  // All administrative sections share the same navigation in both sites.
+  // Preview keeps its own login session and actor-scoped operations, while
+  // global integrations, zones, fares and providers are shared with Production.
+  // Do not hide entire modules to enforce actor isolation: individual RPCs and
+  // Edge Functions must validate QA passengers/drivers and their transactions.
+  // Sensitive controls (including production releases) retain their own
+  // permission checks. Opening a screen does not authorize unsafe writes.
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
 
@@ -1269,22 +1265,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _body(int value) {
-    // Fail closed: a shared database also has REAL merchants, subscriptions,
-    // payments and releases. Never run unscoped Preview module RPCs.
-    if (adminIsPreview && !_previewScopedModules.contains(value)) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'Este módulo todavía no tiene aislamiento seguro por canal. '
-            'Está bloqueado en Prueba para proteger los datos reales. '
-            'Puedes gestionar conductores, documentos, viajes y '
-            'configuración QA desde sus secciones.',
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
+    // Feature parity: all sections are navigable in Preview.
+    // Per-action backend authorization remains required for writes involving
+    // users, drivers, orders, trips, payments and communications.
     if (_requiresZoneScope(value) && !_scopeReady) {
       return const _ScopeSelectionRequired();
     }
