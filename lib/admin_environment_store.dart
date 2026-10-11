@@ -2,21 +2,35 @@ import 'core/supabase_client.dart';
 
 /// Environment-aware storage used by Adminexpress.
 ///
-/// Production pages continue to use the real operational RPCs/tables.
-/// Both web pages use the SAME physical Supabase database.
-/// Shared BUSINESS SETTINGS (countries, zones, services, tariffs, coverage,
-/// security polygons, general settings, identity requirements) use the normal
-/// operational RPCs on both pages. Preview still uses admin_environment_config
-/// ONLY for intentionally isolated QA settings / operational fixtures.
-/// Production continues using the normal operational RPCs and tables.
-/// Never route QA driver documents, test rides or payments through this switch.
+/// Both sites connect to the SAME Supabase project, but Preview editors
+/// use `admin_environment_config` QA shadow storage instead of operational
+/// tables. Direct unscoped writes must never be used from Preview.
+///
+/// Runtime-sensitive records (trips, identity reviews, wallets, payments)
+/// additionally require server-side channel/identity assertions. This client
+/// switch is not a substitute for authorization checks on privileged RPCs.
 class AdminEnvironmentStore {
   final String channel;
 
   const AdminEnvironmentStore(this.channel);
 
-  bool get isPreview => channel == 'preview';
-  bool get isProduction => !isPreview;
+  // UI routing is a second line of defense, not a substitute for database
+  // authorization. Invalid channels must NEVER fall through to Production.
+  void _assertValidChannel() {
+    if (channel != 'preview' && channel != 'production') {
+      throw StateError('Canal administrativo inválido: operación bloqueada');
+    }
+  }
+
+  bool get isPreview {
+    _assertValidChannel();
+    return channel == 'preview';
+  }
+
+  bool get isProduction {
+    _assertValidChannel();
+    return channel == 'production';
+  }
 
   Future<List<Map<String, dynamic>>> previewList(String module) async {
     final value = await supabase.rpc(

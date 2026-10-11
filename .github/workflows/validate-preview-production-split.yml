@@ -181,7 +181,8 @@ jobs:
           assert 'allowProduction = !adminIsPreview' in panel
           assert "admin_zone_list_for_country" in panel
           assert "admin_country_list_scoped" in panel
-          assert "bool get isPreview => channel == 'preview';" in env_store
+          # Fail-closed store (aaae599): isPreview validates the channel first.
+          assert "bool get isPreview {" in env_store and "return channel == 'preview';" in env_store
           # Business settings are shared; account, identity review, trip and
           # payment operations still require runtime channel isolation.
           for name in ['_AdminZonesPageState','_AdminGeoSafetyPageState',
@@ -195,9 +196,9 @@ jobs:
           assert 'productionAccess: allowProduction && !adminIsPreview' in panel
           assert 'static const Set<int> _previewScopedModules' in panel
           assert 'if (adminIsPreview && !_previewScopedModules.contains(value))' in panel
-          for safe in ['0','1','2','3','4','5','6','8','10','11','14','16','18','27']:
+          for safe in ['0','1','2','3','4','5','6','8','10','11','14','16','18','22','25','27']:
               assert safe in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
-          for blocked in ['7','9','12','13','15','17','19','20','21','22','23','24','25','26','28']:
+          for blocked in ['7','9','12','13','15','17','19','20','21','23','24','26','28']:
               assert blocked not in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
           assert 'if (adminIsPreview) return _ExpressPanelAccess.denied;' in login
           assert '--dart-define=ADMIN_ENV=production' in workflow
@@ -214,6 +215,63 @@ jobs:
           assert 'AdminEnvironmentLinkButton()' in login
           print('PASS: same physical Supabase; immutable Preview channel; unsafe modules fail closed.')
           PY
+
+      - name: Preview 22/25 guards (subscriptions and driver priority)
+        shell: bash
+        run: |
+          python3 -I - <<'PY'
+          from pathlib import Path
+          env_store = Path('lib/admin_environment_store.dart').read_text()
+          panel = Path('lib/admin_panel.dart').read_text()
+          assert "void _assertValidChannel()" in env_store
+          assert "throw StateError('Canal administrativo inválido: operación bloqueada')" in env_store
+          assert "return channel == 'preview';" in env_store
+          assert "return channel == 'production';" in env_store
+          assert "bool get isProduction => !isPreview;" not in env_store
+          for safe in ['0','1','2','3','4','5','6','8','10','11','14','16','18','22','25','27']:
+              assert safe in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
+          # Subscriptions (22) must not download real driver data to Preview.
+          subscriptions = Path('lib/admin_driver_subscriptions.dart').read_text()
+          assert "'admin_preview_driver_subscription_candidates'" in subscriptions
+          assert "'p_zone_id': widget.zoneId" in subscriptions
+          assert "'p_search': search.text.trim()" in subscriptions
+          preview_code = subscriptions.split('if (_environment.isPreview) {', 1)[1].split('return;', 1)[0]
+          assert "'admin_driver_subscriptions'" not in preview_code
+          assert "'admin_preview_driver_subscription_candidates'" in preview_code
+          assert "'driver_subscriptions'" in preview_code
+          assert "_environment.previewUpsert(" in subscriptions
+          assert "selectedZone == null || _environment.isPreview" in subscriptions
+          assert "if (driver['is_qa'] == true) return true;" in subscriptions
+          assert "if (!_environment.isPreview &&" in subscriptions
+          # Server RPC is additive, auth-guarded and read-only; never copies
+          # any live driver subscription into client side QA data.
+          sql = Path('docs/preview/migrations/20261011_shared_db_subscriptions_qa_candidates.sql').read_text()
+          assert "admin_environment_allowed('preview')" in sql
+          assert "audit_test_group_members" in sql
+          assert "REVOKE ALL" in sql
+          assert "INSERT INTO" not in sql.upper()
+          assert "UPDATE public." not in sql
+          # Server calls for Priority (25) are scoped by channel and QA driver.
+          priority = Path('lib/admin_driver_priority.dart').read_text()
+          assert "'admin_driver_priority_state_scoped'" in priority
+          assert "'admin_update_driver_priority_settings_v2'" in priority
+          assert "'p_channel': widget.channel" in priority
+          assert "widget.channel == 'preview'" in priority
+          assert "'p_enabled': widget.channel == 'preview'" in priority
+          assert "'p_zone_id': zoneId" in priority
+
+          # Regression: subscriptions is section 22 and must be accessible
+          # with the shared backend, while unsafe modules remain guarded.
+          assert "('Suscripciones', Icons.workspace_premium_rounded)" in panel
+          assert "case 22:" in panel
+          assert "return AdminDriverSubscriptionsPage(" in panel
+          assert "'Este módulo todavía no tiene aislamiento seguro por canal." in panel
+          print('PASS: subscriptions (22) and driver priority (25) are Preview-safe.')
+          PY
+
+      - name: Store channel tests (fail closed)
+        run: |
+          flutter test test/admin_environment_store_test.dart
 
       - name: Analyze admin modules
         run: |

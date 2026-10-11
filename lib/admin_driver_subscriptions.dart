@@ -74,6 +74,8 @@ class _AdminDriverSubscriptionsPageState
   }
 
   bool _isQaDriver(Map<String, dynamic> driver) {
+    // QA database membership is authoritative, not only the email prefix.
+    if (driver['is_qa'] == true) return true;
     final email = (driver['email']?.toString() ?? '').trim().toLowerCase();
     final name = (driver['full_name']?.toString() ?? '').trim().toLowerCase();
 
@@ -130,18 +132,16 @@ class _AdminDriverSubscriptionsPageState
           }
         }
 
+        // QA-only server RPC: never download production driver subscriptions
+        // and filter them in a Preview browser.
         final rawDrivers = await supabase.rpc(
-          'admin_driver_subscriptions',
+          'admin_preview_driver_subscription_candidates',
           params: {
+            'p_zone_id': widget.zoneId,
             'p_search': search.text.trim(),
-            'p_zone_key': zoneKey,
           },
         );
-        final qaDrivers = _maps(rawDrivers)
-            .where(
-              (row) => row['is_qa'] == true || _isQaDriver(row),
-            )
-            .toList();
+        final qaDrivers = _maps(rawDrivers);
         final assignments =
             await _environment.previewList('driver_subscriptions');
         final mergedDrivers = qaDrivers.map((driver) {
@@ -625,10 +625,12 @@ class _AdminDriverSubscriptionsPageState
         context: context,
         builder: (context) => AlertDialog(
           title: Text('Exigir suscripción · $zoneName'),
-          content: Text(
-            'Solo los conductores de $zoneName sin una suscripción vigente '
-            'serán puestos offline. Las demás zonas no se modificarán.',
-          ),
+          content: Text(_environment.isPreview
+              ? 'Solo se simulará la exigencia de suscripción para '
+                  'conductores QA de $zoneName. Ningún conductor real '
+                  'será puesto fuera de línea.'
+              : 'Solo los conductores de $zoneName sin una suscripción vigente '
+                  'serán puestos offline. Las demás zonas no se modificarán.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -644,11 +646,13 @@ class _AdminDriverSubscriptionsPageState
       if (ok != true) return;
     }
 
-    if (isBolivia && providerEnabled && provider['configured'] != true) {
+    if (!_environment.isPreview &&
+        isBolivia && providerEnabled && provider['configured'] != true) {
       _snack('Configura y verifica primero VeriPagos.');
       return;
     }
-    if (isBolivia &&
+    if (!_environment.isPreview &&
+        isBolivia &&
         providerEnabled &&
         provider['status_endpoint_ready'] != true) {
       _snack(
@@ -902,7 +906,8 @@ class _AdminDriverSubscriptionsPageState
           'default',
           <String, dynamic>{
             'ok': true,
-            'connected': true,
+            'connected': false,
+            'simulated': true,
             'settings': <String, dynamic>{
               'username': user.text.trim(),
               'has_password': password.text.isNotEmpty ||
@@ -937,9 +942,10 @@ class _AdminDriverSubscriptionsPageState
         }
       }
 
-      _snack(
-        'VeriPagos conectado: generación y verificación de pagos operativas.',
-      );
+      _snack(_environment.isPreview
+          ? 'Proveedor simulado en Preview. No se verificó ni se conectó '
+              'un sistema de cobros real.'
+          : 'VeriPagos conectado: generación y verificación de pagos operativas.');
       await _load();
     } catch (e) {
       _snack('No se pudo conectar con VeriPagos: ' + e.toString());
@@ -963,8 +969,9 @@ class _AdminDriverSubscriptionsPageState
           <String, dynamic>{
             ...current,
             'ok': true,
-            'connected': true,
-            'verified_at': DateTime.now().toUtc().toIso8601String(),
+            'connected': false,
+            'simulated': true,
+            'verified_at': null,
           },
         );
       } else {
@@ -985,7 +992,10 @@ class _AdminDriverSubscriptionsPageState
         }
       }
 
-      _snack('Conexión VeriPagos verificada correctamente.');
+      _snack(_environment.isPreview
+          ? 'Preview: se comprobó la configuración simulada; '
+              'no se contactó con VeriPagos.'
+          : 'Conexión VeriPagos verificada correctamente.');
       await _load();
     } catch (e) {
       _snack('VeriPagos no responde correctamente: ' + e.toString());
@@ -1146,7 +1156,7 @@ class _AdminDriverSubscriptionsPageState
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
-              onPressed: selectedZone == null
+              onPressed: selectedZone == null || _environment.isPreview
                   ? null
                   : () async {
                       final changed =
@@ -1160,6 +1170,12 @@ class _AdminDriverSubscriptionsPageState
               label: const Text('Editar métodos de suscripción'),
             ),
           ),
+          if (_environment.isPreview)
+            const _AdminSubNotice(
+              text: 'Preview: los métodos de cobro reales no pueden '
+                  'editarse desde esta pantalla. Los planes y ajustes QA '
+                  'se guardan por separado y no realizan cobros.',
+            ),
           const SizedBox(height: 16),
           _SettingsCard(
             enabled: enabled,
@@ -1245,10 +1261,13 @@ class _AdminDriverSubscriptionsPageState
                       color: Color(0xFFD97706),
                     ),
                     const SizedBox(width: 10),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'No se pudieron cargar los planes en esta vista. '
-                        'El resto del módulo seguirá funcionando mientras se reintenta.',
+                        _environment.isPreview
+                            ? 'Todavía no hay planes de prueba. '
+                                'Selecciona Nuevo plan para crear uno sin cobros reales.'
+                            : 'No se pudieron cargar los planes en esta vista. '
+                                'El resto del módulo seguirá funcionando mientras se reintenta.',
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1286,7 +1305,9 @@ class _AdminDriverSubscriptionsPageState
             children: [
               Expanded(
                 child: Text(
-                  'Conductores reales (' + realDrivers.length.toString() + ')',
+                  _environment.isPreview
+                      ? 'Conductores de producción: no visibles en Preview'
+                      : 'Conductores reales (' + realDrivers.length.toString() + ')',
                   style: const TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.w900,
@@ -1320,7 +1341,7 @@ class _AdminDriverSubscriptionsPageState
             style: const TextStyle(color: Color(0xFF64748B)),
           ),
           const SizedBox(height: 10),
-          if (realDrivers.isEmpty)
+          if (realDrivers.isEmpty && !_environment.isPreview)
             const _AdminSubNotice(text: 'No hay conductores reales para mostrar.')
           else
             for (final driver in realDrivers)
@@ -1370,6 +1391,16 @@ class _AdminDriverSubscriptionsPageState
                       leading: const CircleAvatar(
                         child: Icon(Icons.science_outlined),
                       ),
+                      trailing: _environment.isPreview
+                          ? FilledButton(
+                              onPressed: plans.isEmpty
+                                  ? null
+                                  : () => _assignPlan(driver),
+                              child: Text(driver['plan_id'] == null
+                                  ? 'Asignar plan QA'
+                                  : 'Editar plan QA'),
+                            )
+                          : null,
                       title: Text(
                         driver['full_name']?.toString().trim().isNotEmpty == true
                             ? driver['full_name'].toString()

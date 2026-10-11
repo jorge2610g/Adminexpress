@@ -244,8 +244,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // Zones (7) and Coverage (17) are blocked in Preview: their write RPCs run
   // admin_assert_environment('production') and would change real zones and
   // settlements from a Preview session.
+  // Subscriptions (22) and driver priority (25) use QA-only candidates and
+  // Preview shadow storage; real payments and real drivers stay out of Preview.
   static const Set<int> _previewScopedModules = {
-    0, 1, 2, 3, 4, 5, 6, 8, 10, 11, 14, 16, 18, 27,
+    0, 1, 2, 3, 4, 5, 6, 8, 10, 11, 14, 16, 18, 22, 25, 27,
   };
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);

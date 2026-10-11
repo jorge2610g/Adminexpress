@@ -1,3 +1,13 @@
+## 2026-10-11 — Preview: Suscripciones (22) y Prioridad (25) desbloqueadas con sus guardas (port de ChatGPT)
+- Autorizado por el propietario en el chat («Haslo confirmado»).
+- `lib/admin_panel.dart`: 22 y 25 en `_previewScopedModules`.
+- `lib/admin_driver_subscriptions.dart`: portados `bf5ead2` (candidatos QA solo por RPC `admin_preview_driver_subscription_candidates`, planes simulados, sin pagos reales) y `27d207e` (VeriPagos simulado en Preview, compuertas `!_environment.isPreview`). Preview no llama a `admin_driver_subscriptions`.
+- `lib/admin_environment_store.dart`: canal inválido lanza `StateError` (fail-closed) en `isPreview` e `isProduction`. Hunk de `aaae599`.
+- `test/admin_environment_store_test.dart` y `docs/preview/migrations/20261011_shared_db_subscriptions_qa_candidates.sql`: copiados de `aaae599`. El SQL es solo documentación; no se ejecutó.
+- `.github/workflows/validate-preview-production-split.yml`: aserciones de 22/25, store y SQL; paso de tests del store. Desviaciones respecto de la spec: la aserción de `bool get isPreview => ...` se actualizó a la forma validada (misma invariante); las listas de 22 y 25 pasan a seguras.
+- Sin cambios de base de datos. Producción no cambia.
+- Pendiente de verificación: `flutter analyze`, `flutter test` y builds (Flutter no está en el PATH de este entorno).
+
 ## 2026-10-11 — Spec: port de 22 y 25 no aplicado en esta sesión; prompt vigente (HEAD 3d2a680)
 - Esta sesión no porta código: el `CLAUDE.md` cargado dice que Claude no programa. La especificación y el prompt para la IA programadora están en `docs/specs/SPEC-2026-10-11-preview-suscripciones-prioridad.md`, sección 11.
 - Correcciones a la spec: 22 y 25 salen de la lista de bloqueados del bloque C del workflow; la lista de seguros copiada de `aaae599` no incluye 7 ni 17; el paso nuevo necesita su preámbulo de variables.
