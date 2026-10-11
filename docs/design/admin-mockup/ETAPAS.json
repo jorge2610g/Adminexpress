@@ -446,16 +446,16 @@
     },
     {
       "n": 34,
-      "title": "18 · Verificación de identidad · Revisión (= 27)",
+      "title": "Conductores · Documentos e identidad (antes 18/27)",
       "file": "project/Identidad.dc.html",
-      "flutter": "lib/admin_bolivia_kyc.dart (integrado en Conductores)",
+      "flutter": "lib/admin_detail_dialogs.dart (integrado en la ficha de Conductores)",
       "stage": "E3",
       "reference": "inspeccionada_en_PDF",
       "parity": "pendiente_de_captura_real"
     },
     {
       "n": 35,
-      "title": "18 · Verificación de identidad · Requisitos",
+      "title": "Conductores · Requisitos de documentos",
       "file": "project/Requisitos.dc.html",
       "flutter": "lib/admin_driver_document_requirements.dart (integrado en Conductores)",
       "stage": "E3",
@@ -466,7 +466,7 @@
       "n": 36,
       "title": "Diálogos · Identidad y requisitos",
       "file": "project/DlgIdentidad.dc.html",
-      "flutter": "lib/admin_detail_dialogs.dart + lib/admin_bolivia_kyc.dart",
+      "flutter": "lib/admin_detail_dialogs.dart",
       "stage": "E3",
       "reference": "inspeccionada_en_PDF",
       "parity": "pendiente_de_captura_real"
@@ -475,7 +475,7 @@
       "n": 37,
       "title": "16 · Servicios",
       "file": "project/Servicios.dc.html",
-      "flutter": "lib/admin_preview_config_sections.dart + lib/admin_control_sections.dart",
+      "flutter": "lib/admin_control_sections.dart",
       "stage": "E7",
       "reference": "inspeccionada_en_PDF",
       "parity": "pendiente_de_captura_real"
@@ -511,7 +511,7 @@
       "n": 41,
       "title": "19 · Configuración avanzada",
       "file": "project/ConfigAvanzada.dc.html",
-      "flutter": "lib/admin_preview_config_sections.dart",
+      "flutter": "lib/admin_control_sections.dart",
       "stage": "E7",
       "reference": "inspeccionada_en_PDF",
       "parity": "pendiente_de_captura_real"
@@ -565,7 +565,7 @@
       "n": 47,
       "title": "Diálogos · Configuración avanzada",
       "file": "project/DlgAvanzada.dc.html",
-      "flutter": "lib/admin_preview_config_sections.dart · diálogos",
+      "flutter": "lib/admin_control_sections.dart · diálogos",
       "stage": "E7",
       "reference": "inspeccionada_en_PDF",
       "parity": "pendiente_de_captura_real"
