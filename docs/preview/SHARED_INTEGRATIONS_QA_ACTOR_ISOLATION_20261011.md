@@ -1,3 +1,22 @@
+> **Actualización 11/oct/2026 · mismo proveedor real, sin configuraciones QA duplicadas.**
+> Las pantallas administrativas de zonas/cobertura, servicios, tarifas, países,
+> pagos/billetera, métodos de pago, Mercado Pago, configuración general y avanzada
+> quedaron encaminadas a sus **RPC reales compartidas** en la rama de trabajo.
+> Suscripciones consulta planes, pagos y proveedor reales; las operaciones
+> sobre conductores se limitan a los participantes de prueba que ya existen.
+> No hay segundo proyecto Supabase ni nueva pasarela de cobro.
+>
+> **Control de publicación:** este conjunto de cambios es posterior a la
+> versión Preview publicada `663d6952` y **aún no está desplegado**.
+> GitHub Actions debe aprobar Flutter/análisis y verificarse la autorización
+> de cada administrador (algunos tienen acceso solo a Preview y las funciones
+> de proveedores aún exigen permiso de Producción). No tocar `main`.
+>
+> **Pendiente:** despacho manual real sigue siendo simulador para Preview;
+> los métodos de documentos de conductor aún conservan lógica QA. No declarar
+> paridad funcional completa ni efectuar cobros reales de verificación de forma
+> automática sin una operación concreta autorizada.
+>
 > **Rectificación del propietario · 11 de octubre de 2026 (vigente).**
 > La separación ya existe entre **Conductor Prueba** y **Pasajero Prueba**.
 > Pueden circular por cualquier zona real de Express, usando sus coberturas y
