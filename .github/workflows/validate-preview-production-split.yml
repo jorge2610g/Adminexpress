@@ -257,9 +257,9 @@ jobs:
               print('WARNING: temporary all-modules Preview UI enabled on dedicated QA PR only.')
           else:
               assert normal_guard in panel
-          for safe in ['0','1','2','3','4','5','6','7','8','10','11','12','13','14','16','17','18','22','25','27','28']:
+          for safe in ['0','1','2','3','4','5','6','7','8','10','11','12','13','14','16','17','18','19','22','25','27','28']:
               assert safe in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
-          for blocked in ['9','15','19','20','21','23','24','26']:
+          for blocked in ['9','15','20','21','23','24','26']:
               assert blocked not in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
           assert 'if (adminIsPreview) return _ExpressPanelAccess.denied;' in login
           # Preview and Production share the Supabase project, but MUST NOT
@@ -349,6 +349,15 @@ jobs:
           assert "REVOKE ALL" in sql
           assert "INSERT INTO" not in sql.upper()
           assert "UPDATE public." not in sql
+          # Shared global settings must be inherited, not silently mocked.
+          controls = Path('lib/admin_control_sections.dart').read_text()
+          settings = controls.split('class _AdminSettingsPageState',1)[1].split('class ',1)[0]
+          advanced = controls.split('class _AdminAdvancedSettingsPageState',1)[1].split('class ',1)[0]
+          assert "final row = _map(await supabase.rpc('admin_settings_get'))" in settings
+          assert "Configuración global compartida con Producción" in settings
+          assert "final value = await supabase.rpc('admin_settings_get')" in advanced
+          assert "Editar" not in advanced or "if (_environment.isPreview)" in advanced
+          assert "onPressed: _environment.isPreview ? null" in advanced
           # Live data is never mutated by Android Builds in Preview.
           assert 'productionAccess: allowProduction && !adminIsPreview' in panel
           release = Path('lib/admin_single_app_release.dart').read_text()
