@@ -151,13 +151,27 @@ class _AdminDriverSubscriptionsPageState
             },
           ));
         }
-        final providerResponse = await supabase.functions.invoke(
-          'driver-subscription-admin',
-          body: const {'action': 'get'},
-        );
-        final providerData = providerResponse.data is Map
-            ? Map<String, dynamic>.from(providerResponse.data as Map)
-            : <String, dynamic>{'connected': false};
+        Map<String, dynamic> providerData = <String, dynamic>{
+          'connected': false,
+        };
+        try {
+          final providerResponse = await supabase.functions.invoke(
+            'driver-subscription-admin',
+            body: const {'action': 'get'},
+          );
+          if (providerResponse.data is Map) {
+            providerData =
+                Map<String, dynamic>.from(providerResponse.data as Map);
+          }
+        } catch (providerError) {
+          // Some Preview-only administrators lack the provider credential
+          // permission. Show the real plans and payments anyway; never
+          // pretend that the provider is connected or use fake credentials.
+          providerData = <String, dynamic>{
+            'connected': false,
+            'error': providerError.toString(),
+          };
+        }
         if (mounted) {
           setState(() {
             zones = zoneRows;
