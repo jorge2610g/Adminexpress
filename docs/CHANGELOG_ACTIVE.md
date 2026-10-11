@@ -1,3 +1,9 @@
+## 2026-10-11 — Spec: port de 22 y 25 no aplicado en esta sesión; prompt vigente (HEAD 3d2a680)
+- Esta sesión no porta código: el `CLAUDE.md` cargado dice que Claude no programa. La especificación y el prompt para la IA programadora están en `docs/specs/SPEC-2026-10-11-preview-suscripciones-prioridad.md`, sección 11.
+- Correcciones a la spec: 22 y 25 salen de la lista de bloqueados del bloque C del workflow; la lista de seguros copiada de `aaae599` no incluye 7 ni 17; el paso nuevo necesita su preámbulo de variables.
+- `3d2a680` contiene código escrito por Claude en esta rama (7 y 17 fuera de Preview). Pendiente de decisión del propietario.
+- Sin cambios de código de la app, base de datos ni workflows en esta entrada.
+
 ## 2026-10-11 — Preview: Zonas (7) y Cobertura (17) bloqueadas
 - `lib/admin_panel.dart`: 7 y 17 salen de `_previewScopedModules`. Sus escrituras (zonas, liquidaciones, socios, polígonos, zonas de seguridad) llaman RPC con `admin_assert_environment('production')` y modificaban datos reales desde una sesión de Preview.
 - `.github/workflows/validate-preview-production-split.yml`: las aserciones pasan 7 y 17 a la lista de bloqueados. Es un cambio de criterio documentado, no una desactivación de guardia.

@@ -5,6 +5,8 @@
 **Referencia de solo lectura:** `chatgpt/admin-preview-independent-20261010` @ `aaae599` (PR #66).
 **Producción:** `30e6058` sin cambios. Todo lo que sigue aplica solo a Preview.
 
+> **Actualización 2026-10-11 (HEAD `3d2a680`):** la rama ya contiene código (`3d2a680`, autor Claude). La línea «Estado» y la sección 7 describen `a430e0d`, no HEAD. Prevalece la **sección 11**.
+
 ---
 
 ## 1. Decisión de rol y bloqueos (leer primero)
@@ -290,6 +292,118 @@ Responde en español con:
 (4) salida del bloque de aserciones;
 (5) resultado de los greps;
 (6) confirmación de que no hubo escrituras en base, despliegues ni cambios en Producción;
+(7) desviaciones respecto de esta spec y por qué.
+Haz push solo a claude/preview-authorized-2026-10-11.
+```
+
+## 11. Actualización 2026-10-11 (HEAD `3d2a680`): decisión de esta sesión y prompt vigente
+
+### 11.1 Estado verificado (solo lectura; sin consultas a la base)
+
+- HEAD `3d2a680` sobre `a430e0d` y `420db6c`. `a430e0d` es solo documentación. **`3d2a680` sí contiene código**: `lib/admin_panel.dart` (7 y 17 salen de `_previewScopedModules`), `.github/workflows/validate-preview-production-split.yml` (7 y 17 pasan a la lista de bloqueados) y `docs/CHANGELOG_ACTIVE.md`. Autor del commit: `Claude <noreply@anthropic.com>`. La cabecera y la sección 7 describen `a430e0d`, no HEAD.
+- `_previewScopedModules` en HEAD: `{0,1,2,3,4,5,6,8,10,11,14,16,18,27}`. No contiene 22 ni 25.
+- Bloques Python del workflow actual, ejecutados con `python3 -I` desde la raíz del worktree (rc 0 en los tres): **bloque A** (líneas 86–134, «global Builds, Audit, Reports»), **bloque B** (140–159, «identidad solo manual») y **bloque C** (166–215, «same physical Supabase; immutable Preview channel; unsafe modules fail closed»). El bloque C contiene las listas `for safe` (línea 198) y `for blocked` (línea 200) de `_previewScopedModules`.
+- Bloque 3 de `aaae599` ejecutado sobre HEAD: aborta en la línea 19 de su script (`void _assertValidChannel()` en el store). No hay recuento: el bloque aborta en el primer fallo.
+- Ausentes en HEAD: `_assertValidChannel` en `lib/admin_environment_store.dart`; `admin_preview_driver_subscription_candidates` en `lib/admin_driver_subscriptions.dart`; `test/admin_environment_store_test.dart`; `docs/preview/migrations/20261011_shared_db_subscriptions_qa_candidates.sql`.
+- Identidad presente: «Identidad por revisar (» en `lib/admin_panel.dart:4639`; `admin_identity_pending_driver_ids` en `lib/admin_panel.dart:398`; `scrollDirection: Axis.horizontal` en `lib/admin_panel.dart:3372` y `lib/admin_detail_dialogs.dart:1301`.
+- `lib/admin_driver_subscriptions.dart` de HEAD: la carga Preview (desde la línea 102) todavía llama a `'admin_driver_subscriptions'` (línea 134) y filtra QA en el navegador (línea 142). Riesgo R1 vigente.
+- Flutter no está instalado. No se ejecutaron `flutter analyze`, `flutter test` ni los builds.
+
+### 11.2 Decisión de esta sesión
+
+- **No se aplica el port.** La petición de portar `bf5ead2`, `27d207e`, el set de `4fc7655`, el store, el test, el SQL documental, los pasos de CI y el CHANGELOG no se ejecuta. El `CLAUDE.md` cargado en esta sesión dice que Claude no programa y que, ante cambios de código, escribe una especificación. Esta sección y el prompt de 11.5 son esa especificación.
+- Regla vigente: la del `CLAUDE.md` cargado (decisión del propietario, 2026-10-10). El commit `8c917dc` (autor Claude, 2026-10-11 03:41 UTC, rama `claude/roles-claude-programa-2026-10-11`) la cambia a «Claude programa». No está en `main` ni en esta rama, así que no se toma como vigente. Sigue pendiente la decisión del propietario (R7).
+- `3d2a680` fue escrito por Claude en esta rama, lo que contradice la regla vigente. Esta sesión no lo revierte, porque revertirlo también sería editar código. Decisión pendiente del propietario: mantenerlo (solo bloquea dos módulos en Preview) o revertirlo con la IA programadora (R9).
+- Si el propietario confirma que Claude puede programar, el prompt de 11.5 puede ejecutarse en esta misma rama en una sesión con esa autorización.
+
+### 11.3 Correcciones a la sección 3.6 y a la sección 10
+
+1. **Listas del bloque C.** Desbloquear 22 y 25 exige cambiar dos listas existentes: añadir `'22'` y `'25'` a `for safe` (línea 198) y quitarlos de `for blocked` (línea 200). Sin eso, el bloque C falla en cuanto 22 y 25 entran en el conjunto. Es la única edición permitida a un paso existente. La regla «no cambiar pasos existentes» de 3.6 queda limitada a esto.
+2. **Lista de seguros copiada de `aaae599`.** La línea 260 de `aaae599` (cabecera de `for safe in [...]`) incluye `'7'` y `'17'`. En HEAD no están en el conjunto, así que la aserción fallaría. Usar `['0','1','2','3','4','5','6','8','10','11','14','16','18','22','25','27']`. No incluir 7 ni 17 en ningún paso.
+3. **Preámbulo del paso nuevo.** Las aserciones copiadas usan `panel` y `env_store`, definidas en líneas que no se copian. Sin preámbulo el paso falla con `NameError`. `subscriptions`, `sql` y `priority` sí se definen dentro del rango copiado.
+4. **Rangos de `aaae599` (líneas del archivo YAML):** 203–207 (store), 260–261 (seguros, con la corrección del punto 2) y 307–342 (suscripciones, SQL, prioridad y sección 22). La línea 317 es `assert "selectedZone == null || _environment.isPreview" in subscriptions`; copiarla completa (contiene `||`).
+5. **Ubicación en el workflow:** el paso nuevo de aserciones va después del paso «Guard shared Supabase and fail-closed Preview routing» (línea 162) y antes de «Analyze admin modules» (línea 218). El paso `flutter test test/admin_environment_store_test.dart` va después de «Verify active polygon vs radio zone labels» (línea 237).
+
+### 11.4 Riesgos abiertos
+
+| # | Nivel | Riesgo | Estado |
+|---|---|---|---|
+| R1 | Bloqueante | Desbloquear 22 sin portar bf5ead2 expone conductores reales en Preview | Vigente. 22 sigue bloqueado en HEAD. |
+| R4 | Alto | Flutter no disponible: compilación y tests sin verificar | Abierto |
+| R7 | Medio | Regla de rol en conflicto (CLAUDE.md cargado frente a `8c917dc`) | Decisión del propietario |
+| R9 | Medio | `3d2a680` contiene código escrito por Claude en esta rama | Decisión del propietario: mantener o revertir |
+| R10 | Medio | La sección 3.6 y el prompt de la sección 10 no cubrían las listas del bloque C, los 7 y 17 ni el preámbulo | Corregido en 11.3 |
+
+### 11.5 PROMPT PARA LA IA PROGRAMADORA (vigente; sustituye a la sección 10 para HEAD `3d2a680`)
+
+```
+PROMPT PARA LA IA PROGRAMADORA — Preview: Suscripciones (22) y Prioridad (25), sobre HEAD 3d2a680
+
+CONTEXTO
+- Repo: jorge2610g/adminexpress (panel administrativo web en Flutter).
+- Rama: claude/preview-authorized-2026-10-11. Trabaja SOLO en esta rama. HEAD 3d2a680 (sobre a430e0d y 420db6c).
+- Producción está en 30e6058 y no debe cambiar. Estos cambios son solo para Preview.
+- Prohibido: push a main, PR, merge, despliegues, ejecutar workflows de GitHub y escribir en la base de datos. SELECT solo si lo necesitas. No apliques el SQL de docs/preview/migrations.
+- No toques ni reviertas lo que ya existe: identidad por foto, carrusel de documentos, casillas de vehículo, visor de documentos, quitar la pestaña duplicada y el filtro «Identidad por revisar» con admin_identity_pending_driver_ids. 3d2a680 deja Zonas (7) y Cobertura (17) fuera de Preview: no los reabras.
+
+QUÉ LEER PRIMERO
+1. docs/specs/SPEC-2026-10-11-preview-suscripciones-prioridad.md: secciones 2, 3, 4 y 11 son obligatorias. La sección 11 prevalece sobre la cabecera y la sección 10.
+2. AGENTS.md y docs/admin-preview-production.md.
+3. Referencia de solo lectura: commit aaae599 (si falta: git fetch origin chatgpt/admin-preview-independent-20261010). Otros commits de referencia: 4fc7655 (comentario y set), bf5ead2 y 27d207e (suscripciones).
+
+TAREA (en este orden)
+1. lib/admin_panel.dart: en _previewScopedModules añade 22 y 25. Resultado: {0,1,2,3,4,5,6,8,10,11,14,16,18,22,25,27}. Actualiza el comentario como en 4fc7655, sin reabrir 7 ni 17. No toques nada más del archivo.
+2. lib/admin_driver_subscriptions.dart: porta bf5ead2 y 27d207e hunk a hunk (git show <sha> -- lib/admin_driver_subscriptions.dart | git apply --3way, y resuelve a mano). No copies el archivo entero de aaae599. Obligatorio:
+   a) _isQaDriver: al inicio, if (driver['is_qa'] == true) return true;
+   b) Carga Preview: llama a 'admin_preview_driver_subscription_candidates' con 'p_zone_id': widget.zoneId y 'p_search': search.text.trim(); usa final qaDrivers = _maps(rawDrivers);. Ya no llama a 'admin_driver_subscriptions' ni filtra QA en el navegador.
+   c) En Preview ninguna RPC sin canal puede ejecutarse. Las escrituras (plan, ajustes de zona, asignación, proveedor) quedan en la rama else de if (_environment.isPreview). Las lecturas de producción quedan después de return;. Revisa la verificación de proveedor (≈957 en HEAD): en Preview no llama a la Edge Function driver-subscription-admin.
+   d) VeriPagos en Preview: connected: false, simulated: true, verified_at: null, mensajes que empiecen por «Preview: ». Nunca decir que hay conexión real.
+   e) Preview: «Editar métodos de suscripción» deshabilitado, con aviso _AdminSubNotice; no editar métodos de cobro reales; no mostrar conductores reales («Conductores de producción: no visibles en Preview»); «Asignar / Editar plan QA» solo para conductores QA.
+   f) Compuertas de VeriPagos con !_environment.isPreview (27d207e) y textos «simulada» en Preview.
+3. lib/admin_environment_store.dart: porta solo el hunk de `git diff 420db6c aaae599 -- lib/admin_environment_store.dart`: comentario de cabecera, _assertValidChannel() y getters isPreview / isProduction validados. Canales inválidos lanzan StateError('Canal administrativo inválido: operación bloqueada'). El resto no cambia.
+4. test/admin_environment_store_test.dart: archivo nuevo, tal cual: git show aaae599:test/admin_environment_store_test.dart
+5. docs/preview/migrations/20261011_shared_db_subscriptions_qa_candidates.sql: archivo nuevo, tal cual: git show aaae599:docs/preview/migrations/20261011_shared_db_subscriptions_qa_candidates.sql. Solo documentación. NO se ejecuta.
+6. .github/workflows/validate-preview-production-split.yml:
+   6a) Paso existente, bloque C (líneas 166–215, el que contiene _previewScopedModules): añade '22' y '25' a la lista for safe (línea 198) y quítalos de la lista for blocked (línea 200). Es la única edición permitida a un paso existente y es obligatoria, porque sin ella el bloque C falla.
+   6b) Paso nuevo `- name: Preview 22/25 guards`, después del paso de la línea 162 y antes del de la línea 218, con run: | y un bloque python3 - <<'PY' … PY. Contenido, en este orden:
+       - Preámbulo (3 líneas, con 10 espacios de indentación como el resto del bloque):
+           from pathlib import Path
+           env_store = Path('lib/admin_environment_store.dart').read_text()
+           panel = Path('lib/admin_panel.dart').read_text()
+       - Líneas 203–207 de aaae599 (aserciones del store).
+       - Líneas 260–261 de aaae599, con UNA corrección: la lista debe ser ['0','1','2','3','4','5','6','8','10','11','14','16','18','22','25','27']. No incluyas '7' ni '17'.
+       - Líneas 307–342 de aaae599, literales (la línea 317 contiene ||).
+     Extracción: git show aaae599:.github/workflows/validate-preview-production-split.yml | sed -n '203,207p;260,261p;307,342p'
+   6c) Paso nuevo `- name: Store channel tests` con run: flutter test test/admin_environment_store_test.dart, después del paso de la línea 237.
+   No cambies una aserción para que pase: si falla, corrige la app. No borres pasos ni desactives aserciones. No añadas aserciones de tarifas, países, zonas, login, despliegue ni web/index.html.
+7. docs/CHANGELOG_ACTIVE.md: entrada nueva con fecha 2026-10-11 que describa el port y su alcance (22 y 25 en Preview, store fail-closed, RPC de candidatos QA, aserciones de CI).
+
+NO PORTAR
+- lib/admin_detail_dialogs.dart, lib/admin_control_sections.dart, docs/sql/2026-10-11_admin_identity_pending_driver_ids.sql, lib/core/*, lib/admin_driver_priority.dart, web/index.html, .github/workflows/deploy-web.yml, docs/preview/SINGLE_SUPABASE_RESTORED_20261011.md.
+- Ningún otro archivo de aaae599. No copies archivos enteros de aaae599: no tienen ancestro común.
+- No revertas 3d2a680 ni reabras 7 y 17 sin decisión del propietario.
+
+RESTRICCIONES
+- No cambies identidad, carrusel, filtro «Identidad por revisar», visor de documentos ni RPC. No añadas RPC ni migraciones.
+- No toques la UI de Producción.
+
+CÓMO PROBAR
+- flutter pub get; flutter analyze; flutter test test/admin_environment_store_test.dart; flutter build web --release --dart-define=ADMIN_ENV=production; flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview.
+- Si Flutter no está en tu entorno, dilo. No declares nada como verificado.
+- Python: el paso nuevo y los bloques A, B y C deben pasar con python3 -I desde la raíz de la rama.
+- grep -n "'admin_driver_subscriptions'" lib/admin_driver_subscriptions.dart: solo fuera de la rama Preview.
+- grep -n "admin_preview_driver_subscription_candidates" lib/admin_driver_subscriptions.dart: en la carga Preview.
+- grep -n "Identidad por revisar\|admin_identity_pending_driver_ids\|scrollDirection: Axis.horizontal" lib/admin_panel.dart lib/admin_detail_dialogs.dart: presentes.
+- En _previewScopedModules deben estar 22 y 25, y no 7 ni 17.
+
+FORMATO DE DEVOLUCIÓN (docs/AI_RESPONSE_FORMAT.md no existe en el repo; usa este)
+Responde en español con:
+(1) SHA del commit y archivos cambiados con motivo;
+(2) mapa de cada hunk portado a su SHA de origen (4fc7655, bf5ead2, 27d207e, hunk de store, test, SQL, pasos de CI);
+(3) salida literal de flutter analyze, flutter test y los dos builds, o «no disponible» con el motivo;
+(4) salida del paso nuevo y de los bloques A, B y C con python3 -I;
+(5) resultado de los greps;
+(6) confirmación de que no hubo escrituras en base de datos, despliegues, ejecución de workflows ni cambios en Producción;
 (7) desviaciones respecto de esta spec y por qué.
 Haz push solo a claude/preview-authorized-2026-10-11.
 ```
