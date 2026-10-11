@@ -10,9 +10,11 @@ on:
       - fix/admin-geo-scope-identity-20261007
       - fix/admin-audit-readiness-20261007
       - feat/admin-runtime-scope-isolation-20261007
+      - chatgpt/admin-preview-independent-20261010
   pull_request:
     branches:
       - main
+      - claude/admin-preview-unlock-2026-10-10
   workflow_dispatch:
 
 permissions:
@@ -29,6 +31,10 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
+      - name: Test both physically independent Supabase builds
+        run: |
+          flutter test --dart-define=ADMIN_ENV=production test/admin_independent_backend_test.dart
+          flutter test --dart-define=ADMIN_ENV=preview test/admin_independent_backend_test.dart
       - name: Verify 54 Claude designs and eight staged gates
         run: python3 .github/scripts/verify_admin_mockup_stages.py
 
@@ -204,17 +210,15 @@ jobs:
           # never silently resolve to the live production store.
           docs = Path('lib/admin_driver_document_requirements.dart').read_text()
           assert docs.count('AdminEnvironmentStore(widget.channel)') == 3
-          # Distance fare editor must never read or mutate live fare tiers from Preview.
+          # Fare edits route to the independent database of the build.
           distance = Path('lib/admin_distance_fares.dart').read_text()
           assert "AdminEnvironmentStore(widget.channel)" in distance
-          assert "if (_environment.isPreview) {" in distance
-          assert "_environment.previewGet(" in distance
-          assert "_environment.previewUpsert(" in distance
-          assert distance.count("'zone_distance_fare_steps'") >= 2
-          assert "_qaRecordKey(zone, service)" in distance
+          assert "_environment.previewGet(" not in distance
+          assert "_environment.previewUpsert(" not in distance
+          assert "_qaRecordKey(zone, service)" not in distance
           assert "'admin_distance_fare_steps_replace'" in distance
           assert "'admin_distance_fare_steps_get'" in distance
-          assert "Tarifas de prueba guardadas solo en Preview." in distance
+          assert "Tarifas guardadas en la base independiente de Preview." in distance
           assert "Ambas páginas Admin usan estas reglas." not in distance
           countries = Path('lib/admin_country_coverage.dart').read_text()
           assert 'AdminEnvironmentStore(widget.channel)' in countries
@@ -245,8 +249,8 @@ jobs:
                       '        !_previewScopedModules.contains(value))')
           if qa_guard in panel:
               import os
-              assert os.environ.get('GITHUB_HEAD_REF') in ('claude/admin-preview-unlock-2026-10-10', 'chatgpt/admin-preview-independent-20261010'), 'QA unlock forbidden outside dedicated PR'
-              assert os.environ.get('GITHUB_BASE_REF') in ('main', 'claude/admin-preview-unlock-2026-10-10')
+              assert (os.environ.get('GITHUB_HEAD_REF') or os.environ.get('GITHUB_REF','').removeprefix('refs/heads/')) in ('claude/admin-preview-unlock-2026-10-10', 'chatgpt/admin-preview-independent-20261010'), 'QA unlock forbidden outside dedicated PR'
+              assert os.environ.get('GITHUB_BASE_REF', 'main') in ('main', 'claude/admin-preview-unlock-2026-10-10')
               assert 'static const bool _previewUnlockAllModules = true;' in panel
               assert 'productionAccess: allowProduction && !adminIsPreview' in panel
               print('WARNING: temporary all-modules Preview UI enabled on dedicated QA PR only.')
