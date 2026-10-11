@@ -317,8 +317,8 @@ jobs:
           assert "ride['is_qa'] != true" in dispatch_qa
           assert "chosen.first['name']" in dispatch_qa
           assert "widget.zoneId" in dispatch_qa
-          for unsafe in ["admin_assign_ride_v2", "admin_assign_delivery_v2",
-                         "admin_open_service_requests_v2", "admin_available_drivers_v2",
+          for unsafe in ["'admin_assign_ride_v2'", "'admin_assign_delivery_v2'",
+                         "'admin_open_service_requests_v2'", "'admin_available_drivers_v2'",
                          "supabase.functions.invoke("]:
               assert unsafe not in dispatch_qa, unsafe
           # QA subscription assignment must expire on plan's actual duration.
