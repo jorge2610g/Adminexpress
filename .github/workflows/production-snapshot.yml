@@ -1,0 +1,61 @@
+name: Production snapshot (durable copy)
+
+# Manual only. Copies the Production Pages artifact of a known-good Production
+# build into a new artifact with 90-day retention, so Preview deploys no longer
+# depend on the Pages artifact expiring (1 day retention).
+# This workflow deploys nothing and never writes to Production.
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: 'Run id of the Production build whose github-pages artifact is copied.'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          path: pages-prod
+
+      - name: Verify artifact contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f pages-prod/artifact.tar
+          tar -tf pages-prod/artifact.tar | grep -q 'index.html'
+          tar -tf pages-prod/artifact.tar | grep -q 'main.dart.js'
+          sha256sum pages-prod/artifact.tar | tee snapshot.sha256
+
+      - name: Publish durable snapshot (90 days)
+        id: snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-snapshot
+          path: pages-prod/artifact.tar
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Record snapshot in the run summary
+        shell: bash
+        run: |
+          {
+            echo "### Production snapshot"
+            echo "- source run: ${{ inputs.source_run_id }}"
+            echo "- snapshot artifact id: ${{ steps.snapshot.outputs.artifact-id }}"
+            echo "- sha256 of artifact.tar:"
+            echo '```'
+            cat snapshot.sha256
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
