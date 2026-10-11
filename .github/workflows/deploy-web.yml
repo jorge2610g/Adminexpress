@@ -45,7 +45,7 @@ concurrency:
 
 jobs:
   snapshot:
-    if: ${{ inputs.snapshot_source_run_id != '' }}
+    if: ${{ github.ref == 'refs/heads/main' && inputs.snapshot_source_run_id != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Download Production Pages artifact
@@ -88,7 +88,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   build:
-    if: ${{ inputs.preview_only != true && inputs.snapshot_source_run_id == '' && inputs.confirm_production == 'PUBLICAR PRODUCCION' }}
+    if: ${{ github.ref == 'refs/heads/main' && inputs.preview_only != true && inputs.snapshot_source_run_id == '' && inputs.confirm_production == 'PUBLICAR PRODUCCION' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -143,32 +143,287 @@ jobs:
           }
           EOF
 
-      # GitHub Pages serves two URLs built with separate ADMIN_ENV values.
-      # Both share the main Supabase but Preview uses QA-only runtime scope.
+      # A Production release must never implicitly downgrade Preview to the
+      # contents of main. Build Preview at the exact QA SHA authorized on main.
       - name: Preserve production site
         run: |
           mkdir -p build/site
           cp -a build/web/. build/site/
 
-      - name: Build independent Admin Preview
-        run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
-
-      - name: Bust Preview web cache
+      - name: Read approved QA SHA for this Production release
+        id: approved_preview
         shell: bash
         run: |
-          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${GITHUB_SHA}#g" build/web/index.html
-          if [ -f build/web/flutter_bootstrap.js ]; then
-            sed -i "s#main.dart.js#main.dart.js?v=${GITHUB_SHA}#g" build/web/flutter_bootstrap.js
+          set -euo pipefail
+          AUTH="$(grep -E '^preview_authorized_sha: [0-9a-f]{40}
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: build/site
+
+  preview_only:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.preview_only == true && inputs.snapshot_source_run_id == '' }}
+    runs-on: ubuntu-latest
+    outputs:
+      preview_sha: ${{ steps.resolve_preview.outputs.preview_sha }}
+    steps:
+      - name: Resolve pinned Preview source
+        id: resolve_preview
+        shell: bash
+        env:
+          INPUT_PREVIEW_SHA: ${{ inputs.preview_source_sha }}
+        run: |
+          set -euo pipefail
+          RESOLVED_SHA="$INPUT_PREVIEW_SHA"
+          echo "PREVIEW_SHA=$RESOLVED_SHA" >> "$GITHUB_ENV"
+          echo "preview_sha=$RESOLVED_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Validate pinned QA source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PREVIEW_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Full Preview SHA is required"; exit 1; }
+          if [[ "$PREVIEW_SHA" = "${{ github.sha }}" ]]; then
+            echo "ERROR: manual QA SHA must differ from the workflow ref."
+            exit 1
           fi
 
-      - name: Install Preview as separate site
+      - name: Checkout workflow ref (authorization file)
+        uses: actions/checkout@v5
+        with:
+          path: workflow-ref
+
+      - name: Require the authorized Preview SHA (docs/PREVIEW_AUTHORIZED.md)
         shell: bash
         run: |
+          set -euo pipefail
+          AUTH="$(grep -E '^preview_authorized_sha: [0-9a-f]{40}$' workflow-ref/docs/PREVIEW_AUTHORIZED.md | awk '{print $2}')"
+          if [[ -z "$AUTH" ]]; then
+            echo "ERROR: docs/PREVIEW_AUTHORIZED.md has no preview_authorized_sha."
+            exit 1
+          fi
+          if [[ "$PREVIEW_SHA" != "$AUTH" ]]; then
+            echo "ERROR: $PREVIEW_SHA is not the authorized Preview SHA ($AUTH)."
+            exit 1
+          fi
+          echo "PASS: $PREVIEW_SHA is the authorized Preview SHA."
+
+      - name: Require the Production snapshot run id
+        shell: bash
+        env:
+          SNAPSHOT_RUN_ID: ${{ inputs.production_snapshot_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$SNAPSHOT_RUN_ID" =~ ^[0-9]+$ ]] || { echo "production_snapshot_run_id is required"; exit 1; }
+
+      - name: Download durable Production snapshot (90-day artifact)
+        uses: actions/download-artifact@v4
+        with:
+          name: production-snapshot
+          run-id: ${{ inputs.production_snapshot_run_id }}
+          github-token: ${{ github.token }}
+          path: pages-prod
+
+      - name: Restore Production bytes and verify published site
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/site
+          test -f pages-prod/artifact.tar
+          tar -xf pages-prod/artifact.tar -C build/site
+          test -s build/site/main.dart.js
+          test -s build/site/flutter_bootstrap.js
+          test -s build/site/index.html
+          test -s build/site/version.json
+          test -s build/site/preview/index.html
+          BASE="https://admin.expressviajes.online"
+          for FILE in index.html flutter_bootstrap.js main.dart.js version.json; do
+            curl --fail --location --silent --show-error --retry 3 --max-time 90 \
+              -H "Cache-Control: no-cache" "$BASE/$FILE" -o "/tmp/live-$FILE"
+            cmp "/tmp/live-$FILE" "build/site/$FILE" || {
+              echo "ERROR: published Production $FILE does not match archived bytes; abort Preview-only deploy."
+              exit 1
+            }
+          done
+          find build/site -type f ! -path 'build/site/preview/*' -print0 \
+            | sort -z | xargs -0 sha256sum > /tmp/exact-prod-manifest
+          echo "PASS: Production site matches published artifact exactly."
+
+      - name: Checkout pinned Preview QA code without changing main
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.PREVIEW_SHA }}
+          path: preview-source
+
+      - name: Validate QA commit and project isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C preview-source rev-parse HEAD)" = "$PREVIEW_SHA"
+          grep -q "admin_zone_list_scoped" preview-source/lib/admin_detail_dialogs.dart
+          grep -q "admin_driver_kyc_bolivia_manual_review_part" preview-source/lib/admin_bolivia_kyc.dart
+          grep -q "AdminEnvironmentLinkButton" preview-source/lib/admin_panel.dart
+          grep -q "const supabaseUrl = _productionUrl;" preview-source/lib/core/supabase_client.dart
+          grep -q "if (adminIsPreview && !_previewScopedModules.contains(value))" preview-source/lib/admin_panel.dart
+          if grep -q "xbphilqezmwfjfpdbwad" preview-source/lib/core/supabase_client.dart; then
+            echo "ERROR: Preview must not connect to the separate Supabase database."
+            exit 1
+          fi
+          echo "PASS: tested, pinned Preview source and isolated Supabase config."
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install Preview dependencies
+        working-directory: preview-source
+        run: flutter pub get
+
+      - name: Analyze Preview driver review
+        working-directory: preview-source
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos lib/admin_detail_dialogs.dart lib/admin_panel.dart lib/core/supabase_client.dart
+
+      - name: Build Preview only (dedicated Supabase database)
+        working-directory: preview-source
+        run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
+
+      - name: Replace ONLY Preview files; verify every Production byte
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Marca de build visible solo en Preview (solo si el código tiene el marcador).
+          if grep -Fq "__EXPRESS_PREVIEW_BUILD_SHA__" preview-source/build/web/index.html; then
+            sed -i "s#__EXPRESS_PREVIEW_BUILD_SHA__#${PREVIEW_SHA}#g" preview-source/build/web/index.html
+            grep -Fq "const buildSha = '${PREVIEW_SHA}'" preview-source/build/web/index.html
+          fi
+          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${PREVIEW_SHA}#g" preview-source/build/web/index.html
+          if [ -f preview-source/build/web/flutter_bootstrap.js ]; then
+            sed -i "s#main.dart.js#main.dart.js?v=${PREVIEW_SHA}#g" preview-source/build/web/flutter_bootstrap.js
+          fi
+          rm -rf build/site/preview
           mkdir -p build/site/preview
-          cp -a build/web/. build/site/preview/
+          cp -a preview-source/build/web/. build/site/preview/
           cp build/site/version.json build/site/preview/version.json
           python3 - <<'PY'
-          import json
+          import json, os, datetime
+          from pathlib import Path
+          path = Path('build/site/preview/version.json')
+          data = json.loads(path.read_text())
+          data['environment'] = 'preview'
+          data['supabase_project_ref'] = 'zgpijrznvaskgcmauwxx'
+          data['data_channel'] = 'preview'
+          data['commit'] = os.environ['PREVIEW_SHA']
+          data['deployed_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          path.write_text(json.dumps(data, indent=2))
+          PY
+          find build/site -type f ! -path 'build/site/preview/*' -print0 \
+            | sort -z | xargs -0 sha256sum > /tmp/after-prod-manifest
+          cmp /tmp/exact-prod-manifest /tmp/after-prod-manifest
+          echo "PASS: Only /preview/ changed; Production files are byte-identical."
+
+      - name: Upload isolated Preview Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: build/site
+
+  deploy:
+    if: ${{ always() && (needs.build.result == 'success' || needs.preview_only.result == 'success') }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: [build, preview_only]
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live Preview SHA and unchanged Production marker
+        if: ${{ needs.preview_only.result == 'success' }}
+        shell: bash
+        env:
+          EXPECTED_PREVIEW_SHA: ${{ needs.preview_only.outputs.preview_sha }}
+          EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df
+        run: |
+          set -euo pipefail
+          BASE="https://admin.expressviajes.online"
+          for attempt in $(seq 1 12); do
+            if curl -fsSL --max-time 20 -H "Cache-Control: no-cache" "$BASE/version.json?check=$EXPECTED_PREVIEW_SHA" -o /tmp/production-marker.json \
+              && curl -fsSL --max-time 20 -H "Cache-Control: no-cache" "$BASE/preview/version.json?check=$EXPECTED_PREVIEW_SHA" -o /tmp/preview-marker.json \
+              && python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          production = json.loads(Path('/tmp/production-marker.json').read_text())
+          preview = json.loads(Path('/tmp/preview-marker.json').read_text())
+          assert production.get('commit') == os.environ['EXPECTED_PRODUCTION_SHA'], 'Production SHA unexpectedly changed'
+          assert production.get('environment') == 'production', 'Production channel unexpectedly changed'
+          assert preview.get('commit') == os.environ['EXPECTED_PREVIEW_SHA'], 'New Preview SHA not yet published'
+          assert preview.get('environment') == 'preview', 'Preview channel unexpectedly changed'
+          assert preview.get('supabase_project_ref') == 'zgpijrznvaskgcmauwxx', 'Preview project unexpectedly changed'
+          print('PASS: expected Preview SHA is live; Production SHA and channel unchanged')
+          PY
+            then
+              exit 0
+            fi
+            echo "Public Pages version not confirmed on attempt $attempt of 12."
+            sleep 10
+          done
+          echo "::error::Published version could not be verified. Review GitHub Pages immediately."
+          exit 1
+ docs/PREVIEW_AUTHORIZED.md | awk '{print $2}')"
+          [[ "$AUTH" =~ ^[0-9a-f]{40}$ ]] || { echo "Missing authorized QA SHA on main"; exit 1; }
+          echo "preview_sha=$AUTH" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout approved Preview QA code, not main
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.approved_preview.outputs.preview_sha }}
+          path: approved-preview
+
+      - name: Verify approved QA source cannot access the deleted database
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C approved-preview rev-parse HEAD)" = "${{ steps.approved_preview.outputs.preview_sha }}"
+          grep -Fq "const supabaseUrl = _productionUrl;" approved-preview/lib/core/supabase_client.dart
+          grep -Fq "if (adminIsPreview && !_previewScopedModules.contains(value))" approved-preview/lib/admin_panel.dart
+          ! grep -Fq "xbphilqezmwfjfpdbwad" approved-preview/lib/core/supabase_client.dart
+
+      - name: Install approved Preview dependencies
+        working-directory: approved-preview
+        run: flutter pub get
+
+      - name: Build approved Preview alongside Production
+        working-directory: approved-preview
+        run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
+
+      - name: Cache-bust QA assets and mark authorized Preview commit
+        shell: bash
+        env:
+          APPROVED_SHA: ${{ steps.approved_preview.outputs.preview_sha }}
+        run: |
+          set -euo pipefail
+          if grep -Fq "__EXPRESS_PREVIEW_BUILD_SHA__" approved-preview/build/web/index.html; then
+            sed -i "s#__EXPRESS_PREVIEW_BUILD_SHA__#${APPROVED_SHA}#g" approved-preview/build/web/index.html
+          fi
+          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${APPROVED_SHA}#g" approved-preview/build/web/index.html
+          if [ -f approved-preview/build/web/flutter_bootstrap.js ]; then
+            sed -i "s#main.dart.js#main.dart.js?v=${APPROVED_SHA}#g" approved-preview/build/web/flutter_bootstrap.js
+          fi
+
+      - name: Install both sites with the correct environment manifests
+        shell: bash
+        env:
+          APPROVED_SHA: ${{ steps.approved_preview.outputs.preview_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/site/preview
+          cp -a approved-preview/build/web/. build/site/preview/
+          cp build/site/version.json build/site/preview/version.json
+          python3 - <<'PY'
+          import json, os
           from pathlib import Path
           for name, label, project in [
               ('build/site/version.json', 'production', 'zgpijrznvaskgcmauwxx'),
@@ -179,6 +434,8 @@ jobs:
               data['environment'] = label
               data['data_channel'] = label
               data['supabase_project_ref'] = project
+              if label == 'preview':
+                  data['commit'] = os.environ['APPROVED_SHA']
               path.write_text(json.dumps(data, indent=2))
           PY
 
@@ -188,7 +445,7 @@ jobs:
           path: build/site
 
   preview_only:
-    if: ${{ inputs.preview_only == true && inputs.snapshot_source_run_id == '' }}
+    if: ${{ github.ref == 'refs/heads/main' && inputs.preview_only == true && inputs.snapshot_source_run_id == '' }}
     runs-on: ubuntu-latest
     outputs:
       preview_sha: ${{ steps.resolve_preview.outputs.preview_sha }}
