@@ -745,24 +745,46 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
               'Vehículo',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             if (vehicle.isEmpty)
               const Text(
                 'El conductor todavía no registró vehículo.',
                 style: TextStyle(color: _detailMuted, fontSize: 11),
               )
-            else ...[
-              Text(
-                '${_text(vehicle['brand'], '—')} ${_text(vehicle['model'], '')} · ${_text(vehicle['year'], '')}',
-                style: const TextStyle(fontSize: 12),
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final entry in <(String, String)>[
+                    ('Marca', _text(vehicle['brand'], '—')),
+                    ('Modelo', _text(vehicle['model'], '—')),
+                    ('Año', _text(vehicle['year'], '—')),
+                    ('Color', _text(vehicle['color'], '—')),
+                    ('Placa', _text(vehicle['plate'], '—')),
+                    ('Tipo', _text(vehicle['vehicle_type'], '—')),
+                  ])
+                    Container(
+                      width: 136,
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: _detailBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(entry.$1,
+                            style: const TextStyle(color: _detailMuted, fontSize: 10)),
+                          const SizedBox(height: 3),
+                          Text(entry.$2,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                ],
               ),
-              Text(
-                'Placa: ${_text(vehicle['plate'], '—')} · Color: ${_text(vehicle['color'], '—')}',
-                style: const TextStyle(color: _detailMuted, fontSize: 11),
-              ),
-            ],
-          ],
-        ),
       ),
     );
   }
