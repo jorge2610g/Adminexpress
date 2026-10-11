@@ -38,3 +38,12 @@ Consultar `/version.json` y `/preview/version.json`: **ambos deben tener el
 mismo `supabase_project_ref`**, los canales deben diferir y el SHA de
 Producción debe conservarse. Verificar autenticación con la cuenta QA que
 ya existía en el proyecto principal.
+
+## Validación automatizada
+
+El código con una sola base y los dos modos `ADMIN_ENV` ha superado las
+comprobaciones en GitHub Actions `38107126690` y `38107129351`, incluyendo
+compilaciones web de Producción y Preview, resguardo de los módulos no
+verificados y tarifas simuladas.
+
+Este commit solicita publicar exclusivamente la nueva versión `/preview/`.
