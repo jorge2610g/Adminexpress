@@ -257,9 +257,9 @@ jobs:
               print('WARNING: temporary all-modules Preview UI enabled on dedicated QA PR only.')
           else:
               assert normal_guard in panel
-          for safe in ['0','1','2','3','4','5','6','7','8','10','11','14','16','17','18','22','25','27']:
+          for safe in ['0','1','2','3','4','5','6','7','8','10','11','13','14','16','17','18','22','25','27']:
               assert safe in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
-          for blocked in ['9','12','13','15','19','20','21','23','24','26','28']:
+          for blocked in ['9','12','15','19','20','21','23','24','26','28']:
               assert blocked not in panel.split('_previewScopedModules = {')[1].split('}',1)[0].replace(',',' ').split()
           assert 'if (adminIsPreview) return _ExpressPanelAccess.denied;' in login
           # Preview and Production share the Supabase project, but MUST NOT
@@ -304,6 +304,30 @@ jobs:
           assert 'AdminEnvironmentLinkButton()' in panel
           assert 'AdminEnvironmentLinkButton()' in login
           assert '_previewUnlockAllModules' not in panel, 'Shared-backend Preview must not bypass unscoped module guard'
+          # Dispatch (13) must be a pure QA shadow simulation:
+          # production RPCs remain in an entirely separate code path.
+          assert "if (widget.channel == 'preview') return _buildPreviewDispatch();" in controls
+          assert "AdminEnvironmentStore(widget.channel)" in controls
+          dispatch_qa = controls.split(
+              "// Preview dispatch is an entirely synthetic simulator.", 1
+          )[1].split("  @override\n  Widget build(BuildContext context)", 1)[0]
+          assert "'manual_dispatch_rides'" in dispatch_qa
+          assert "admin_preview_driver_subscription_candidates" in dispatch_qa
+          assert "_qaDispatchStore.previewUpsert(" in dispatch_qa
+          assert "ride['is_qa'] != true" in dispatch_qa
+          assert "chosen.first['name']" in dispatch_qa
+          assert "widget.zoneId" in dispatch_qa
+          for unsafe in ["admin_assign_ride_v2", "admin_assign_delivery_v2",
+                         "admin_open_service_requests_v2", "admin_available_drivers_v2",
+                         "supabase.functions.invoke("]:
+              assert unsafe not in dispatch_qa, unsafe
+          # QA subscription assignment must expire on plan's actual duration.
+          subscription_patch = Path('lib/admin_driver_subscriptions.dart').read_text()
+          assert "driver['is_qa'] != true" in subscription_patch
+          assert "normalDays <= 0" in subscription_patch
+          assert "'plan_name': selectedPlan['name']" in subscription_patch
+          assert "'zone_key': selectedZoneKey" in subscription_patch
+          assert "expiry.toIso8601String()" in subscription_patch
           # Subscriptions (22) must not download real driver data to Preview.
           subscriptions = Path('lib/admin_driver_subscriptions.dart').read_text()
           assert "'admin_preview_driver_subscription_candidates'" in subscriptions
