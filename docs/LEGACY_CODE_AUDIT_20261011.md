@@ -36,3 +36,18 @@ Los RPC históricos de identidad permanecen en Supabase mientras se valida que n
 ## Regla de publicación
 
 CI ya no debe exigir archivos de identidad retirados. La validación exige que la revisión de identidad esté integrada en la ficha del conductor y que los archivos standalone no existan.
+
+
+## Limpieza adicional del repositorio y base de datos
+
+- Se retiraron del árbol activo los archivos de respaldo de Edge Functions y SQL marcados explícitamente como `backup` / `original_backup`; el contenido completo sigue disponible en `archive/legacy-code-20261011`.
+- Los triggers de CI dejaron de incluir ramas históricas de 2026-10-06/07 y bases de trabajo ya cerradas; la validación activa queda en `main` y `chatgpt/admin-preview-independent-20261010`.
+- En Supabase, `public.acl_backup_20261010_e6` y `public.admin_function_backup_20261010` tenían cero dependencias activas y fueron movidas a `archive_legacy`, fuera del esquema público.
+- Los requisitos de documentos de conductores ahora son configuración compartida entre Preview y Producción; Preview ya no mantiene una copia shadow separada de esos requisitos.
+
+## Hallazgos de seguridad y rendimiento (no borrados automáticamente)
+
+- Supabase reporta tablas con RLS habilitado sin políticas directas. Varias son consumidas únicamente por RPC `SECURITY DEFINER`, por lo que no se deben borrar ni abrir políticas de forma masiva.
+- Existen funciones `SECURITY DEFINER` ejecutables por `anon`; requieren revisión individual porque algunas pertenecen al arranque/login público y otras pueden necesitar restricción.
+- Existen índices marcados como no usados y claves foráneas sin índice de apoyo. No se eliminan índices por contador de uso sin revisar tráfico real y planes de consulta.
+- Persisten ramas de código shadow dentro de módulos antiguos; donde `usesSharedOperationalConfiguration` es siempre `true`, esas ramas son candidatas a simplificación posterior, pero se deben retirar por módulo para no borrar los simuladores QA que sí son intencionales.

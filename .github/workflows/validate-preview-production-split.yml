@@ -4,17 +4,10 @@ on:
   push:
     branches:
       - main
-      - feature/delivery-modules-merchant-dashboard
-      - refactor/unified-preview-production-panel
-      - fix/admin-live-channel-badges-20261006
-      - fix/admin-geo-scope-identity-20261007
-      - fix/admin-audit-readiness-20261007
-      - feat/admin-runtime-scope-isolation-20261007
       - chatgpt/admin-preview-independent-20261010
   pull_request:
     branches:
       - main
-      - claude/admin-preview-unlock-2026-10-10
   workflow_dispatch:
 
 permissions:
