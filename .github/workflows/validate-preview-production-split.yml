@@ -77,7 +77,7 @@ jobs:
           fi
           grep -Fq "AdminEnvironmentStore(widget.channel)" lib/admin_driver_document_requirements.dart
           grep -Fq "AdminEnvironmentStore(widget.channel)" lib/admin_country_coverage.dart
-          grep -Fq "if (!_environment.isPreview) return;" lib/admin_country_coverage.dart
+          grep -Fq "usesSharedOperationalConfiguration" lib/admin_country_coverage.dart
           grep -Fq "existingCodes.contains(code)" lib/admin_country_coverage.dart
           grep -Fq "'active': false" lib/admin_country_coverage.dart
           grep -Fq "'driver_registration_enabled': false" lib/admin_country_coverage.dart
@@ -212,7 +212,7 @@ jobs:
           # Distance fare editor must never read or mutate live fare tiers from Preview.
           distance = Path('lib/admin_distance_fares.dart').read_text()
           assert "AdminEnvironmentStore(widget.channel)" in distance
-          assert "if (_environment.isPreview) {" in distance
+          assert "usesSharedOperationalConfiguration" in distance
           assert "_environment.previewGet(" in distance
           assert "_environment.previewUpsert(" in distance
           assert distance.count("'zone_distance_fare_steps'") >= 2
@@ -234,9 +234,9 @@ jobs:
           payment_editor = controls.split('Future<bool> showAdminZonePaymentMethodsEditor(',1)[1].split('class ',1)[0]
           assert 'AdminEnvironmentStore(channel);' in payment_editor
           zones_editor = controls.split('class _AdminZonesPageState',1)[1].split('class ',1)[0]
-          assert "row?['id'] != null && !_environment.isPreview" in zones_editor
+          assert "row?['id'] != null && _environment.usesSharedOperationalConfiguration" in zones_editor
           assert "'polygon': coverageMode == 'polygon'" in zones_editor
-          assert "if (_environment.isPreview)" in zones_editor
+          assert "usesSharedOperationalConfiguration" in zones_editor
           assert "AdminManualIdentityPage(" in panel and "AdminIdentitySecurityPage(" in panel
           assert "AdminDistanceFaresEditor(" in Path('lib/admin_control_sections.dart').read_text()
           assert 'productionAccess: allowProduction && !adminIsPreview' in panel
@@ -342,8 +342,8 @@ jobs:
           assert "final row = _map(await supabase.rpc('admin_settings_get'))" in settings
           assert "Configuración global compartida con Producción" in settings
           assert "final value = await supabase.rpc('admin_settings_get')" in advanced
-          assert "Editar" not in advanced or "if (_environment.isPreview)" in advanced
-          assert "onPressed: _environment.isPreview ? null" in advanced
+          assert "usesSharedOperationalConfiguration" in advanced
+          assert "onPressed: !_environment.usesSharedOperationalConfiguration ? null" in advanced
           # Live data is never mutated by Android Builds in Preview.
           assert 'productionAccess: allowProduction && !adminIsPreview' in panel
           release = Path('lib/admin_single_app_release.dart').read_text()
