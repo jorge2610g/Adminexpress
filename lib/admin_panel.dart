@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 import 'core/supabase_client.dart';
@@ -223,6 +226,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   bool allowPreview = true;
   bool allowProduction = true;
   String? liveZoneId;
+  String? selectedLiveTripId;
 
   String tripPeriod = 'today';
   DateTimeRange? tripCustomRange;
@@ -1628,6 +1632,19 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         final deliveries = _list(state['active_deliveries']);
         final emergencies = _list(state['emergencies']);
 
+        Map<String, dynamic>? selectedTrip;
+        if (selectedLiveTripId != null) {
+          for (final trip in trips) {
+            if ((trip['id'] ?? '').toString() == selectedLiveTripId) {
+              selectedTrip = trip;
+              break;
+            }
+          }
+          if (selectedTrip == null) {
+            selectedLiveTripId = null;
+          }
+        }
+
         Map<String, dynamic>? selectedZone;
         if (liveZoneId != null) {
           for (final zone in zones) {
@@ -1656,6 +1673,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                       );
                       adminCountryCode = _zoneCountryCode(zone);
                     }
+                    selectedLiveTripId = null;
                     revision++;
                     _liveFuture = _liveState();
                   });
@@ -1668,14 +1686,31 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     final side = _LiveSidePanel(
                       trips: trips,
                       drivers: drivers,
+                      selectedTripId: selectedLiveTripId,
+                      onTripSelected: (value) {
+                        setState(() {
+                          selectedLiveTripId =
+                              value == selectedLiveTripId ? null : value;
+                        });
+                      },
+                      onShowDrivers: () {
+                        if (selectedLiveTripId == null) return;
+                        setState(() => selectedLiveTripId = null);
+                      },
                     );
                     final map = _OperationsMap(
-                      key: ValueKey('live-map-' + (liveZoneId ?? 'all')),
+                      key: ValueKey(
+                        'live-map-' +
+                            (liveZoneId ?? 'all') +
+                            '-' +
+                            (selectedLiveTripId ?? 'overview'),
+                      ),
                       drivers: drivers,
                       trips: trips,
                       deliveries: deliveries,
                       emergencies: emergencies,
                       selectedZone: selectedZone,
+                      selectedTrip: selectedTrip,
                       fullScreen: true,
                     );
 
@@ -3438,10 +3473,16 @@ class _LiveZoneStrip extends StatelessWidget {
 class _LiveSidePanel extends StatefulWidget {
   final List<Map<String, dynamic>> trips;
   final List<Map<String, dynamic>> drivers;
+  final String? selectedTripId;
+  final ValueChanged<String?> onTripSelected;
+  final VoidCallback onShowDrivers;
 
   const _LiveSidePanel({
     required this.trips,
     required this.drivers,
+    required this.selectedTripId,
+    required this.onTripSelected,
+    required this.onShowDrivers,
   });
 
   @override
@@ -3519,20 +3560,65 @@ class _LiveSidePanelState extends State<_LiveSidePanel> {
                         'Conductores (' + widget.drivers.length.toString() + ')',
                     selected: showDrivers,
                     onTap: () {
-                      if (!showDrivers) setState(() => showDrivers = true);
+                      if (!showDrivers) {
+                        setState(() => showDrivers = true);
+                        widget.onShowDrivers();
+                      }
                     },
                   ),
                 ),
               ],
             ),
           ),
+          if (!showDrivers && widget.selectedTripId != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
+              color: const Color(0xFFEFF6FF),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.filter_center_focus_rounded,
+                    size: 16,
+                    color: adminBlue,
+                  ),
+                  const SizedBox(width: 7),
+                  const Expanded(
+                    child: Text(
+                      'Vista enfocada en un solo viaje',
+                      style: TextStyle(
+                        color: adminBlue,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => widget.onTripSelected(null),
+                    icon: const Icon(Icons.close_rounded, size: 15),
+                    label: const Text('Mostrar todo'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: adminBlue,
+                      textStyle: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: showDrivers
                 ? _LiveDriverList(
                     drivers: widget.drivers,
                     trips: widget.trips,
                   )
-                : _LiveTripList(trips: widget.trips),
+                : _LiveTripList(
+                    trips: widget.trips,
+                    selectedTripId: widget.selectedTripId,
+                    onSelected: widget.onTripSelected,
+                  ),
           ),
         ],
       ),
@@ -3658,7 +3744,14 @@ class _LiveTab extends StatelessWidget {
 
 class _LiveTripList extends StatelessWidget {
   final List<Map<String, dynamic>> trips;
-  const _LiveTripList({required this.trips});
+  final String? selectedTripId;
+  final ValueChanged<String?> onSelected;
+
+  const _LiveTripList({
+    required this.trips,
+    required this.selectedTripId,
+    required this.onSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -3674,11 +3767,11 @@ class _LiveTripList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(12),
       itemCount: trips.length,
-      separatorBuilder: (_, __) =>
-          const Divider(height: 1, color: Color(0xFFEEF1F5)),
+      separatorBuilder: (_, __) => const SizedBox(height: 6),
       itemBuilder: (context, index) {
         final row = trips[index];
         final id = (row['id'] ?? '').toString();
+        final selected = id.isNotEmpty && id == selectedTripId;
         final shortId = id.length > 7 ? id.substring(0, 7).toUpperCase() : id;
         final status = (row['status'] ?? 'activo').toString();
         final channel =
@@ -3693,91 +3786,130 @@ class _LiveTripList extends StatelessWidget {
         final destination =
             (row['destination_address'] ?? 'Destino').toString();
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 9,
-                height: 9,
-                margin: const EdgeInsets.only(top: 4),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF246BFD),
-                  shape: BoxShape.circle,
+        return Material(
+          color: selected ? const Color(0xFFEFF6FF) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            onTap: id.isEmpty ? null : () => onSelected(id),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: selected
+                      ? const Color(0xFF93C5FD)
+                      : const Color(0x00FFFFFF),
                 ),
               ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 9,
+                    height: 9,
+                    margin: const EdgeInsets.only(top: 4),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? const Color(0xFF0B57D0)
+                          : const Color(0xFF246BFD),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            shortId.isEmpty ? 'Viaje activo' : '#' + shortId,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              color: adminDark,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                shortId.isEmpty ? 'Viaje activo' : '#' + shortId,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  color: selected ? adminBlue : adminDark,
+                                ),
+                              ),
                             ),
+                            if (selected)
+                              const Padding(
+                                padding: EdgeInsets.only(right: 6),
+                                child: Icon(
+                                  Icons.visibility_rounded,
+                                  size: 15,
+                                  color: adminBlue,
+                                ),
+                              ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: channelBackground,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                channelLabel,
+                                style: TextStyle(
+                                  color: channelForeground,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F0FF),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                status,
+                                style: const TextStyle(
+                                  color: adminBlue,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          pickup + '  →  ' + destination,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: adminMuted,
+                            fontSize: 8,
+                            height: 1.3,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: channelBackground,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            channelLabel,
-                            style: TextStyle(
-                              color: channelForeground,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F0FF),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            status,
-                            style: const TextStyle(
-                              color: adminBlue,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w800,
-                            ),
+                        const SizedBox(height: 5),
+                        Text(
+                          selected
+                              ? 'Seleccionado · el mapa muestra solo este viaje'
+                              : 'Toca para ver este recorrido en el mapa',
+                          style: TextStyle(
+                            color: selected ? adminBlue : const Color(0xFF98A2B3),
+                            fontSize: 8,
+                            fontWeight:
+                                selected ? FontWeight.w800 : FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      pickup + '  →  ' + destination,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: adminMuted,
-                        fontSize: 8,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
@@ -3875,12 +4007,13 @@ class _LiveDriverList extends StatelessWidget {
   }
 }
 
-class _OperationsMap extends StatelessWidget {
+class _OperationsMap extends StatefulWidget {
   final List<Map<String, dynamic>> drivers;
   final List<Map<String, dynamic>> trips;
   final List<Map<String, dynamic>> deliveries;
   final List<Map<String, dynamic>> emergencies;
   final Map<String, dynamic>? selectedZone;
+  final Map<String, dynamic>? selectedTrip;
   final bool fullScreen;
 
   const _OperationsMap({
@@ -3890,115 +4023,494 @@ class _OperationsMap extends StatelessWidget {
     required this.deliveries,
     required this.emergencies,
     this.selectedZone,
+    this.selectedTrip,
     this.fullScreen = false,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final markers = <Marker>[];
+  State<_OperationsMap> createState() => _OperationsMapState();
+}
 
-    void addMarker(
-      Map<String, dynamic> row,
-      String latKey,
-      String lngKey,
-      IconData icon,
-      String tooltip,
-      Color color,
-    ) {
-      final lat = _toDouble(row[latKey]);
-      final lng = _toDouble(row[lngKey]);
-      if (lat == null || lng == null) return;
-      markers.add(
-        Marker(
-          point: LatLng(lat, lng),
-          width: 46,
-          height: 46,
-          child: Tooltip(
-            message: tooltip,
-            child: _MapDot(icon: icon, color: color),
+class _OperationsMapState extends State<_OperationsMap> {
+  String? _selectedDriverId;
+  Future<List<LatLng>>? _routeFuture;
+  String? _routeTripId;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncRoute();
+  }
+
+  @override
+  void didUpdateWidget(covariant _OperationsMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldId = oldWidget.selectedTrip?['id']?.toString();
+    final newId = widget.selectedTrip?['id']?.toString();
+    if (oldId != newId) {
+      _selectedDriverId = null;
+      _syncRoute();
+    }
+  }
+
+  void _syncRoute() {
+    final trip = widget.selectedTrip;
+    final id = trip?['id']?.toString();
+    if (trip == null || id == null || id.isEmpty) {
+      _routeTripId = null;
+      _routeFuture = null;
+      return;
+    }
+    if (_routeTripId == id && _routeFuture != null) return;
+    _routeTripId = id;
+    _routeFuture = _fetchTripRoute(trip);
+  }
+
+  static LatLng? _point(
+    Map<String, dynamic>? row,
+    String latKey,
+    String lngKey,
+  ) {
+    final lat = _toDouble(row?[latKey]);
+    final lng = _toDouble(row?[lngKey]);
+    if (lat == null || lng == null) return null;
+    if (!lat.isFinite || !lng.isFinite) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    return LatLng(lat, lng);
+  }
+
+  static String _driverId(Map<String, dynamic> row) =>
+      (row['user_id'] ?? row['driver_id'] ?? row['id'] ?? '').toString();
+
+  Map<String, dynamic>? _driverForTrip(Map<String, dynamic> trip) {
+    final tripDriverId =
+        (trip['driver_id'] ?? trip['driver_user_id'] ?? '').toString();
+    if (tripDriverId.isEmpty) return null;
+    for (final driver in widget.drivers) {
+      if (_driverId(driver) == tripDriverId) return driver;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _selectedDriver() {
+    final id = _selectedDriverId;
+    if (id == null || id.isEmpty) return null;
+    for (final driver in widget.drivers) {
+      if (_driverId(driver) == id) return driver;
+    }
+    return null;
+  }
+
+  Future<List<LatLng>> _fetchTripRoute(Map<String, dynamic> trip) async {
+    final from = _point(trip, 'pickup_latitude', 'pickup_longitude');
+    final to = _point(
+      trip,
+      'destination_latitude',
+      'destination_longitude',
+    );
+    if (from == null || to == null) return const <LatLng>[];
+
+    final fallback = <LatLng>[from, to];
+    try {
+      final uri = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/' +
+            from.longitude.toString() +
+            ',' +
+            from.latitude.toString() +
+            ';' +
+            to.longitude.toString() +
+            ',' +
+            to.latitude.toString() +
+            '?overview=full&geometries=geojson',
+      );
+      final response =
+          await http.get(uri).timeout(const Duration(seconds: 5));
+      if (response.statusCode != 200) return fallback;
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map || decoded['routes'] is! List) return fallback;
+      final routes = decoded['routes'] as List;
+      if (routes.isEmpty || routes.first is! Map) return fallback;
+      final geometry = (routes.first as Map)['geometry'];
+      if (geometry is! Map || geometry['coordinates'] is! List) {
+        return fallback;
+      }
+
+      final points = <LatLng>[];
+      for (final raw in geometry['coordinates'] as List) {
+        if (raw is! List || raw.length < 2) continue;
+        final lng = _toDouble(raw[0]);
+        final lat = _toDouble(raw[1]);
+        if (lat == null || lng == null) continue;
+        if (!lat.isFinite ||
+            !lng.isFinite ||
+            lat < -90 ||
+            lat > 90 ||
+            lng < -180 ||
+            lng > 180) {
+          continue;
+        }
+        points.add(LatLng(lat, lng));
+      }
+      return points.length >= 2 ? points : fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  static ({LatLng center, double zoom}) _cameraFor(
+    List<LatLng> points,
+    LatLng fallback,
+  ) {
+    if (points.isEmpty) return (center: fallback, zoom: 13);
+    var minLat = points.first.latitude;
+    var maxLat = points.first.latitude;
+    var minLng = points.first.longitude;
+    var maxLng = points.first.longitude;
+    for (final point in points.skip(1)) {
+      if (point.latitude < minLat) minLat = point.latitude;
+      if (point.latitude > maxLat) maxLat = point.latitude;
+      if (point.longitude < minLng) minLng = point.longitude;
+      if (point.longitude > maxLng) maxLng = point.longitude;
+    }
+    final spanLat = maxLat - minLat;
+    final spanLng = maxLng - minLng;
+    final span = spanLat > spanLng ? spanLat : spanLng;
+
+    final zoom = span < .004
+        ? 16.0
+        : span < .008
+            ? 15.0
+            : span < .018
+                ? 14.0
+                : span < .04
+                    ? 13.0
+                    : span < .08
+                        ? 12.0
+                        : span < .16
+                            ? 11.0
+                            : 10.0;
+
+    return (
+      center: LatLng((minLat + maxLat) / 2, (minLng + maxLng) / 2),
+      zoom: zoom,
+    );
+  }
+
+  Marker _driverMarker(
+    Map<String, dynamic> row,
+    String status, {
+    String? tooltip,
+  }) {
+    final point = _point(row, 'latitude', 'longitude');
+    if (point == null) {
+      return Marker(
+        point: const LatLng(0, 0),
+        width: 0,
+        height: 0,
+        child: const SizedBox.shrink(),
+      );
+    }
+
+    final id = _driverId(row);
+    final name = (row['full_name'] ??
+            row['name'] ??
+            row['driver_name'] ??
+            'Conductor')
+        .toString();
+    return Marker(
+      point: point,
+      width: 48,
+      height: 48,
+      child: Tooltip(
+        message: tooltip ?? (name + ' · ' + _driverStatusLabel(status)),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: () {
+              if (id.isEmpty) return;
+              setState(() {
+                _selectedDriverId = _selectedDriverId == id ? null : id;
+              });
+            },
+            child: _MapDot(
+              icon: Icons.drive_eta_rounded,
+              color: _driverStatusColor(status),
+            ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    for (final row in drivers) {
-      final status = _driverLiveStatus(row, trips);
-      final name = (row['name'] ??
-              row['full_name'] ??
-              row['driver_name'] ??
-              'Conductor')
-          .toString();
-      addMarker(
-        row,
-        'latitude',
-        'longitude',
-        Icons.drive_eta_rounded,
-        name + ' · ' + _driverStatusLabel(status),
-        _driverStatusColor(status),
-      );
-    }
+  Marker _entityMarker({
+    required LatLng point,
+    required Widget child,
+    required String tooltip,
+    double width = 48,
+    double height = 48,
+  }) {
+    return Marker(
+      point: point,
+      width: width,
+      height: height,
+      child: Tooltip(message: tooltip, child: child),
+    );
+  }
 
-    for (final row in trips) {
-      addMarker(
-        row,
+  Widget _buildMap(List<LatLng> routePoints) {
+    final focusedTrip = widget.selectedTrip;
+    final focused = focusedTrip != null;
+    final markers = <Marker>[];
+    final polylines = <Polyline>[];
+    final cameraPoints = <LatLng>[];
+
+    Map<String, dynamic>? focusedDriver;
+    LatLng? driverPoint;
+    LatLng? pickupPoint;
+    LatLng? destinationPoint;
+
+    if (focused && focusedTrip != null) {
+      pickupPoint = _point(
+        focusedTrip,
         'pickup_latitude',
         'pickup_longitude',
-        Icons.local_taxi_rounded,
-        'Viaje · ' + (row['pickup_address'] ?? 'Origen').toString(),
-        adminBlue,
       );
+      destinationPoint = _point(
+        focusedTrip,
+        'destination_latitude',
+        'destination_longitude',
+      );
+      focusedDriver = _driverForTrip(focusedTrip);
+      driverPoint = _point(focusedDriver, 'latitude', 'longitude');
+
+      if (routePoints.length >= 2) {
+        polylines.add(
+          Polyline(
+            points: routePoints,
+            strokeWidth: 5,
+            color: adminBlue,
+          ),
+        );
+        cameraPoints.addAll(routePoints);
+      } else {
+        if (pickupPoint != null) cameraPoints.add(pickupPoint);
+        if (destinationPoint != null) cameraPoints.add(destinationPoint);
+      }
+
+      if (pickupPoint != null) {
+        markers.add(
+          _entityMarker(
+            point: pickupPoint,
+            tooltip: 'Punto A · ' +
+                (focusedTrip['pickup_address'] ?? 'Origen').toString(),
+            child: const _TripPointMarker(
+              label: 'A',
+              color: Color(0xFF12B76A),
+            ),
+          ),
+        );
+      }
+
+      if (destinationPoint != null) {
+        markers.add(
+          _entityMarker(
+            point: destinationPoint,
+            tooltip: 'Punto B · ' +
+                (focusedTrip['destination_address'] ?? 'Destino').toString(),
+            child: const _TripPointMarker(
+              label: 'B',
+              color: Color(0xFFE5484D),
+            ),
+          ),
+        );
+      }
+
+      final status =
+          (focusedTrip['status'] ?? 'activo').toString().toLowerCase();
+      final passengerPoint =
+          (status == 'in_progress' || status == 'emergency') &&
+                  driverPoint != null
+              ? driverPoint
+              : pickupPoint;
+      final passengerName =
+          (focusedTrip['passenger_name'] ?? 'Pasajero').toString();
+
+      if (driverPoint != null && focusedDriver != null) {
+        cameraPoints.add(driverPoint);
+        final driverStatus = _driverLiveStatus(focusedDriver, widget.trips);
+        final samePartyPoint = passengerPoint != null &&
+            (passengerPoint.latitude - driverPoint.latitude).abs() < .000001 &&
+            (passengerPoint.longitude - driverPoint.longitude).abs() < .000001;
+
+        if (samePartyPoint) {
+          final id = _driverId(focusedDriver);
+          markers.add(
+            _entityMarker(
+              point: driverPoint,
+              width: 66,
+              height: 54,
+              tooltip: 'Conductor + ' + passengerName,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () {
+                    if (id.isEmpty) return;
+                    setState(() {
+                      _selectedDriverId =
+                          _selectedDriverId == id ? null : id;
+                    });
+                  },
+                  child: _TripPartyMarker(
+                    driverColor: _driverStatusColor(driverStatus),
+                  ),
+                ),
+              ),
+            ),
+          );
+        } else {
+          markers.add(
+            _driverMarker(
+              focusedDriver,
+              driverStatus,
+              tooltip: (focusedTrip['driver_name'] ?? 'Conductor').toString() +
+                  ' · ' +
+                  _driverStatusLabel(driverStatus),
+            ),
+          );
+        }
+      }
+
+      if (passengerPoint != null &&
+          (driverPoint == null ||
+              (passengerPoint.latitude - driverPoint.latitude).abs() >=
+                  .000001 ||
+              (passengerPoint.longitude - driverPoint.longitude).abs() >=
+                  .000001)) {
+        markers.add(
+          _entityMarker(
+            point: passengerPoint,
+            tooltip: passengerName + ' · Pasajero',
+            child: const _PassengerMapMarker(),
+          ),
+        );
+        cameraPoints.add(passengerPoint);
+      }
+    } else {
+      for (final row in widget.drivers) {
+        final status = _driverLiveStatus(row, widget.trips);
+        final point = _point(row, 'latitude', 'longitude');
+        if (point == null) continue;
+        markers.add(_driverMarker(row, status));
+        cameraPoints.add(point);
+      }
+
+      for (final row in widget.trips) {
+        final point = _point(row, 'pickup_latitude', 'pickup_longitude');
+        if (point == null) continue;
+        markers.add(
+          _entityMarker(
+            point: point,
+            tooltip:
+                'Viaje · ' + (row['pickup_address'] ?? 'Origen').toString(),
+            child: const _MapDot(
+              icon: Icons.local_taxi_rounded,
+              color: adminBlue,
+            ),
+          ),
+        );
+      }
+
+      for (final row in widget.deliveries) {
+        final point = _point(row, 'pickup_latitude', 'pickup_longitude');
+        if (point == null) continue;
+        markers.add(
+          _entityMarker(
+            point: point,
+            tooltip:
+                'Delivery · ' + (row['pickup_address'] ?? 'Origen').toString(),
+            child: const _MapDot(
+              icon: Icons.local_shipping_rounded,
+              color: adminDark,
+            ),
+          ),
+        );
+      }
+
+      for (final row in widget.emergencies) {
+        final point = _point(row, 'latitude', 'longitude');
+        if (point == null) continue;
+        markers.add(
+          _entityMarker(
+            point: point,
+            tooltip:
+                'SOS · ' + (row['user_name'] ?? 'Usuario').toString(),
+            child: const _MapDot(
+              icon: Icons.sos_rounded,
+              color: Color(0xFFD92D20),
+            ),
+          ),
+        );
+      }
     }
 
-    for (final row in deliveries) {
-      addMarker(
-        row,
-        'pickup_latitude',
-        'pickup_longitude',
-        Icons.local_shipping_rounded,
-        'Delivery · ' + (row['pickup_address'] ?? 'Origen').toString(),
-        adminDark,
-      );
-    }
-
-    for (final row in emergencies) {
-      addMarker(
-        row,
-        'latitude',
-        'longitude',
-        Icons.sos_rounded,
-        'SOS · ' + (row['user_name'] ?? 'Usuario').toString(),
-        const Color(0xFFD92D20),
-      );
-    }
-
-    final zoneLat = _toDouble(selectedZone?['center_latitude']);
-    final zoneLng = _toDouble(selectedZone?['center_longitude']);
-    final zoneRadiusKm = _toDouble(selectedZone?['radius_km']);
-
-    final center = zoneLat != null && zoneLng != null
+    final zoneLat = _toDouble(widget.selectedZone?['center_latitude']);
+    final zoneLng = _toDouble(widget.selectedZone?['center_longitude']);
+    final zoneRadiusKm = _toDouble(widget.selectedZone?['radius_km']);
+    final fallback = zoneLat != null && zoneLng != null
         ? LatLng(zoneLat, zoneLng)
-        : _center(drivers, trips, deliveries, emergencies);
+        : _center(
+            widget.drivers,
+            widget.trips,
+            widget.deliveries,
+            widget.emergencies,
+          );
 
-    final available =
-        drivers.where((d) => _driverLiveStatus(d, trips) == 'available').length;
-    final noSignal =
-        drivers.where((d) => _driverLiveStatus(d, trips) == 'signal').length;
-    final inTrip =
-        drivers.where((d) => _driverLiveStatus(d, trips) == 'trip').length;
-    final offline =
-        drivers.where((d) => _driverLiveStatus(d, trips) == 'offline').length;
+    final camera = focused
+        ? _cameraFor(cameraPoints, fallback)
+        : (
+            center: fallback,
+            zoom: widget.selectedZone != null
+                ? 13.5
+                : (widget.fullScreen ? 13.0 : 12.0),
+          );
 
+    final available = widget.drivers
+        .where((d) => _driverLiveStatus(d, widget.trips) == 'available')
+        .length;
+    final noSignal = widget.drivers
+        .where((d) => _driverLiveStatus(d, widget.trips) == 'signal')
+        .length;
+    final inTrip = widget.drivers
+        .where((d) => _driverLiveStatus(d, widget.trips) == 'trip')
+        .length;
+    final offline = widget.drivers
+        .where((d) => _driverLiveStatus(d, widget.trips) == 'offline')
+        .length;
+
+    final selectedDriver = _selectedDriver();
     final map = FlutterMap(
+      key: ValueKey(
+        focused
+            ? 'focused-' +
+                (focusedTrip?['id'] ?? '').toString() +
+                '-' +
+                routePoints.length.toString()
+            : 'overview-' + (widget.selectedZone?['id'] ?? 'all').toString(),
+      ),
       options: MapOptions(
-        initialCenter: center,
-        initialZoom: selectedZone != null ? 13.5 : (fullScreen ? 13 : 12),
+        initialCenter: camera.center,
+        initialZoom: camera.zoom,
       ),
       children: [
         TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           userAgentPackageName: 'com.express.delivery',
         ),
-        if (zoneLat != null && zoneLng != null && zoneRadiusKm != null)
+        if (!focused &&
+            zoneLat != null &&
+            zoneLng != null &&
+            zoneRadiusKm != null)
           CircleLayer(
             circles: [
               CircleMarker(
@@ -4011,6 +4523,7 @@ class _OperationsMap extends StatelessWidget {
               ),
             ],
           ),
+        if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
         if (markers.isNotEmpty) MarkerLayer(markers: markers),
         const RichAttributionWidget(
           attributions: [
@@ -4027,7 +4540,7 @@ class _OperationsMap extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          if (!fullScreen) ...[
+          if (!widget.fullScreen) ...[
             const Padding(
               padding: EdgeInsets.all(14),
               child: Row(
@@ -4050,7 +4563,14 @@ class _OperationsMap extends StatelessWidget {
             child: Stack(
               children: [
                 Positioned.fill(child: map),
-                if (selectedZone != null)
+                if (focused && focusedTrip != null)
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    right: selectedDriver == null ? 12 : 320,
+                    child: _FocusedTripMapBanner(trip: focusedTrip),
+                  )
+                else if (widget.selectedZone != null)
                   Positioned(
                     top: 12,
                     left: 12,
@@ -4071,7 +4591,7 @@ class _OperationsMap extends StatelessWidget {
                         ],
                       ),
                       child: Text(
-                        (selectedZone?['name'] ?? 'Zona').toString(),
+                        (widget.selectedZone?['name'] ?? 'Zona').toString(),
                         style: const TextStyle(
                           color: adminDark,
                           fontSize: 9,
@@ -4080,19 +4600,453 @@ class _OperationsMap extends StatelessWidget {
                       ),
                     ),
                   ),
+                if (selectedDriver != null)
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: _DriverMapCard(
+                      driver: selectedDriver,
+                      status: _driverLiveStatus(
+                        selectedDriver,
+                        widget.trips,
+                      ),
+                      onClose: () => setState(() => _selectedDriverId = null),
+                    ),
+                  ),
                 Positioned(
                   left: 12,
                   bottom: 12,
-                  child: _MapStatusLegend(
-                    available: available,
-                    noSignal: noSignal,
-                    inTrip: inTrip,
-                    offline: offline,
-                  ),
+                  child: focused
+                      ? const _FocusedTripLegend()
+                      : _MapStatusLegend(
+                          available: available,
+                          noSignal: noSignal,
+                          inTrip: inTrip,
+                          offline: offline,
+                        ),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final trip = widget.selectedTrip;
+    if (trip == null) return _buildMap(const <LatLng>[]);
+
+    final fallback = <LatLng>[
+      if (_point(trip, 'pickup_latitude', 'pickup_longitude') case final p?)
+        p,
+      if (_point(
+        trip,
+        'destination_latitude',
+        'destination_longitude',
+      ) case final p?)
+        p,
+    ];
+
+    return FutureBuilder<List<LatLng>>(
+      future: _routeFuture,
+      initialData: fallback,
+      builder: (context, snapshot) {
+        return _buildMap(snapshot.data ?? fallback);
+      },
+    );
+  }
+}
+
+class _TripPointMarker extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _TripPointMarker({
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 3),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 15,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _PassengerMapMarker extends StatelessWidget {
+  const _PassengerMapMarker();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: const Color(0xFF7A2CF3),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 3),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: const Icon(Icons.person_rounded, color: Colors.white, size: 20),
+    );
+  }
+}
+
+class _TripPartyMarker extends StatelessWidget {
+  final Color driverColor;
+
+  const _TripPartyMarker({required this.driverColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 64,
+      height: 52,
+      child: Stack(
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: 42,
+              height: 42,
+              child: _MapDot(
+                icon: Icons.drive_eta_rounded,
+                color: driverColor,
+              ),
+            ),
+          ),
+          const Align(
+            alignment: Alignment.bottomRight,
+            child: SizedBox(
+              width: 36,
+              height: 36,
+              child: _PassengerMapMarker(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FocusedTripMapBanner extends StatelessWidget {
+  final Map<String, dynamic> trip;
+
+  const _FocusedTripMapBanner({required this.trip});
+
+  @override
+  Widget build(BuildContext context) {
+    final id = (trip['id'] ?? '').toString();
+    final shortId = id.length > 7 ? id.substring(0, 7).toUpperCase() : id;
+    final passenger = (trip['passenger_name'] ?? 'Pasajero').toString();
+    final driver = (trip['driver_name'] ?? 'Sin conductor').toString();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(.96),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: const Color(0xFFBFDBFE)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A101828),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.filter_center_focus_rounded,
+            size: 18,
+            color: adminBlue,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Viaje #' +
+                  (shortId.isEmpty ? 'ACTIVO' : shortId) +
+                  ' · ' +
+                  passenger +
+                  ' · ' +
+                  driver,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: adminDark,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DriverMapCard extends StatelessWidget {
+  final Map<String, dynamic> driver;
+  final String status;
+  final VoidCallback onClose;
+
+  const _DriverMapCard({
+    required this.driver,
+    required this.status,
+    required this.onClose,
+  });
+
+  String _value(String key, {String fallback = '—'}) {
+    final value = driver[key]?.toString().trim();
+    return value == null || value.isEmpty ? fallback : value;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final updated = DateTime.tryParse(_value('location_updated_at'));
+    final updatedLabel = updated == null
+        ? 'Sin hora de ubicación'
+        : 'Ubicación: ' + _formatDate(updated.toIso8601String());
+
+    return Container(
+      width: 295,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(.97),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFFDDE6F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x24101828),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: _driverStatusColor(status).withOpacity(.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.drive_eta_rounded,
+                  size: 18,
+                  color: _driverStatusColor(status),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _value('full_name', fallback: 'Conductor'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: adminDark,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: _driverStatusColor(status),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          _driverStatusLabel(status),
+                          style: const TextStyle(
+                            color: adminMuted,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: onClose,
+                icon: const Icon(Icons.close_rounded, size: 17),
+                tooltip: 'Cerrar',
+              ),
+            ],
+          ),
+          const Divider(height: 18),
+          _DriverInfoLine(icon: Icons.phone_outlined, text: _value('phone')),
+          const SizedBox(height: 6),
+          _DriverInfoLine(icon: Icons.mail_outline_rounded, text: _value('email')),
+          const SizedBox(height: 6),
+          _DriverInfoLine(
+            icon: Icons.directions_car_outlined,
+            text: _value('vehicle_summary', fallback: 'Vehículo sin detalle'),
+          ),
+          const SizedBox(height: 6),
+          _DriverInfoLine(
+            icon: Icons.star_outline_rounded,
+            text: 'Calificación ' +
+                _value('rating', fallback: '—') +
+                ' · ' +
+                _value('completed_trips', fallback: '0') +
+                ' viajes',
+          ),
+          const SizedBox(height: 6),
+          _DriverInfoLine(
+            icon: Icons.my_location_rounded,
+            text: updatedLabel,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DriverInfoLine extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _DriverInfoLine({
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 15, color: adminMuted),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: adminMuted,
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FocusedTripLegend extends StatelessWidget {
+  const _FocusedTripLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <(String, Color)>[
+      ('A · Origen', const Color(0xFF12B76A)),
+      ('B · Destino', const Color(0xFFE5484D)),
+      ('Conductor', const Color(0xFFF79009)),
+      ('Pasajero', const Color(0xFF7A2CF3)),
+      ('Recorrido', adminBlue),
+    ];
+
+    return Container(
+      width: 160,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(.95),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: const Color(0xFFE4EAF2)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A101828),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Viaje seleccionado',
+            style: TextStyle(
+              color: adminDark,
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final row in rows)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: row.$2,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    row.$1,
+                    style: const TextStyle(
+                      color: adminMuted,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -4258,11 +5212,21 @@ String _driverLiveStatus(
       online == 'online' || online == 'available' || online == 'connected';
   if (!connected) return 'offline';
 
+  final locationUpdatedAt =
+      DateTime.tryParse(driver['location_updated_at']?.toString() ?? '');
+  final latitude = _toDouble(driver['latitude']);
+  final longitude = _toDouble(driver['longitude']);
+  final locationStale = locationUpdatedAt == null
+      ? latitude == null || longitude == null
+      : DateTime.now().toUtc().difference(locationUpdatedAt.toUtc()) >
+          const Duration(minutes: 2);
+
   final noSignal = signal.contains('no_signal') ||
       signal.contains('no signal') ||
       signal.contains('lost') ||
       signal.contains('stale') ||
-      signal.contains('offline');
+      signal.contains('offline') ||
+      locationStale;
   if (noSignal) return 'signal';
 
   return 'available';

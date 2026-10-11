@@ -2,6 +2,23 @@
 
 > **Regla de lectura:** la entrada más reciente define la arquitectura vigente. Entradas anteriores se conservan como historial de decisiones y no deben usarse para restaurar comportamientos retirados.
 
+## 2026-10-11 — Operación en vivo interactiva
+
+- Los conductores ahora pueden aparecer en el mapa usando su última ubicación conocida.
+- Estados visuales: disponible, en línea sin señal, en viaje y desconectado.
+- Clic en marcador de conductor abre ficha flotante con datos operativos y última actualización de ubicación.
+- Los viajes activos de la pestaña lateral son seleccionables.
+- Seleccionar un viaje limpia la vista general y muestra únicamente A, B, conductor, pasajero y el recorrido de ese viaje.
+- El recorrido usa OSRM con fallback A→B; no bloquea el mapa si el proveedor no responde.
+- Deselect / **Mostrar todo** / cambio a Conductores restaura la vista general.
+- Backend: `admin_driver_list_v3` se amplía de forma aditiva con latitud, longitud, heading y `location_updated_at`.
+- La migración se aplicó al Supabase compartido y conserva el aislamiento por canal/zona.
+- Paridad: `feat/live-ops-interactions-20261011` y `preview/live-ops-interactions-20261011` usan el mismo código.
+- Pendiente siguiente etapa: desde Dashboard > Actividad reciente, acción **Ver viaje** debe navegar al viaje seleccionado.
+- Documento: `docs/LIVE_OPERATIONS_INTERACTION_2026-10-11.md`.
+
+---
+
 ## 2026-10-11 — Regla obligatoria de paridad Preview / Producción
 
 - Todo cambio no visual de flujo, backend, permisos, RPC, SQL, configuración o comportamiento debe quedar funcionando también en Preview antes de merge.
