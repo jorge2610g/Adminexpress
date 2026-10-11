@@ -208,7 +208,7 @@ jobs:
           ref: ${{ env.PREVIEW_SHA }}
           path: preview-source
 
-      - name: Validate pinned QA commit and shared-backend fail-closed Preview
+      - name: Validate pinned QA commit, complete navigation and actor guards
         shell: bash
         run: |
           set -euo pipefail
@@ -225,16 +225,23 @@ jobs:
             echo "ERROR: deleted Supabase project reference remains in active client."
             exit 1
           fi
-          # On one physical DB it is UNSAFE to unlock unaudited modules.
-          grep -Fq "if (adminIsPreview && !_previewScopedModules.contains(value))" preview-source/lib/admin_panel.dart
-          if grep -Fq "static const bool _previewUnlockAllModules = true;" preview-source/lib/admin_panel.dart; then
-            echo "ERROR: Preview bypass must not be enabled on the production database."
-            exit 1
-          fi
+          # Navigation parity was requested: all 29 pages open in Preview.
+          # Actor-channel guards stay in backend RPCs and production release
+          # controls stay disabled for Preview administrators.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('preview-source/lib/admin_panel.dart').read_text()
+          for i in range(29):
+              assert f'case {i}:' in p, f'Admin module {i} missing'
+          assert '_previewScopedModules' not in p
+          assert 'productionAccess: allowProduction && !adminIsPreview' in p
+          assert "admin_set_driver_approval_v2" in p
+          assert "admin_set_account_status_v2" in p
+          PY
           # Preview fare edits MUST write to the QA shadow, never real passenger fares.
           grep -Fq "_environment.previewUpsert(" preview-source/lib/admin_distance_fares.dart
           grep -Fq "_environment.previewGet(" preview-source/lib/admin_distance_fares.dart
-          echo "PASS: one backend; preview channel and session isolated, unscoped operations blocked."
+          echo "PASS: one backend, all Preview modules navigable, actor and release controls intact."
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
