@@ -24,7 +24,7 @@ class _AdminCountryCoveragePageState
   int revision = 0;
 
   AdminEnvironmentStore get _environment =>
-      const AdminEnvironmentStore('production');
+      AdminEnvironmentStore(widget.channel);
 
   List<Map<String, dynamic>> _list(dynamic value) => value is List
       ? value

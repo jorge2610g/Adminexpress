@@ -1163,6 +1163,7 @@ class _AdminDriverSubscriptionsPageState
                           await showAdminZonePaymentMethodsEditor(
                         context,
                         selectedZone!,
+                        channel: widget.channel,
                       );
                       if (changed && mounted) await _load();
                     },

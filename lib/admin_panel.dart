@@ -1289,7 +1289,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 10:
         return AdminEnvironmentReportsPage(
           includePreview: allowPreview,
-          includeProduction: allowProduction,
+          includeProduction: allowProduction && !adminIsPreview,
         );
       case 11:
         return AdminSettingsPage(channel: adminChannel);
@@ -1306,7 +1306,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 14:
         return AdminEnvironmentAuditPage(
           includePreview: allowPreview,
-          includeProduction: allowProduction,
+          includeProduction: allowProduction && !adminIsPreview,
         );
       case 15:
         return AdminCommunicationsPage(
