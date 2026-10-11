@@ -23,10 +23,12 @@ al proyecto de Supabase principal `zgpijrznvaskgcmauwxx`.
 4. Solo los módulos con operación QA acotada están habilitados. Los módulos
    sin aislamiento comprobado deben fallar cerrados; no reactivar
    `_previewUnlockAllModules` mientras exista una sola base compartida.
-5. No ejecutar SQL, funciones Edge ni migraciones bajo
-   `docs/preview/migrations/` y `docs/preview/edge-functions/`: proceden
-   del proyecto separado ya eliminado; son historial, NO parte de la
-   arquitectura activa.
+5. No ejecutar las migraciones anteriores diseñadas para el proyecto
+   Supabase eliminado ni sus Edge Functions; son historial y NO pertenecen
+   a la arquitectura actual. La única nueva migración explícita del backend
+   compartido es `20261011_shared_db_subscriptions_qa_candidates.sql`,
+   verificada y aplicada únicamente para añadir una consulta de conductores
+   QA de solo lectura (sin modificar registros ni pagos operativos).
 6. GitHub Pages puede publicar únicamente `/preview/` usando el artefacto
    probado de Producción y su manifest SHA. Está prohibido mutar `main`,
    redesplegar la raíz, cambiar flags de producción o copiar credenciales.
@@ -59,3 +61,22 @@ reales de prioridad. El cliente impide conmutar las opciones de Producción
 cuando está en Preview. Los demás módulos no auditados permanecen bloqueados
 hasta que su backend esté aislado por canal. CI compartida:
 https://github.com/jorge2610g/Adminexpress/actions/runs/38107841701.
+
+## Módulo desbloqueado: Suscripciones QA
+
+- UI Preview sección 22: permite crear y modificar planes y ajustes de
+  suscripción que se guardan exclusivamente en `admin_environment_config`.
+- Nueva RPC de lectura `admin_preview_driver_subscription_candidates`: autoriza
+  usuarios `allow_preview=true`, revisa ámbito de zona y devuelve únicamente
+  conductores aprobados en `audit_test_group_members` (servidor, no filtro
+  en navegador). `anon` no tiene privilegio de ejecución.
+- Las asignaciones de plan Preview escriben solo en el almacén QA.
+- La edición de métodos reales de cobro permanece DESACTIVADA en Preview.
+  Cualquier verificación de VeriPagos en Preview se presenta como simulada;
+  no se realizan llamadas ni se afirma conexión real.
+- La función SQL nueva **se agregó** a la base única de Express, sin
+  alteración de datos, política RLS ni funciones existentes.
+- El flujo completo de cobros (pagos reales, renovación automática) no está
+  habilitado en Preview; permanece pendiente de un simulador de pagos.
+- Flutter CI: https://github.com/jorge2610g/Adminexpress/actions/runs/38108870181,
+  PASS en ambas variantes de compilación.
