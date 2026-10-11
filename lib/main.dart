@@ -20,8 +20,8 @@ Future<void> main() async {
     await Supabase.initialize(
       url: supabaseUrl,
       publishableKey: supabasePublishableKey,
-      // The two sites use different Supabase Auth projects and browser sessions.
-      // Keep the Production default session key unchanged.
+      // Both pages share Supabase Auth; only browser sessions and data channels
+      // are separated. Preserve Production's default session key.
       authOptions: adminIsPreview
           ? FlutterAuthClientOptions(
               localStorage: SharedPreferencesLocalStorage(
