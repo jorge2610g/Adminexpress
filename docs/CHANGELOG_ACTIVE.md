@@ -1,3 +1,17 @@
+## 2026-10-11 — Control de despliegues: Producción desactivada en deploy-web.yml
+
+- `.github/workflows/deploy-web.yml` solo tiene el trigger `workflow_dispatch`. No hay `push` ni programación.
+- Se eliminó por completo el job `build`, que compilaba `ADMIN_ENV=production` y publicaba Producción con `confirm_production = PUBLICAR PRODUCCION`. También se eliminó el input `confirm_production`. Este archivo ya no puede compilar ni publicar Producción.
+- El job `deploy` solo corre si `preview_only` terminó con éxito (`needs: [preview_only]`).
+- Se conservan el job `snapshot` (crea `production-snapshot` de 90 días; no publica nada), la validación de `preview_source_sha` contra `preview_authorized_sha`, `production_snapshot_run_id` obligatorio, la comparación byte a byte de Producción contra el snapshot, el manifiesto de Producción idéntico tras reemplazar `/preview/` y la verificación posterior al despliegue.
+- Nuevo `docs/PREVIEW_AUTHORIZED.md` con `preview_authorized_sha: 128eca468144cf59dbb9ea330f0adc15d77cf777` (sin cambio de valor) y la línea que declara la publicación de Producción desactivada.
+- Snapshot vigente para `production_snapshot_run_id`: run `38117120868` (artifact `production-snapshot`, vence 2027-01-09).
+- Motivo: el `deploy-web.yml` de `main` tenía `push` a `main`. Cualquier push cuyo mensaje no contuviera `[deploy-preview-only]` compilaba y publicaba Producción. Este cambio elimina ese camino al entrar en `main`.
+- **Pendiente:** `validate-preview-production-split.yml` todavía exige `--dart-define=ADMIN_ENV=production` y `[deploy-preview-only]` en `deploy-web.yml`. Fallará en PR hacia `main` hasta corregirlo en un cambio aparte.
+- Producción no se vuelve a habilitar aquí. Hacerlo requiere una autorización de Producción separada, aprobada por el propietario.
+
+---
+
 ## 2026-10-10 — Google OAuth de Preview retornaba a la web de pasajeros
 
 - Vídeo de QA: seleccionar Google en `/preview/` termina en `https://expressviajes.online/` en vez del panel. No se confirmó ingreso administrativo; no retirar permisos del administrador anterior.

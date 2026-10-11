@@ -1,20 +1,35 @@
 name: Deploy Adminexpress Web to GitHub Pages
 
-# Preview deployment source: 4c78c2b27a867ea5b7df021ed11c3a5a3295f07a
+# Control de despliegues (docs/CHANGELOG_ACTIVE.md, entrada 2026-10-11).
+#
+# PUBLICACIÓN DE PRODUCCIÓN DESACTIVADA EN ESTE ARCHIVO. No existe ningún job que
+# compile ni suba la build de Producción. Este archivo no puede publicar Producción
+# hasta que exista una autorización de Producción separada, aprobada por el propietario.
+#
+# - Ningún push ni programación dispara despliegues. Todo se lanza a mano con workflow_dispatch.
+# - Preview solo se publica desde el SHA fijado en preview_authorized_sha de docs/PREVIEW_AUTHORIZED.md.
+# - El job deploy solo corre si preview_only terminó con éxito.
+# - Los bytes de Producción salen de un artifact production-snapshot con retención
+#   de 90 días, creado con snapshot_source_run_id. El job snapshot no publica nada.
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       preview_only:
-        description: 'Deploy a pinned QA commit ONLY to /preview/; preserve production files byte for byte.'
+        description: 'Publish the authorized QA commit ONLY to /preview/; Production files stay byte for byte.'
         type: boolean
         required: false
         default: false
       preview_source_sha:
-        description: 'Full commit SHA on QA branch (required when preview_only=true).'
+        description: 'Full SHA that must equal preview_authorized_sha in docs/PREVIEW_AUTHORIZED.md (preview_only=true).'
+        type: string
+        required: false
+      production_snapshot_run_id:
+        description: 'Run id of the production-snapshot artifact that preserves Production bytes (preview_only=true).'
+        type: string
+        required: false
+      snapshot_source_run_id:
+        description: 'Only copy the github-pages artifact of this Production run into a 90-day production-snapshot. Deploys nothing.'
         type: string
         required: false
 
@@ -26,111 +41,54 @@ permissions:
 
 concurrency:
   group: adminexpress-pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  build:
-    if: ${{ !contains(github.event.head_commit.message, '[deploy-preview-only]') && !(inputs.preview_only == true) }}
+  snapshot:
+    if: ${{ inputs.snapshot_source_run_id != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Download Production Pages artifact
+        uses: actions/download-artifact@v4
         with:
-          channel: stable
+          name: github-pages
+          run-id: ${{ inputs.snapshot_source_run_id }}
+          github-token: ${{ github.token }}
+          path: pages-prod
 
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Analyze production-critical admin modules
-        run: |
-          flutter analyze --no-fatal-warnings --no-fatal-infos \
-            lib/admin_panel.dart \
-            lib/admin_single_app_release.dart \
-            lib/admin_environment_reports.dart \
-            lib/admin_environment_audit.dart \
-            lib/admin_control_sections.dart \
-            lib/admin_dynamic_pricing.dart \
-            lib/admin_environment_store.dart
-
-      - name: Build Flutter Web
-        run: flutter build web --release --base-href / --dart-define=ADMIN_ENV=production
-
-      - name: Bust Flutter web cache
+      - name: Verify artifact contents
         shell: bash
         run: |
-          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${GITHUB_SHA}#g" build/web/index.html
-          if [ -f build/web/flutter_bootstrap.js ]; then
-            sed -i "s#main.dart.js#main.dart.js?v=${GITHUB_SHA}#g" build/web/flutter_bootstrap.js
-          fi
+          set -euo pipefail
+          test -f pages-prod/artifact.tar
+          tar -tf pages-prod/artifact.tar > snapshot-list.txt
+          grep -q 'index.html' snapshot-list.txt
+          grep -q 'main.dart.js' snapshot-list.txt
+          sha256sum pages-prod/artifact.tar | tee snapshot.sha256
 
-      - name: Write deployed version marker
+      - name: Publish durable snapshot (90 days)
+        id: snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-snapshot
+          path: pages-prod/artifact.tar
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Record snapshot in the run summary
         shell: bash
         run: |
-          RAW_VERSION="$(grep '^version:' pubspec.yaml | awk '{print $2}')"
-          VERSION_NAME="${RAW_VERSION%%+*}"
-          BUILD_NUMBER="${RAW_VERSION##*+}"
-          DEPLOYED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-
-          cat > build/web/version.json <<EOF
           {
-            "package": "${RAW_VERSION}",
-            "version": "${VERSION_NAME}",
-            "build": "${BUILD_NUMBER}",
-            "display": "Adminexpress v${VERSION_NAME} · build ${BUILD_NUMBER}",
-            "commit": "${GITHUB_SHA}",
-            "deployed_at": "${DEPLOYED_AT}"
-          }
-          EOF
-
-      # GitHub Pages serves two URLs built with separate ADMIN_ENV values.
-      # Both share the main Supabase but Preview uses QA-only runtime scope.
-      - name: Preserve production site
-        run: |
-          mkdir -p build/site
-          cp -a build/web/. build/site/
-
-      - name: Build independent Admin Preview
-        run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
-
-      - name: Bust Preview web cache
-        shell: bash
-        run: |
-          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${GITHUB_SHA}#g" build/web/index.html
-          if [ -f build/web/flutter_bootstrap.js ]; then
-            sed -i "s#main.dart.js#main.dart.js?v=${GITHUB_SHA}#g" build/web/flutter_bootstrap.js
-          fi
-
-      - name: Install Preview as separate site
-        shell: bash
-        run: |
-          mkdir -p build/site/preview
-          cp -a build/web/. build/site/preview/
-          cp build/site/version.json build/site/preview/version.json
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          for name, label, project in [
-              ('build/site/version.json', 'production', 'zgpijrznvaskgcmauwxx'),
-              ('build/site/preview/version.json', 'preview', 'zgpijrznvaskgcmauwxx'),
-          ]:
-              path = Path(name)
-              data = json.loads(path.read_text())
-              data['environment'] = label
-              data['data_channel'] = label
-              data['supabase_project_ref'] = project
-              path.write_text(json.dumps(data, indent=2))
-          PY
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: build/site
+            echo "### Production snapshot"
+            echo "- source run: ${{ inputs.snapshot_source_run_id }}"
+            echo "- snapshot artifact id: ${{ steps.snapshot.outputs.artifact-id }}"
+            echo '```'
+            cat snapshot.sha256
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   preview_only:
-    if: ${{ contains(github.event.head_commit.message, '[deploy-preview-only]') || inputs.preview_only == true }}
+    if: ${{ inputs.preview_only == true && inputs.snapshot_source_run_id == '' }}
     runs-on: ubuntu-latest
     outputs:
       preview_sha: ${{ steps.resolve_preview.outputs.preview_sha }}
@@ -139,20 +97,10 @@ jobs:
         id: resolve_preview
         shell: bash
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-          PUSH_SHA: ${{ github.sha }}
           INPUT_PREVIEW_SHA: ${{ inputs.preview_source_sha }}
         run: |
           set -euo pipefail
-          if [[ "$EVENT_NAME" == "push" ]]; then
-            RESOLVED_SHA="$PUSH_SHA"
-            if [[ "$COMMIT_MESSAGE" =~ preview-sha=([0-9a-f]{40}) ]]; then
-              RESOLVED_SHA="${BASH_REMATCH[1]}"
-            fi
-          else
-            RESOLVED_SHA="$INPUT_PREVIEW_SHA"
-          fi
+          RESOLVED_SHA="$INPUT_PREVIEW_SHA"
           echo "PREVIEW_SHA=$RESOLVED_SHA" >> "$GITHUB_ENV"
           echo "preview_sha=$RESOLVED_SHA" >> "$GITHUB_OUTPUT"
 
@@ -161,18 +109,44 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$PREVIEW_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Full Preview SHA is required"; exit 1; }
-          # A tagged main push builds exactly that commit for Preview only.
-          # Manual dispatch may instead pin an independent reviewed SHA.
-          if [[ "${{ github.event_name }}" != "push" && "$PREVIEW_SHA" = "${{ github.sha }}" ]]; then
+          if [[ "$PREVIEW_SHA" = "${{ github.sha }}" ]]; then
             echo "ERROR: manual QA SHA must differ from the workflow ref."
             exit 1
           fi
 
-      - name: Download current Production Pages artifact (known-good build)
+      - name: Checkout workflow ref (authorization file)
+        uses: actions/checkout@v5
+        with:
+          path: workflow-ref
+
+      - name: Require the authorized Preview SHA (docs/PREVIEW_AUTHORIZED.md)
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTH="$(grep -E '^preview_authorized_sha: [0-9a-f]{40}$' workflow-ref/docs/PREVIEW_AUTHORIZED.md | awk '{print $2}')"
+          if [[ -z "$AUTH" ]]; then
+            echo "ERROR: docs/PREVIEW_AUTHORIZED.md has no preview_authorized_sha."
+            exit 1
+          fi
+          if [[ "$PREVIEW_SHA" != "$AUTH" ]]; then
+            echo "ERROR: $PREVIEW_SHA is not the authorized Preview SHA ($AUTH)."
+            exit 1
+          fi
+          echo "PASS: $PREVIEW_SHA is the authorized Preview SHA."
+
+      - name: Require the Production snapshot run id
+        shell: bash
+        env:
+          SNAPSHOT_RUN_ID: ${{ inputs.production_snapshot_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$SNAPSHOT_RUN_ID" =~ ^[0-9]+$ ]] || { echo "production_snapshot_run_id is required"; exit 1; }
+
+      - name: Download durable Production snapshot (90-day artifact)
         uses: actions/download-artifact@v4
         with:
-          name: github-pages
-          run-id: 38071887995
+          name: production-snapshot
+          run-id: ${{ inputs.production_snapshot_run_id }}
           github-token: ${{ github.token }}
           path: pages-prod
 
@@ -244,6 +218,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Marca de build visible solo en Preview (solo si el código tiene el marcador).
+          if grep -Fq "__EXPRESS_PREVIEW_BUILD_SHA__" preview-source/build/web/index.html; then
+            sed -i "s#__EXPRESS_PREVIEW_BUILD_SHA__#${PREVIEW_SHA}#g" preview-source/build/web/index.html
+            grep -Fq "const buildSha = '${PREVIEW_SHA}'" preview-source/build/web/index.html
+          fi
           sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${PREVIEW_SHA}#g" preview-source/build/web/index.html
           if [ -f preview-source/build/web/flutter_bootstrap.js ]; then
             sed -i "s#main.dart.js#main.dart.js?v=${PREVIEW_SHA}#g" preview-source/build/web/flutter_bootstrap.js
@@ -275,12 +254,12 @@ jobs:
           path: build/site
 
   deploy:
-    if: ${{ always() && (needs.build.result == 'success' || needs.preview_only.result == 'success') }}
+    if: ${{ needs.preview_only.result == 'success' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: [build, preview_only]
+    needs: [preview_only]
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
