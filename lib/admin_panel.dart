@@ -237,8 +237,59 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   String? adminZoneId;
   Map<String, dynamic> adminAccess = const {};
 
-  bool get _isZoneMonitor =>
-      adminAccess['role']?.toString() == 'zone_monitor';
+  bool get _readOnly => adminAccess['read_only'] == true;
+
+  Set<String> get _allowedModules {
+    final raw = adminAccess['allowed_modules'];
+    if (raw is! List) return const <String>{};
+    return raw
+        .map((value) => value?.toString().trim() ?? '')
+        .where((value) => value.isNotEmpty)
+        .toSet();
+  }
+
+  static const Map<int, String> _sectionModuleKeys = {
+    0: 'dashboard',
+    1: 'live_operations',
+    2: 'trips',
+    3: 'delivery',
+    4: 'drivers',
+    5: 'users',
+    6: 'safety_sos',
+    7: 'zones',
+    8: 'fares',
+    9: 'payments',
+    10: 'reports',
+    11: 'settings',
+    12: 'builds',
+    13: 'manual_dispatch',
+    14: 'audit',
+    15: 'notifications',
+    16: 'services',
+    17: 'geo_safety',
+    19: 'advanced_settings',
+    20: 'test_environments',
+    21: 'qa_load',
+    22: 'subscriptions',
+    23: 'marketplace',
+    24: 'delivery_phase2',
+    25: 'driver_priority',
+    26: 'delivery_orders',
+    28: 'dynamic_pricing',
+  };
+
+  bool _sectionAllowed(int index) {
+    // Identity review is already part of the driver record. The old standalone
+    // identity entries are deliberately unreachable.
+    if (index == 18 || index == 27) return false;
+    final module = _sectionModuleKeys[index];
+    if (module == null) return false;
+    final allowed = _allowedModules;
+    return allowed.contains('*') || allowed.contains(module);
+  }
+
+  Set<int> get _allowedSections =>
+      _sectionModuleKeys.keys.where(_sectionAllowed).toSet();
   // Android releases belong to the entire Express app, never to a
   // country, city or service zone. Operational sections still require scope.
   // These administration modules cover the entire Express system rather than
@@ -321,10 +372,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       return false;
     }
 
-    if (access['role']?.toString() == 'zone_monitor') {
+    final assignedZone = access['zone_id']?.toString();
+    if (assignedZone != null && assignedZone.isNotEmpty) {
       adminCountryCode =
           access['country_code']?.toString().trim().toUpperCase();
-      adminZoneId = access['zone_id']?.toString();
+      adminZoneId = assignedZone;
       liveZoneId = adminZoneId;
     }
     return true;
@@ -722,7 +774,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _globalGeoScopeSwitcher() {
-    if (_isZoneMonitor) {
+    if (_readOnly) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
@@ -961,6 +1013,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   void _goTo(int value) {
+    if (!_sectionAllowed(value)) return;
     setState(() {
       if (value == 1 && section != 1 && _scopeReady) {
         _liveFuture = _liveState();
@@ -1064,7 +1117,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                   ? AppBar(
                       title: const _Brand(compact: true),
                       actions: [
-                        if (!_isZoneMonitor)
+                        if (!_readOnly && _sectionAllowed(13))
                           IconButton(
                             tooltip: 'Nuevo viaje',
                             onPressed: () => _goTo(13),
@@ -1097,7 +1150,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                         child: _Navigation(
                           selected: section,
                           channel: adminChannel,
-                          readOnly: _isZoneMonitor,
+                          readOnly: _readOnly,
+                          allowedSections: _allowedSections,
                           onSelected: (value) {
                             Navigator.pop(context);
                             _goTo(value);
@@ -1115,7 +1169,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                       child: _Navigation(
                         selected: section,
                         channel: adminChannel,
-                        readOnly: _isZoneMonitor,
+                        readOnly: _readOnly,
+                        allowedSections: _allowedSections,
                         onSelected: _goTo,
                         onExit: widget.onExit,
                       ),
@@ -1129,7 +1184,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                             onRefresh: _refresh,
                             onNewTrip: () => _goTo(13),
                             onExit: widget.onExit,
-                            showNewTrip: !_isZoneMonitor,
+                            showNewTrip: !_readOnly && _sectionAllowed(13),
                           ),
                         if (!_globalSections.contains(section))
                           _environmentSwitcher(),
@@ -1174,9 +1229,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       return const _ScopeSelectionRequired();
     }
 
-    if (_isZoneMonitor &&
-        !const {0, 1, 2, 3, 4, 5, 6, 26}.contains(value)) {
-      return const _ZoneMonitorRestricted();
+    if (!_sectionAllowed(value)) {
+      return const _PermissionRestricted();
     }
 
     switch (value) {
@@ -1691,7 +1745,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               'Pago: ' + (row['payment_status'] ?? '—').toString(),
               'Creado: ' + _formatDate(row['created_at']),
             ],
-            onTap: _isZoneMonitor
+            onTap: _readOnly
                 ? null
                 : () => showAdminTripDetail(
                       context,
@@ -1828,7 +1882,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     ],
                   );
 
-                  final Widget actions = _isZoneMonitor
+                  final Widget actions = _readOnly
                       ? const SizedBox.shrink()
                       : PopupMenuButton<String>(
                     tooltip: 'Acciones',
@@ -2017,7 +2071,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     ' · ' +
                     (row['account_status'] ?? 'active').toString(),
               ),
-              trailing: _isZoneMonitor
+              trailing: _readOnly
                   ? null
                   : PopupMenuButton<String>(
                 onSelected: (value) async {
@@ -2105,7 +2159,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     ' · ' +
                     _formatDate(row['created_at']),
               ),
-              trailing: _isZoneMonitor
+              trailing: _readOnly
                   ? null
                   : FilledButton.icon(
                       onPressed: () =>
@@ -2164,8 +2218,8 @@ class _ScopeSelectionRequired extends StatelessWidget {
   }
 }
 
-class _ZoneMonitorRestricted extends StatelessWidget {
-  const _ZoneMonitorRestricted();
+class _PermissionRestricted extends StatelessWidget {
+  const _PermissionRestricted();
 
   @override
   Widget build(BuildContext context) {
@@ -2182,7 +2236,7 @@ class _ZoneMonitorRestricted extends StatelessWidget {
             ),
             SizedBox(height: 12),
             Text(
-              'Módulo reservado al administrador global',
+              'Módulo no habilitado para esta cuenta',
               style: TextStyle(
                 color: adminDark,
                 fontSize: 16,
@@ -2191,7 +2245,7 @@ class _ZoneMonitorRestricted extends StatelessWidget {
             ),
             SizedBox(height: 6),
             Text(
-              'El monitor de zona tiene acceso operativo de solo lectura.',
+              'Tu rol o tus permisos no incluyen este módulo.',
               textAlign: TextAlign.center,
               style: TextStyle(color: adminMuted, fontSize: 11),
             ),
@@ -2206,6 +2260,7 @@ class _Navigation extends StatelessWidget {
   final int selected;
   final String channel;
   final bool readOnly;
+  final Set<int> allowedSections;
   final ValueChanged<int> onSelected;
   final VoidCallback onExit;
 
@@ -2213,26 +2268,38 @@ class _Navigation extends StatelessWidget {
     required this.selected,
     required this.channel,
     this.readOnly = false,
+    required this.allowedSections,
     required this.onSelected,
     required this.onExit,
   });
 
-  List<(String, List<int>)> get groups => readOnly
-      ? const [
-          ('GENERAL', [0]),
-          ('OPERACIONES', [1, 2, 3, 26, 4, 5, 6]),
-        ]
-      : const [
-          ('GENERAL', [0]),
-          ('OPERACIONES', [1, 2, 13, 3, 26, 4, 5, 6]),
-          ('MÓDULOS', [23, 24, 25]),
-          ('FINANZAS', [9, 8, 22]),
-          ('ANÁLISIS', [10, 14]),
-          ('COMUNICACIÓN', [15]),
-          ('SEGURIDAD', [18]),
-          ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
-          ('HERRAMIENTAS QA', [20, 21]),
-        ];
+  List<(String, List<int>)> get groups {
+    final source = readOnly
+        ? const <(String, List<int>)>[
+            ('GENERAL', [0]),
+            ('OPERACIONES', [1, 2, 3, 26, 4, 5, 6]),
+          ]
+        : const <(String, List<int>)>[
+            ('GENERAL', [0]),
+            ('OPERACIONES', [1, 2, 13, 3, 26, 4, 5, 6]),
+            ('MÓDULOS', [23, 24, 25]),
+            ('FINANZAS', [9, 8, 22]),
+            ('ANÁLISIS', [10, 14]),
+            ('COMUNICACIÓN', [15]),
+            ('CONFIGURACIÓN', [16, 7, 11, 19, 12, 28]),
+            ('HERRAMIENTAS QA', [20, 21]),
+          ];
+
+    return source
+        .map(
+          (group) => (
+            group.$1,
+            group.$2.where(allowedSections.contains).toList(),
+          ),
+        )
+        .where((group) => group.$2.isNotEmpty)
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
