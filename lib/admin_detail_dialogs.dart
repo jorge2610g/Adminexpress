@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
@@ -491,15 +490,59 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
       final signed = await supabase.storage
           .from('driver-onboarding')
           .createSignedUrl(value, 3600);
-      final ok = await launchUrl(
-        Uri.parse(signed),
-        mode: LaunchMode.platformDefault,
+      if (!mounted) return;
+      // Se muestra dentro de la misma app (diálogo), sin salir a otra web.
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => Dialog(
+          insetPadding: const EdgeInsets.all(16),
+          child: SizedBox(
+            width: 960,
+            height: MediaQuery.sizeOf(dialogContext).height * 0.8,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 6, 0),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Documento',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Cerrar',
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: InteractiveViewer(
+                    maxScale: 5,
+                    child: Image.network(
+                      signed,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, progress) =>
+                          progress == null
+                              ? child
+                              : const Center(child: CircularProgressIndicator()),
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text('No se pudo mostrar la imagen.'),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
-      if (!ok && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo abrir el archivo.')),
-        );
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
