@@ -260,15 +260,24 @@ jobs:
           assert 'supabase.auth.signOut()' not in login
           assert 'adminPreviewAuthSessionStorageKey' in config
           assert 'express-admin-preview-zgpijrznvaskgcmauwxx-session-v1' in config
-          assert '--dart-define=ADMIN_ENV=production' in workflow
+          assert 'ADMIN_ENV=production' not in workflow, 'deploy-web.yml must not build ADMIN_ENV=production'
+          assert '--dart-define=ADMIN_ENV=production' not in workflow
           assert '--dart-define=ADMIN_ENV=preview' in workflow
           assert '--base-href /preview/' in workflow
           assert 'path: build/site' in workflow
           assert 'preview_source_sha' in workflow
-          assert "run-id: 38071887995" in workflow, 'Unexpected Production artifact for Preview-only Pages update'
+          assert "name: production-snapshot" in workflow, 'Preview-only must restore the durable production-snapshot artifact'
+          assert "inputs.production_snapshot_run_id }}" in workflow, 'Preview-only must read production_snapshot_run_id'
           assert 'Verify live Preview SHA and unchanged Production marker' in workflow
           assert 'EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df' in workflow
-          assert "contains(github.event.head_commit.message, '[deploy-preview-only]')" in workflow
+          import re
+          on_block = workflow.split('\non:\n', 1)[1].split('\npermissions:', 1)[0]
+          triggers = re.findall(r'^  ([A-Za-z_]+):\s*$', on_block, re.M)
+          assert triggers == ['workflow_dispatch'], f'deploy-web.yml must use workflow_dispatch as its only trigger, found {triggers}'
+          assert '\n  build:\n' not in workflow, 'deploy-web.yml must not contain a build job'
+          deploy_job = workflow.split('\n  deploy:\n', 1)[1].split('\n    steps:', 1)[0]
+          assert 'needs: [preview_only]' in deploy_job, 'deploy must need preview_only'
+          assert "needs.preview_only.result == 'success'" in deploy_job, 'deploy must run only when preview_only succeeded'
           assert "const supabaseUrl = _productionUrl;" in workflow
           navigation = Path('lib/core/admin_environment_navigation.dart').read_text()
           assert "adminIsPreview ? 'Ir a Producción' : 'Ir a Prueba'" in navigation

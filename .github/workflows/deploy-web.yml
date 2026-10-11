@@ -117,6 +117,8 @@ jobs:
       - name: Checkout workflow ref (authorization file)
         uses: actions/checkout@v5
         with:
+          # Fijado a main: un dispatch desde otra rama no puede aportar su propio SHA autorizado.
+          ref: main
           path: workflow-ref
 
       - name: Require the authorized Preview SHA (docs/PREVIEW_AUTHORIZED.md)

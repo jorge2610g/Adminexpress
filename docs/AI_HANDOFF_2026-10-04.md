@@ -459,6 +459,7 @@ La UI puede reutilizar componentes; la persistencia debe respetar el canal.
 Workflow:
 
 `.github/workflows/deploy-web.yml`
+Nota 2026-10-11: la publicación de Producción está desactivada en este workflow; ver `docs/CHANGELOG_ACTIVE.md` (entrada 2026-10-11).
 
 Antes de merge importante:
 - `flutter analyze`

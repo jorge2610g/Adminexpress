@@ -126,7 +126,7 @@ GitHub Pages:
 
 Workflow:
 
-`.github/workflows/deploy-web.yml`
+`.github/workflows/deploy-web.yml` se lanza solo a mano (`workflow_dispatch`) y publica únicamente Preview en `/preview/`; la publicación de Producción está desactivada en ese archivo. Qué commit de Preview puede publicarse lo decide `docs/PREVIEW_AUTHORIZED.md`.
 
 ## Continuidad
 

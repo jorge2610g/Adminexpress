@@ -1,3 +1,11 @@
+## 2026-10-11 — Preview autorizada leída desde main; validador de despliegue actualizado
+
+- `deploy-web.yml`: el checkout que lee `docs/PREVIEW_AUTHORIZED.md` usa `ref: main`. Un dispatch desde otra rama ya no puede aportar su propio SHA autorizado.
+- `validate-preview-production-split.yml`: exige que `deploy-web.yml` tenga `workflow_dispatch` como único trigger, que no contenga build de Producción (`ADMIN_ENV=production`) y que `deploy` tenga `needs: [preview_only]`. Se retiraron las comprobaciones del trigger `push` y del run `38071887995`, que ya no aplican. La compilación de humo de Producción del validador se mantiene: compila y no publica.
+- `README.md` describe el despliegue como manual, solo Preview y con Producción desactivada. Una línea bajo `docs/AI_HANDOFF_2026-10-04.md` apunta a esta entrada; el handoff histórico no se reescribió.
+
+---
+
 ## 2026-10-11 — Control de despliegues: Producción desactivada en deploy-web.yml
 
 - `.github/workflows/deploy-web.yml` solo tiene el trigger `workflow_dispatch`. No hay `push` ni programación.
