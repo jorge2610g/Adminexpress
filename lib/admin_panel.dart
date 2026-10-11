@@ -318,7 +318,6 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   static const Set<int> _previewScopedModules = {
     0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 14, 16, 17, 18, 27,
   };
-  static const bool _previewUnlockAllModules = true;
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
 
@@ -1266,9 +1265,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Widget _body(int value) {
     // Fail closed: a shared database also has REAL merchants, subscriptions,
     // payments and releases. Never run unscoped Preview module RPCs.
-    if (adminIsPreview &&
-        !_previewUnlockAllModules &&
-        !_previewScopedModules.contains(value)) {
+    if (adminIsPreview && !_previewScopedModules.contains(value)) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(24),
