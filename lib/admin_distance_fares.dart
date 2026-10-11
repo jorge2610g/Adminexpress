@@ -108,7 +108,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
       return;
     }
     try {
-      final raw = _environment.isPreview
+      final raw = !_environment.usesSharedOperationalConfiguration
           ? await _environment.previewGet(
               'zone_distance_fare_steps',
               recordKey: _qaRecordKey(zone, service),
@@ -116,7 +116,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
           : await supabase.rpc(
               'admin_distance_fare_steps_get',
               params: {
-                'p_channel': widget.channel,
+                'p_channel': 'production', // Global fare rules shared by both websites.
                 'p_zone_id': zone,
                 'p_service_key': service,
               },
@@ -171,7 +171,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
       _error = null;
     });
     try {
-      if (_environment.isPreview) {
+      if (!_environment.usesSharedOperationalConfiguration) {
         await _environment.previewUpsert(
           'zone_distance_fare_steps',
           _qaRecordKey(zone, service),
@@ -183,7 +183,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
         );
       } else {
         await supabase.rpc('admin_distance_fare_steps_replace', params: {
-          'p_channel': widget.channel,
+          'p_channel': 'production', // Global fare rules shared by both websites.
           'p_zone_id': zone,
           'p_service_key': service,
           'p_steps': steps,
@@ -192,7 +192,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(
-            _environment.isPreview
+            !_environment.usesSharedOperationalConfiguration
                 ? 'Tarifas de prueba guardadas solo en Preview.'
                 : 'Tarifas escalonadas de Producción guardadas.')),
       );
@@ -230,7 +230,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
                   style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17))),
               ],
             ),
-            if (_environment.isPreview) ...[
+            if (!_environment.usesSharedOperationalConfiguration) ...[
               const SizedBox(height: 10),
               Container(
                 width: double.infinity,
