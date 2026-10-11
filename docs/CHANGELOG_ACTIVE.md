@@ -1,3 +1,7 @@
+## 2026-10-11 — Filtro «Identidad por revisar» en Conductores
+- Nueva RPC de solo lectura `admin_identity_pending_driver_ids()` (solo administradores; devuelve IDs de conductores con identidad manual pendiente y sin ninguna aprobada). SQL en `docs/sql/2026-10-11_admin_identity_pending_driver_ids.sql`. Aplicada a la base compartida.
+- `lib/admin_panel.dart`: la lista de Conductores marca cada fila y muestra el chip «Identidad por revisar (N)». Si la RPC falla, la lista sigue sin el filtro.
+
 ## 2026-10-11 — Verificación de identidad solo en la ficha del conductor
 - `lib/admin_panel.dart` (sección 18, «Verificación de identidad»): se quitó la pestaña «Revisión de documentos», que duplicaba la ficha del conductor. Queda solo «Requisitos de identidad». La ruta 27 («Verificación manual») sigue en código pero no aparece en el menú.
 - `lib/admin_control_sections.dart`: el texto de la sección indica que las aprobaciones se hacen desde la ficha de cada conductor.

@@ -387,7 +387,25 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         'p_zone_id': adminZoneId,
       },
     );
-    return _list(value);
+    final rows = _list(value);
+    // Solo IDs de conductores con identidad manual por revisar. Si falla,
+    // la lista se muestra igual, sin el filtro.
+    var pendingIds = <String>{};
+    try {
+      final pending = await supabase.rpc('admin_identity_pending_driver_ids');
+      if (pending is List) {
+        pendingIds = pending.map((id) => id.toString()).toSet();
+      }
+    } catch (_) {
+      pendingIds = <String>{};
+    }
+    return [
+      for (final row in rows)
+        {
+          ...row,
+          'identity_pending': pendingIds.contains(row['user_id']?.toString()),
+        },
+    ];
   }
 
   Future<List<Map<String, dynamic>>> _filterCountries() async {
@@ -1768,6 +1786,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           empty: 'Todavía no hay conductores registrados.',
           rows: snapshot.data ?? const [],
           showQaFilter: false,
+          showIdentityFilter: true,
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
             final online = (row['online_status'] ?? 'offline').toString();
@@ -4488,6 +4507,7 @@ class _Records extends StatefulWidget {
   final List<Map<String, dynamic>> rows;
   final Widget Function(Map<String, dynamic>) item;
   final bool showQaFilter;
+  final bool showIdentityFilter;
   final Widget? serverFilters;
 
   const _Records({
@@ -4497,6 +4517,7 @@ class _Records extends StatefulWidget {
     required this.rows,
     required this.item,
     this.showQaFilter = false,
+    this.showIdentityFilter = false,
     this.serverFilters,
   });
 
@@ -4509,6 +4530,7 @@ class _RecordsState extends State<_Records> {
   String query = '';
   String? status;
   String qaFilter = 'all';
+  bool identityOnly = false;
 
   @override
   void dispose() {
@@ -4539,7 +4561,10 @@ class _RecordsState extends State<_Records> {
           qaFilter == 'all' ||
           (qaFilter == 'qa' && isQa) ||
           (qaFilter == 'real' && !isQa);
-      return matchesText && matchesStatus && matchesQa;
+      final matchesIdentity = !widget.showIdentityFilter ||
+          !identityOnly ||
+          row['identity_pending'] == true;
+      return matchesText && matchesStatus && matchesQa && matchesIdentity;
     }).toList();
 
     return ListView(
@@ -4604,6 +4629,20 @@ class _RecordsState extends State<_Records> {
                     child: const Text('Quitar filtro QA'),
                   ),
               ],
+              if (widget.showIdentityFilter)
+                FilterChip(
+                  avatar: const Icon(Icons.verified_user_outlined, size: 15),
+                  label: Text(
+                    'Identidad por revisar (' +
+                        widget.rows
+                            .where((row) => row['identity_pending'] == true)
+                            .length
+                            .toString() +
+                        ')',
+                  ),
+                  selected: identityOnly,
+                  onSelected: (value) => setState(() => identityOnly = value),
+                ),
               OutlinedButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
