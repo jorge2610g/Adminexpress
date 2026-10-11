@@ -260,8 +260,9 @@ jobs:
           assert 'supabase.auth.signOut()' not in login
           assert 'adminPreviewAuthSessionStorageKey' in config
           assert 'express-admin-preview-zgpijrznvaskgcmauwxx-session-v1' in config
-          assert 'ADMIN_ENV=production' not in workflow, 'deploy-web.yml must not build ADMIN_ENV=production'
-          assert '--dart-define=ADMIN_ENV=production' not in workflow
+          assert workflow.count('--dart-define=ADMIN_ENV=production') == 1, 'deploy-web.yml must build Production exactly once (publish_production job)'
+          assert "inputs.confirm_production == 'PUBLICAR PRODUCCION'" in workflow, 'Production build must be gated by confirm_production'
+          assert "inputs.publish_production == true" in workflow, 'Production build must be gated by publish_production'
           assert '--dart-define=ADMIN_ENV=preview' in workflow
           assert '--base-href /preview/' in workflow
           assert 'path: build/site' in workflow

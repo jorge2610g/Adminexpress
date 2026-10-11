@@ -1,3 +1,12 @@
+## 2026-10-11 — Publicación de Producción autorizada (128eca4) y Preview del candidato (092b8c3)
+
+- `deploy-web.yml`: nuevo modo `publish_production`. Requiere `production_source_sha` igual a `production_authorized_sha` (`docs/PRODUCTION_AUTHORIZED.md`), `preview_source_sha` igual a `preview_authorized_sha` (`docs/PREVIEW_AUTHORIZED.md`) y `confirm_production = PUBLICAR PRODUCCION`. Reconstruye la raíz y `/preview/` desde esos SHA y deja un `production-snapshot` nuevo de 90 días.
+- Producción: `128eca4`. Es el build que el propietario probó en Preview: revisión de identidad por foto, carrusel de documentos, visor interno, filtro «Identidad por revisar», Suscripciones y Prioridad en QA. Con `ADMIN_ENV=production` no se activan las guardas de Preview.
+- Preview: `092b8c3`, el candidato del rediseño con la corrección de canal. Queda para QA en Preview antes de cualquier publicación posterior.
+- Riesgo: el panel de Producción usa datos reales. Las pruebas de aprobar o rechazar identidad en Producción afectan a conductores reales.
+- Validador: las aserciones que prohibían cualquier build de Producción ahora exigen una sola build de Producción, gated por `publish_production` y `confirm_production`.
+- Sin cambios de base de datos. No se ha ejecutado ningún workflow todavía.
+
 ## 2026-10-11 — Preview autorizada al candidato del rediseño (092b8c3)
 
 - `docs/PREVIEW_AUTHORIZED.md`: `preview_authorized_sha` pasa de `128eca4` a `092b8c3`, el candidato `claude/redesign-rc-2026-10-11`. Incluye la corrección de canal en Ajustes, Servicios, Requisitos, Zonas, Cobertura, Tarifas, Pagos, Suscripciones y en Auditoría y Reportes, más la fase 2 del rediseño. La fase 3 (shell, ficha del conductor y textos de control) no está incluida.
