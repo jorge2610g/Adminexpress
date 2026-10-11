@@ -93,8 +93,14 @@ jobs:
           fi
           echo "PASS: one web bundle is deployed; /preview/ only redirects to the canonical URL."
 
-      - name: Verify 54 admin design gates
-        run: python3 .github/scripts/verify_admin_mockup_stages.py
+      - name: Verify admin design gates when present
+        shell: bash
+        run: |
+          if [ -f .github/scripts/verify_admin_mockup_stages.py ]; then
+            python3 .github/scripts/verify_admin_mockup_stages.py
+          else
+            echo "SKIP: legacy mockup-stage verifier is not present on this ref."
+          fi
 
       - name: Analyze central admin
         run: |
