@@ -1,140 +1,103 @@
-## Arquitectura vigente — 2026-10-09: dos páginas, una base de datos con canales aislados
-- **Producción:** `/ ` (raíz), Supabase principal `zgpijrznvaskgcmauwxx`, canal `production`.
-- **Prueba:** `/preview/`, **MISMO** Supabase principal `zgpijrznvaskgcmauwxx`, canal `preview`.
-- Se elimina la conexión administrativa con la base secundaria `xbphilqezmwfjfpdbwad`. La base secundaria no se modifica ni se borra.
-- La navegación y login permanecen en dos páginas independientes, sin selector de datos dentro de una página.
-- QA utiliza `account_runtime_bindings.environment='preview'` para usuarios y RPCs `p_channel='preview'`, con validación de acceso/objetivo en el backend.
-- La configuración QA (zonas, servicios, tarifas y ajustes) se guarda en `admin_environment_config` con `p_environment='preview'`, nunca en registros operativos de producción.
-- Por seguridad Preview solo habilita módulos con consultas y escrituras revisadas: Dashboard, Operación, Viajes, Delivery, Conductores, Usuarios, SOS, Zonas, Tarifas, Reportes, Configuración, Auditoría, Servicios, Identidad y Verificación manual. Los demás módulos se bloquean en Prueba hasta añadir un aislamiento real, porque contienen RPCs sin canal.
-- Builds, pagos, billetera, suscripciones, marketplace y publicaciones reales no están disponibles en la página QA.
-- Producción conserva su comportamiento y permisos; los datos reales no se migran, borran ni alteran.
-- Para publicar la página QA de forma independiente, usar el workflow `[deploy-preview-only]` y verificar que los bytes publicados en Producción permanecen intactos.
-
----
-
-## 2026-10-08 — Módulos globales: Builds, Auditoría y Reportes
-
-- **Builds, Auditoría y Reportes son globales para Express**: no requieren país,
-  zona, ni selector superior Prueba/Producción.
-- Builds gestiona **un solo paquete Android** y sus publicaciones. Las acciones
-  peligrosas siguen dependiendo del permiso de Producción de la cuenta.
-- Reportes carga en una misma pantalla los resultados reales y los de QA,
-  **identificados por separado**, sin sumar datos de prueba en las métricas reales.
-- Auditoría muestra cronológicamente los eventos autorizados de ambos orígenes
-  con etiquetas **REAL / QA** y sin perder la trazabilidad.
-- Los restantes módulos operativos conservan los filtros obligatorios de zona
-  y la separación estricta de entornos. Los monitores de zona siguen restringidos.
-
----
-
 # Adminexpress
 
-Panel administrativo web independiente de **Express**.
+Panel administrativo web de **Express**.
 
-> Para cualquier IA/agente de código: leer primero `AGENTS.md` y `docs/AI_HANDOFF_2026-10-04.md`.
+## Arquitectura vigente
 
-## Responsabilidad
+Desde 2026-10-11 existe **una sola aplicación administrativa**:
 
-Este repositorio contiene únicamente la administración de Express:
+`https://admin.expressviajes.online/`
 
-- operación en vivo;
-- viajes y delivery;
-- conductores y usuarios;
-- seguridad / SOS;
-- zonas y tarifas;
-- pagos / billetera;
-- reportes y configuración;
-- despacho manual;
-- auditoría;
-- App Builder Android;
-- historial y publicación de releases.
+El entorno ya no depende de dos páginas distintas.
 
-La aplicación de Pasajero + Conductor + Delivery vive en:
+La cuenta autenticada define:
 
-`jorge2610g/Expressdelivery`
+- Preview o Producción;
+- rol;
+- ciudad/zona;
+- módulos permitidos.
 
-Desde la limpieza de 2026-09-30, el código administrativo ya no existe dentro de `Expressdelivery`.
-
-## Backend compartido
-
-Adminexpress y Expressdelivery usan el mismo Supabase:
+Backend único:
 
 `zgpijrznvaskgcmauwxx`
 
-El acceso al panel está protegido por la RPC `is_admin`.
+La ruta histórica `/preview/` redirige a la página principal y no contiene otro bundle Flutter.
 
-No eliminar funciones/tablas administrativas del backend desde el repositorio Express: siguen siendo necesarias para Adminexpress.
+## Acceso
 
-> **Corrección de Builds, 2026-10-08:** las compilaciones y publicaciones
-> son globales para **toda la aplicación Express**. El módulo `Builds`
-> no solicita país ni zona y se puede abrir sin seleccionar ámbito geográfico.
-> Solo los módulos operativos mantienen filtros obligatorios país/zona.
-> La autorización por rol y el permiso `allow_production` siguen vigentes
-> para proteger los releases reales, sin depender del selector de entorno.
->
-## Cambio 2026-10-08 — un solo APK público, sin app Preview permanente
+La fuente de verdad del acceso es `admin_access_context()`.
 
-La pestaña **Builds** usa ahora `AdminSingleAppReleasePage`:
+El entorno efectivo lo resuelve `admin_current_runtime_environment()` usando la identidad y `account_runtime_bindings.environment`.
 
-1. En Producción, el administrador prepara un **candidato firmado de la única app** `com.express.usuario1`, build Google Play independiente.
-2. Se descargan los APK/AAB de ese mismo candidato para hacer QA real en Android. Los datos de QA siguen protegidos en Supabase.
-3. El administrador registra **qué comprobó**, certifica el SHA y hashes de esos mismos artefactos, aprueba y promueve **sin recompilar**.
-4. La publicación a clientes sigue siendo un paso manual independiente. QA Web cotidiana y APK debug temporal por demanda viven en el repositorio Expressdelivery.
+Los permisos se guardan en `admin_users`:
 
-Backend: migración `20261008124200_single_app_android_release_gate.sql`, funciones `admin_queue_single_app_candidate`, `admin_single_app_release_status`, `admin_certify_single_app_candidate`, `admin_approve_single_app_candidate` y `admin_promote_single_app_candidate`. Se conservan registros históricos y respaldos; los mecanismos de Preview antiguo permanecen para recuperación sin intervenir el flujo nuevo.
+- `access_role`;
+- `zone_id`;
+- `allowed_modules`;
+- `allow_preview`;
+- `allow_production`.
 
-**No publicar en Google Play sin probar el APK firmado y verificar la misma identidad/hash que el AAB aprobado.**
+Los operadores de ciudad usan el mismo panel. No se crea otra web para ellos.
 
-## App Builder
+## Roles actuales
 
-Adminexpress no compila Flutter dentro del navegador.
+- `super_admin`
+- `zone_monitor`
 
-Flujo real:
+El modelo permite añadir nuevos roles sin duplicar frontend.
 
-```text
-Adminexpress
-  -> crea build_jobs
-  -> GitHub Actions en Expressdelivery
-  -> firma Android
-  -> genera APK + AAB
-  -> GitHub Release
-  -> guarda URLs/estado en Supabase
-  -> Adminexpress muestra Descargar / Publicar
-```
+## Identidad
 
-La firma Android de producción usa:
+La revisión de identidad y documentos se realiza dentro de la **ficha del conductor**.
 
-- JKS persistente en almacenamiento privado;
-- contraseñas cifradas en Supabase Vault;
-- GitHub OIDC para autorizar al worker;
-- ningún secreto dentro del frontend.
-
-## Estado operativo actual
-
-- panel principal usado: `admin.expressviajes.online`
-- backend: `zgpijrznvaskgcmauwxx`
-- Preview/Producción usan una sola UI y distinta capa de datos
-- switches SMS Pasajeros/Conductores disponibles y OFF por defecto
-- laboratorio QA soporta Mixto / Auto / Moto
-- última validación y deploy conocidos del estado documentado: SUCCESS
+No volver a crear menús separados de “Verificación de identidad” o “Verificación manual”.
 
 ## Deploy
 
-GitHub Pages:
-
-`https://jorge2610g.github.io/Adminexpress/`
-
-Workflow:
+Workflow vigente:
 
 `.github/workflows/deploy-web.yml`
 
-## Continuidad
+Nombre:
 
-Leer antes de modificar arquitectura o releases:
+`Deploy Adminexpress Central`
+
+Build:
+
+`flutter build web --release --base-href /`
+
+No usar `ADMIN_ENV` ni construir un segundo bundle `/preview/`.
+
+## Backend compartido
+
+Adminexpress y la app móvil `jorge2610g/Expressdelivery` comparten Supabase.
+
+No copiar el panel administrativo dentro del APK/AAB.
+
+## App Builder Android
+
+Adminexpress crea trabajos; GitHub Actions de Expressdelivery compila/firma APK y AAB.
+
+No publicar Google Play sin validar el artefacto firmado y sin autorización explícita.
+
+## IA / agentes
+
+Claude/Cloud, ChatGPT, Codex y otras IAs autorizadas pueden programar y editar el repositorio completo dentro de sus permisos técnicos reales.
+
+Ver:
 
 - `AGENTS.md`
-- `docs/AI_HANDOFF_2026-10-04.md`
-- `docs/START_HERE_ADMINEXPRESS.md`
-- `docs/CHANGELOG_ACTIVE.md`
+- `CLAUDE.md`
+- `docs/AI_AGENT_POLICY.md`
 
-No copiar nuevamente el panel Admin dentro de Expressdelivery.
+## Documentación vigente
+
+Leer en este orden:
+
+1. `AGENTS.md`
+2. `docs/START_HERE_ADMINEXPRESS.md`
+3. `docs/AI_HANDOFF_2026-10-11.md`
+4. `docs/admin-central-access.md`
+5. `docs/CHANGELOG_ACTIVE.md`
+
+Documentos anteriores que describan dos páginas, `ADMIN_ENV`, selector manual de entorno o Preview pinneado por SHA están superados.
