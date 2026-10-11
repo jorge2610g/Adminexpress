@@ -1,3 +1,33 @@
+> **Rectificación del propietario · 11 de octubre de 2026 (vigente).**
+> La separación ya existe entre **Conductor Prueba** y **Pasajero Prueba**.
+> Pueden circular por cualquier zona real de Express, usando sus coberturas y
+> tarifas normales. Los viajes, ofertas, asignaciones y notificaciones de estos
+> participantes deben quedar entre ellos, en ambos sentidos; jamás entran al
+> despacho de clientes/conductores reales.
+>
+> **NO** crear zonas QA distintas, tarifas QA independientes, credenciales
+> paralelas, pasarelas simuladas ni suscripciones duplicadas por causa de Preview.
+> Las zonas, tarifas, configuración global, Marketplace, suscripciones,
+> operadores y proveedores de cobro existentes se consultan desde la misma
+> Supabase de Producción.
+>
+> **Todos los módulos** deben ser navegables en /preview/ del mismo modo que
+> en Producción. Esta decisión reemplaza las secciones inferiores que recomiendan
+> zonas/tarifas shadow o esconder módulos. Los permisos de administrador
+> continúan aplicando; no se deben relajar autorizaciones del backend para
+> viajes o acciones por titular.
+>
+> **Estado de implementación de esta rama:** se quitó el bloqueo general
+> de siete módulos en `lib/admin_panel.dart`. Eso habilita las pantallas,
+> pero **NO convierte automáticamente** en reales los flujos que hoy siguen
+> usando `admin_environment_config` ni valida suscripciones, cobros o pedidos
+> extremo a extremo. No se ha desplegado la web Preview por este cambio.
+> Antes de activar esas escrituras reales, se requiere confirmar que las RPC
+> de operaciones por titular respetan exclusivamente el aislamiento QA
+> existente. No hay autorización para cruzar usuarios/conductores QA y reales.
+>
+---
+
 # Contrato de Preview — una sola base y servicios compartidos
 Fecha: 2026-10-11. Decisión expresa del propietario; sustituye el plan anterior
 de aislar cada módulo y sus credenciales.
