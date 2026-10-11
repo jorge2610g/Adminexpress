@@ -322,7 +322,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // Other modules must remain fail-closed pending server-side QA checks;
   // hiding a button alone does not isolate their SECURITY DEFINER RPCs.
   static const Set<int> _previewScopedModules = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 16, 17, 18, 22, 25, 27, 28,
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 16, 17, 18, 19, 22, 25, 27, 28,
   };
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
