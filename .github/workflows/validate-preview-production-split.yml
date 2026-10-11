@@ -265,10 +265,17 @@ jobs:
           assert '--base-href /preview/' in workflow
           assert 'path: build/site' in workflow
           assert 'preview_source_sha' in workflow
-          assert "run-id: 38071887995" in workflow, 'Unexpected Production artifact for Preview-only Pages update'
+          assert 'production_snapshot_run_id' in workflow
+          assert 'production-snapshot' in workflow
+          assert 'retention-days: 90' in workflow
+          assert 'cmp /tmp/exact-prod-manifest /tmp/after-prod-manifest' in workflow
           assert 'Verify live Preview SHA and unchanged Production marker' in workflow
           assert 'EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df' in workflow
-          assert "contains(github.event.head_commit.message, '[deploy-preview-only]')" in workflow
+          assert 'on:\\n  workflow_dispatch:' in workflow
+          assert "github.ref == 'refs/heads/main'" in workflow
+          assert "preview_authorized_sha:" in Path('docs/PREVIEW_AUTHORIZED.md').read_text()
+          assert 'cancel-in-progress: false' in workflow
+          assert 'Build approved Preview alongside Production' in workflow
           assert "const supabaseUrl = _productionUrl;" in workflow
           navigation = Path('lib/core/admin_environment_navigation.dart').read_text()
           assert "adminIsPreview ? 'Ir a Producción' : 'Ir a Prueba'" in navigation
