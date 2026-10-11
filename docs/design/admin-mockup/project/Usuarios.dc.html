@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Usuarios</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Usuarios" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Usuarios" env="preview" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="border-radius:20px;padding:20px 24px;background:linear-gradient(120deg,#0F2854,#174B91 55%,#0D6B8D);color:#FFFFFF;display:flex;align-items:center;gap:16px;box-shadow:0 10px 30px rgba(23,75,145,.25)">
+<div style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
+<div style="flex:1"><div style="font-size:24px;font-weight:800;letter-spacing:-.4px">Usuarios</div><div style="font-size:13px;color:#D7E7FA;font-weight:600;margin-top:4px">Pasajeros, conductores y control del estado de las cuentas.</div></div>
+</div>
+<div style="background:#FFFFFF;border:1px solid #E7ECF3;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">
+<sc-for list="{{geo}}" as="g" hint-placeholder-count="3">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">{{g.label}}<span style="height:38px;width:{{g.w}}px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font-size:13px;font-weight:700;color:#0F172A">{{g.value}}<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></label>
+</sc-for>
+<label style="height:38px;width:240px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;display:flex;align-items:center;gap:8px;padding:0 11px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.2" stroke-linecap="round"><path d="M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-3.5-3.5"/></svg><input type="text" placeholder="Buscar" style="border:0;outline:0;flex:1;min-width:0;font-size:13px;color:#0F172A;background:transparent"></label>
+<span style="flex:1"></span>
+<button style="height:38px;padding:0 14px;border-radius:10px;border:1px solid #D0D5DD;background:#FFFFFF;color:#0F172A;font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>Exportar</button>
+</div>
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid #F1F5F9;padding-top:10px">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="4">
+<button style="height:32px;padding:0 12px;border-radius:999px;border:1px solid {{c.line}};background:{{c.bg}};color:{{c.ink}};font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:3px;background:{{c.dot}}"></span>{{c.label}}</button>
+</sc-for>
+<span style="width:1px;height:24px;background:#E4E7EC;margin:0 4px"></span>
+<button style="height:32px;padding:0 12px;border-radius:999px;border:1px solid #E4E7EC;background:#FFFFFF;color:#0F172A;font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8"/></svg>Reales</button>
+<button style="height:32px;padding:0 12px;border-radius:999px;border:1px solid #F5D58A;background:#FFF7E6;color:#B54708;font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B54708" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4 19a1.5 1.5 0 001.3 2h13.4a1.5 1.5 0 001.3-2L14 9V3"/></svg>QA / pruebas</button>
+<button style="height:32px;padding:0 10px;border-radius:9px;border:0;background:transparent;color:#2563EB;font-size:12px;font-weight:800">Quitar filtro QA</button>
+</div>
+</div>
+<div style="flex:1;min-height:0;background:#FFFFFF;border:1px solid #DDE6F0;border-radius:16px;overflow:hidden;display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:14px;padding:0 16px;height:40px;background:#F8FAFC;border-bottom:1px solid #EEF1F5;font-size:11px;font-weight:800;color:#64748B;letter-spacing:.4px">
+<span style="flex:1">USUARIO</span><span style="width:130px">MODO ACTIVO</span><span style="width:130px">ESTADO</span><span style="width:36px"></span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="11">
+<div style="position:relative;z-index:{{r.z}};display:flex;align-items:center;gap:14px;padding:0 16px;height:60px;flex:none;border-bottom:1px solid #F1F5F9;background:{{r.bg}};font-size:13px">
+<div style="flex:1;display:flex;align-items:center;gap:11px;min-width:0">
+<div style="width:36px;height:36px;flex:none;border-radius:18px;background:#EAF2FF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{r.icon}}"/></svg></div>
+<div style="min-width:0"><div style="font-weight:800">{{r.name}}</div><div style="font-size:12px;color:#64748B;font-weight:600">{{r.email}}</div></div>
+</div>
+<span style="width:130px;font-weight:700;color:#475467">{{r.mode}}</span>
+<span style="width:130px"><span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:{{r.sbg}};color:{{r.sfg}};font-size:11.5px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{r.sfg}}"></span>{{r.status}}</span></span>
+<button aria-label="Acciones de la cuenta" style="width:36px;height:36px;border-radius:9px;border:1px solid {{r.btnLine}};background:{{r.btnBg}};display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{r.btnInk}}" stroke-width="3" stroke-linecap="round"><path d="M12 5h.01M12 12h.01M12 19h.01"/></svg></button>
+<sc-if value="{{r.menu}}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;right:16px;top:52px;width:230px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:11px;box-shadow:0 14px 34px rgba(15,23,42,.16);padding:6px 0">
+<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:13px;font-weight:700;background:#F8FAFC"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11a4 4 0 100-8 4 4 0 000 8zM3 21v-2a5 5 0 015-5h4M18 15a2 2 0 100 4 2 2 0 000-4zM18 12.5v1.5M18 20v1.5M21.5 17H20M16 17h-1.5"/></svg>Ver / editar perfil</div>
+<div style="height:1px;background:#EEF1F5;margin:4px 0"></div>
+<sc-for list="{{menu}}" as="m" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;font-size:13px;font-weight:600;color:{{m.ink}}"><span style="width:7px;height:7px;border-radius:4px;background:{{m.dot}}"></span>{{m.label}}</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const person = 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z';
+const car = 'M3 13l2-6h14l2 6v5H3zM7 18v2M17 18v2M3 13h18';
+const ST = { active: ['Activa', '#14804A', '#E8F8EF'], suspended: ['Suspendida', '#B54708', '#FFF7E6'], blocked: ['Bloqueada', '#D92D20', '#FFE4E8'] };
+const row = (name, email, driver, st, menu) => ({
+name, email, icon: driver ? car : person, mode: driver ? 'Conductor' : 'Pasajero', status: ST[st][0], sfg: ST[st][1], sbg: ST[st][2],
+menu, z: menu ? 5 : 1, bg: menu ? '#F8FBFF' : '#FFFFFF', btnBg: menu ? '#EAF2FF' : '#FFFFFF', btnLine: menu ? '#BFD3F9' : '#E4EAF2', btnInk: menu ? '#2563EB' : '#475467'
+});
+return {
+geo: [
+{ label: 'Zona', value: 'Todas las zonas', w: 190 },
+{ label: 'Ciudad', value: 'Todas', w: 165 },
+{ label: 'Región / departamento', value: 'Todas', w: 180 }
+],
+chips: [
+{ label: 'Todos (36)', dot: '#2563EB', bg: '#EAF2FF', line: '#BFD3F9', ink: '#2563EB' },
+{ label: 'Activa', dot: '#14804A', bg: '#FFFFFF', line: '#E4E7EC', ink: '#0F172A' },
+{ label: 'Bloqueada', dot: '#D92D20', bg: '#FFFFFF', line: '#E4E7EC', ink: '#0F172A' },
+{ label: 'Suspendida', dot: '#B54708', bg: '#FFFFFF', line: '#E4E7EC', ink: '#0F172A' }
+],
+menu: [
+{ label: 'Activar', dot: '#14804A', ink: '#0F172A' },
+{ label: 'Suspender', dot: '#B54708', ink: '#0F172A' },
+{ label: 'Bloquear', dot: '#D92D20', ink: '#D92D20' }
+],
+rows: [
+row('QA Pasajero Trinidad 01', 'qa.pasajero01@expressdelivery.test', false, 'active', false),
+row('QA Pasajero Trinidad 02', 'qa.pasajero02@expressdelivery.test', false, 'active', false),
+row('QA Conductor Trinidad 01', 'qa.conductor01@expressdelivery.test', true, 'active', true),
+row('QA Conductor Trinidad 02', 'qa.conductor02@expressdelivery.test', true, 'active', false),
+row('QA Pasajero Trinidad 03', 'qa.pasajero03@expressdelivery.test', false, 'suspended', false),
+row('QA Conductor Moto 01', 'qa.moto01@expressdelivery.test', true, 'active', false),
+row('QA Pasajero Iquique 01', 'qa.iquique01@expressdelivery.test', false, 'active', false),
+row('QA Repartidor 01', 'qa.repartidor01@expressdelivery.test', true, 'active', false),
+row('QA Pasajero Trinidad 04', 'qa.pasajero04@expressdelivery.test', false, 'blocked', false),
+row('QA Conductor XL 01', 'qa.xl01@expressdelivery.test', true, 'active', false),
+row('QA Pasajero Trinidad 05', 'qa.pasajero05@expressdelivery.test', false, 'active', false)
+]
+};
+}
+}
+</script>
+</body>
+</html>

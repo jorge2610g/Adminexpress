@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Verificación de identidad</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Verificación de identidad" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Verificación de identidad" env="preview" scope="admin" hint-size="1032px,168px"></dc-import>
+<div style="display:flex;background:#FFFFFF;border-bottom:1px solid #E2E8F0;padding:0 24px">
+<div style="display:flex;align-items:center;gap:8px;padding:13px 16px;font-size:13px;font-weight:800;color:#2563EB;border-bottom:2px solid #2563EB"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4zM8 9l2 2 4-4M8 15h8"/></svg>Revisión de documentos</div>
+<div style="display:flex;align-items:center;gap:8px;padding:13px 16px;font-size:13px;font-weight:700;color:#64748B;border-bottom:2px solid transparent"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 100-6 3 3 0 000 6zM12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Requisitos de identidad</div>
+</div>
+<main style="flex:1;min-height:0;padding:18px 24px 22px;display:flex;flex-direction:column;gap:14px">
+<div>
+<div style="font-size:24px;font-weight:800;letter-spacing:-.3px">Verificación manual</div>
+<div style="font-size:13px;color:#64748B;font-weight:600;margin-top:4px">Un administrador verifica el carné y la selfie. Puede aprobar, rechazar o reactivar fotografías por separado.</div>
+</div>
+<div style="display:flex;gap:16px;flex:1;min-height:0">
+<div style="width:350px;flex:none;background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;overflow:hidden">
+<div style="font-size:18px;font-weight:800">Verificación manual de identidad</div>
+<div style="font-size:12.5px;color:#64748B;font-weight:600;line-height:1.4">Revisa cada fotografía del carné y la selfie por separado. Puedes reactivar rechazos por error.</div>
+<div style="display:flex;align-items:center;gap:8px;padding:6px 0 4px;border-bottom:1px solid #EEF1F5">
+<span style="flex:1;font-size:16px;font-weight:800">Identidades por revisar: 4</span>
+<button aria-label="Actualizar" style="width:36px;height:36px;border-radius:10px;border:1px solid #E2E8F0;background:#FFFFFF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg></button>
+</div>
+<sc-for list="{{people}}" as="p" hint-placeholder-count="6">
+<div style="display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:12px;background:{{p.bg}};border:1px solid {{p.line}}">
+<div style="width:36px;height:36px;border-radius:18px;background:{{p.soft}};display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{{p.ink}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{p.d}}"/></svg></div>
+<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:800">{{p.name}}</div><div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span style="font-size:12px;color:#64748B;font-weight:600">Carné {{p.doc}} ·</span><span style="font-size:11px;font-weight:800;color:{{p.ink}}">{{p.status}}</span></div></div>
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#98A2B3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+</div>
+</sc-for>
+</div>
+<div style="flex:1;min-width:0;background:#FFFFFF;border-radius:16px;border:1px solid #DDE6F0;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column;overflow:hidden">
+<div style="padding:18px 22px 10px">
+<div style="font-size:19px;font-weight:800;letter-spacing:-.2px">Revisión individual de identidad</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:12.5px;font-weight:700;color:#344054"><span>Conductor: Luis Fernando Roca</span><span>Carné: 7845123</span><span style="display:flex;align-items:center;gap:6px">Identidad: <span style="display:flex;align-items:center;gap:5px;background:#FFF7E6;color:#B54708;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:#B54708"></span>Pendiente</span></span></div>
+<div style="font-size:12px;color:#64748B;font-weight:600;margin-top:8px;line-height:1.4">Puedes aprobar, rechazar o reactivar cada fotografía en cualquier momento. No se exige volver a cargar una foto si el rechazo fue un error administrativo.</div>
+</div>
+<div style="padding:0 22px;display:flex;flex-direction:column;flex:1;min-height:0">
+<sc-for list="{{slots}}" as="s" hint-placeholder-count="3">
+<div style="display:flex;gap:16px;padding:14px 0;border-top:1px solid #EEF1F5">
+<div style="width:220px;height:124px;flex:none;border-radius:10px;background:{{s.photoBg}};border:1px solid #E2E8F0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="{{s.photoInk}}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{s.d}}"/></svg><span style="font-size:10.5px;font-weight:700;color:{{s.photoInk}}">{{s.photo}}</span></div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">
+<div style="font-size:16px;font-weight:800">{{s.title}}</div>
+<div style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:#344054">Estado: <span style="display:flex;align-items:center;gap:5px;background:{{s.bg}};color:{{s.ink}};border-radius:999px;padding:2px 9px;font-size:11px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{s.ink}}"></span>{{s.status}}</span></div>
+<div style="font-size:12px;color:#B42318;font-weight:600">{{s.reason}}</div>
+<div style="display:flex;gap:8px;margin-top:auto;flex-wrap:wrap">
+<sc-for list="{{s.btns}}" as="b" hint-placeholder-count="2">
+<button style="height:36px;padding:0 13px;border-radius:10px;border:1px solid {{b.border}};background:{{b.bg}};color:{{b.ink}};font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{b.ink}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{b.d}}"/></svg>{{b.t}}</button>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:12px 22px 16px;border-top:1px solid #EEF1F5">
+<span style="flex:1;font-size:12px;color:#64748B;font-weight:600">La aprobación del conductor y del vehículo es independiente de estas fotografías.</span>
+<button style="height:38px;padding:0 14px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cerrar</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const hour = 'M6 2h12M6 22h12M7 2v4l5 6-5 6v4M17 2v4l-5 6 5 6v4';
+const ver = 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8.5 12l2.5 2.5 4.5-5';
+const card = 'M3 5h18v14H3zM7 10a2 2 0 104 0 2 2 0 00-4 0M6 16c.6-1.6 1.8-2.4 3-2.4s2.4.8 3 2.4M14 9h4M14 13h4';
+const back = 'M3 5h18v14H3zM3 9h18M6 14h6M6 16h4';
+const face = 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1';
+const pend = { status: 'Pendiente', ink: '#B54708', soft: '#FFF7E6', d: hour };
+const ok = { status: 'Aprobada', ink: '#14804A', soft: '#E8F8EF', d: ver };
+const rej = { status: 'Rechazada', ink: '#D92D20', soft: '#FFE4E8', d: ver };
+const person = (name, doc, st, on) => ({ name, doc, status: st.status, ink: st.ink, soft: st.soft, d: st.d, bg: on ? '#EAF2FF' : '#FFFFFF', line: on ? '#BFD3F7' : '#EEF1F5' });
+const A = { t: 'Aprobar', bg: '#2563EB', ink: '#FFFFFF', border: '#2563EB', d: 'M12 21a9 9 0 100-18 9 9 0 000 18zM8 12l3 3 5-6' };
+const R = { t: 'Rechazar', bg: '#FFFFFF', ink: '#D92D20', border: '#F0B8BF', d: 'M12 21a9 9 0 100-18 9 9 0 000 18zM9 9l6 6M15 9l-6 6' };
+const X = { t: 'Reactivar', bg: '#FFFFFF', ink: '#0F172A', border: '#D0D5DD', d: 'M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8M3 3v5h5' };
+return {
+people: [
+person('Luis Fernando Roca', '7845123', pend, true),
+person('María José Suárez', '6312480', pend, false),
+person('Carlos Antelo Vaca', '5590217', rej, false),
+person('Rosa Melgar Justiniano', '8023645', pend, false),
+person('Jorge Andrés Peña', '4987102', ok, false),
+person('Ana Lucía Moreno', '7130598', ok, false)
+],
+slots: [
+{ title: 'Frente del carné', status: 'Aprobada', bg: '#E8F8EF', ink: '#14804A', reason: '', btns: [R, X], d: card, photo: 'Frente del carné', photoBg: '#EEF4FB', photoInk: '#5B7BA6' },
+{ title: 'Reverso del carné', status: 'Rechazada', bg: '#FFE4E8', ink: '#D92D20', reason: 'Motivo: Foto borrosa, no se leen los datos.', btns: [A, X], d: back, photo: 'Reverso del carné', photoBg: '#EEF4FB', photoInk: '#5B7BA6' },
+{ title: 'Fotografía facial', status: 'Pendiente', bg: '#FFF7E6', ink: '#B54708', reason: '', btns: [A, R], d: face, photo: 'Selfie', photoBg: '#F3EEFB', photoInk: '#7C5AB8' }
+]
+};
+}
+}
+</script>
+</body>
+</html>

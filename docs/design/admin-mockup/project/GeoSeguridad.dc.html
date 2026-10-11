@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Seguridad de zonas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:1160px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<dc-import name="Sidebar" active="Zonas y cobertura" hint-size="248px,1160px"></dc-import>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<dc-import name="Topbar" title="Zonas y cobertura" env="preview" scope="admin" hint-size="1032px,168px"></dc-import>
+<main style="flex:1;min-height:0;padding:16px 24px 22px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;background:#FFFFFF;border:1px solid #DDE6F0;border-radius:14px;overflow:hidden">
+<div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 0;font-size:13px;font-weight:700;color:#64748B;border-bottom:2px solid transparent"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg>Zonas y cobertura</div>
+<div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 0;font-size:13px;font-weight:800;color:#2563EB;border-bottom:2px solid #2563EB"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Seguridad</div>
+</div>
+<div style="display:flex;gap:14px;flex:1;min-height:0">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px">
+<div style="border-radius:20px;padding:18px 20px;background:linear-gradient(120deg,#0B57D0,#5B74F5);color:#FFFFFF;box-shadow:0 10px 30px rgba(11,87,208,.22)">
+<div style="display:flex;gap:14px;align-items:flex-start">
+<div style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></div>
+<div style="flex:1"><div style="font-size:21px;font-weight:800;letter-spacing:-.3px">Seguridad de zonas</div><div style="font-size:12px;color:#E0E9FF;font-weight:600;margin-top:4px;line-height:1.5">La cobertura por radio o polígono se configura directamente al crear o editar la zona. Aquí solo se administran sectores de seguridad, precaución o riesgo.</div></div>
+</div>
+<div style="display:flex;gap:10px;margin-top:14px">
+<span style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);border-radius:12px;padding:7px 12px;font-size:12px;font-weight:700">Zonas<span style="font-size:16px;font-weight:800">1</span></span>
+<span style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);border-radius:12px;padding:7px 12px;font-size:12px;font-weight:700">Sectores de seguridad<span style="font-size:16px;font-weight:800">5</span></span>
+</div>
+</div>
+<div style="border-radius:20px;padding:16px 20px;background:linear-gradient(120deg,#0F2854,#174B91 55%,#0D6B8D);color:#FFFFFF;display:flex;align-items:center;gap:14px;box-shadow:0 10px 30px rgba(23,75,145,.25)">
+<div style="flex:1"><div style="font-size:19px;font-weight:800;letter-spacing:-.3px">Zonas rojas y prevención</div><div style="font-size:12px;color:#D7E7FA;font-weight:600;margin-top:3px">Sectores de riesgo y zonas seguras para conductores y pasajeros.</div></div>
+<button style="height:40px;padding:0 15px;border-radius:11px;border:0;background:#FFFFFF;color:#174B91;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#174B91" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM12 9v6M9 12h6"/></svg>Crear sector</button>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;padding:6px 16px;flex:1;min-height:0;overflow:hidden">
+<sc-for list="{{sectors}}" as="s" hint-placeholder-count="5">
+<div style="display:flex;align-items:center;gap:12px;padding:12px 10px;margin:0 -10px;border-bottom:1px solid #F1F5F9;border-radius:12px;background:{{s.sel}}">
+<div style="width:40px;height:40px;border-radius:12px;background:{{s.soft}};display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{{s.ink}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{s.d}}"/></svg></div>
+<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:800">{{s.n}}</div><div style="font-size:11.5px;color:#64748B;font-weight:600;margin-top:2px">{{s.t}}</div></div>
+<span style="display:flex;align-items:center;gap:5px;background:{{s.soft}};color:{{s.ink}};border-radius:999px;padding:3px 9px;font-size:11px;font-weight:800"><span style="width:6px;height:6px;border-radius:3px;background:{{s.ink}}"></span>{{s.st}}</span>
+<button aria-label="Editar sector" style="width:34px;height:34px;border-radius:10px;border:1px solid #E2E8F0;background:#FFFFFF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475467" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></svg></button>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="width:470px;flex:none;background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;box-shadow:0 24px 60px rgba(15,23,42,.18);display:flex;flex-direction:column;overflow:hidden">
+<div style="padding:16px 18px 10px;display:flex;align-items:center;gap:11px">
+<div style="width:38px;height:38px;border-radius:11px;background:#FFE4E8;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D92D20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></div>
+<div style="flex:1;font-size:18px;font-weight:800">Editar zona de seguridad</div>
+</div>
+<div style="padding:0 18px;display:flex;flex-direction:column;gap:10px;flex:1;min-height:0">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Nombre<input value="Zona roja nocturna · Mercado Campesino" placeholder="Ej. Zona roja nocturna" style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;color:#0F172A"/></label>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Tipo<span style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;display:flex;align-items:center;gap:7px;padding:0 11px;font-size:13px;font-weight:700;color:#0F172A"><span style="width:8px;height:8px;border-radius:4px;background:#D92D20"></span><span style="flex:1">Zona roja</span><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Aplica a<span style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font-size:13px;font-weight:700;color:#0F172A">Pasajero y conductor<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Ciudad<input value="Trinidad" style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;color:#0F172A"/></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">País<input value="Bolivia" style="height:38px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;color:#0F172A"/></label>
+</div>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:#64748B">Mensaje preventivo<span style="height:58px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:600;color:#0F172A;line-height:1.4">Evita detenerte en este sector entre las 22:00 y las 05:00.</span></label>
+<div style="display:flex;align-items:center;gap:12px">
+<span style="font-size:12.5px;font-weight:800;white-space:nowrap">Nivel de riesgo</span>
+<div style="flex:1;position:relative;height:30px" role="slider" aria-label="Nivel de riesgo" aria-valuemin="1" aria-valuemax="5" aria-valuenow="4">
+<span style="position:absolute;left:0;right:0;top:13px;height:4px;border-radius:2px;background:#FAD1D6"></span>
+<span style="position:absolute;left:0;width:75%;top:13px;height:4px;border-radius:2px;background:#D92D20"></span>
+<sc-for list="{{ticks}}" as="k" hint-placeholder-count="5">
+<span style="position:absolute;left:{{k.x}};top:13px;width:4px;height:4px;margin-left:-2px;border-radius:2px;background:{{k.c}}"></span>
+</sc-for>
+<span style="position:absolute;left:75%;top:5px;width:20px;height:20px;margin-left:-10px;border-radius:10px;background:#D92D20;box-shadow:0 2px 5px rgba(217,45,32,.35)"></span>
+</div>
+<span style="width:32px;height:32px;border-radius:16px;background:#FFE4E8;color:#D92D20;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center">4</span>
+</div>
+<div style="position:relative;flex:1;min-height:250px;border-radius:16px;overflow:hidden;border:1px solid #E4EAF2">
+<svg aria-hidden="true" width="434" height="330" viewBox="0 0 434 330" style="position:absolute;inset:0"><rect width="434" height="330" fill="#E8EDF3"/><path d="M0 200 C100 185 170 230 250 195 S370 150 434 160" stroke="#FFFFFF" stroke-width="12" fill="none"/><path d="M90 0 C105 100 70 210 110 330" stroke="#FFFFFF" stroke-width="9" fill="none"/><path d="M330 0 C315 100 360 210 345 330" stroke="#FFFFFF" stroke-width="9" fill="none"/><path d="M0 95 L434 80" stroke="#FFFFFF" stroke-width="6"/><path d="M0 285 L434 270" stroke="#FFFFFF" stroke-width="6"/><rect x="250" y="230" width="70" height="50" rx="7" fill="#DCE7D3"/><path d="M150 100 L290 92 L310 190 L210 225 L140 180 Z" fill="rgba(217,45,32,.16)" stroke="#D92D20" stroke-width="3" stroke-linejoin="round"/></svg>
+<sc-for list="{{pts}}" as="v" hint-placeholder-count="5">
+<span style="position:absolute;left:{{v.x}}px;top:{{v.y}}px;width:24px;height:24px;border-radius:12px;background:#D92D20;border:2px solid #FFFFFF;box-sizing:border-box;color:#FFFFFF;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center">{{v.n}}</span>
+</sc-for>
+<div style="position:absolute;left:10px;right:10px;top:10px;background:rgba(255,255,255,.95);border-radius:12px;padding:5px 6px 5px 10px;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(15,23,42,.10)">
+<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D92D20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11V5a2 2 0 014 0v6M13 10a2 2 0 014 0v2M17 11a2 2 0 014 0v4a7 7 0 01-7 7h-2a7 7 0 01-6-3.4L4 14a2 2 0 013.4-2L9 14"/></svg>
+<span style="flex:1;font-size:11px;font-weight:800;line-height:1.3">Dibuja el perímetro de seguridad · 5 puntos</span>
+<button style="height:28px;padding:0 7px;border:0;background:transparent;color:#2563EB;font-size:11.5px;font-weight:800;display:flex;align-items:center;gap:4px"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3"/></svg>Deshacer</button>
+<button style="height:28px;padding:0 7px;border:0;background:transparent;color:#2563EB;font-size:11.5px;font-weight:800;display:flex;align-items:center;gap:4px"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h12M6 6l1 13h7l1-13M15 11h6M15 15h5M15 19h4"/></svg>Limpiar</button>
+</div>
+<span style="position:absolute;right:8px;bottom:6px;background:rgba(255,255,255,.85);border-radius:5px;padding:2px 6px;font-size:10px;font-weight:600;color:#475467">OpenStreetMap contributors</span>
+</div>
+<div style="display:flex;align-items:center;gap:12px"><span style="flex:1;font-size:13.5px;font-weight:800">Zona activa</span><button role="switch" aria-checked="true" aria-label="Zona activa" style="width:40px;height:24px;border-radius:12px;border:0;padding:0;background:#2563EB;position:relative"><span style="position:absolute;top:3px;left:19px;width:18px;height:18px;border-radius:9px;background:#FFFFFF"></span></button></div>
+</div>
+<div style="padding:12px 18px 16px;display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #EEF1F5;margin-top:10px">
+<button style="height:40px;padding:0 14px;border:0;background:transparent;color:#2563EB;font-size:13px;font-weight:800">Cancelar</button>
+<button style="height:40px;padding:0 16px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Guardar zona</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic {
+renderVals() {
+const warn = 'M12 3l10 18H2zM12 10v4M12 17h.01';
+const safe = 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM8.5 12l2.5 2.5 4.5-5';
+const red = { soft: '#FFE4E8', ink: '#D92D20', d: warn };
+const cau = { soft: '#FFF4E0', ink: '#B54708', d: warn };
+const ok = { soft: '#E3F8EE', ink: '#0E8A55', d: safe };
+return {
+sectors: [
+Object.assign({ n: 'Zona roja nocturna · Mercado Campesino', t: 'Zona roja · nivel 4', st: 'Activa', sel: '#FFF5F6' }, red),
+Object.assign({ n: 'Barrio Villa Vecinal', t: 'Zona roja · nivel 5', st: 'Activa', sel: 'transparent' }, red),
+Object.assign({ n: 'Av. Circunvalación · tramo sin iluminación', t: 'Precaución · nivel 3', st: 'Activa', sel: 'transparent' }, cau),
+Object.assign({ n: 'Plaza José Ballivián', t: 'Zona segura · nivel 1', st: 'Activa', sel: 'transparent' }, ok),
+Object.assign({ n: 'Puerto Almacén · ribera', t: 'Precaución · nivel 2', st: 'Inactiva', sel: 'transparent' }, cau)
+],
+ticks: [{ x: '0%', c: '#FFFFFF' }, { x: '25%', c: '#FFFFFF' }, { x: '50%', c: '#FFFFFF' }, { x: '75%', c: '#FFFFFF' }, { x: '100%', c: '#D92D20' }],
+pts: [{ n: '1', x: 138, y: 88 }, { n: '2', x: 278, y: 80 }, { n: '3', x: 298, y: 178 }, { n: '4', x: 198, y: 213 }, { n: '5', x: 128, y: 168 }]
+};
+}
+}
+</script>
+</body>
+</html>

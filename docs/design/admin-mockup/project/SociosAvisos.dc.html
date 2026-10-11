@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Socios · Pagos y avisos</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>body{margin:0;font-family:'Plus Jakarta Sans',sans-serif}button,input{font-family:inherit}</style>
+</helmet>
+<div style="width:1280px;height:900px;display:flex;background:#F1F5F9;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden">
+<aside style="width:270px;flex:none;box-sizing:border-box;background:#0B2C5B;color:#FFFFFF;display:flex;flex-direction:column;padding:22px 14px 14px">
+<div style="display:flex;align-items:center;gap:12px;padding:0 6px">
+<div style="width:44px;height:44px;border-radius:22px;background:#FFFFFF;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="#2563EB"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
+<span style="font-size:20px;font-weight:800;letter-spacing:.4px">EXPRESS</span>
+</div>
+<div style="position:relative;margin:24px 4px 18px">
+<span style="position:absolute;left:10px;top:-7px;padding:0 5px;background:#0B2C5B;font-size:10.5px;font-weight:700;color:rgba(255,255,255,.7)">Organización</span>
+<div style="height:46px;box-sizing:border-box;border:1px solid rgba(255,255,255,.3);border-radius:12px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;font-weight:700"><span>{{org}}</span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></div>
+</div>
+<div style="height:1px;background:rgba(255,255,255,.12);margin:0 4px 12px"></div>
+<div style="display:flex;flex-direction:column;gap:4px;flex:1">
+<sc-for list="{{nav}}" as="n" hint-placeholder-count="5">
+<div style="display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;background:{{n.bg}}"><svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{{n.icon}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{n.d}}"/></svg><span style="font-size:13.5px;font-weight:{{n.w}};color:{{n.ink}}">{{n.t}}</span></div>
+</sc-for>
+</div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;font-size:13px;font-weight:700;color:rgba(255,255,255,.85)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg>Actualizar</div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;font-size:13px;font-weight:700;color:rgba(255,255,255,.85)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>Cerrar sesión</div>
+</div>
+</aside>
+<main style="flex:1;min-width:0;padding:28px 28px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start">
+<section style="display:flex;flex-direction:column;gap:16px">
+<div><div style="font-size:25px;font-weight:800;letter-spacing:-.3px">Pagos y comisiones</div><div style="font-size:13px;font-weight:600;color:#64748B;margin-top:4px">Suscripciones de conductores afiliados y comisión de la organización.</div></div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;padding:4px 16px">
+<sc-for list="{{payments}}" as="p" hint-placeholder-count="8">
+<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #EEF1F5">
+<div style="width:38px;height:38px;border-radius:11px;background:#EAF2FF;display:flex;align-items:center;justify-content:center;flex:none"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4"/></svg></div>
+<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:800">{{p.n}}</div><div style="display:flex;align-items:center;gap:6px;margin-top:3px"><span style="display:flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;background:{{p.ss}};font-size:10.5px;font-weight:800;color:{{p.si}}"><span style="width:6px;height:6px;border-radius:3px;background:{{p.si}}"></span>{{p.s}}</span><span style="font-size:11.5px;font-weight:600;color:#64748B">{{p.d}}</span></div></div>
+<div style="text-align:right"><div style="font-size:13.5px;font-weight:800">{{p.a}}</div><div style="font-size:11px;font-weight:600;color:#64748B;margin-top:2px">Comisión {{p.c}}</div></div>
+</div>
+</sc-for>
+</div>
+</section>
+<section style="display:flex;flex-direction:column;gap:16px">
+<div><div style="font-size:25px;font-weight:800;letter-spacing:-.3px">Avisos y promociones</div><div style="font-size:13px;font-weight:600;color:#64748B;margin-top:4px">Envía notificaciones push únicamente a los conductores afiliados a tu organización.</div></div>
+<div style="background:#FFFFFF;border:1px solid #DDE6F0;border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px">
+<label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:11px;font-weight:700;color:#64748B">Título</span>
+<input value="Alta demanda en el centro" style="width:100%;height:40px;box-sizing:border-box;border:1px solid #D0D5DD;border-radius:10px;padding:0 12px;font-size:13px;font-weight:600;color:#0F172A;background:#FFFFFF" />
+<span style="align-self:flex-end;font-size:11px;font-weight:600;color:#64748B">25/90</span></label>
+<label style="display:flex;flex-direction:column;gap:5px"><span style="font-size:11px;font-weight:700;color:#64748B">Mensaje</span>
+<span style="display:block;height:132px;box-sizing:border-box;border:2px solid #2563EB;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600;line-height:1.5;color:#0F172A">Conéctate ahora. Hay alta demanda en tu zona: Plaza principal, Mercado Pompeya y Terminal de buses entre las 18:00 y las 21:00.</span>
+<span style="align-self:flex-end;font-size:11px;font-weight:600;color:#64748B">127/1000</span></label>
+<div style="display:flex;align-items:flex-start;gap:10px;background:#EAF2FF;border-radius:12px;padding:12px 14px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 17V11a6 6 0 1112 0v6l2 2H4zM10 21h4"/></svg><span style="font-size:12px;font-weight:700;color:#1E3A8A;line-height:1.45">El aviso se guarda en la bandeja de Express y también se despacha como push.</span></div>
+<button style="width:100%;height:44px;border-radius:10px;border:0;background:#2563EB;color:#FFFFFF;font-size:13.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>Enviar aviso</button>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+const active = 'Avisos push';
+const N = [['Resumen', 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z'], ['Conductores', 'M5 18a3 3 0 100-6 3 3 0 000 6zM19 18a3 3 0 100-6 3 3 0 000 6zM8 15h6l3-5h-4M13 7h3'], ['Solicitudes', 'M15 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M8.5 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M16 11h6'], ['Pagos y comisiones', 'M2 6h20v12H2zM2 10h20M6 15h4'], ['Avisos push', 'M6 17V11a6 6 0 1112 0v6l2 2H4zM10 21h4']];
+const S = { Pagado: ['#E8F8EF', '#14804A'], Pendiente: ['#FFF7E6', '#B54708'], Fallido: ['#FFE4E8', '#D92D20'] };
+const p = (n, s, d, a, c) => ({ n, s, d, a, c, ss: S[s][0], si: S[s][1] });
+return {
+org: 'Sindicato de Mototaxis Mamoré',
+nav: N.map((n) => ({ t: n[0], d: n[1], bg: n[0] === active ? 'rgba(255,255,255,.12)' : 'transparent', w: n[0] === active ? 800 : 600, ink: n[0] === active ? '#FFFFFF' : 'rgba(255,255,255,.85)', icon: n[0] === active ? '#FFFFFF' : 'rgba(255,255,255,.7)' })),
+payments: [
+p('Carlos Méndez Rojas', 'Pagado', '01/10/2026 · 09:14', 'BOB 120,00', '12,00'),
+p('Rosa Melgar Noe', 'Pagado', '01/10/2026 · 08:51', 'BOB 120,00', '12,00'),
+p('Ana Lucía Parada', 'Pagado', '30/09/2026 · 19:22', 'BOB 120,00', '12,00'),
+p('Juan Pablo Égüez', 'Pendiente', '30/09/2026 · 17:03', 'BOB 120,00', '12,00'),
+p('Mario Suárez Vaca', 'Fallido', '29/09/2026 · 11:40', 'BOB 120,00', '0,00'),
+p('Carlos Méndez Rojas', 'Pagado', '01/09/2026 · 09:02', 'BOB 120,00', '12,00'),
+p('Rosa Melgar Noe', 'Pagado', '31/08/2026 · 20:15', 'BOB 120,00', '12,00'),
+p('Ana Lucía Parada', 'Pagado', '31/08/2026 · 18:48', 'BOB 120,00', '12,00')
+]
+};
+}
+}
+</script>
+</body>
+</html>
