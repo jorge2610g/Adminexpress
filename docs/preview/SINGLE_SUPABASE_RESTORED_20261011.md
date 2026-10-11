@@ -80,3 +80,27 @@ https://github.com/jorge2610g/Adminexpress/actions/runs/38107841701.
   habilitado en Preview; permanece pendiente de un simulador de pagos.
 - Flutter CI: https://github.com/jorge2610g/Adminexpress/actions/runs/38108870181,
   PASS en ambas variantes de compilación.
+
+## Diagnóstico de sesión desactualizada · 11/oct 2026
+
+Una captura mostró la advertencia de «módulo bloqueado» en Suscripciones
+incluso después de publicar la implementación. Se verificó que el código de
+rama ya contiene el índice 22 en la lista segura de Preview, y que el
+workflow Pages de la versión publicada terminó con éxito. La pestaña Flutter
+permanece abierta entre despliegues, así que puede ejecutar JavaScript antiguo
+hasta recargar la página; el botón de refresco de datos NO reinicia el código.
+
+Para evitar diagnósticos confusos, la nueva compilación Preview inyecta su
+SHA real en `web/index.html` y muestra `EXPRESS QA · <8 caracteres>` en el
+pie de la página. Al volver a enfocar una pestaña desactualizada, consultará
+su `/preview/version.json` con política no-cache y ofrecerá «Recargar» sin
+interrumpir automáticamente formularios abiertos. El despliegue verificará
+el marcador, el HTML de la versión correcta y que el JavaScript publicado
+contenga la RPC QA `admin_preview_driver_subscription_candidates`.
+
+Una pestaña que ya estaba abierta antes de esta actualización debe recargarse
+manualmente una vez: Chrome en macOS `⌘ Shift R` o ventana privada. Esto
+solo modifica el sitio /preview; la raíz de Producción conserva los mismos
+bytes y la misma base Supabase compartida.
+
+Pruebas CI de regresión del código: run 38110490545, success.
