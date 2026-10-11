@@ -170,7 +170,14 @@ jobs:
           set -euo pipefail
           test "$(git -C approved-preview rev-parse HEAD)" = "${{ steps.approved_preview.outputs.preview_sha }}"
           grep -Fq "const supabaseUrl = _productionUrl;" approved-preview/lib/core/supabase_client.dart
-          grep -Fq "if (adminIsPreview && !_previewScopedModules.contains(value))" approved-preview/lib/admin_panel.dart
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('approved-preview/lib/admin_panel.dart').read_text()
+          for i in range(29):
+              assert f'case {i}:' in p, f'Admin module {i} missing'
+          assert '_previewScopedModules' not in p, 'Old Preview module block must not return'
+          assert 'productionAccess: allowProduction && !adminIsPreview' in p, 'Production release control must remain protected'
+          PY
           if grep -Fq "xbphilqezmwfjfpdbwad" approved-preview/lib/core/supabase_client.dart; then
             echo "QA references deleted Supabase project"
             exit 1
@@ -332,12 +339,19 @@ jobs:
           grep -q "admin_driver_kyc_bolivia_manual_review_part" preview-source/lib/admin_bolivia_kyc.dart
           grep -q "AdminEnvironmentLinkButton" preview-source/lib/admin_panel.dart
           grep -q "const supabaseUrl = _productionUrl;" preview-source/lib/core/supabase_client.dart
-          grep -q "if (adminIsPreview && !_previewScopedModules.contains(value))" preview-source/lib/admin_panel.dart
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('preview-source/lib/admin_panel.dart').read_text()
+          for i in range(29):
+              assert f'case {i}:' in p, f'Admin module {i} missing'
+          assert '_previewScopedModules' not in p, 'Old Preview module block must not return'
+          assert 'productionAccess: allowProduction && !adminIsPreview' in p, 'Production release control must remain protected'
+          PY
           if grep -q "xbphilqezmwfjfpdbwad" preview-source/lib/core/supabase_client.dart; then
             echo "ERROR: Preview must not connect to the separate Supabase database."
             exit 1
           fi
-          echo "PASS: tested, pinned Preview source and isolated Supabase config."
+          echo "PASS: tested pinned Preview source, shared Supabase, 29 modules navigable and Production release protected."
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -352,7 +366,7 @@ jobs:
         working-directory: preview-source
         run: flutter analyze --no-fatal-warnings --no-fatal-infos lib/admin_detail_dialogs.dart lib/admin_panel.dart lib/core/supabase_client.dart
 
-      - name: Build Preview only (dedicated Supabase database)
+      - name: Build Preview only (shared Supabase, Preview channel)
         working-directory: preview-source
         run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
 
