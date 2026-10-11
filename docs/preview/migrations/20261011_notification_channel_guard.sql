@@ -65,6 +65,9 @@ BEGIN
   IF v_context IS NOT NULL AND v_requested IS NOT NULL AND v_context<>v_requested THEN
     RAISE EXCEPTION 'Canal solicitado incompatible con contexto';
   END IF;
+  IF v_existing='preview' AND v_requested='production' THEN
+    RAISE EXCEPTION 'Canal metadata incompatible con notificación Preview';
+  END IF;
   IF v_existing='preview' AND (v_related='production' OR v_context='production') THEN
     RAISE EXCEPTION 'Notificación Preview no puede ir a Producción';
   END IF;
