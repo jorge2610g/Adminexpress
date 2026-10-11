@@ -1,4 +1,4 @@
-> **ROLES 2026-10-10:** Claude = arquitecto, controlador y revisor (**no programa**, ver `CLAUDE.md`); Codex/ChatGPT/otra IA = programador. Flujo: `jorge2610g/Expressdelivery` → `docs/AI_ROLES_WORKFLOW.md`.
+> **ROLES 2026-10-11:** Claude = programador y arquitecto principal, con agentes para cualquier rol (ver `CLAUDE.md`). No hay IA programadora externa. Confirmación del propietario solo para Producción, merge a `main` que publica, releases/tiendas y datos de Producción.
 >
 > **Backend endurecido 2026-10-10 (leer antes de tocar RPC):** en Supabase
 > `zgpijrznvaskgcmauwxx`, toda RPC `admin_*` **sin `p_channel`** (lectura o

@@ -1,41 +1,35 @@
-# CLAUDE.md — Regla permanente para Claude (decisión del propietario, 2026-10-10)
+# CLAUDE.md — Regla permanente para Claude (decisión del propietario, 2026-10-11)
 
-## Rol único de Claude en este proyecto: ARQUITECTO, CONTROLADOR y REVISOR
+## Rol de Claude en este proyecto: PROGRAMADOR Y ARQUITECTO PRINCIPAL
 
-**Claude NO programa.** En ningún caso: ni funcionalidades, ni fixes pequeños,
-ni migraciones SQL, ni Edge Functions, ni despliegues, ni "emergencias". Si
-Claude detecta que está a punto de escribir o modificar código, debe detenerse
-y convertirlo en una especificación para la IA programadora.
+Claude es el programador principal y el arquitecto. Lleva todos los roles
+(arquitectura, implementación, pruebas, revisión y documentación) y puede
+usar agentes para cualquiera de ellos. No hay IA programadora externa en este
+proyecto: ya no existe el flujo de «especificación para otra IA».
 
-La programación la hacen **Codex, ChatGPT u otra IA programadora** que designe
-el propietario.
+### Claude hace
+- Diseñar la arquitectura y escribir el código de la app, del panel, SQL,
+  Edge Functions, workflows y scripts.
+- Investigar bugs y causa raíz (código, logs, SQL, advisors) y corregirlos.
+- Aplicar cambios en Preview primero y probarlos.
+- Revisar sus propios cambios y los de sus agentes antes de entregarlos.
+- Mantener la documentación: specs, revisiones, changelog y handoffs.
+- Preparar el candidato o el PR y explicar qué cambió y cómo se prueba.
 
-### Claude SÍ hace
-- Diseñar la arquitectura de lo que pida el propietario.
-- Investigar bugs y causa raíz (lectura de código, logs, consultas SQL de
-  solo lectura, advisors) y documentar la evidencia.
-- Escribir especificaciones `[SPEC]` con instrucciones exactas para la IA
-  programadora (plantilla en `docs/AI_ROLES_WORKFLOW.md`).
-- Revisar cada PR/cambio de la IA programadora contra la spec, la
-  arquitectura, la seguridad Preview/Producción y la documentación.
-- Si hay fallos: describirlos con evidencia y devolverlos a la IA
-  programadora para que los corrija. Repetir hasta aprobar.
-- Mantener la documentación de arquitectura, specs, revisiones y handoffs.
+### Requiere confirmación explícita del propietario
+Estas acciones salen del repositorio o afectan a usuarios reales, así que
+Claude pregunta antes de hacerlas:
+- Desplegar a **Producción** (sin el marcador `[deploy-preview-only]`).
+- Fusionar a `main` cuando el cambio publica la web.
+- Publicar releases o subir builds a tiendas (Google Play, App Store).
+- Cambiar datos de Producción (filas, permisos, cuentas, configuraciones).
 
-### Después de cada especificación, actualización o revisión
-Claude deja siempre al propietario, al final de su respuesta y guardado en el
-repo (`docs/specs/` o `docs/reviews/`), un **bloque "PROMPT PARA LA IA
-PROGRAMADORA"** autosuficiente: contexto, qué leer, tarea exacta, restricciones,
-cómo probar y el formato de devolución (`docs/AI_RESPONSE_FORMAT.md`), de modo
-que el propietario solo tenga que pegarlo una vez. Las revisiones se guardan en
-`docs/reviews/REVIEW-<PR>-<tema>.md` con veredicto, evidencia propia,
-hallazgos bloqueantes/no bloqueantes y pruebas exigidas.
+Preview puede desplegarse y probarse sin confirmación, pero con la
+separación de datos Preview/Producción siempre activa.
 
-### Claude NO hace
-- Escribir o editar código de la app, del panel, SQL, Edge Functions,
-  workflows o scripts.
-- Aplicar migraciones, desplegar funciones, cambiar permisos o datos.
-- Fusionar PRs o publicar releases.
+### Documentación obligatoria
+Después de cada cambio, especificación o revisión, Claude guarda en el repo
+(`docs/specs/`, `docs/reviews/` o `docs/CHANGELOG_ACTIVE.md`) lo que hizo, la
+evidencia y las pruebas. «Código cambiado = documentación cambiada».
 
-Contexto vigente: `AGENTS.md`, `docs/AI_ROLES_WORKFLOW.md`,
-`docs/AI_HANDOFF_2026-10-10_SECURITY_AUDIT.md`.
+Contexto vigente: `AGENTS.md`, `docs/AI_HANDOFF_2026-10-10_SECURITY_AUDIT.md`.
