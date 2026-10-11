@@ -5,7 +5,7 @@ El workflow `deploy-web.yml` solo publica Preview si el SHA pedido es exactament
 
 Para cambiar la versión de Preview:
 1. Revisar y probar el nuevo commit en su rama.
-2. Cambiar `preview_authorized_sha` en este archivo (vía PR a `main`, con aprobación del propietario).
+2. Cambiar `preview_authorized_sha` en este archivo con un commit directo a `main`, con aprobación del propietario. No hay PR posible: `main` no comparte historia con Producción ni con Preview.
 3. Lanzar `deploy-web.yml` a mano con `preview_only=true`, `preview_source_sha` = ese SHA y `production_snapshot_run_id` = el run del snapshot vigente.
 
 Ningún push dispara despliegues (decisión C).
