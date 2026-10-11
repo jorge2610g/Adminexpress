@@ -633,10 +633,12 @@ class _AdminDriverSubscriptionsPageState
         context: context,
         builder: (context) => AlertDialog(
           title: Text('Exigir suscripción · $zoneName'),
-          content: Text(
-            'Solo los conductores de $zoneName sin una suscripción vigente '
-            'serán puestos offline. Las demás zonas no se modificarán.',
-          ),
+          content: Text(_environment.isPreview
+              ? 'Solo se simulará la exigencia de suscripción para '
+                  'conductores QA de $zoneName. Ningún conductor real '
+                  'será puesto fuera de línea.'
+              : 'Solo los conductores de $zoneName sin una suscripción vigente '
+                  'serán puestos offline. Las demás zonas no se modificarán.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -652,11 +654,13 @@ class _AdminDriverSubscriptionsPageState
       if (ok != true) return;
     }
 
-    if (isBolivia && providerEnabled && provider['configured'] != true) {
+    if (!_environment.isPreview &&
+        isBolivia && providerEnabled && provider['configured'] != true) {
       _snack('Configura y verifica primero VeriPagos.');
       return;
     }
-    if (isBolivia &&
+    if (!_environment.isPreview &&
+        isBolivia &&
         providerEnabled &&
         provider['status_endpoint_ready'] != true) {
       _snack(
