@@ -334,6 +334,20 @@ jobs:
           assert "'p_enabled': widget.channel == 'preview'" in priority
           assert "'p_zone_id': zoneId" in priority
 
+          # Regression: subscriptions is section 22 and must be accessible
+          # with the shared backend, while unsafe modules remain guarded.
+          assert "('Suscripciones', Icons.workspace_premium_rounded)" in panel
+          assert "case 22:" in panel
+          assert "return AdminDriverSubscriptionsPage(" in panel
+          assert "'Este módulo todavía no tiene aislamiento seguro por canal." in panel
+          # Enforce user-visible build diagnostic: the older open tab can
+          # still run outdated Flutter JS even if /version.json changed.
+          page = Path('web/index.html').read_text()
+          assert "__EXPRESS_PREVIEW_BUILD_SHA__" in page
+          assert "document.addEventListener('visibilitychange', checkVersion)" in page
+          assert "button.textContent = 'Recargar'" in page
+          assert "const buildSha = '${PREVIEW_SHA}'" in workflow
+          assert "admin_preview_driver_subscription_candidates" in workflow
           assert "('build/site/preview/version.json', 'preview', 'zgpijrznvaskgcmauwxx')" in workflow
           assert "data['supabase_project_ref'] = 'zgpijrznvaskgcmauwxx'" in workflow
           print('PASS: same physical Supabase; immutable Preview channel; unsafe modules fail closed.')
