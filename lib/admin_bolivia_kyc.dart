@@ -8,9 +8,11 @@ class AdminBoliviaKycPanel extends StatefulWidget {
     super.key,
     required this.channel,
     required this.countryCode,
+    required this.zoneId,
   });
   final String channel;
   final String? countryCode;
+  final String? zoneId;
 
   @override
   State<AdminBoliviaKycPanel> createState() => _AdminBoliviaKycPanelState();
@@ -30,7 +32,8 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
   void didUpdateWidget(covariant AdminBoliviaKycPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.channel != widget.channel ||
-        oldWidget.countryCode != widget.countryCode) {
+        oldWidget.countryCode != widget.countryCode ||
+        oldWidget.zoneId != widget.zoneId) {
       _reload();
     }
   }
@@ -56,9 +59,15 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
         }));
     final rows=_list(documents);
     final region=widget.countryCode?.toUpperCase();
+    final zone=widget.zoneId?.trim();
     return {
-      'documents':rows.where((d)=>region==null || region.isEmpty ||
-        _text(d['country_code']).toUpperCase()==region).toList(),
+      'documents':rows.where((d) {
+        final sameCountry=region==null || region.isEmpty ||
+          _text(d['country_code']).toUpperCase()==region;
+        final sameZone=zone==null || zone.isEmpty ||
+          _text(d['zone_id'])==zone;
+        return sameCountry && sameZone;
+      }).toList(),
       'zones':zones,
     };
   }
