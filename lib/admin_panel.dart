@@ -2285,9 +2285,9 @@ class _Navigation extends StatelessWidget {
                   borderRadius: BorderRadius.circular(15),
                   border: Border.all(color: const Color(0xFF263650)),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 17,
                       backgroundColor: Color(0xFF1E3A5F),
                       child: Icon(
@@ -2320,6 +2320,10 @@ class _Navigation extends StatelessWidget {
                               fontWeight: FontWeight.w900,
                             ),
                           ),
+                          if (adminIsPreview) ...[
+                            const SizedBox(height: 5),
+                            _EnvironmentMiniBadge(channel: channel),
+                          ],
                         ],
                       ),
                     ),
@@ -2562,6 +2566,41 @@ class _Brand extends StatelessWidget {
   }
 }
 
+class _EnvironmentMiniBadge extends StatelessWidget {
+  final String channel;
+  const _EnvironmentMiniBadge({required this.channel});
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = channel == 'preview';
+    final ink = preview
+        ? const Color(0xFFFFD9A2)
+        : const Color(0xFFBBF7D0);
+    final bg = preview
+        ? const Color(0xFF4A3415)
+        : const Color(0xFF153A2B);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          preview ? 'VISTA PREVIA' : 'PRODUCCIÓN',
+          style: TextStyle(
+            color: ink,
+            fontSize: 8,
+            fontWeight: FontWeight.w900,
+            letterSpacing: .7,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TopBar extends StatelessWidget {
   final String title;
   final VoidCallback onRefresh;
@@ -2631,6 +2670,25 @@ class _TopBar extends StatelessWidget {
             ],
           ),
           const Spacer(),
+          if (adminIsPreview) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+              decoration: BoxDecoration(
+                color: Color(0xFFFFF7E6),
+                border: Border.all(color: const Color(0xFFF5D58A)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'NUEVA UI · QA',
+                style: TextStyle(
+                  color: Color(0xFFB54708),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
           FilledButton.icon(
             onPressed: onNewTrip,
             icon: const Icon(Icons.add_rounded, size: 18),
