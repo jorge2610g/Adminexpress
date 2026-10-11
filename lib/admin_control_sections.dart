@@ -7942,11 +7942,11 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
     required String channel,
     required int revision,
   }) async {
-    final environment = AdminEnvironmentStore(channel);
+    // Global integration/settings config is deliberately shared. Preview
+    // reads the real configuration, rather than copying or inventing QA
+    // payment credentials. QA-specific zone/driver pricing remains separate.
     try {
-      final row = environment.isPreview
-          ? await environment.previewGet('app_settings')
-          : _map(await supabase.rpc('admin_settings_get'));
+      final row = _map(await supabase.rpc('admin_settings_get'));
 
       if (!mounted ||
           revision != _settingsLoadRevision ||
@@ -7992,6 +7992,15 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
   Future<void> _save() async {
     if (loading || saving) return;
+    if (_environment.isPreview) {
+      // A shared global config is read-only here to prevent accidentally
+      // changing live dispatch/rates. Test transactions reuse its values.
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Configuración global compartida con Producción. '
+            'No se modifica desde Preview.'),
+      ));
+      return;
+    }
 
     final channel = widget.channel;
     final revision = _settingsLoadRevision;
@@ -8430,15 +8439,23 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
       AdminEnvironmentStore(widget.channel);
 
   Future<Map<String, dynamic>> _load() async {
-    if (_environment.isPreview) {
-      return _environment.previewGet('app_settings');
-    }
+    // Preserve existing global payment, integration and operational config.
+    // Preview inherits actual values but cannot mutate global settings.
     final value = await supabase.rpc('admin_settings_get');
     return _map(value);
   }
 
   Future<void> _save(
       Map<String, dynamic> current, Map<String, dynamic> patch) async {
+    if (_environment.isPreview) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Los ajustes globales y proveedores reales se '
+              'heredan de Producción. Editarlos desde Preview está bloqueado.'),
+        ));
+      }
+      return;
+    }
     final next = <String, dynamic>{...current, ...patch};
     if (_environment.isPreview) {
       await _environment.previewUpsert('app_settings', 'default', next);
@@ -8549,7 +8566,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: _environment.isPreview ? null : () => Navigator.pop(dialogContext, true),
               child: const Text('Guardar'),
             ),
           ],
@@ -8671,7 +8688,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: _environment.isPreview ? null : () => Navigator.pop(dialogContext, true),
               child: const Text('Guardar'),
             ),
           ],
@@ -8769,7 +8786,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: _environment.isPreview ? null : () => Navigator.pop(dialogContext, true),
               child: const Text('Guardar'),
             ),
           ],
@@ -8862,7 +8879,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: _environment.isPreview ? null : () => Navigator.pop(dialogContext, true),
               child: const Text('Guardar'),
             ),
           ],
@@ -9036,7 +9053,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: _environment.isPreview ? null : () => Navigator.pop(dialogContext, true),
               child: const Text('Guardar'),
             ),
           ],
