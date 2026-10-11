@@ -22,6 +22,15 @@ class AdminEnvironmentStore {
     }
   }
 
+  /// Shared business configuration is live in both Admin websites.
+  /// Keep [isPreview] for actor-scoped passenger/driver operations only.
+  /// Never duplicate zones, tariffs, payment providers or subscriptions
+  /// merely because the administrator opened /preview/.
+  bool get usesSharedOperationalConfiguration {
+    _assertValidChannel();
+    return true;
+  }
+
   bool get isPreview {
     _assertValidChannel();
     return channel == 'preview';
