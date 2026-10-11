@@ -56,8 +56,14 @@ def validate(root: Path) -> tuple[int, int]:
     assert len(seen_pages) == 54
     assert "PlusJakartaSans" in (root / "pubspec.yaml").read_text()
     panel = (root / "lib/admin_panel.dart").read_text()
-    for expected_guard in ("_previewScopedModules", "adminChannel", "AdminRuntimeScope("):
+    for expected_guard in ("adminChannel", "AdminRuntimeScope(", "allowPreview", "allowProduction"):
         assert expected_guard in panel, f"Missing channel guard: {expected_guard}"
+    # The UI now exposes all 29 pages in Preview; per-actor safety still
+    # depends on their server-side authorization, not hidden navigation.
+    for module_id in range(29):
+        assert f"case {module_id}:" in panel, f"Missing Admin module {module_id}"
+    assert "_previewScopedModules" not in panel
+    assert "productionAccess: allowProduction && !adminIsPreview" in panel
     return len(step_numbers), len(seen_pages)
 
 

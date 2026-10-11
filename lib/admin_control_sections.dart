@@ -339,8 +339,344 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
     }
   }
 
+  // Preview dispatch is an entirely synthetic simulator. Never send a QA
+  // assignment to admin_assign_ride_v2 or write public.ride_requests/trips.
+  // Preview and Production share the same physical Supabase database.
+  AdminEnvironmentStore get _qaDispatchStore =>
+      AdminEnvironmentStore(widget.channel);
+
+  Future<({
+    List<Map<String, dynamic>> rides,
+    List<Map<String, dynamic>> drivers,
+  })> _loadPreviewDispatch() async {
+    final zoneId = widget.zoneId;
+    if (zoneId == null || zoneId.isEmpty) {
+      return (rides: <Map<String, dynamic>>[], drivers: <Map<String, dynamic>>[]);
+    }
+    final results = await Future.wait<Object?>([
+      _qaDispatchStore.previewList('manual_dispatch_rides'),
+      supabase.rpc(
+        'admin_preview_driver_subscription_candidates',
+        params: <String, dynamic>{
+          'p_zone_id': zoneId,
+          'p_search': '',
+        },
+      ),
+    ]);
+    final rawRides = results[0] as List<Map<String, dynamic>>;
+    final rides = rawRides.where((row) =>
+        row['is_qa'] == true &&
+        row['channel'] == 'preview' &&
+        row['zone_id']?.toString() == zoneId &&
+        row['status'] != 'completed' &&
+        row['status'] != 'cancelled').toList()
+      ..sort((a, b) => (b['created_at']?.toString() ?? '')
+          .compareTo(a['created_at']?.toString() ?? ''));
+    final candidates = _list(results[1])
+        .where((row) => row['is_qa'] == true &&
+            row['zone_id']?.toString() == zoneId &&
+            row['driver_id'] != null)
+        .map((row) => <String, dynamic>{
+              ...row,
+              'id': row['driver_id'],
+              'name': row['full_name'],
+            })
+        .toList();
+    return (rides: rides, drivers: candidates);
+  }
+
+  Future<void> _createPreviewRide() async {
+    if (widget.channel != 'preview' ||
+        widget.zoneId == null ||
+        widget.zoneId!.isEmpty) return;
+    final pickup = TextEditingController();
+    final destination = TextEditingController();
+    final fare = TextEditingController(text: '10');
+    String category = 'motorcycle';
+    try {
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (context, setLocal) => AlertDialog(
+            title: const Text('Nuevo viaje simulado · QA'),
+            content: SizedBox(
+              width: 450,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('No se crea un viaje real ni se envían '
+                        'notificaciones a conductores.'),
+                    const SizedBox(height: 12),
+                    TextField(controller: pickup,
+                        maxLength: 150,
+                        decoration: const InputDecoration(labelText: 'Origen de prueba')),
+                    TextField(controller: destination,
+                        maxLength: 150,
+                        decoration: const InputDecoration(labelText: 'Destino de prueba')),
+                    DropdownButtonFormField<String>(
+                      initialValue: category,
+                      items: const [
+                        DropdownMenuItem(value: 'motorcycle', child: Text('Moto')),
+                        DropdownMenuItem(value: 'economy', child: Text('Auto')),
+                        DropdownMenuItem(value: 'xl', child: Text('XL')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) setLocal(() => category = value);
+                      },
+                      decoration: const InputDecoration(labelText: 'Categoría'),
+                    ),
+                    TextField(
+                      controller: fare,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Tarifa QA'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Crear simulación'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (approved != true) return;
+      final numericFare = double.tryParse(
+        fare.text.trim().replaceAll(',', '.'),
+      );
+      if (pickup.text.trim().isEmpty ||
+          destination.text.trim().isEmpty ||
+          numericFare == null ||
+          !numericFare.isFinite ||
+          numericFare < 0) {
+        if (mounted) _snack(context, 'Completa origen, destino y tarifa válida.');
+        return;
+      }
+      final key = _qaDispatchStore.createRecordKey('qa-ride');
+      await _qaDispatchStore.previewUpsert(
+        'manual_dispatch_rides',
+        key,
+        <String, dynamic>{
+          'id': key,
+          'channel': 'preview',
+          'is_qa': true,
+          'zone_id': widget.zoneId,
+          'country_code': widget.countryCode,
+          'pickup_address': pickup.text.trim(),
+          'destination_address': destination.text.trim(),
+          'category': category,
+          'proposed_fare': numericFare,
+          'passenger_name': 'Pasajero QA',
+          'status': 'searching',
+          'created_at': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+      if (!mounted) return;
+      setState(() => revision++);
+      _snack(context, 'Viaje de prueba creado, sin efectos en Producción.');
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    } finally {
+      pickup.dispose();
+      destination.dispose();
+      fare.dispose();
+    }
+  }
+
+  Future<void> _assignPreviewRide(
+    Map<String, dynamic> ride,
+    List<Map<String, dynamic>> drivers,
+  ) async {
+    if (widget.channel != 'preview' ||
+        widget.zoneId == null ||
+        ride['is_qa'] != true ||
+        ride['channel'] != 'preview' ||
+        ride['zone_id']?.toString() != widget.zoneId) {
+      if (mounted) _snack(context, 'Solicitud fuera del entorno QA.');
+      return;
+    }
+    if (drivers.isEmpty) {
+      if (mounted) _snack(context, 'No hay conductores QA en esta zona.');
+      return;
+    }
+    String? selectedDriver = drivers.first['id']?.toString();
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Asignar conductor QA (simulación)'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('La asignación no envía push, '
+                  'no cambia estados ni crea viajes reales.'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: selectedDriver,
+                decoration: const InputDecoration(labelText: 'Conductor QA'),
+                items: [
+                  for (final driver in drivers)
+                    DropdownMenuItem(
+                      value: driver['id']?.toString(),
+                      child: Text((driver['name'] ?? 'Conductor QA').toString()),
+                    ),
+                ],
+                onChanged: (id) => setLocal(() => selectedDriver = id),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: selectedDriver == null
+                  ? null : () => Navigator.pop(ctx, true),
+              child: const Text('Asignar simulación'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (approved != true || selectedDriver == null) return;
+    final chosen = drivers.where(
+      (candidate) => candidate['id']?.toString() == selectedDriver &&
+          candidate['is_qa'] == true &&
+          candidate['zone_id']?.toString() == widget.zoneId,
+    );
+    if (chosen.isEmpty) {
+      if (mounted) _snack(context, 'El conductor no está autorizado para QA.');
+      return;
+    }
+    try {
+      final updated = Map<String, dynamic>.from(ride)
+        ..['status'] = 'assigned'
+        ..['driver_id'] = selectedDriver
+        ..['driver_name'] = chosen.first['name']
+        ..['assigned_at'] = DateTime.now().toUtc().toIso8601String();
+      await _qaDispatchStore.previewUpsert(
+        'manual_dispatch_rides',
+        AdminEnvironmentStore.recordKey(ride),
+        updated,
+      );
+      if (!mounted) return;
+      setState(() => revision++);
+      _snack(context, 'Asignación QA guardada sin contactar al conductor.');
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    }
+  }
+
+  Future<void> _finishPreviewRide(Map<String, dynamic> ride) async {
+    if (widget.channel != 'preview' ||
+        ride['is_qa'] != true ||
+        ride['zone_id']?.toString() != widget.zoneId) return;
+    try {
+      final updated = Map<String, dynamic>.from(ride)
+        ..['status'] = 'completed'
+        ..['completed_at'] = DateTime.now().toUtc().toIso8601String();
+      await _qaDispatchStore.previewUpsert(
+        'manual_dispatch_rides',
+        AdminEnvironmentStore.recordKey(ride),
+        updated,
+      );
+      if (!mounted) return;
+      setState(() => revision++);
+      _snack(context, 'Viaje simulado completado. No se registró viaje real.');
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    }
+  }
+
+  Widget _buildPreviewDispatch() {
+    return FutureBuilder<
+        ({
+          List<Map<String, dynamic>> rides,
+          List<Map<String, dynamic>> drivers,
+        })>(
+      key: ValueKey('preview-manual-dispatch-$revision-${widget.zoneId}'),
+      future: _loadPreviewDispatch(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const _Loading(title: 'Cargando despacho QA');
+        }
+        if (snapshot.hasError) {
+          return _Error(error: snapshot.error,
+              onRetry: () => setState(() => revision++));
+        }
+        final data = snapshot.data;
+        return ListView(
+          padding: const EdgeInsets.all(22),
+          children: [
+            _Header(
+              title: 'Despacho manual · Simulador QA',
+              subtitle: 'Viajes y asignaciones simuladas. '
+                  'Ninguna solicitud llega a conductores ni clientes reales.',
+            ),
+            const SizedBox(height: 14),
+            Card(
+              color: AdminColors.blueSoft,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Text('Conductores QA autorizados en la zona: '
+                    '${data?.drivers.length ?? 0}'),
+              ),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: widget.zoneId == null ? null : _createPreviewRide,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Crear viaje simulado'),
+            ),
+            const SizedBox(height: 18),
+            if (data == null || data.rides.isEmpty)
+              const _Empty(text: 'No hay viajes simulados activos.')
+            else
+              for (final ride in data.rides)
+                Card(
+                  child: ListTile(
+                    title: Text('${ride['pickup_address'] ?? 'Origen'} → '
+                        '${ride['destination_address'] ?? 'Destino'}'),
+                    subtitle: Text(
+                        'QA · ${ride['status'] ?? 'searching'} · '
+                        '${ride['driver_name'] ?? 'Sin asignar'}'),
+                    trailing: ride['status'] == 'assigned'
+                        ? OutlinedButton(
+                            onPressed: () => _finishPreviewRide(ride),
+                            child: const Text('Completar QA'),
+                          )
+                        : FilledButton(
+                            onPressed: data.drivers.isEmpty ? null
+                                : () => _assignPreviewRide(ride, data.drivers),
+                            child: const Text('Asignar QA'),
+                          ),
+                  ),
+                ),
+            const SizedBox(height: 18),
+            const Text('Los datos se guardan en el almacén de pruebas '
+                'admin_environment_config. No se usan las tablas operativas '
+                'de viajes o despachos.', textAlign: TextAlign.center),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Hard separation: Flutter never calls real dispatch/assignment RPCs in
+    // Preview. The storage RPC revalidates QA permission in Supabase.
+    if (widget.channel == 'preview') return _buildPreviewDispatch();
     return FutureBuilder<
         ({
           List<Map<String, dynamic>> rides,
@@ -682,7 +1018,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     final selectedZoneId = widget.zoneId;
     if (selectedZoneId == null || selectedZoneId.isEmpty) return const [];
 
-    if (_environment.isPreview) {
+    if (!_environment.usesSharedOperationalConfiguration) {
       final zones = (await _environment.previewList('service_zones'))
           .where((zone) => zone['id']?.toString() == selectedZoneId)
           .toList();
@@ -712,7 +1048,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
   Future<List<Map<String, dynamic>>> _loadCountries() async {
     final countryCode = widget.countryCode;
     if (countryCode == null || countryCode.isEmpty) return const [];
-    if (_environment.isPreview) {
+    if (!_environment.usesSharedOperationalConfiguration) {
       return (await _environment.previewList('service_countries'))
           .where(
             (row) =>
@@ -735,7 +1071,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
   }
 
   Future<List<Map<String, dynamic>>> _loadPartners(String zoneId) async {
-    if (_environment.isPreview) {
+    if (!_environment.usesSharedOperationalConfiguration) {
       return (await _environment.previewList('partners'))
           .where((row) => row['zone_id']?.toString() == zoneId)
           .toList();
@@ -892,7 +1228,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     var saved = false;
     if (save == true) {
       try {
-        if (_environment.isPreview) {
+        if (!_environment.usesSharedOperationalConfiguration) {
           final key = row == null
               ? _environment.createRecordKey('partner')
               : AdminEnvironmentStore.recordKey(row);
@@ -953,7 +1289,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
   Future<List<Map<String, dynamic>>> _loadPartnerMembers(
     String partnerId,
   ) async {
-    if (_environment.isPreview) {
+    if (!_environment.usesSharedOperationalConfiguration) {
       return (await _environment.previewList('partner_members'))
           .where((row) => row['partner_id']?.toString() == partnerId)
           .toList();
@@ -1051,7 +1387,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
 
       if (save == true && email.text.trim().isNotEmpty) {
         try {
-          if (_environment.isPreview) {
+          if (!_environment.usesSharedOperationalConfiguration) {
             final key = _environment.createRecordKey('partner-member');
             await _environment.previewUpsert(
               'partner_members',
@@ -1180,7 +1516,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           value: active,
                           onChanged: (value) async {
                             try {
-                              if (_environment.isPreview) {
+                              if (!_environment.usesSharedOperationalConfiguration) {
                                 await _environment.previewUpsert(
                                   'partner_members',
                                   AdminEnvironmentStore.recordKey(row),
@@ -1237,7 +1573,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         range.end.month,
         range.end.day,
       ).add(const Duration(days: 1));
-      if (_environment.isPreview) {
+      if (!_environment.usesSharedOperationalConfiguration) {
         final partnerId = partner['id']?.toString();
         final payments = (await _environment.previewList('partner_payments'))
             .where((row) => row['partner_id']?.toString() == partnerId)
@@ -1289,7 +1625,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           59,
           59,
         );
-        if (_environment.isPreview) {
+        if (!_environment.usesSharedOperationalConfiguration) {
           final key = _environment.createRecordKey('settlement');
           await _environment.previewUpsert(
             'partner_settlements',
@@ -1378,7 +1714,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         return;
       }
       try {
-        if (_environment.isPreview) {
+        if (!_environment.usesSharedOperationalConfiguration) {
           await _environment.previewUpsert(
             'partner_settlements',
             AdminEnvironmentStore.recordKey(settlement),
@@ -1821,7 +2157,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     var coverageMode =
         row?['coverage_mode'] == 'polygon' ? 'polygon' : 'radius';
     var polygonPoints = <LatLng>[];
-    if (_environment.isPreview && row?['polygon'] is List) {
+    if (!_environment.usesSharedOperationalConfiguration && row?['polygon'] is List) {
       final rawPoints = row!['polygon'] as List;
       polygonPoints = rawPoints
           .whereType<Map>()
@@ -1833,11 +2169,11 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           .whereType<LatLng>()
           .toList();
     }
-    if (row?['id'] != null && !_environment.isPreview) {
+    if (row?['id'] != null && _environment.usesSharedOperationalConfiguration) {
       try {
         final raw = await supabase.rpc('admin_zone_coverage_get', params: {
           'p_zone_id': row!['id'],
-          'p_channel': widget.channel,
+          'p_channel': 'production', // Business zone settings are shared.
         });
         if (!mounted) return;
         if (raw is Map) {
@@ -2322,13 +2658,13 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         final zoneRecordKey = row == null
             ? _environment.createRecordKey('zone')
             : AdminEnvironmentStore.recordKey(row);
-        if (_environment.isPreview) {
+        if (!_environment.usesSharedOperationalConfiguration) {
           savedZoneId = row?['id'] ?? zoneRecordKey;
         } else {
           savedZoneId = await supabase.rpc(
             'admin_zone_coverage_save',
             params: {
-              'p_channel': widget.channel,
+              'p_channel': 'production', // Business zone settings are shared.
               'p_coverage_mode': coverageMode,
               'p_polygon': coverageMode == 'polygon'
                   ? polygonPoints
@@ -2370,7 +2706,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
             (a, b) => (a['order'] as int).compareTo(b['order'] as int),
           );
 
-        if (_environment.isPreview) {
+        if (!_environment.usesSharedOperationalConfiguration) {
           await _environment.previewUpsert(
             'service_zones',
             zoneRecordKey,
@@ -2605,7 +2941,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
       );
     }
 
-    final zoneRows = _environment.isPreview
+    final zoneRows = !_environment.usesSharedOperationalConfiguration
         ? (await _environment.previewList('service_zones'))
             .where((row) => row['id']?.toString() == selectedScopeZoneId)
             .toList()
@@ -2632,7 +2968,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
       (row) => row['id']?.toString() == zoneId,
     );
     List<Map<String, dynamic>> serviceRows;
-    if (_environment.isPreview) {
+    if (!_environment.usesSharedOperationalConfiguration) {
       final catalog = await _environment.previewList('service_catalog');
       final overrides = (await _environment.previewList('zone_services'))
           .where((row) => row['zone_id']?.toString() == zoneId)
@@ -2858,7 +3194,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
       try {
         final serviceKey = key.text.trim();
         final sortOrder = int.tryParse(order.text.trim()) ?? 100;
-        if (_environment.isPreview) {
+        if (!_environment.usesSharedOperationalConfiguration) {
           final base = <String, dynamic>{
             ...?row,
             'service_key': serviceKey,
@@ -3162,7 +3498,7 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
       );
     }
 
-    if (_environment.isPreview) {
+    if (!_environment.usesSharedOperationalConfiguration) {
       final values = await Future.wait([
         _environment.previewList('service_zones'),
         _environment.previewList('service_zone_polygons'),
@@ -3319,7 +3655,7 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
 
     if (save == true) {
       try {
-        if (_environment.isPreview) {
+        if (!_environment.usesSharedOperationalConfiguration) {
           final key = row == null
               ? _environment.createRecordKey('coverage')
               : AdminEnvironmentStore.recordKey(row);
@@ -3536,7 +3872,7 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
 
     if (save == true) {
       try {
-        if (_environment.isPreview) {
+        if (!_environment.usesSharedOperationalConfiguration) {
           final key = row == null
               ? _environment.createRecordKey('safety')
               : AdminEnvironmentStore.recordKey(row);
@@ -3659,82 +3995,7 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
   }
 }
 
-/// Admin identity configuration is document-based and manual-only.
-///
-/// Historical third-party sessions live in the audit trail, not in active
-/// driver verification. Never query legacy identity_verifications here:
-/// old provider records (including test sessions) must not appear as
-/// production requests or count towards pending reviews.
-class AdminIdentitySecurityPage extends StatelessWidget {
-  final String channel;
-  final String? countryCode;
-  final String? zoneId;
-
-  const AdminIdentitySecurityPage({
-    super.key,
-    this.channel = 'production',
-    this.countryCode,
-    this.zoneId,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(22),
-      children: [
-        const _Header(
-          title: 'Verificación de identidad',
-          subtitle:
-              'Documentos de conductores y revisión manual de fotografías. '
-              'Los servicios de identidad automáticos y la verificación por SMS '
-              'están deshabilitados.',
-        ),
-        const SizedBox(height: 16),
-        const _AdminHero(
-          icon: Icons.verified_user_rounded,
-          title: 'Centro de identidad',
-          subtitle: 'Las aprobaciones se realizan manualmente desde la pestaña '
-              'Revisión de documentos. Los registros históricos de servicios '
-              'anteriores no son solicitudes activas.',
-          stats: [
-            ('Motor', 'Manual'),
-            ('Proveedor externo', 'Deshabilitado'),
-          ],
-        ),
-        const SizedBox(height: 16),
-        AdminDriverDocumentRequirementsPanel(
-          channel: channel,
-          countryCode: countryCode,
-          zoneId: zoneId,
-        ),
-        const SizedBox(height: 16),
-        const Card(
-          child: Padding(
-            padding: EdgeInsets.all(18),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.fact_check_outlined, color: _blue),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Para revisar, aprobar, rechazar o reactivar por separado '
-                    'el frente, reverso y la selfie de un conductor, '
-                    'usa la pestaña «Revisión de documentos». '
-                    'Las solicitudes de Prueba y Producción se gestionan '
-                    'por separado.',
-                    style: TextStyle(color: _dark, height: 1.5),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
+// Identity review and document requirements are managed from the driver flow.
 class _PolygonEditor extends StatelessWidget {
   final List<LatLng> points;
   final Color tone;
@@ -4176,7 +4437,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     final List<Map<String, dynamic>> fares;
     final List<Map<String, dynamic>> zones;
     final List<Map<String, dynamic>> services;
-    if (_environment.isPreview) {
+    if (!_environment.usesSharedOperationalConfiguration) {
       fares = (await _environment.previewList('fare_rules'))
           .where(
             (row) =>
@@ -4389,7 +4650,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
 
     if (save == true) {
       try {
-        if (_environment.isPreview) {
+        if (!_environment.usesSharedOperationalConfiguration) {
           final key = row == null
               ? _environment.createRecordKey('fare')
               : AdminEnvironmentStore.recordKey(row);
@@ -4668,7 +4929,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     var saved = false;
     if (save == true) {
       try {
-        if (_environment.isPreview) {
+        if (!_environment.usesSharedOperationalConfiguration) {
           final key = row == null
               ? _environment.createRecordKey('special-fare')
               : AdminEnvironmentStore.recordKey(row);
@@ -4750,7 +5011,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
             child: FutureBuilder<List<Map<String, dynamic>>>(
               key: ValueKey(localRevision),
               future: () async {
-                if (_environment.isPreview) {
+                if (!_environment.usesSharedOperationalConfiguration) {
                   return (await _environment.previewList('special_fare_zones'))
                       .where(
                         (row) =>
@@ -5055,7 +5316,7 @@ Future<bool> showAdminZonePaymentMethodsEditor(
   try {
     final catalog =
         _list(await supabase.rpc('admin_payment_method_catalog_list'));
-    final existing = environment.isPreview
+    final existing = !environment.usesSharedOperationalConfiguration
         ? (await environment.previewList('zone_payment_methods'))
             .where((row) => row['zone_id']?.toString() == zoneId)
             .toList()
@@ -5286,7 +5547,7 @@ Future<bool> showAdminZonePaymentMethodsEditor(
     final selectedKeys = selected.map((entry) => entry.key).toSet();
     for (final entry in selected) {
       final row = entry.value;
-      if (environment.isPreview) {
+      if (!environment.usesSharedOperationalConfiguration) {
         Map<String, dynamic>? previous;
         for (final item in existing) {
           if (item['provider_key']?.toString() == entry.key) {
@@ -5335,7 +5596,7 @@ Future<bool> showAdminZonePaymentMethodsEditor(
     for (final row in existing) {
       final key = row['provider_key']?.toString() ?? '';
       if (key.isEmpty || selectedKeys.contains(key)) continue;
-      if (environment.isPreview) {
+      if (!environment.usesSharedOperationalConfiguration) {
         await environment.previewSoftDelete('zone_payment_methods', row);
       } else {
         await supabase.rpc(
@@ -5459,7 +5720,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
       })> _load() async {
     final range = _paymentBounds();
 
-    if (_environment.isPreview) {
+    if (!_environment.usesSharedOperationalConfiguration) {
       final zoneBase = (await _environment.previewList('service_zones'))
           .where((row) => row['id']?.toString() == widget.zoneId)
           .toList();
@@ -5648,7 +5909,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     setState(() => savingZonePayments.add(id));
     try {
       for (final method in methods) {
-        if (_environment.isPreview) {
+        if (!_environment.usesSharedOperationalConfiguration) {
           await _environment.previewUpsert(
             'zone_payment_methods',
             AdminEnvironmentStore.recordKey(
@@ -5717,7 +5978,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
       builder: (dialogContext) => AlertDialog(
         title: AdminStageEditDialogTitle(
           title: 'Mercado Pago · ${zone['name'] ?? 'Zona'}',
-          subtitle: _environment.isPreview
+          subtitle: !_environment.usesSharedOperationalConfiguration
               ? 'Credenciales simuladas y aisladas en Preview.'
               : 'Credenciales por zona y verificación protegida.',
           icon: Icons.account_balance_wallet_rounded,
@@ -5750,7 +6011,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                 ),
                 const SizedBox(height: 12),
                 _AdminPaymentNotice(
-                  text: _environment.isPreview
+                  text: !_environment.usesSharedOperationalConfiguration
                       ? 'Preview guarda solo una configuración QA aislada. No se envía un cobro ni se modifica una cuenta real.'
                       : 'Usa las credenciales de producción de Mercado Pago Chile. Al guardar, Express verificará la cuenta antes de marcarlas como conectadas.',
                 ),
@@ -5780,7 +6041,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
 
     setState(() => savingMercadoPagoZones.add(zoneId));
     try {
-      if (_environment.isPreview) {
+      if (!_environment.usesSharedOperationalConfiguration) {
         await _environment.previewUpsert(
           'zone_payment_credentials',
           zoneId + ':mercado_pago',
@@ -5840,7 +6101,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     }
     setState(() => savingMercadoPagoZones.add(zoneId));
     try {
-      if (_environment.isPreview) {
+      if (!_environment.usesSharedOperationalConfiguration) {
         final current = await _environment.previewGet(
           'zone_payment_credentials',
           recordKey: zoneId + ':mercado_pago',
@@ -5920,7 +6181,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     if (confirmed != true || !mounted) return;
 
     try {
-      if (_environment.isPreview) {
+      if (!_environment.usesSharedOperationalConfiguration) {
         await _environment.previewUpsert(
           'wallet_topups',
           AdminEnvironmentStore.recordKey(row),
@@ -7606,11 +7867,11 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
     required String channel,
     required int revision,
   }) async {
-    final environment = AdminEnvironmentStore(channel);
+    // Global integration/settings config is deliberately shared. Preview
+    // reads the real configuration, rather than copying or inventing QA
+    // payment credentials. QA-specific zone/driver pricing remains separate.
     try {
-      final row = environment.isPreview
-          ? await environment.previewGet('app_settings')
-          : _map(await supabase.rpc('admin_settings_get'));
+      final row = _map(await supabase.rpc('admin_settings_get'));
 
       if (!mounted ||
           revision != _settingsLoadRevision ||
@@ -7656,6 +7917,15 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
   Future<void> _save() async {
     if (loading || saving) return;
+    if (!_environment.usesSharedOperationalConfiguration) {
+      // A shared global config is read-only here to prevent accidentally
+      // changing live dispatch/rates. Test transactions reuse its values.
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Configuración global compartida con Producción. '
+            'No se modifica desde Preview.'),
+      ));
+      return;
+    }
 
     final channel = widget.channel;
     final revision = _settingsLoadRevision;
@@ -7687,7 +7957,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
         'support_whatsapp': supportWhatsapp.text.trim(),
       };
 
-      if (environment.isPreview) {
+      if (!environment.usesSharedOperationalConfiguration) {
         await environment.previewUpsert('app_settings', 'default', next);
         settings = next;
       } else {
@@ -8094,17 +8364,25 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
       AdminEnvironmentStore(widget.channel);
 
   Future<Map<String, dynamic>> _load() async {
-    if (_environment.isPreview) {
-      return _environment.previewGet('app_settings');
-    }
+    // Preserve existing global payment, integration and operational config.
+    // Preview inherits actual values but cannot mutate global settings.
     final value = await supabase.rpc('admin_settings_get');
     return _map(value);
   }
 
   Future<void> _save(
       Map<String, dynamic> current, Map<String, dynamic> patch) async {
+    if (!_environment.usesSharedOperationalConfiguration) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Los ajustes globales y proveedores reales se '
+              'heredan de Producción. Editarlos desde Preview está bloqueado.'),
+        ));
+      }
+      return;
+    }
     final next = <String, dynamic>{...current, ...patch};
-    if (_environment.isPreview) {
+    if (!_environment.usesSharedOperationalConfiguration) {
       await _environment.previewUpsert('app_settings', 'default', next);
     } else {
       await supabase.rpc(
@@ -8213,7 +8491,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: !_environment.usesSharedOperationalConfiguration ? null : () => Navigator.pop(dialogContext, true),
               child: const Text('Guardar'),
             ),
           ],
@@ -8335,7 +8613,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: !_environment.usesSharedOperationalConfiguration ? null : () => Navigator.pop(dialogContext, true),
               child: const Text('Guardar'),
             ),
           ],
@@ -8433,7 +8711,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: !_environment.usesSharedOperationalConfiguration ? null : () => Navigator.pop(dialogContext, true),
               child: const Text('Guardar'),
             ),
           ],
@@ -8526,7 +8804,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: !_environment.usesSharedOperationalConfiguration ? null : () => Navigator.pop(dialogContext, true),
               child: const Text('Guardar'),
             ),
           ],
@@ -8700,7 +8978,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: !_environment.usesSharedOperationalConfiguration ? null : () => Navigator.pop(dialogContext, true),
               child: const Text('Guardar'),
             ),
           ],

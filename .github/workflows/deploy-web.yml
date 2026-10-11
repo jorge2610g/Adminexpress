@@ -1,18 +1,35 @@
 name: Deploy Adminexpress Web to GitHub Pages
 
+# Control de despliegues (SPEC-2026-10-11-preview-deploy-guard, decisiones B, C y E):
+# - Ningún push dispara despliegues (C). Todo se lanza a mano con workflow_dispatch.
+# - Preview solo se publica desde el SHA de docs/PREVIEW_AUTHORIZED.md (E).
+# - Producción solo se publica con confirm_production = PUBLICAR PRODUCCION.
+# - Los bytes de Producción salen de un artifact production-snapshot con retención
+#   de 90 días, creado con snapshot_source_run_id (B). Ya no depende del artifact
+#   de 1 día del build de Producción.
+
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       preview_only:
-        description: 'Deploy a pinned QA commit ONLY to /preview/; preserve production files byte for byte.'
+        description: 'Publish the authorized QA commit ONLY to /preview/; Production files stay byte for byte.'
         type: boolean
         required: false
         default: false
       preview_source_sha:
-        description: 'Full commit SHA on QA branch (required when preview_only=true).'
+        description: 'Full SHA that must equal preview_authorized_sha in docs/PREVIEW_AUTHORIZED.md (preview_only=true).'
+        type: string
+        required: false
+      production_snapshot_run_id:
+        description: 'Run id of the production-snapshot artifact that preserves Production bytes (preview_only=true).'
+        type: string
+        required: false
+      snapshot_source_run_id:
+        description: 'Only copy the github-pages artifact of this Production run into a 90-day production-snapshot. Deploys nothing.'
+        type: string
+        required: false
+      confirm_production:
+        description: 'Type PUBLICAR PRODUCCION to publish main to Production. Leave empty otherwise.'
         type: string
         required: false
 
@@ -24,11 +41,54 @@ permissions:
 
 concurrency:
   group: adminexpress-pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
+  snapshot:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.snapshot_source_run_id != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Production Pages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          run-id: ${{ inputs.snapshot_source_run_id }}
+          github-token: ${{ github.token }}
+          path: pages-prod
+
+      - name: Verify artifact contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f pages-prod/artifact.tar
+          tar -tf pages-prod/artifact.tar > snapshot-list.txt
+          grep -q 'index.html' snapshot-list.txt
+          grep -q 'main.dart.js' snapshot-list.txt
+          sha256sum pages-prod/artifact.tar | tee snapshot.sha256
+
+      - name: Publish durable snapshot (90 days)
+        id: snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-snapshot
+          path: pages-prod/artifact.tar
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Record snapshot in the run summary
+        shell: bash
+        run: |
+          {
+            echo "### Production snapshot"
+            echo "- source run: ${{ inputs.snapshot_source_run_id }}"
+            echo "- snapshot artifact id: ${{ steps.snapshot.outputs.artifact-id }}"
+            echo '```'
+            cat snapshot.sha256
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   build:
-    if: ${{ github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[deploy-preview-only]') && !(inputs.preview_only == true) }}
+    if: ${{ github.ref == 'refs/heads/main' && inputs.preview_only != true && inputs.snapshot_source_run_id == '' && inputs.confirm_production == 'PUBLICAR PRODUCCION' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -83,32 +143,79 @@ jobs:
           }
           EOF
 
-      # GitHub Pages serves two URLs built with separate ADMIN_ENV values.
-      # Both share the main Supabase but Preview uses QA-only runtime scope.
+      # A Production release must not overwrite Preview with main's QA build.
       - name: Preserve production site
         run: |
           mkdir -p build/site
           cp -a build/web/. build/site/
 
-      - name: Build independent Admin Preview
-        run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
-
-      - name: Bust Preview web cache
+      - name: Read authorized QA SHA from main
+        id: approved_preview
         shell: bash
         run: |
-          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${GITHUB_SHA}#g" build/web/index.html
-          if [ -f build/web/flutter_bootstrap.js ]; then
-            sed -i "s#main.dart.js#main.dart.js?v=${GITHUB_SHA}#g" build/web/flutter_bootstrap.js
+          set -euo pipefail
+          AUTH="$(grep -E '^preview_authorized_sha: [0-9a-f]{40}$' docs/PREVIEW_AUTHORIZED.md | awk '{print $2}')"
+          [[ "$AUTH" =~ ^[0-9a-f]{40}$ ]] || { echo "Missing authorized Preview SHA"; exit 1; }
+          echo "preview_sha=$AUTH" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout authorized Preview source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.approved_preview.outputs.preview_sha }}
+          path: approved-preview
+
+      - name: Guard approved Preview code
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C approved-preview rev-parse HEAD)" = "${{ steps.approved_preview.outputs.preview_sha }}"
+          grep -Fq "const supabaseUrl = _productionUrl;" approved-preview/lib/core/supabase_client.dart
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('approved-preview/lib/admin_panel.dart').read_text()
+          for i in range(29):
+              assert f'case {i}:' in p, f'Admin module {i} missing'
+          assert '_previewScopedModules' not in p, 'Old Preview module block must not return'
+          assert 'productionAccess: allowProduction && !adminIsPreview' in p, 'Production release control must remain protected'
+          PY
+          if grep -Fq "xbphilqezmwfjfpdbwad" approved-preview/lib/core/supabase_client.dart; then
+            echo "QA references deleted Supabase project"
+            exit 1
           fi
 
-      - name: Install Preview as separate site
+      - name: Install Preview dependencies
+        working-directory: approved-preview
+        run: flutter pub get
+
+      - name: Build approved Preview alongside Production
+        working-directory: approved-preview
+        run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
+
+      - name: Mark approved Preview bundle
         shell: bash
+        env:
+          APPROVED_SHA: ${{ steps.approved_preview.outputs.preview_sha }}
         run: |
+          set -euo pipefail
+          if grep -Fq "__EXPRESS_PREVIEW_BUILD_SHA__" approved-preview/build/web/index.html; then
+            sed -i "s#__EXPRESS_PREVIEW_BUILD_SHA__#${APPROVED_SHA}#g" approved-preview/build/web/index.html
+          fi
+          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${APPROVED_SHA}#g" approved-preview/build/web/index.html
+          if [ -f approved-preview/build/web/flutter_bootstrap.js ]; then
+            sed -i "s#main.dart.js#main.dart.js?v=${APPROVED_SHA}#g" approved-preview/build/web/flutter_bootstrap.js
+          fi
+
+      - name: Install authorized Preview without changing data channel
+        shell: bash
+        env:
+          APPROVED_SHA: ${{ steps.approved_preview.outputs.preview_sha }}
+        run: |
+          set -euo pipefail
           mkdir -p build/site/preview
-          cp -a build/web/. build/site/preview/
+          cp -a approved-preview/build/web/. build/site/preview/
           cp build/site/version.json build/site/preview/version.json
           python3 - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
           for name, label, project in [
               ('build/site/version.json', 'production', 'zgpijrznvaskgcmauwxx'),
@@ -119,6 +226,8 @@ jobs:
               data['environment'] = label
               data['data_channel'] = label
               data['supabase_project_ref'] = project
+              if label == 'preview':
+                  data['commit'] = os.environ['APPROVED_SHA']
               path.write_text(json.dumps(data, indent=2))
           PY
 
@@ -128,29 +237,20 @@ jobs:
           path: build/site
 
   preview_only:
-    if: ${{ contains(github.event.head_commit.message, '[deploy-preview-only]') || inputs.preview_only == true }}
+    if: ${{ github.ref == 'refs/heads/main' && inputs.preview_only == true && inputs.snapshot_source_run_id == '' }}
     runs-on: ubuntu-latest
     outputs:
       preview_sha: ${{ steps.resolve_preview.outputs.preview_sha }}
+      production_sha: ${{ steps.production_marker.outputs.production_sha }}
     steps:
       - name: Resolve pinned Preview source
         id: resolve_preview
         shell: bash
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-          PUSH_SHA: ${{ github.sha }}
           INPUT_PREVIEW_SHA: ${{ inputs.preview_source_sha }}
         run: |
           set -euo pipefail
-          if [[ "$EVENT_NAME" == "push" ]]; then
-            RESOLVED_SHA="$PUSH_SHA"
-            if [[ "$COMMIT_MESSAGE" =~ preview-sha=([0-9a-f]{40}) ]]; then
-              RESOLVED_SHA="${BASH_REMATCH[1]}"
-            fi
-          else
-            RESOLVED_SHA="$INPUT_PREVIEW_SHA"
-          fi
+          RESOLVED_SHA="$INPUT_PREVIEW_SHA"
           echo "PREVIEW_SHA=$RESOLVED_SHA" >> "$GITHUB_ENV"
           echo "preview_sha=$RESOLVED_SHA" >> "$GITHUB_OUTPUT"
 
@@ -159,18 +259,44 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$PREVIEW_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Full Preview SHA is required"; exit 1; }
-          # A tagged main push builds exactly that commit for Preview only.
-          # Manual dispatch may instead pin an independent reviewed SHA.
-          if [[ "${{ github.event_name }}" != "push" && "$PREVIEW_SHA" = "${{ github.sha }}" ]]; then
+          if [[ "$PREVIEW_SHA" = "${{ github.sha }}" ]]; then
             echo "ERROR: manual QA SHA must differ from the workflow ref."
             exit 1
           fi
 
-      - name: Download current Production Pages artifact (known-good build)
+      - name: Checkout workflow ref (authorization file)
+        uses: actions/checkout@v5
+        with:
+          path: workflow-ref
+
+      - name: Require the authorized Preview SHA (docs/PREVIEW_AUTHORIZED.md)
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTH="$(grep -E '^preview_authorized_sha: [0-9a-f]{40}$' workflow-ref/docs/PREVIEW_AUTHORIZED.md | awk '{print $2}')"
+          if [[ -z "$AUTH" ]]; then
+            echo "ERROR: docs/PREVIEW_AUTHORIZED.md has no preview_authorized_sha."
+            exit 1
+          fi
+          if [[ "$PREVIEW_SHA" != "$AUTH" ]]; then
+            echo "ERROR: $PREVIEW_SHA is not the authorized Preview SHA ($AUTH)."
+            exit 1
+          fi
+          echo "PASS: $PREVIEW_SHA is the authorized Preview SHA."
+
+      - name: Require the Production snapshot run id
+        shell: bash
+        env:
+          SNAPSHOT_RUN_ID: ${{ inputs.production_snapshot_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$SNAPSHOT_RUN_ID" =~ ^[0-9]+$ ]] || { echo "production_snapshot_run_id is required"; exit 1; }
+
+      - name: Download durable Production snapshot (90-day artifact)
         uses: actions/download-artifact@v4
         with:
-          name: github-pages
-          run-id: 38080952559
+          name: production-snapshot
+          run-id: ${{ inputs.production_snapshot_run_id }}
           github-token: ${{ github.token }}
           path: pages-prod
 
@@ -199,6 +325,18 @@ jobs:
             | sort -z | xargs -0 sha256sum > /tmp/exact-prod-manifest
           echo "PASS: Production site matches published artifact exactly."
 
+      - name: Read preserved Production marker
+        id: production_marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          PRODUCTION_SHA="$(python3 -c "import json; print(json.load(open('build/site/version.json'))['commit'])")"
+          [[ "$PRODUCTION_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "ERROR: preserved Production version.json has an invalid commit."
+            exit 1
+          }
+          echo "production_sha=$PRODUCTION_SHA" >> "$GITHUB_OUTPUT"
+
       - name: Checkout pinned Preview QA code without changing main
         uses: actions/checkout@v5
         with:
@@ -211,31 +349,27 @@ jobs:
           set -euo pipefail
           test "$(git -C preview-source rev-parse HEAD)" = "$PREVIEW_SHA"
           grep -q "admin_zone_list_scoped" preview-source/lib/admin_detail_dialogs.dart
-          grep -q "admin_driver_kyc_bolivia_manual_review_part" preview-source/lib/admin_bolivia_kyc.dart
-          grep -q "AdminEnvironmentLinkButton" preview-source/lib/admin_panel.dart
-          grep -q "const supabaseUrl = _productionUrl;" preview-source/lib/core/supabase_client.dart
-          # Keep ordinary Preview fail-closed. A temporary all-modules
-          # prelaunch UI review is permitted only when its SHA belongs to the
-          # dedicated, owner-approved QA branch; Production remains unchanged.
-          if grep -Fq "if (adminIsPreview && !_previewScopedModules.contains(value))" preview-source/lib/admin_panel.dart; then
-            echo "PASS: Preview retains audited-module guard."
-          elif grep -Fq "static const bool _previewUnlockAllModules = true;" preview-source/lib/admin_panel.dart \
-            && grep -Fq "!_previewUnlockAllModules &&" preview-source/lib/admin_panel.dart; then
-            git -C preview-source fetch --no-tags origin refs/heads/claude/admin-preview-unlock-2026-10-10:refs/remotes/origin/claude/admin-preview-unlock-2026-10-10
-            git -C preview-source merge-base --is-ancestor "$PREVIEW_SHA" refs/remotes/origin/claude/admin-preview-unlock-2026-10-10 || {
-              echo "ERROR: Preview-unlock SHA is not on approved QA branch."
-              exit 1
-            }
-            echo "WARNING: all Preview module UIs unlocked for owner-approved QA; RPC isolation must be checked before any operational testing."
-          else
-            echo "ERROR: Preview module guard is missing or unapproved."
+          grep -q "admin_driver_kyc_bolivia_manual_review_part" preview-source/lib/admin_detail_dialogs.dart
+          grep -q "title: 'Documentos e identidad'" preview-source/lib/admin_detail_dialogs.dart
+          if test -f preview-source/lib/admin_bolivia_kyc.dart || test -f preview-source/lib/admin_manual_identity.dart; then
+            echo "ERROR: standalone legacy identity screens returned."
             exit 1
           fi
+          grep -q "AdminEnvironmentLinkButton" preview-source/lib/admin_panel.dart
+          grep -q "const supabaseUrl = _productionUrl;" preview-source/lib/core/supabase_client.dart
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('preview-source/lib/admin_panel.dart').read_text()
+          for i in range(29):
+              assert f'case {i}:' in p, f'Admin module {i} missing'
+          assert '_previewScopedModules' not in p, 'Old Preview module block must not return'
+          assert 'productionAccess: allowProduction && !adminIsPreview' in p, 'Production release control must remain protected'
+          PY
           if grep -q "xbphilqezmwfjfpdbwad" preview-source/lib/core/supabase_client.dart; then
             echo "ERROR: Preview must not connect to the separate Supabase database."
             exit 1
           fi
-          echo "PASS: tested, pinned Preview source and isolated Supabase config."
+          echo "PASS: tested pinned Preview source, shared Supabase, 29 modules navigable and Production release protected."
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -250,7 +384,7 @@ jobs:
         working-directory: preview-source
         run: flutter analyze --no-fatal-warnings --no-fatal-infos lib/admin_detail_dialogs.dart lib/admin_panel.dart lib/core/supabase_client.dart
 
-      - name: Build Preview only (dedicated Supabase database)
+      - name: Build Preview only (shared Supabase, Preview channel)
         working-directory: preview-source
         run: flutter build web --release --base-href /preview/ --dart-define=ADMIN_ENV=preview
 
@@ -305,7 +439,7 @@ jobs:
         shell: bash
         env:
           EXPECTED_PREVIEW_SHA: ${{ needs.preview_only.outputs.preview_sha }}
-          EXPECTED_PRODUCTION_SHA: 30e60582a337be3911671742d780b240793497df
+          EXPECTED_PRODUCTION_SHA: ${{ needs.preview_only.outputs.production_sha }}
         run: |
           set -euo pipefail
           BASE="https://admin.expressviajes.online"

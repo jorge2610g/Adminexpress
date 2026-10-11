@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'core/admin_design_tokens.dart';
 import 'core/admin_stage_edit_dialog_title.dart';
 
-import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
 
 const Color _countryBlue = AdminColors.blue;
@@ -26,9 +25,6 @@ class _AdminCountryCoveragePageState
     extends State<AdminCountryCoveragePage> {
   int revision = 0;
 
-  AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
-
   List<Map<String, dynamic>> _list(dynamic value) => value is List
       ? value
           .whereType<Map>()
@@ -37,97 +33,7 @@ class _AdminCountryCoveragePageState
       : <Map<String, dynamic>>[];
 
   Future<List<Map<String, dynamic>>> _load() async {
-    if (_environment.isPreview) {
-      final rows = await _environment.previewList('service_countries');
-      rows.sort(
-        (a, b) => (a['name'] ?? a['country_code'] ?? '')
-            .toString()
-            .compareTo((b['name'] ?? b['country_code'] ?? '').toString()),
-      );
-      return rows;
-    }
     return _list(await supabase.rpc('admin_country_list'));
-  }
-
-  /// Seed only the QA shadow store with non-sensitive country references.
-  /// Existing Preview records are preserved; this never edits service_countries.
-  Future<void> _seedPreviewCountryReferences() async {
-    if (!_environment.isPreview) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Preparar países de prueba'),
-        content: const Text(
-          'Se copiarán únicamente nombre, código de país, moneda y prefijo '
-          'a la configuración QA de Preview. Todos los países y registros de '
-          'conductores quedarán desactivados por defecto. No se modificarán '
-          'los países reales de Producción.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Preparar QA'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted || !_environment.isPreview) return;
-
-    try {
-      final existing = await _environment.previewList('service_countries');
-      final existingCodes = existing
-          .map((row) => row['country_code']?.toString().toUpperCase())
-          .whereType<String>()
-          .toSet();
-      final source = _list(await supabase.rpc('admin_country_list'));
-      var created = 0;
-      for (final country in source) {
-        if (!mounted || !_environment.isPreview) return;
-        final code = country['country_code']?.toString().trim().toUpperCase();
-        final currency = country['currency_code']?.toString().trim().toUpperCase();
-        if (code == null || code.length != 2 || existingCodes.contains(code)) {
-          continue;
-        }
-        if (currency == null || currency.length != 3) continue;
-        await _environment.previewUpsert(
-          'service_countries',
-          code,
-          <String, dynamic>{
-            'country_code': code,
-            'name': country['name']?.toString() ?? code,
-            'currency_code': currency,
-            'calling_code': country['calling_code']?.toString() ?? '',
-            'active': false,
-            'driver_registration_enabled': false,
-            'didit_enabled': false,
-            'manual_fallback_enabled': true,
-          },
-        );
-        existingCodes.add(code);
-        created++;
-      }
-      if (mounted) {
-        setState(() => revision++);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'QA preparado: $created países de prueba. '
-              'Producción permanece sin cambios.',
-            ),
-          ),
-        );
-      }
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_friendlyError(error))),
-        );
-      }
-    }
   }
 
   String _friendlyError(Object error) {
@@ -157,25 +63,16 @@ class _AdminCountryCoveragePageState
     final callingCode = TextEditingController(
       text: row?['calling_code']?.toString() ?? '',
     );
-    final productionWorkflow = TextEditingController();
-    final sandboxWorkflow = TextEditingController();
-
     var active = row?['active'] == true;
     var driverRegistration =
         row?['driver_registration_enabled'] != false;
-    var diditEnabled = row?['didit_enabled'] == true;
-    var manualFallback =
-        row?['manual_fallback_enabled'] != false;
-
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
           title: AdminStageEditDialogTitle(
             title: row == null ? 'Nuevo país' : 'Editar país',
-            subtitle: widget.channel == 'preview'
-                ? 'Preview · Países de operación'
-                : 'Producción · Países de operación',
+            subtitle: 'Configuración compartida de Express',
             icon: Icons.public_rounded,
           ),
           content: SizedBox(
@@ -268,7 +165,7 @@ class _AdminCountryCoveragePageState
                     title: Text('Identidad: verificación manual'),
                     subtitle: Text(
                       'Carné frontal, reverso y selfie. La revisión '
-                      'se gestiona en Verificación de identidad. '
+                      'se gestiona dentro de la ficha del conductor. '
                       'Didit y la verificación SMS están retirados.',
                     ),
                   ),
@@ -295,51 +192,24 @@ class _AdminCountryCoveragePageState
       name.dispose();
       currency.dispose();
       callingCode.dispose();
-      productionWorkflow.dispose();
-      sandboxWorkflow.dispose();
       return;
     }
 
     try {
       final countryCode = code.text.trim().toUpperCase();
-      if (_environment.isPreview) {
-        await _environment.previewUpsert(
-          'service_countries',
-          countryCode,
-          <String, dynamic>{
-            ...?row,
-            'country_code': countryCode,
-            'name': name.text.trim(),
-            'currency_code': currency.text.trim().toUpperCase(),
-            'calling_code': callingCode.text.trim(),
-            'active': active,
-            'driver_registration_enabled': driverRegistration,
-            'didit_enabled': diditEnabled,
-            'manual_fallback_enabled': manualFallback,
-          },
-        );
-      } else {
-        await supabase.rpc(
-          'admin_upsert_country_coverage_v2',
-          params: {
-            'p_country_code': countryCode,
-            'p_name': name.text.trim(),
-            'p_currency_code': currency.text.trim().toUpperCase(),
-            'p_calling_code': callingCode.text.trim(),
-            'p_active': active,
-            'p_driver_registration_enabled': driverRegistration,
-            'p_didit_enabled': false,
-            'p_manual_fallback_enabled': true,
-            'p_production_workflow_id':
-                productionWorkflow.text.trim().isEmpty
-                    ? null
-                    : productionWorkflow.text.trim(),
-            'p_sandbox_workflow_id': sandboxWorkflow.text.trim().isEmpty
-                ? null
-                : sandboxWorkflow.text.trim(),
-          },
-        );
-      }
+      await supabase.rpc(
+        'admin_upsert_country_coverage_v2',
+        params: {
+          'p_country_code': countryCode,
+          'p_name': name.text.trim(),
+          'p_currency_code': currency.text.trim().toUpperCase(),
+          'p_calling_code': callingCode.text.trim(),
+          'p_active': active,
+          'p_driver_registration_enabled': driverRegistration,
+          'p_didit_enabled': false,
+          'p_manual_fallback_enabled': true,
+        },
+      );
       if (mounted) {
         setState(() => revision++);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -363,8 +233,6 @@ class _AdminCountryCoveragePageState
       name.dispose();
       currency.dispose();
       callingCode.dispose();
-      productionWorkflow.dispose();
-      sandboxWorkflow.dispose();
     }
   }
 
@@ -395,11 +263,7 @@ class _AdminCountryCoveragePageState
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FC),
       appBar: AppBar(
-        title: Text(
-          _environment.isPreview
-              ? 'Países y cobertura · Preview'
-              : 'Países y cobertura · Producción',
-        ),
+        title: const Text('Países y cobertura'),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
       ),
@@ -451,12 +315,6 @@ class _AdminCountryCoveragePageState
                       ],
                     ),
                   ),
-                  if (_environment.isPreview)
-                    OutlinedButton.icon(
-                      onPressed: _seedPreviewCountryReferences,
-                      icon: const Icon(Icons.copy_all_outlined),
-                      label: const Text('Preparar países QA'),
-                    ),
                   FilledButton.icon(
                     onPressed: () => _edit(),
                     icon: const Icon(Icons.add_rounded),

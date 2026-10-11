@@ -3,9 +3,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'supabase_client.dart';
 
-/// Navigation ONLY: both sites use Supabase MAIN.
-/// ADMIN_ENV fixes the environment channel at build time; this link never
-/// elevates permissions or changes the active data channel in-app.
+/// Navigation ONLY: each site has an independent Supabase project.
+/// ADMIN_ENV fixes the environment at build time; this link cannot elevate
+/// permissions or connect one environment to the other's database.
 /// Resolving relative to the current site supports both a domain root and a
 /// future GitHub Pages project subpath.
 class AdminEnvironmentLinkButton extends StatelessWidget {

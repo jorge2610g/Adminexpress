@@ -24,7 +24,6 @@ import 'admin_dynamic_pricing.dart';
 import 'admin_detail_dialogs.dart';
 import 'admin_environment_reports.dart';
 import 'admin_environment_audit.dart';
-import 'admin_manual_identity.dart';
 import 'admin_driver_document_requirements.dart';
 
 const Color adminBlue = AdminColors.blue;
@@ -313,12 +312,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // These administration modules cover the entire Express system rather than
   // an operational country, zone, or a separate Preview/Production mode.
   static const Set<int> _globalSections = {10, 12, 14}; // Reports, Builds, Audit
-  // The only Preview modules vetted for shared-database scoped operations.
-  // Every other module may run unscoped RPCs and must fail closed in QA.
-  static const Set<int> _previewScopedModules = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 14, 16, 17, 18, 27,
-  };
-  static const bool _previewUnlockAllModules = true;
+  // All administrative sections share the same navigation in both sites.
+  // Preview keeps its own login session and actor-scoped operations, while
+  // global integrations, zones, fares and providers are shared with Production.
+  // Do not hide entire modules to enforce actor isolation: individual RPCs and
+  // Edge Functions must validate QA passengers/drivers and their transactions.
+  // Sensitive controls (including production releases) retain their own
+  // permission checks. Opening a screen does not authorize unsafe writes.
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
 
@@ -358,7 +358,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Notificaciones / Avisos', Icons.notifications_active_rounded),
     ('Servicios', Icons.apps_rounded),
     ('Cobertura y seguridad', Icons.gpp_good_rounded),
-    ('Verificación de identidad', Icons.verified_user_rounded),
+    ('Conductores', Icons.drive_eta_rounded), // ruta 18: alias legado
     ('Configuración avanzada', Icons.tune_rounded),
     ('Entornos de prueba', Icons.science_rounded),
     ('Carga QA', Icons.speed_rounded),
@@ -367,7 +367,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Delivery Fase 2 / Express Plus', Icons.delivery_dining_rounded),
     ('Prioridad conductores', Icons.workspace_premium_outlined),
     ('Pedidos Delivery', Icons.receipt_long_rounded),
-    ('Verificación manual', Icons.fact_check_outlined),
+    ('Conductores', Icons.drive_eta_rounded), // ruta 27: alias legado
     ('Demanda y precios', Icons.trending_up_rounded),
   ];
 
@@ -1227,10 +1227,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                             onExit: widget.onExit,
                             showNewTrip: !_isZoneMonitor,
                           ),
-                        if (!_globalSections.contains(section))
-                          _environmentSwitcher(),
-                        if (_globalSections.contains(section))
-                          _environmentSwitcher(),
+                        _environmentSwitcher(),
                         if (_requiresZoneScope(section))
                           _globalGeoScopeSwitcher(),
                         Expanded(
@@ -1264,24 +1261,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _body(int value) {
-    // Fail closed: a shared database also has REAL merchants, subscriptions,
-    // payments and releases. Never run unscoped Preview module RPCs.
-    if (adminIsPreview &&
-        !_previewUnlockAllModules &&
-        !_previewScopedModules.contains(value)) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'Este módulo todavía no tiene aislamiento seguro por canal. '
-            'Está bloqueado en Prueba para proteger los datos reales. '
-            'Puedes gestionar conductores, documentos, viajes y '
-            'configuración QA desde sus secciones.',
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
+    // Feature parity: all sections are navigable in Preview.
+    // Per-action backend authorization remains required for writes involving
+    // users, drivers, orders, trips, payments and communications.
     if (_requiresZoneScope(value) && !_scopeReady) {
       return const _ScopeSelectionRequired();
     }
@@ -1393,35 +1375,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 18:
-        return DefaultTabController(
-          key: ValueKey('unified-identity-$adminZoneId-$adminChannel'),
-          length: 2,
-          child: Column(
-            children: [
-              const Material(
-                color: Colors.white,
-                child: TabBar(tabs: [
-                  Tab(icon: Icon(Icons.fact_check_outlined),
-                      text: 'Revisión de documentos'),
-                  Tab(icon: Icon(Icons.settings_outlined),
-                      text: 'Requisitos de identidad'),
-                ]),
-              ),
-              Expanded(child: TabBarView(children: [
-                AdminManualIdentityPage(
-                  channel: adminChannel,
-                  countryCode: adminCountryCode,
-                  zoneId: adminZoneId,
-                ),
-                AdminIdentitySecurityPage(
-                  channel: adminChannel,
-                  countryCode: adminCountryCode,
-                  zoneId: adminZoneId,
-                ),
-              ])),
-            ],
-          ),
-        );
+        // Compatibilidad con índices históricos: identidad ya vive dentro
+        // de la ficha del conductor, no en un módulo separado.
+        return _driverList();
       case 19:
         return AdminAdvancedSettingsPage(channel: adminChannel);
       case 20:
@@ -1460,11 +1416,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 27:
-        return AdminManualIdentityPage(
-          channel: adminChannel,
-          countryCode: adminCountryCode,
-          zoneId: adminZoneId,
-        );
+        // Alias legado del antiguo módulo de verificación manual.
+        return _driverList();
       case 28:
         return AdminDynamicPricingPage(
           channel: adminChannel,
@@ -2424,7 +2377,7 @@ class _Navigation extends StatelessWidget {
           ('FINANZAS', [9, 8, 22, 28]),
           ('ANÁLISIS', [10, 14]),
           ('COMUNICACIÓN', [15]),
-          ('CONFIGURACIÓN', [16, 7, 18, 11, 19, 12]),
+          ('CONFIGURACIÓN', [16, 7, 11, 19, 12]),
           ('HERRAMIENTAS QA', [20, 21]),
         ];
 

@@ -2,10 +2,9 @@ import 'core/supabase_client.dart';
 
 /// Environment-aware storage used by Adminexpress.
 ///
-/// The two websites currently share the primary Supabase project.
-/// Operational Production settings use existing RPCs; Preview configuration
-/// edits for zones, polygons, fares, services, and app settings MUST remain
-/// inside the `admin_environment_config` QA shadow.
+/// Both sites connect to the SAME Supabase project, but Preview editors
+/// use `admin_environment_config` QA shadow storage instead of operational
+/// tables. Direct unscoped writes must never be used from Preview.
 ///
 /// Runtime-sensitive records (trips, identity reviews, wallets, payments)
 /// additionally require server-side channel/identity assertions. This client
@@ -21,6 +20,15 @@ class AdminEnvironmentStore {
     if (channel != 'preview' && channel != 'production') {
       throw StateError('Canal administrativo inválido: operación bloqueada');
     }
+  }
+
+  /// Shared business configuration is live in both Admin websites.
+  /// Keep [isPreview] for actor-scoped passenger/driver operations only.
+  /// Never duplicate zones, tariffs, payment providers or subscriptions
+  /// merely because the administrator opened /preview/.
+  bool get usesSharedOperationalConfiguration {
+    _assertValidChannel();
+    return true;
   }
 
   bool get isPreview {
