@@ -1308,6 +1308,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 12:
         return AdminSingleAppReleasePage(
           productionAccess: allowProduction && adminChannel == 'production',
+          zoneId: adminZoneId,
         );
       case 13:
         return AdminDispatchPage(

@@ -6,9 +6,16 @@ import 'core/supabase_client.dart';
 /// One Express Android package. The signed Production candidate itself is
 /// tested/certified; no permanent Preview APK is involved.
 class AdminSingleAppReleasePage extends StatefulWidget {
-  const AdminSingleAppReleasePage({super.key, required this.productionAccess});
+  const AdminSingleAppReleasePage({
+    super.key,
+    required this.productionAccess,
+    this.zoneId,
+  });
   // Capability from server-side admin_access_context; never a Preview/Production UI mode.
   final bool productionAccess;
+  // Optional scoped zone from the canonical admin selector.
+  // The release itself is always global, while notices may target one zone.
+  final String? zoneId;
 
   @override
   State<AdminSingleAppReleasePage> createState() =>
@@ -18,6 +25,7 @@ class AdminSingleAppReleasePage extends StatefulWidget {
 class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
   Map<String, dynamic> status = const {};
   List<Map<String, dynamic>> releases = const [];
+  Map<String, dynamic> publishedRelease = const {};
   String? error;
   bool loading = true;
   bool busy = false;
@@ -52,11 +60,17 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
       final results = await Future.wait([
         supabase.rpc('admin_single_app_release_status'),
         supabase.rpc('admin_build_list'),
+        supabase.rpc('latest_app_release',
+          params: {'p_platform': 'android'}),
       ]);
       if (!mounted) return;
       final rawStatus = results[0];
       final rawRows = results[1];
+      final rawPublished = results[2];
       setState(() {
+        publishedRelease = rawPublished is Map
+            ? Map<String, dynamic>.from(rawPublished)
+            : <String, dynamic>{};
         status = rawStatus is Map
             ? Map<String, dynamic>.from(rawStatus)
             : <String, dynamic>{};
@@ -267,18 +281,191 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     }, 'APK/AAB promovidos sin recompilar. Queda por decidir su publicación.');
   }
 
+  bool _isCertifiedPromotion(Map<String, dynamic> row) =>
+      canManage &&
+      row['status'] == 'ready' &&
+      row['signing_mode'] == 'production' &&
+      row['artifact_type'] == 'apk+aab' &&
+      verification['promoted_build_id']?.toString() == row['id']?.toString() &&
+      status['qa_certified'] == true &&
+      status['approved'] == true &&
+      status['promoted'] == true;
+
   Future<void> _publish(Map<String, dynamic> row) async {
-    final ok = await _confirm(
-      'Publicar actualización de Express',
-      'Esta acción actualiza el canal de distribución de la aplicación. '
-      'Solo puedes publicar una release de Producción que ya fue promovida.',
-      'Publicar versión',
+    if (!_isCertifiedPromotion(row) || busy) return;
+    var playConfirmed = false;
+    var mandatory = false;
+    final selection = await showDialog<Map<String, bool>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialog) => AlertDialog(
+          title: const Text('Registrar actualización en Google Play'),
+          content: SizedBox(
+            width: 475,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(
+                  'Versión ${row['version_name']} · build ${row['build_number']}. '
+                  'Esta operación NO sube el APK/AAB a Google Play. '
+                  'Primero debes publicarlo en Play Console y confirmar '
+                  'que el mismo versionCode ya está disponible para los usuarios.',
+                ),
+                const SizedBox(height: 12),
+                const SelectableText(
+                  'https://play.google.com/store/apps/details?id=com.express.usuario1',
+                ),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Confirmo que esta compilación ya está disponible en Google Play'),
+                  subtitle: const Text(
+                    'No continuar mientras esté en revisión ni durante un '
+                    'despliegue escalonado que aún excluya a usuarios.',
+                  ),
+                  value: playConfirmed,
+                  onChanged: (value) =>
+                      setDialog(() => playConfirmed = value == true),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Actualización obligatoria'),
+                  subtitle: const Text(
+                    'Desactivada por defecto. Solo usar si la nueva versión '
+                    'ya está disponible para todos los usuarios previstos.',
+                  ),
+                  value: mandatory,
+                  onChanged: (value) =>
+                      setDialog(() => mandatory = value == true),
+                ),
+                const Text(
+                  'Registrar la versión activa el aviso en la aplicación '
+                  'cuando detecte un build antiguo. No envía push masivos.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: !playConfirmed ? null :
+                  () => Navigator.pop(dialogContext, {'mandatory': mandatory}),
+              child: const Text('Registrar versión verificada'),
+            ),
+          ],
+        ),
+      ),
     );
-    if (!ok) return;
-    await _call('admin_publish_build', {
+    if (selection == null) return;
+    await _call('admin_register_play_store_release', {
       'p_build_id': row['id'],
-      'p_mandatory': false,
-    }, 'Actualización publicada.');
+      'p_confirmed_available': true,
+      'p_mandatory': selection['mandatory'] == true,
+    }, 'Versión registrada con enlace oficial de Google Play.');
+  }
+
+  Future<void> _announcePublishedRelease() async {
+    final version = publishedRelease['version_name']?.toString();
+    final play = publishedRelease['play_store_url']?.toString();
+    if (!canManage || busy || version == null ||
+        play != 'https://play.google.com/store/apps/details?id=com.express.usuario1') {
+      return;
+    }
+    var audience = 'all';
+    var globalScope = true;
+    final selected = await showDialog<Map<String, String?>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialog) {
+          final scopedZone = globalScope ? null : widget.zoneId;
+          return AlertDialog(
+            title: const Text('Avisar actualización a usuarios'),
+            content: SizedBox(
+              width: 485,
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text('Express $version · build '
+                    '${publishedRelease['build_number']}. '
+                    'El aviso se enviará por push y bandeja de la aplicación. '
+                    'No actualiza los teléfonos por sí solo.'),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    initialValue: audience,
+                    decoration: const InputDecoration(labelText: 'Destinatarios'),
+                    items: const [
+                      DropdownMenuItem(value: 'all',
+                        child: Text('Todos (pasajeros y conductores)')),
+                      DropdownMenuItem(value: 'drivers',
+                        child: Text('Solo conductores')),
+                      DropdownMenuItem(value: 'passengers',
+                        child: Text('Solo pasajeros')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setDialog(() => audience = value);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: globalScope,
+                    title: const Text('Todas las zonas de Producción'),
+                    subtitle: Text(widget.zoneId == null
+                        ? 'Selecciona una zona en la barra del administrador '
+                          'si quieres limitar los destinatarios.'
+                        : 'Desactivar para usar solamente la zona seleccionada.'),
+                    onChanged: widget.zoneId == null ? null :
+                        (value) => setDialog(() => globalScope = value),
+                  ),
+                  FutureBuilder<dynamic>(
+                    key: ValueKey('estimate-$audience-${scopedZone ?? 'global'}'),
+                    future: supabase.rpc('admin_push_audience_estimate_v2',
+                      params: {
+                        'p_channel': 'production',
+                        'p_audience': audience,
+                        'p_zone_id': scopedZone,
+                        'p_partner_id': null,
+                      }),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const LinearProgressIndicator();
+                      final raw = snapshot.data;
+                      final estimate = raw is Map ? Map<String, dynamic>.from(raw)
+                          : <String, dynamic>{};
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text('Destinatarios: ${estimate['recipients'] ?? '—'}'
+                          ' · Push activo: ${estimate['push_enabled'] ?? '—'}'),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Solo cuentas de Producción. No se incluirán usuarios '
+                    'del grupo Preview ni se enviará nada antes de confirmar.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ]),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancelar')),
+              FilledButton(onPressed: () => Navigator.pop(dialogContext, {
+                'audience': audience, 'zone_id': scopedZone,
+              }), child: const Text('Enviar aviso ahora')),
+            ],
+          );
+        },
+      ),
+    );
+    if (selected == null) return;
+    await _call('admin_send_release_update_notice', {
+      'p_audience': selected['audience'],
+      'p_zone_id': selected['zone_id'],
+    }, 'Campaña de actualización creada para la audiencia seleccionada. '
+       'Verifica las entregas FCM en Notificaciones / Avisos.');
   }
 
   Future<void> _open(String? value) async {
@@ -416,21 +603,48 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             ],
           ],
         )),
+        _section('Avisar actualización a pasajeros y conductores', Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              publishedRelease['build_number'] == null
+                  ? 'Todavía no hay una versión Android publicada en el '
+                    'registro oficial. No se pueden enviar avisos de actualización.'
+                  : 'Versión publicada: ${publishedRelease['version_name']} '
+                    '· build ${publishedRelease['build_number']}',
+            ),
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              onPressed: canManage && !busy &&
+                      publishedRelease['play_store_url'] ==
+                          'https://play.google.com/store/apps/details?id=com.express.usuario1'
+                  ? _announcePublishedRelease : null,
+              icon: const Icon(Icons.campaign_rounded),
+              label: const Text('Avisar actualización'),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Puedes elegir todos, pasajeros o conductores; todas las zonas '
+              'o la zona seleccionada. El aviso no es automático ni modifica '
+              'la publicación de Google Play.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        )),
         _section('Publicaciones de Producción', Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (releases.isEmpty)
-              const Text('Aún no hay APK/AAB promovidos.'),
+              const Text('Aún no hay APK/AAB promovidos y listos.'),
             for (final release in releases) ...[
               const Divider(),
               _details(release),
               const SizedBox(height: 6),
               OutlinedButton.icon(
-                onPressed: canManage && !busy &&
-                        release['status'] == 'ready'
+                onPressed: !busy && _isCertifiedPromotion(release)
                     ? () => _publish(release) : null,
                 icon: const Icon(Icons.cloud_upload_outlined),
-                label: const Text('Publicar versión aprobada'),
+                label: const Text('Registrar versión disponible en Play Store'),
               ),
             ],
             const SizedBox(height: 8),
