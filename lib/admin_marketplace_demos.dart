@@ -206,7 +206,7 @@ class _AdminMarketplaceDemoSectionState extends State<AdminMarketplaceDemoSectio
                     '${r['product_count']??0} productos · '
                     '${r['merchant_users']??0} usuarios · '
                     '${widget.channel=='production'?'Oculto a clientes':'Solo Preview'}'),
-                  trailing:Wrap(mainAxisSize:MainAxisSize.min,spacing:4,children:[
+                  trailing:Row(mainAxisSize:MainAxisSize.min,children:[
                     IconButton(
                       tooltip:'Ver productos',
                       onPressed:()=>widget.onOpenProducts({
