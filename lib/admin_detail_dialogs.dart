@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
@@ -486,24 +485,89 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
 
   Future<void> _openDriverAsset(String? path) async {
     final value = path?.trim() ?? '';
-    if (value.isEmpty) return;
+    if (value.isEmpty || !mounted) return;
     try {
+      // Keep private evidence inside the driver sheet, instead of launching a
+      // new tab with a long-lived signed URL.
       final signed = await supabase.storage
           .from('driver-onboarding')
-          .createSignedUrl(value, 3600);
-      final ok = await launchUrl(
-        Uri.parse(signed),
-        mode: LaunchMode.platformDefault,
+          .createSignedUrl(value, 300);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierColor: Colors.black87,
+        builder: (previewContext) {
+          final available = MediaQuery.sizeOf(previewContext);
+          return Dialog(
+            insetPadding: const EdgeInsets.all(16),
+            backgroundColor: const Color(0xFF111827),
+            child: SizedBox(
+              width: available.width > 940 ? 900 : available.width - 32,
+              height: available.height > 780 ? 700 : available.height * .84,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Vista previa del documento',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Cerrar vista previa',
+                          onPressed: () => Navigator.pop(previewContext),
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1, color: Color(0xFF374151)),
+                  Expanded(
+                    child: ClipRect(
+                      child: InteractiveViewer(
+                        minScale: .5,
+                        maxScale: 5,
+                        child: Center(
+                          child: Image.network(
+                            signed,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (context, image, progress) =>
+                                progress == null
+                                    ? image
+                                    : const CircularProgressIndicator(
+                                        color: Colors.white,
+                                      ),
+                            errorBuilder: (context, imageError, stackTrace) =>
+                                const Padding(
+                              padding: EdgeInsets.all(20),
+                              child: Text(
+                                'No fue posible mostrar la imagen. '
+                                'Vuelve a intentar o verifica el archivo.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       );
-      if (!ok && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo abrir el archivo.')),
-        );
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo abrir el archivo: $e')),
+          SnackBar(content: Text('No se pudo mostrar el archivo: $e')),
         );
       }
     }
