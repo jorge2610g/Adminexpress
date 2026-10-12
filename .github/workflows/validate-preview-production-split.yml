@@ -105,3 +105,6 @@ jobs:
       - name: Analyze central admin
         run: |
           flutter analyze --no-fatal-warnings --no-fatal-infos             lib/main.dart             lib/admin_panel.dart             lib/core/supabase_client.dart             lib/admin_detail_dialogs.dart             lib/admin_control_sections.dart
+
+      - name: Validate independent licence photo statuses
+        run: flutter test test/driver_license_review_state_test.dart
