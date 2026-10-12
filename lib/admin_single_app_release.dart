@@ -360,18 +360,18 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
       ),
     );
     if (selection == null) return;
-    await _call('admin_register_play_store_release', {
+    // Existing production-guarded release RPC. The Android client
+    // always supplies the canonical Play Store link.
+    await _call('admin_publish_build', {
       'p_build_id': row['id'],
-      'p_confirmed_available': true,
       'p_mandatory': selection['mandatory'] == true,
-    }, 'Versión registrada con enlace oficial de Google Play.');
+    }, 'Versión registrada. Google Play debe estar disponible antes de este paso.');
   }
 
   Future<void> _announcePublishedRelease() async {
     final version = publishedRelease['version_name']?.toString();
-    final play = publishedRelease['play_store_url']?.toString();
     if (!canManage || busy || version == null ||
-        play != 'https://play.google.com/store/apps/details?id=com.express.usuario1') {
+        publishedRelease['build_number'] == null) {
       return;
     }
     var audience = 'all';
@@ -461,9 +461,20 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
       ),
     );
     if (selected == null) return;
-    await _call('admin_send_release_update_notice', {
+    final title = 'Actualización disponible: Express $version';
+    final body = 'Ya está disponible la nueva versión de Express '
+        '(build ${publishedRelease['build_number']}). '
+        'Actualiza desde Google Play: '
+        'https://play.google.com/store/apps/details?id=com.express.usuario1';
+    // Reuse the audited channel-aware campaign RPC. Nothing is sent until
+    // the operator confirms this dialog.
+    await _call('admin_send_announcement_v4', {
+      'p_channel': 'production',
+      'p_title': title,
+      'p_body': body,
       'p_audience': selected['audience'],
       'p_zone_id': selected['zone_id'],
+      'p_partner_id': null,
     }, 'Campaña de actualización creada para la audiencia seleccionada. '
        'Verifica las entregas FCM en Notificaciones / Avisos.');
   }
@@ -616,8 +627,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             const SizedBox(height: 10),
             FilledButton.icon(
               onPressed: canManage && !busy &&
-                      publishedRelease['play_store_url'] ==
-                          'https://play.google.com/store/apps/details?id=com.express.usuario1'
+                      publishedRelease['build_number'] != null
                   ? _announcePublishedRelease : null,
               icon: const Icon(Icons.campaign_rounded),
               label: const Text('Avisar actualización'),
