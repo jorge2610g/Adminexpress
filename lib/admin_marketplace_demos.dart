@@ -39,7 +39,7 @@ class _AdminMarketplaceDemoSectionState extends State<AdminMarketplaceDemoSectio
   }
   Future<void> _createDemo()async{
     if(_busy)return;
-    var selected='burgers';
+    var selected='all';
     final confirmed=await showDialog<bool>(context:context,
       builder:(dialogContext)=>StatefulBuilder(builder:(context,setLocal)=>
         AlertDialog(
@@ -55,6 +55,8 @@ class _AdminMarketplaceDemoSectionState extends State<AdminMarketplaceDemoSectio
                 initialValue:selected,
                 decoration:const InputDecoration(labelText:'Plantilla con productos'),
                 items:const [
+                  DropdownMenuItem(value:'all',
+                    child:Text('Paquete completo · 3 restaurantes, 18 productos')),
                   DropdownMenuItem(value:'burgers',
                     child:Text('Hamburguesería · 6 productos')),
                   DropdownMenuItem(value:'pizza',
@@ -84,15 +86,20 @@ class _AdminMarketplaceDemoSectionState extends State<AdminMarketplaceDemoSectio
     if(confirmed!=true||!mounted)return;
     setState(()=>_busy=true);
     try{
-      final result=await supabase.rpc('admin_marketplace_create_demo_restaurant',
-        params:{
-          'p_zone_id':widget.zoneId,'p_channel':widget.channel,
-          'p_template_key':selected,
-        });
-      final map=result is Map?Map<String,dynamic>.from(result):<String,dynamic>{};
-      _message(map['created']==true
-        ? 'Restaurante demo creado con 6 productos. Asigna su cuenta para probar el panel.'
-        : 'Ese demo ya existía; se conservaron sus productos y cambios.');
+      final templates=selected=='all'
+        ? <String>['burgers','pizza','home_cooking'] : <String>[selected];
+      var created=0;
+      for(final template in templates){
+        final result=await supabase.rpc('admin_marketplace_create_demo_restaurant',
+          params:{
+            'p_zone_id':widget.zoneId,'p_channel':widget.channel,
+            'p_template_key':template,
+          });
+        final map=result is Map?Map<String,dynamic>.from(result):<String,dynamic>{};
+        if(map['created']==true)created++;
+      }
+      _message('Se prepararon ${templates.length} demos. Nuevos: $created. '
+        'Cada uno tiene 6 productos y propietario de prueba asignado.');
       if(mounted)setState(_refresh);
     }catch(e){_message('No se pudo generar el restaurante demo: $e');}
     finally{if(mounted)setState(()=>_busy=false);}
