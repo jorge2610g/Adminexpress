@@ -16,6 +16,7 @@ import 'admin_driver_subscriptions.dart';
 import 'admin_marketplace.dart';
 import 'admin_marketplace_phase2.dart';
 import 'admin_driver_priority.dart';
+import 'admin_driver_championship.dart';
 import 'admin_dynamic_pricing.dart';
 import 'admin_detail_dialogs.dart';
 import 'admin_environment_reports.dart';
@@ -280,6 +281,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     25: 'driver_priority',
     26: 'delivery_orders',
     28: 'dynamic_pricing',
+    29: 'fares',
   };
 
   bool _sectionAllowed(int index) {
@@ -350,6 +352,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Pedidos Delivery', Icons.receipt_long_rounded),
     ('Verificación manual', Icons.fact_check_outlined),
     ('Demanda y precios', Icons.trending_up_rounded),
+    ('Campeonato Express', Icons.emoji_events_outlined),
   ];
 
   Future<bool> _authorized() async {
@@ -1408,6 +1411,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         );
       case 27:
         return AdminManualIdentityPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
+      case 29:
+        return AdminDriverChampionshipPage(
           channel: adminChannel,
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
