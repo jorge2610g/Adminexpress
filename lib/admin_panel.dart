@@ -15,6 +15,7 @@ import 'admin_load_lab.dart';
 import 'admin_driver_subscriptions.dart';
 import 'admin_marketplace.dart';
 import 'admin_marketplace_phase2.dart';
+import 'admin_delivery_unified.dart';
 import 'admin_delivery_settlements.dart';
 import 'admin_driver_priority.dart';
 import 'admin_driver_championship.dart';
@@ -349,7 +350,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Entornos de prueba', Icons.science_rounded),
     ('Carga QA', Icons.speed_rounded),
     ('Suscripciones', Icons.workspace_premium_rounded),
-    ('Express Market', Icons.storefront_rounded),
+    ('Delivery', Icons.storefront_rounded),
     ('Delivery Fase 2 / Express Plus', Icons.delivery_dining_rounded),
     ('Prioridad conductores', Icons.workspace_premium_outlined),
     ('Pedidos Delivery', Icons.receipt_long_rounded),
@@ -1390,10 +1391,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 23:
-        return AdminMarketplacePage(
+        return AdminDeliveryUnifiedPage(
           channel: adminChannel,
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
+          readOnly: _readOnly,
+          buildDirectDeliveries: _deliveryList,
         );
       case 24:
         return AdminMarketplacePhase2Page(
@@ -2342,9 +2345,9 @@ class _Navigation extends StatelessWidget {
           ]
         : const <(String, List<int>)>[
             ('GENERAL', [0]),
-            ('OPERACIONES', [1, 2, 13, 3, 26, 4, 5, 6]),
-            ('MÓDULOS', [23, 24, 25, 29, 30]),
-            ('FINANZAS', [9, 8, 22, 31]),
+            ('OPERACIONES', [1, 2, 13, 4, 5, 6]),
+            ('MÓDULOS', [23, 25, 29]),
+            ('FINANZAS', [9, 8, 22]),
             ('ANÁLISIS', [10, 14]),
             ('COMUNICACIÓN', [15]),
             ('CONFIGURACIÓN', [16, 7, 11, 19, 12, 28]),
