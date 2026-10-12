@@ -1,3 +1,14 @@
+## 2026-10-11 — Revisión individual de evidencias del conductor
+
+- La ficha del conductor deja de tratar el carné manual como un único bloque.
+- Frente, reverso, fotografía facial y foto de perfil se aprueban/rechazan por separado.
+- Rechazar una evidencia exige motivo y conserva todas las demás evidencias aprobadas.
+- La ficha usa `admin_driver_kyc_bolivia_manual_review_part` para la revisión individual.
+- Licencia y otros documentos adicionales continúan revisándose como documentos independientes.
+- El mismo panel y la misma lógica se usan para Preview/Producción; cambia solamente el canal de datos de la cuenta.
+
+---
+
 # CHANGELOG ACTIVO
 
 > **Regla de lectura:** la entrada más reciente define la arquitectura vigente. Entradas anteriores se conservan como historial de decisiones y no deben usarse para restaurar comportamientos retirados.
