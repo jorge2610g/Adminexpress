@@ -15,6 +15,7 @@ import 'admin_load_lab.dart';
 import 'admin_driver_subscriptions.dart';
 import 'admin_marketplace.dart';
 import 'admin_marketplace_phase2.dart';
+import 'admin_delivery_settlements.dart';
 import 'admin_driver_priority.dart';
 import 'admin_driver_championship.dart';
 import 'admin_dynamic_pricing.dart';
@@ -282,6 +283,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     26: 'delivery_orders',
     28: 'dynamic_pricing',
     29: 'fares',
+    30: 'marketplace',
+    31: 'payments',
   };
 
   bool _sectionAllowed(int index) {
@@ -353,6 +356,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Verificación manual', Icons.fact_check_outlined),
     ('Demanda y precios', Icons.trending_up_rounded),
     ('Campeonato Express', Icons.emoji_events_outlined),
+    ('Restaurantes', Icons.restaurant_rounded),
+    ('Liquidaciones de restaurantes', Icons.receipt_long_rounded),
   ];
 
   Future<bool> _authorized() async {
@@ -1415,6 +1420,17 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
         );
+      case 30:
+        return AdminMarketplacePage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
+      case 31:
+        return AdminDeliverySettlementsPage(
+          channel: adminChannel,
+          zoneId: adminZoneId,
+        );
       case 29:
         return AdminDriverChampionshipPage(
           channel: adminChannel,
@@ -2327,8 +2343,8 @@ class _Navigation extends StatelessWidget {
         : const <(String, List<int>)>[
             ('GENERAL', [0]),
             ('OPERACIONES', [1, 2, 13, 3, 26, 4, 5, 6]),
-            ('MÓDULOS', [23, 24, 25, 29]),
-            ('FINANZAS', [9, 8, 22]),
+            ('MÓDULOS', [23, 24, 25, 29, 30]),
+            ('FINANZAS', [9, 8, 22, 31]),
             ('ANÁLISIS', [10, 14]),
             ('COMUNICACIÓN', [15]),
             ('CONFIGURACIÓN', [16, 7, 11, 19, 12, 28]),
