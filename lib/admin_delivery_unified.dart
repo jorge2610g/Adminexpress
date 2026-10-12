@@ -13,6 +13,7 @@ class AdminDeliveryUnifiedPage extends StatefulWidget {
   final String? countryCode;
   final String? zoneId;
   final bool readOnly;
+  final Widget Function()? buildDirectDeliveries;
 
   const AdminDeliveryUnifiedPage({
     super.key,
@@ -20,6 +21,7 @@ class AdminDeliveryUnifiedPage extends StatefulWidget {
     this.countryCode,
     this.zoneId,
     this.readOnly = false,
+    this.buildDirectDeliveries,
   });
 
   @override
@@ -205,6 +207,7 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
       ('Banners y categorías', Icons.campaign),
       ('Tarifas y Plus', Icons.local_shipping),
       ('Pedidos', Icons.receipt_long),
+      ('Envíos directos', Icons.inventory_2),
       ('Liquidaciones', Icons.account_balance_wallet),
     ];
     Widget page = switch (selectedTab) {
@@ -226,6 +229,8 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
         ordersOnly: true, channel: widget.channel,
         zoneId: widget.zoneId, countryCode: widget.countryCode,
       ),
+      4 => widget.buildDirectDeliveries?.call() ??
+          const Center(child: Text('Envíos no disponibles para esta cuenta.')),
       _ => AdminDeliverySettlementsPage(
         key: ValueKey('settlements-${widget.channel}-${widget.zoneId}'),
         channel: widget.channel, zoneId: widget.zoneId,
