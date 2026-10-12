@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
+import 'core/driver_license_review_state.dart';
 
 const Color _detailBlue = Color(0xFF2563EB);
 const Color _detailDark = Color(0xFF0F172A);
@@ -486,24 +486,89 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
 
   Future<void> _openDriverAsset(String? path) async {
     final value = path?.trim() ?? '';
-    if (value.isEmpty) return;
+    if (value.isEmpty || !mounted) return;
     try {
+      // Keep private evidence inside the driver sheet, instead of launching a
+      // new tab with a long-lived signed URL.
       final signed = await supabase.storage
           .from('driver-onboarding')
-          .createSignedUrl(value, 3600);
-      final ok = await launchUrl(
-        Uri.parse(signed),
-        mode: LaunchMode.platformDefault,
+          .createSignedUrl(value, 300);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierColor: Colors.black87,
+        builder: (previewContext) {
+          final available = MediaQuery.sizeOf(previewContext);
+          return Dialog(
+            insetPadding: const EdgeInsets.all(16),
+            backgroundColor: const Color(0xFF111827),
+            child: SizedBox(
+              width: available.width > 940 ? 900 : available.width - 32,
+              height: available.height > 780 ? 700 : available.height * .84,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Vista previa del documento',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Cerrar vista previa',
+                          onPressed: () => Navigator.pop(previewContext),
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1, color: Color(0xFF374151)),
+                  Expanded(
+                    child: ClipRect(
+                      child: InteractiveViewer(
+                        minScale: .5,
+                        maxScale: 5,
+                        child: Center(
+                          child: Image.network(
+                            signed,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (context, image, progress) =>
+                                progress == null
+                                    ? image
+                                    : const CircularProgressIndicator(
+                                        color: Colors.white,
+                                      ),
+                            errorBuilder: (context, imageError, stackTrace) =>
+                                const Padding(
+                              padding: EdgeInsets.all(20),
+                              child: Text(
+                                'No fue posible mostrar la imagen. '
+                                'Vuelve a intentar o verifica el archivo.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       );
-      if (!ok && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo abrir el archivo.')),
-        );
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo abrir el archivo: $e')),
+          SnackBar(content: Text('No se pudo mostrar el archivo: $e')),
         );
       }
     }
@@ -888,6 +953,203 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+
+  Future<void> _reviewLicensePart(
+    Map<String, dynamic> document,
+    String slot,
+    String status,
+  ) async {
+    if (saving) return;
+    final id = _text(document['id'], '');
+    if (id.isEmpty) return;
+    final label = slot == 'front' ? 'Frente de la licencia' : 'Reverso de la licencia';
+    final rejecting = status == 'rejected';
+    final note = TextEditingController();
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(rejecting ? 'Rechazar $label'
+            : status == 'approved' ? 'Aprobar $label' : 'Reabrir $label'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Solo cambiará esta fotografía. La otra cara conservará '
+              'su estado y no tendrá que volver a cargarse.',
+            ),
+            if (rejecting) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: note,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Motivo del rechazo',
+                  hintText: 'Ej.: fotografía ilegible o cortada',
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(rejecting ? 'Confirmar rechazo'
+                : status == 'approved' ? 'Aprobar fotografía' : 'Reabrir revisión'),
+          ),
+        ],
+      ),
+    );
+    final reason = note.text.trim();
+    note.dispose();
+    if (!mounted || accepted != true) return;
+    if (rejecting && reason.length < 5) {
+      setState(() => error = 'Indica un motivo de al menos cinco caracteres.');
+      return;
+    }
+    final entry = _map(_map(document['review_parts'])[slot]);
+    final version = int.tryParse(_text(entry['version'], '0')) ?? 0;
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    try {
+      await supabase.rpc('admin_driver_license_review_part', params: {
+        'p_document_id': id,
+        'p_slot': slot,
+        'p_status': status,
+        'p_reason': rejecting ? reason : null,
+        'p_expected_version': version,
+        'p_channel': widget.channel,
+      });
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$label: ${_friendlyDocumentStatus(status)}.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() {
+        error = 'No se pudo revisar $label. $e';
+      });
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  Widget _licensePartReviewCard(
+    Map<String, dynamic> document,
+    String slot,
+  ) {
+    final front = slot == 'front';
+    final path = _text(
+      document[front ? 'front_object_path' : 'back_object_path'], '');
+    final entry = _map(_map(document['review_parts'])[slot]);
+    final status = driverLicensePartStatus(document, slot);
+    final tone = status == 'approved'
+        ? const Color(0xFF067647)
+        : status == 'rejected'
+            ? const Color(0xFFB42318)
+            : const Color(0xFFB54708);
+    final reason = _text(entry['reason'], '');
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: status == 'approved'
+            ? const Color(0xFFF6FEF9)
+            : status == 'rejected'
+                ? const Color(0xFFFFF7F6)
+                : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: tone.withValues(alpha: .3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(front ? Icons.credit_card_rounded
+                  : Icons.flip_to_back_rounded, size: 17, color: tone),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(front ? 'Frente de la licencia'
+                    : 'Reverso de la licencia',
+                  style: const TextStyle(fontSize: 12,
+                      fontWeight: FontWeight.w800)),
+              ),
+              Chip(
+                label: Text(_friendlyDocumentStatus(status)),
+                side: BorderSide(color: tone.withValues(alpha: .3)),
+              ),
+            ],
+          ),
+          if (reason.isNotEmpty && status == 'rejected')
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Text('Motivo: $reason',
+                style: const TextStyle(color: Color(0xFFB42318),
+                    fontSize: 11, fontWeight: FontWeight.w700)),
+            ),
+          if (path.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Fotografía no cargada',
+                  style: TextStyle(color: _detailMuted, fontSize: 11)),
+            )
+          else ...[
+            const SizedBox(height: 7),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _openDriverAsset(path),
+                  icon: const Icon(Icons.visibility_outlined, size: 16),
+                  label: const Text('Ver'),
+                ),
+                if (status != 'approved')
+                  FilledButton.icon(
+                    onPressed: saving ? null
+                        : () => _reviewLicensePart(document, slot, 'approved'),
+                    icon: const Icon(Icons.check_circle_outline, size: 16),
+                    label: const Text('Aprobar'),
+                  ),
+                if (status != 'rejected')
+                  OutlinedButton.icon(
+                    onPressed: saving ? null
+                        : () => _reviewLicensePart(document, slot, 'rejected'),
+                    icon: const Icon(Icons.cancel_outlined, size: 16),
+                    label: const Text('Rechazar'),
+                  ),
+                if (status != 'pending')
+                  TextButton.icon(
+                    onPressed: saving ? null
+                        : () => _reviewLicensePart(document, slot, 'pending'),
+                    icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                    label: const Text('Reabrir'),
+                  ),
+              ],
+            ),
+            if (status == 'approved')
+              const Padding(
+                padding: EdgeInsets.only(top: 5),
+                child: Text('Aprobado · esta cara conserva su aprobación.',
+                  style: TextStyle(color: Color(0xFF067647),
+                    fontSize: 10, fontWeight: FontWeight.w700)),
+              ),
+          ],
         ],
       ),
     );
@@ -1346,7 +1608,21 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                             fontSize: 11,
                                           ),
                                         ),
-                                      if (manualIdentity) ...[
+                                      if (_text(doc['document_type'], '')
+                                          .toLowerCase() == 'driver_license') ...[
+                                        const SizedBox(height: 5),
+                                        const Text(
+                                          'Revisa frente y reverso por separado. '
+                                          'Una cara aprobada conserva su estado.',
+                                          style: TextStyle(
+                                            color: _detailMuted,
+                                            fontSize: 11,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                        _licensePartReviewCard(doc, 'front'),
+                                        _licensePartReviewCard(doc, 'back'),
+                                      ] else if (manualIdentity) ...[
                                         const SizedBox(height: 5),
                                         const Text(
                                           'Aprueba o rechaza cada fotografía por separado. '
@@ -1484,8 +1760,13 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                               }),
                             const Divider(),
                             const Text(
-                              'Revisión de identidad',
+                              'Historial de verificaciones de identidad',
                               style: TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                            const Text(
+                              'Estos son intentos anteriores de verificación, '
+                              'no los estados individuales de las fotografías.',
+                              style: TextStyle(color: _detailMuted, fontSize: 11),
                             ),
                             if (verifications.isEmpty)
                               const Padding(
@@ -1502,9 +1783,17 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                     children: [
                                       const Icon(Icons.fact_check_outlined, size: 18),
                                       const SizedBox(width: 9),
-                                      const Expanded(
-                                        child: Text('Verificación manual',
-                                          style: TextStyle(fontWeight: FontWeight.w600)),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Intento de verificación manual',
+                                              style: TextStyle(fontWeight: FontWeight.w600)),
+                                            Text(_date(v['created_at']),
+                                              style: const TextStyle(
+                                                color: _detailMuted, fontSize: 10)),
+                                          ],
+                                        ),
                                       ),
                                       Chip(label: Text(
                                         _friendlyDocumentStatus(status),

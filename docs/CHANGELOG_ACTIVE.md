@@ -1,3 +1,20 @@
+## 2026-10-11 — Migración de licencia aplicada; panel aún en QA
+
+**Estado actualizado 2026-10-11:** el propietario autorizó aplicar la migración de licencia al Supabase compartido. Se ejecutó correctamente mediante Supabase y quedó registrada como versión `20261012021954`, nombre `driver_license_individual_evidence_review`. La función `admin_driver_license_review_part` y el trigger `trg_driver_license_part_states` existen; `anon` no tiene ejecución. La licencia existente de Producción mantiene estado `verified`. **No hay licencias de Preview registradas para QA E2E; la UI aún no está fusionada ni desplegada.** Conservar las ramas PR en borrador y exigir validación Preview antes de publicar la interfaz. La migración compartida es aditiva, no equivale a aprobación del flujo ni a publicación web.
+
+---
+
+## 2026-10-11 — QA pendiente: visor interno y licencia por fotografía
+
+- Se sustituyó la apertura de URL externas por un visor modal dentro de la ficha del conductor, con zoom y URL privada firmada temporalmente.
+- La licencia ahora presenta tarjetas de **Frente** y **Reverso** con aprobar/rechazar/reabrir independientes y estados verde, rojo y naranja; documentos heredados conservan el estado original.
+- Requiere el RPC nuevo y trigger versionado en `Expressdelivery` (migración `20261012021954_driver_license_individual_evidence_review.sql`); no desplegar UI antes del backend. Sin mutación de Supabase en esta rama.
+- Código único Preview/Producción en panel central; QA del entorno/rol y CI por ejecutar; no fusionado ni publicado.
+- Respaldo `backup/before-license-photo-review-20261011`, rama `fix/license-photo-review-inline-20261011`.
+- Especificación: `docs/DRIVER_LICENSE_INLINE_REVIEW_2026-10-11.md`.
+
+---
+
 ## 2026-10-11 — Publicación web de revisión individual de documentos
 
 - Se publica la ficha del conductor con aprobación/rechazo individual de frente, reverso, fotografía facial y foto de perfil.

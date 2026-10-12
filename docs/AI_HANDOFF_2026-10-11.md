@@ -1,3 +1,15 @@
+## 2026-10-11 — Migración de licencia aplicada; panel aún en QA
+
+**Estado actualizado 2026-10-11:** el propietario autorizó aplicar la migración de licencia al Supabase compartido. Se ejecutó correctamente mediante Supabase y quedó registrada como versión `20261012021954`, nombre `driver_license_individual_evidence_review`. La función `admin_driver_license_review_part` y el trigger `trg_driver_license_part_states` existen; `anon` no tiene ejecución. La licencia existente de Producción mantiene estado `verified`. **No hay licencias de Preview registradas para QA E2E; la UI aún no está fusionada ni desplegada.** Conservar las ramas PR en borrador y exigir validación Preview antes de publicar la interfaz. La migración compartida es aditiva, no equivale a aprobación del flujo ni a publicación web.
+
+---
+
+## Pendiente QA 2026-10-11: revisión individual de licencia / visor embebido
+
+Trabajo propuesto en `fix/license-photo-review-inline-20261011`, respaldo `backup/before-license-photo-review-20261011`. El cambio sustituye la navegación a otra pestaña de archivos por modal interno y agrega filas independientes a licencia frente/reverso. Requiere backend `admin_driver_license_review_part` pendiente de aplicar desde migración de `Expressdelivery`. No fusionar UI sin RPC en Producción, pruebas con datos Preview y paridad de cuentas. Ver `docs/DRIVER_LICENSE_INLINE_REVIEW_2026-10-11.md`.
+
+---
+
 # Adminexpress — handoff vigente 2026-10-11
 
 Este es el handoff operativo vigente para cualquier IA o desarrollador.
