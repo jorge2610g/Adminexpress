@@ -1,3 +1,11 @@
+## 2026-10-11 — Publicación web de revisión individual de documentos
+
+- Se publica la ficha del conductor con aprobación/rechazo individual de frente, reverso, fotografía facial y foto de perfil.
+- Esta publicación mantiene un único Adminexpress central y separa Preview/Producción por la cuenta autenticada.
+- Backend compartido: migración de corrección individual ya aplicada antes de la publicación.
+
+---
+
 ## 2026-10-11 — Revisión individual de evidencias del conductor
 
 - La ficha del conductor deja de tratar el carné manual como un único bloque.
