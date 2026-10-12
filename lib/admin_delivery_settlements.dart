@@ -24,7 +24,7 @@ class _AdminDeliverySettlementsPageState
        'p_zone_id':widget.zoneId,'p_channel':widget.channel,
      });
      return raw is List?raw.whereType<Map>()
-       .map((e)=>Map<String,dynamic>.from(e)).toList():[];
+       .map((e)=>Map<String,dynamic>.from(e)).toList():<Map<String,dynamic>>[];
    }();
  }
  String _money(Object? n,String code){
