@@ -108,3 +108,6 @@ jobs:
 
       - name: Validate independent licence photo statuses
         run: flutter test test/driver_license_review_state_test.dart
+
+      - name: Compile canonical Adminexpress Web
+        run: flutter build web --release --base-href /
