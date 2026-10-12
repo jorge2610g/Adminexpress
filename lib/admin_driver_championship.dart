@@ -219,7 +219,7 @@ class _AdminDriverChampionshipPageState
               const Text('Premios para los 3 ganadores',
                 style:TextStyle(fontWeight:FontWeight.w900)),
               const SizedBox(height:9),
-              _input('🥇 Primer lugar (ej. $50.000 + bono)',_first),
+              _input('🥇 Primer lugar (ej. 50.000 CLP + bono)',_first),
               const SizedBox(height:9),
               _input('🥈 Segundo lugar',_second),
               const SizedBox(height:9),
