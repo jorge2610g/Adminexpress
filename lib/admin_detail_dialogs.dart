@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
+import 'core/driver_license_review_state.dart';
 
 const Color _detailBlue = Color(0xFF2563EB);
 const Color _detailDark = Color(0xFF0F172A);
@@ -958,20 +959,6 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
   }
 
 
-  // Licence photos are reviewed independently; legacy document-wide approval
-  // is displayed as approved on both sides until either image is replaced.
-  String _licensePartStatus(Map<String, dynamic> document, String slot) {
-    final path = _text(document[slot == 'front'
-        ? 'front_object_path'
-        : 'back_object_path'], '');
-    if (path.isEmpty) return 'pending';
-    final entry = _map(_map(document['review_parts'])[slot]);
-    final state = _text(entry['status'], '').toLowerCase();
-    if (state.isNotEmpty) return state;
-    final legacy = _text(document['status'], 'pending').toLowerCase();
-    return legacy == 'verified' ? 'approved' : legacy;
-  }
-
   Future<void> _reviewLicensePart(
     Map<String, dynamic> document,
     String slot,
@@ -1067,7 +1054,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     final path = _text(
       document[front ? 'front_object_path' : 'back_object_path'], '');
     final entry = _map(_map(document['review_parts'])[slot]);
-    final status = _licensePartStatus(document, slot);
+    final status = driverLicensePartStatus(document, slot);
     final tone = status == 'approved'
         ? const Color(0xFF067647)
         : status == 'rejected'
