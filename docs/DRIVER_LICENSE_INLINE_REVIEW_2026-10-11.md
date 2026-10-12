@@ -20,9 +20,9 @@
 ## Regla de promoción
 1. Respaldo en `backup/before-license-photo-review-20261011`.
 2. QA de código en rama `fix/license-photo-review-inline-20261011` y espejo `preview/license-photo-review-inline-20261011`.
-3. Primero aplicar y validar la migración con cuenta Preview y evidencia QA, confirmando que `admin_environment_allowed` y aislamiento impiden acceder a Producción desde QA.
+3. Migración ya aplicada con autorización al Supabase compartido; falta validar con cuenta Preview y evidencia QA que `admin_environment_allowed` y los controles de aislamiento impiden acceder a datos de Producción.
 4. Probar dos imágenes y 4 estados, concurrencia `p_expected_version`, rechazo con motivo, que no se reenvíe imagen aprobada y visor que no navegue fuera del panel.
 5. Validar build web + pruebas unitarias. Solo después de aprobación/promoción fusionar ambos cambios y desplegar la web.
-6. No modificar ni publicar Android, ni cambiar Supabase real fuera del release autorizado. Si el backend no está listo, **NO** fusionar la UI que llama al RPC.
+6. No modificar ni publicar Android. Supabase se modificó exclusivamente mediante la migración autorizada de licencia; si falla el QA de seguridad/permisos, **NO** fusionar la interfaz.
 
 **Riesgo pendiente:** verificar con usuario Preview real que el cliente conductor reenvíe solamente la foto rechazada sin alterar la ruta de la foto aprobada. Esto no se certifica con Flutter unit tests solamente.
