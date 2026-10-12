@@ -613,6 +613,286 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     }
   }
 
+  bool _isManualIdentityDocument(Map<String, dynamic> document) {
+    if (_text(document['verification_method'], '').toLowerCase() != 'manual') {
+      return false;
+    }
+    final type = _text(document['document_type'], '').toLowerCase();
+    return const <String>{
+      'identity_card',
+      'national_id',
+      'id_card',
+      'identity',
+      'carnet',
+      'cedula',
+      'cédula',
+    }.contains(type) || type.contains('identity');
+  }
+
+  String _identityPartLabel(String slot) => switch (slot) {
+        'front' => 'Frente del carné',
+        'back' => 'Reverso del carné',
+        'selfie' => 'Fotografía facial',
+        'profile' => 'Foto de perfil',
+        _ => 'Fotografía',
+      };
+
+  IconData _identityPartIcon(String slot) => switch (slot) {
+        'front' => Icons.credit_card_rounded,
+        'back' => Icons.flip_to_back_rounded,
+        'selfie' => Icons.face_rounded,
+        'profile' => Icons.account_circle_outlined,
+        _ => Icons.image_outlined,
+      };
+
+  Future<void> _reviewIdentityPart(
+    Map<String, dynamic> document,
+    String slot,
+    String newStatus,
+  ) async {
+    if (saving) return;
+    final documentId = document['id']?.toString();
+    if (documentId == null || documentId.isEmpty) return;
+
+    final parts = _map(document['review_parts']);
+    final entry = _map(parts[slot]);
+    final version = int.tryParse(_text(entry['version'], '0')) ?? 0;
+    final label = _identityPartLabel(slot);
+    final rejecting = newStatus == 'rejected';
+    final note = TextEditingController();
+
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          rejecting
+              ? 'Rechazar $label'
+              : newStatus == 'approved'
+                  ? 'Aprobar $label'
+                  : 'Reabrir $label',
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              rejecting
+                  ? 'Solo se rechazará esta fotografía. Las demás evidencias aprobadas conservarán su estado.'
+                  : 'Solo cambiará el estado de $label. No se modifican las demás fotografías.',
+            ),
+            if (rejecting) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: note,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Motivo del rechazo',
+                  hintText: 'Ej.: foto borrosa, cortada o no corresponde',
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              rejecting
+                  ? 'Confirmar rechazo'
+                  : newStatus == 'approved'
+                      ? 'Aprobar fotografía'
+                      : 'Reabrir revisión',
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final reason = note.text.trim();
+    note.dispose();
+    if (accepted != true || !mounted) return;
+    if (rejecting && reason.length < 5) {
+      setState(() {
+        error = 'Indica un motivo de rechazo de al menos cinco caracteres.';
+      });
+      return;
+    }
+
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    try {
+      await supabase.rpc(
+        'admin_driver_kyc_bolivia_manual_review_part',
+        params: {
+          'p_document_id': documentId,
+          'p_slot': slot,
+          'p_status': newStatus,
+          'p_reason': rejecting ? reason : null,
+          'p_expected_version': version,
+          'p_channel': widget.channel,
+        },
+      );
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$label: ' +
+                  _friendlyDocumentStatus(newStatus) +
+                  '. Las demás evidencias no cambiaron.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          error = 'No se pudo actualizar $label. $e';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  Widget _identityPartReviewCard(
+    Map<String, dynamic> document,
+    String slot,
+  ) {
+    final parts = _map(document['review_parts']);
+    final entry = _map(parts[slot]);
+    var path = _text(entry['path'], '');
+    if (slot == 'profile' && path.isEmpty) {
+      path = _text(_map(detail['driver'])['profile_photo_path'], '');
+    }
+    if (path.isEmpty) return const SizedBox.shrink();
+
+    final status = _text(entry['status'], 'pending').toLowerCase();
+    final reason = _text(entry['reason'], '');
+    final tone = status == 'approved'
+        ? const Color(0xFF067647)
+        : status == 'rejected'
+            ? const Color(0xFFB42318)
+            : const Color(0xFFB54708);
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: status == 'rejected'
+            ? const Color(0xFFFFF7F6)
+            : status == 'approved'
+                ? const Color(0xFFF6FEF9)
+                : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: tone.withOpacity(.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(_identityPartIcon(slot), size: 17, color: tone),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  _identityPartLabel(slot),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              Chip(
+                label: Text(_friendlyDocumentStatus(status)),
+                side: BorderSide(color: tone.withOpacity(.28)),
+              ),
+            ],
+          ),
+          if (status == 'rejected' && reason.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Motivo: $reason',
+                style: const TextStyle(
+                  color: Color(0xFFB42318),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          const SizedBox(height: 7),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _openDriverAsset(path),
+                icon: const Icon(Icons.visibility_outlined, size: 16),
+                label: const Text('Ver'),
+              ),
+              if (status != 'approved')
+                FilledButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () => _reviewIdentityPart(
+                            document,
+                            slot,
+                            'approved',
+                          ),
+                  icon: const Icon(Icons.check_circle_outline, size: 16),
+                  label: const Text('Aprobar'),
+                ),
+              if (status != 'rejected')
+                OutlinedButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () => _reviewIdentityPart(
+                            document,
+                            slot,
+                            'rejected',
+                          ),
+                  icon: const Icon(Icons.cancel_outlined, size: 16),
+                  label: const Text('Rechazar'),
+                ),
+              if (status != 'pending')
+                TextButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () => _reviewIdentityPart(
+                            document,
+                            slot,
+                            'pending',
+                          ),
+                  icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                  label: const Text('Reabrir'),
+                ),
+            ],
+          ),
+          if (status == 'approved')
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text(
+                'Aprobado · el conductor no tendrá que volver a cargar esta evidencia.',
+                style: TextStyle(
+                  color: Color(0xFF067647),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = _map(detail['user']);
