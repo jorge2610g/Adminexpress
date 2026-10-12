@@ -1262,9 +1262,16 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                               )
                             else
                               ...documents.map((doc) {
-                                final status = (doc['status'] ?? 'pending').toString();
+                                final status =
+                                    (doc['status'] ?? 'pending').toString();
                                 final expiry = doc['expires_at'];
-                                final rejectionNote = (doc['notes'] ?? '').toString();
+                                final rejectionNote = _text(
+                                  doc['rejection_reason'] ?? doc['notes'],
+                                  '',
+                                );
+                                final manualIdentity =
+                                    _isManualIdentityDocument(doc);
+
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 9),
                                   padding: const EdgeInsets.all(12),
@@ -1274,12 +1281,14 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                     border: Border.all(color: _detailBorder),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Wrap(
                                         spacing: 9,
                                         runSpacing: 7,
-                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
                                         children: [
                                           Text(
                                             _friendlyDriverDocumentType(
@@ -1295,82 +1304,180 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                               _friendlyDocumentStatus(status),
                                             ),
                                           ),
+                                          if (manualIdentity)
+                                            const Chip(
+                                              avatar: Icon(
+                                                Icons.photo_library_outlined,
+                                                size: 15,
+                                              ),
+                                              label: Text(
+                                                'Revisión por fotografía',
+                                              ),
+                                            ),
                                         ],
                                       ),
-                                      if (_text(doc['document_number'], '').isNotEmpty)
-                                        Text('Número: ${doc['document_number']}',
+                                      if (_text(
+                                        doc['document_number'],
+                                        '',
+                                      ).isNotEmpty)
+                                        Text(
+                                          'Número: ' +
+                                              doc['document_number'].toString(),
                                           style: const TextStyle(
-                                            color: _detailMuted, fontSize: 11,
-                                          )),
+                                            color: _detailMuted,
+                                            fontSize: 11,
+                                          ),
+                                        ),
                                       if (expiry != null)
-                                        Text('Vencimiento: ${_date(expiry)}',
+                                        Text(
+                                          'Vencimiento: ' + _date(expiry),
                                           style: const TextStyle(
-                                            color: _detailMuted, fontSize: 11,
-                                          )),
-                                      if (status == 'rejected' && rejectionNote.isNotEmpty)
-                                        Text(rejectionNote,
+                                            color: _detailMuted,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      if (!manualIdentity &&
+                                          status == 'rejected' &&
+                                          rejectionNote.isNotEmpty)
+                                        Text(
+                                          rejectionNote,
                                           style: const TextStyle(
-                                            color: Color(0xFFB42318), fontSize: 11,
-                                          )),
-                                      const SizedBox(height: 9),
-                                      Wrap(
-                                        spacing: 7,
-                                        runSpacing: 8,
-                                        children: [
-                                          if (_text(doc['front_object_path'], '').isNotEmpty)
-                                            OutlinedButton.icon(
-                                              onPressed: () => _openDriverAsset(
-                                                doc['front_object_path']?.toString(),
+                                            color: Color(0xFFB42318),
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      if (manualIdentity) ...[
+                                        const SizedBox(height: 5),
+                                        const Text(
+                                          'Aprueba o rechaza cada fotografía por separado. '
+                                          'Una evidencia aprobada permanece aprobada aunque otra se rechace.',
+                                          style: TextStyle(
+                                            color: _detailMuted,
+                                            fontSize: 11,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                        for (final slot in const <String>[
+                                          'front',
+                                          'back',
+                                          'selfie',
+                                          'profile',
+                                        ])
+                                          _identityPartReviewCard(doc, slot),
+                                      ] else ...[
+                                        const SizedBox(height: 9),
+                                        Wrap(
+                                          spacing: 7,
+                                          runSpacing: 8,
+                                          children: [
+                                            if (_text(
+                                              doc['front_object_path'],
+                                              '',
+                                            ).isNotEmpty)
+                                              OutlinedButton.icon(
+                                                onPressed: () =>
+                                                    _openDriverAsset(
+                                                  doc['front_object_path']
+                                                      ?.toString(),
+                                                ),
+                                                icon: const Icon(
+                                                  Icons.credit_card_rounded,
+                                                  size: 16,
+                                                ),
+                                                label: const Text('Ver frente'),
                                               ),
-                                              icon: const Icon(Icons.credit_card_rounded, size: 16),
-                                              label: const Text('Ver frente'),
-                                            ),
-                                          if (_text(doc['back_object_path'], '').isNotEmpty)
-                                            OutlinedButton.icon(
-                                              onPressed: () => _openDriverAsset(
-                                                doc['back_object_path']?.toString(),
+                                            if (_text(
+                                              doc['back_object_path'],
+                                              '',
+                                            ).isNotEmpty)
+                                              OutlinedButton.icon(
+                                                onPressed: () =>
+                                                    _openDriverAsset(
+                                                  doc['back_object_path']
+                                                      ?.toString(),
+                                                ),
+                                                icon: const Icon(
+                                                  Icons.flip_to_back_rounded,
+                                                  size: 16,
+                                                ),
+                                                label:
+                                                    const Text('Ver reverso'),
                                               ),
-                                              icon: const Icon(Icons.flip_to_back_rounded, size: 16),
-                                              label: const Text('Ver reverso'),
-                                            ),
-                                          if (_text(doc['selfie_object_path'], '').isNotEmpty)
-                                            OutlinedButton.icon(
-                                              onPressed: () => _openDriverAsset(
-                                                doc['selfie_object_path']?.toString(),
+                                            if (_text(
+                                              doc['selfie_object_path'],
+                                              '',
+                                            ).isNotEmpty)
+                                              OutlinedButton.icon(
+                                                onPressed: () =>
+                                                    _openDriverAsset(
+                                                  doc['selfie_object_path']
+                                                      ?.toString(),
+                                                ),
+                                                icon: const Icon(
+                                                  Icons.face_rounded,
+                                                  size: 16,
+                                                ),
+                                                label: const Text(
+                                                  'Ver foto facial',
+                                                ),
                                               ),
-                                              icon: const Icon(Icons.face_rounded, size: 16),
-                                              label: const Text('Ver foto facial'),
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 9),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 7,
-                                        children: [
-                                          if (status != 'verified')
-                                            FilledButton.icon(
-                                              onPressed: saving ? null :
-                                                  () => _reviewDocument(doc, 'verified'),
-                                              icon: const Icon(Icons.check_circle_outline, size: 17),
-                                              label: const Text('Aprobar'),
-                                            ),
-                                          if (status != 'rejected')
-                                            OutlinedButton.icon(
-                                              onPressed: saving ? null :
-                                                  () => _reviewDocument(doc, 'rejected'),
-                                              icon: const Icon(Icons.cancel_outlined, size: 17),
-                                              label: const Text('Rechazar'),
-                                            ),
-                                          if (status != 'pending')
-                                            TextButton.icon(
-                                              onPressed: saving ? null :
-                                                  () => _reviewDocument(doc, 'pending'),
-                                              icon: const Icon(Icons.restart_alt, size: 17),
-                                              label: const Text('Reabrir revisión'),
-                                            ),
-                                        ],
-                                      ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 9),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 7,
+                                          children: [
+                                            if (status != 'verified')
+                                              FilledButton.icon(
+                                                onPressed: saving
+                                                    ? null
+                                                    : () => _reviewDocument(
+                                                          doc,
+                                                          'verified',
+                                                        ),
+                                                icon: const Icon(
+                                                  Icons
+                                                      .check_circle_outline,
+                                                  size: 17,
+                                                ),
+                                                label:
+                                                    const Text('Aprobar'),
+                                              ),
+                                            if (status != 'rejected')
+                                              OutlinedButton.icon(
+                                                onPressed: saving
+                                                    ? null
+                                                    : () => _reviewDocument(
+                                                          doc,
+                                                          'rejected',
+                                                        ),
+                                                icon: const Icon(
+                                                  Icons.cancel_outlined,
+                                                  size: 17,
+                                                ),
+                                                label:
+                                                    const Text('Rechazar'),
+                                              ),
+                                            if (status != 'pending')
+                                              TextButton.icon(
+                                                onPressed: saving
+                                                    ? null
+                                                    : () => _reviewDocument(
+                                                          doc,
+                                                          'pending',
+                                                        ),
+                                                icon: const Icon(
+                                                  Icons.restart_alt,
+                                                  size: 17,
+                                                ),
+                                                label: const Text(
+                                                  'Reabrir revisión',
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 );
