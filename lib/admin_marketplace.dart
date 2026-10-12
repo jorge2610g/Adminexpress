@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
+import 'admin_marketplace_demos.dart';
 
 const _blue = Color(0xFF2563EB);
 const _ink = Color(0xFF0F172A);
@@ -996,6 +997,14 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                     )
                     .toList(),
               ),
+              const SizedBox(height: 26),
+              if (widget.zoneId != null && widget.zoneId!.isNotEmpty)
+                AdminMarketplaceDemoSection(
+                  key:ValueKey('${widget.channel}-${widget.zoneId}'),
+                  zoneId:widget.zoneId!,
+                  channel:widget.channel,
+                  onOpenProducts:_openProducts,
+                ),
               const SizedBox(height: 26),
               _section(
                 'Comercios y productos',

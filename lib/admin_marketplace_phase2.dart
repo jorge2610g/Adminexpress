@@ -146,6 +146,16 @@ class _AdminMarketplacePhase2PageState
     );
     final driverKm =
         TextEditingController(text: row['driver_per_km']?.toString() ?? '0');
+    final pickupFee = TextEditingController(
+      text: row['driver_pickup_fee']?.toString() ??
+          row['driver_base_payout']?.toString() ?? '0',
+    );
+    final dropoffFee = TextEditingController(
+      text: row['driver_dropoff_fee']?.toString() ?? '0',
+    );
+    final serviceFee = TextEditingController(
+      text: row['customer_service_fee']?.toString() ?? '0',
+    );
     final driverMin = TextEditingController(
       text: row['driver_min_payout']?.toString() ?? '0',
     );
@@ -221,6 +231,30 @@ class _AdminMarketplacePhase2PageState
                     'Pago independiente al repartidor',
                     style: TextStyle(fontWeight: FontWeight.w900),
                   ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Fórmula: recogida + km recorridos × tarifa por km + entrega. '
+                    'No depende de cuánto cobramos al cliente.',
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(spacing: 10, runSpacing: 10, children: [
+                    SizedBox(width: 145, child: TextField(
+                      controller: pickupFee,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Recogida'),
+                    )),
+                    SizedBox(width: 145, child: TextField(
+                      controller: dropoffFee,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Entrega'),
+                    )),
+                    SizedBox(width: 145, child: TextField(
+                      controller: serviceFee,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Servicio Express cliente'),
+                    )),
+                  ]),
+                  const SizedBox(height: 8),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -386,9 +420,25 @@ class _AdminMarketplacePhase2PageState
           'p_plus_enabled': plus,
         },
       );
+      try {
+        await supabase.rpc('admin_marketplace_delivery_rate_components',params:{
+          'p_zone_id':row['zone_id'],
+          'p_pickup':double.tryParse(pickupFee.text.trim()) ?? 0,
+          'p_km':double.tryParse(driverKm.text.trim()) ?? 0,
+          'p_dropoff':double.tryParse(dropoffFee.text.trim()) ?? 0,
+          'p_service_fee':double.tryParse(serviceFee.text.trim()) ?? 0,
+        });
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Tarifas adicionales no guardadas: $e'),
+        ));
+      }
       if (mounted) _refresh();
     }
 
+    pickupFee.dispose();
+    dropoffFee.dispose();
+    serviceFee.dispose();
     customerBase.dispose();
     customerKm.dispose();
     customerMin.dispose();
