@@ -93,7 +93,7 @@ class _AdminDriverChampionshipPageState
   }
   Future<void> _save() async {
     if(_saving || widget.zoneId==null)return;
-    if(_title.text.trim().length<4||!_ends.isAfter(_starts)){
+    if(_title.text.trim().length<4||_ends.isBefore(_starts)){
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content:Text('Escribe un nombre y fechas válidas.')));return;
     }
