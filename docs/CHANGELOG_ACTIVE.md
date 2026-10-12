@@ -1,3 +1,12 @@
+## 2026-10-12 · Redondeo real de tarifas por moneda (rama en QA)
+
+- Nueva política por moneda y canal (centavos / 0,50 / entero), sin modificar tarifas históricas.
+- Cotizaciones y persistencia autoritativas para solicitudes, ofertas, viajes y entregas; ingresos brutos usan los valores almacenados.
+- Selector en Adminexpress → Tarifas por zona; Preview y Producción usan la misma web, con configuración aislada.
+- Respaldo: `backup/before-currency-rounding-20261012`. Rama: `feat/currency-fare-rounding-20261012`.
+- **Pendiente:** migración Supabase, CI, QA funcional en cuentas Preview y deploy real. No afirmar publicado hasta verificaciones.
+- Guía: `docs/CURRENCY_FARE_ROUNDING_2026-10-12.md`.
+
 ## 2026-10-11 — Migración de licencia aplicada; panel aún en QA
 
 **Estado actualizado 2026-10-11:** el propietario autorizó aplicar la migración de licencia al Supabase compartido. Se ejecutó correctamente mediante Supabase y quedó registrada como versión `20261012021954`, nombre `driver_license_individual_evidence_review`. La función `admin_driver_license_review_part` y el trigger `trg_driver_license_part_states` existen; `anon` no tiene ejecución. La licencia existente de Producción mantiene estado `verified`. **No hay licencias de Preview registradas para QA E2E; la UI aún no está fusionada ni desplegada.** Conservar las ramas PR en borrador y exigir validación Preview antes de publicar la interfaz. La migración compartida es aditiva, no equivale a aprobación del flujo ni a publicación web.
