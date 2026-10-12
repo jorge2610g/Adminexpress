@@ -1760,8 +1760,13 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                               }),
                             const Divider(),
                             const Text(
-                              'Revisión de identidad',
+                              'Historial de verificaciones de identidad',
                               style: TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                            const Text(
+                              'Estos son intentos anteriores de verificación, '
+                              'no los estados individuales de las fotografías.',
+                              style: TextStyle(color: _detailMuted, fontSize: 11),
                             ),
                             if (verifications.isEmpty)
                               const Padding(
@@ -1778,9 +1783,17 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                     children: [
                                       const Icon(Icons.fact_check_outlined, size: 18),
                                       const SizedBox(width: 9),
-                                      const Expanded(
-                                        child: Text('Verificación manual',
-                                          style: TextStyle(fontWeight: FontWeight.w600)),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Intento de verificación manual',
+                                              style: TextStyle(fontWeight: FontWeight.w600)),
+                                            Text(_date(v['created_at']),
+                                              style: const TextStyle(
+                                                color: _detailMuted, fontSize: 10)),
+                                          ],
+                                        ),
                                       ),
                                       Chip(label: Text(
                                         _friendlyDocumentStatus(status),
