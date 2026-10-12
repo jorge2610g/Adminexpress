@@ -957,6 +957,217 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     );
   }
 
+
+  // Licence photos are reviewed independently; legacy document-wide approval
+  // is displayed as approved on both sides until either image is replaced.
+  String _licensePartStatus(Map<String, dynamic> document, String slot) {
+    final path = _text(document[slot == 'front'
+        ? 'front_object_path'
+        : 'back_object_path'], '');
+    if (path.isEmpty) return 'pending';
+    final entry = _map(_map(document['review_parts'])[slot]);
+    final state = _text(entry['status'], '').toLowerCase();
+    if (state.isNotEmpty) return state;
+    final legacy = _text(document['status'], 'pending').toLowerCase();
+    return legacy == 'verified' ? 'approved' : legacy;
+  }
+
+  Future<void> _reviewLicensePart(
+    Map<String, dynamic> document,
+    String slot,
+    String status,
+  ) async {
+    if (saving) return;
+    final id = _text(document['id'], '');
+    if (id.isEmpty) return;
+    final label = slot == 'front' ? 'Frente de la licencia' : 'Reverso de la licencia';
+    final rejecting = status == 'rejected';
+    final note = TextEditingController();
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(rejecting ? 'Rechazar $label'
+            : status == 'approved' ? 'Aprobar $label' : 'Reabrir $label'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Solo cambiará esta fotografía. La otra cara conservará '
+              'su estado y no tendrá que volver a cargarse.',
+            ),
+            if (rejecting) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: note,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Motivo del rechazo',
+                  hintText: 'Ej.: fotografía ilegible o cortada',
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(rejecting ? 'Confirmar rechazo'
+                : status == 'approved' ? 'Aprobar fotografía' : 'Reabrir revisión'),
+          ),
+        ],
+      ),
+    );
+    final reason = note.text.trim();
+    note.dispose();
+    if (!mounted || accepted != true) return;
+    if (rejecting && reason.length < 5) {
+      setState(() => error = 'Indica un motivo de al menos cinco caracteres.');
+      return;
+    }
+    final entry = _map(_map(document['review_parts'])[slot]);
+    final version = int.tryParse(_text(entry['version'], '0')) ?? 0;
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    try {
+      await supabase.rpc('admin_driver_license_review_part', params: {
+        'p_document_id': id,
+        'p_slot': slot,
+        'p_status': status,
+        'p_reason': rejecting ? reason : null,
+        'p_expected_version': version,
+        'p_channel': widget.channel,
+      });
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$label: ${_friendlyDocumentStatus(status)}.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() {
+        error = 'No se pudo revisar $label. $e';
+      });
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  Widget _licensePartReviewCard(
+    Map<String, dynamic> document,
+    String slot,
+  ) {
+    final front = slot == 'front';
+    final path = _text(
+      document[front ? 'front_object_path' : 'back_object_path'], '');
+    final entry = _map(_map(document['review_parts'])[slot]);
+    final status = _licensePartStatus(document, slot);
+    final tone = status == 'approved'
+        ? const Color(0xFF067647)
+        : status == 'rejected'
+            ? const Color(0xFFB42318)
+            : const Color(0xFFB54708);
+    final reason = _text(entry['reason'], '');
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: status == 'approved'
+            ? const Color(0xFFF6FEF9)
+            : status == 'rejected'
+                ? const Color(0xFFFFF7F6)
+                : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: tone.withValues(alpha: .3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(front ? Icons.credit_card_rounded
+                  : Icons.flip_to_back_rounded, size: 17, color: tone),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(front ? 'Frente de la licencia'
+                    : 'Reverso de la licencia',
+                  style: const TextStyle(fontSize: 12,
+                      fontWeight: FontWeight.w800)),
+              ),
+              Chip(
+                label: Text(_friendlyDocumentStatus(status)),
+                side: BorderSide(color: tone.withValues(alpha: .3)),
+              ),
+            ],
+          ),
+          if (reason.isNotEmpty && status == 'rejected')
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Text('Motivo: $reason',
+                style: const TextStyle(color: Color(0xFFB42318),
+                    fontSize: 11, fontWeight: FontWeight.w700)),
+            ),
+          if (path.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Fotografía no cargada',
+                  style: TextStyle(color: _detailMuted, fontSize: 11)),
+            )
+          else ...[
+            const SizedBox(height: 7),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _openDriverAsset(path),
+                  icon: const Icon(Icons.visibility_outlined, size: 16),
+                  label: const Text('Ver'),
+                ),
+                if (status != 'approved')
+                  FilledButton.icon(
+                    onPressed: saving ? null
+                        : () => _reviewLicensePart(document, slot, 'approved'),
+                    icon: const Icon(Icons.check_circle_outline, size: 16),
+                    label: const Text('Aprobar'),
+                  ),
+                if (status != 'rejected')
+                  OutlinedButton.icon(
+                    onPressed: saving ? null
+                        : () => _reviewLicensePart(document, slot, 'rejected'),
+                    icon: const Icon(Icons.cancel_outlined, size: 16),
+                    label: const Text('Rechazar'),
+                  ),
+                if (status != 'pending')
+                  TextButton.icon(
+                    onPressed: saving ? null
+                        : () => _reviewLicensePart(document, slot, 'pending'),
+                    icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                    label: const Text('Reabrir'),
+                  ),
+              ],
+            ),
+            if (status == 'approved')
+              const Padding(
+                padding: EdgeInsets.only(top: 5),
+                child: Text('Aprobado · esta cara conserva su aprobación.',
+                  style: TextStyle(color: Color(0xFF067647),
+                    fontSize: 10, fontWeight: FontWeight.w700)),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = _map(detail['user']);
@@ -1410,7 +1621,21 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                             fontSize: 11,
                                           ),
                                         ),
-                                      if (manualIdentity) ...[
+                                      if (_text(doc['document_type'], '')
+                                          .toLowerCase() == 'driver_license') ...[
+                                        const SizedBox(height: 5),
+                                        const Text(
+                                          'Revisa frente y reverso por separado. '
+                                          'Una cara aprobada conserva su estado.',
+                                          style: TextStyle(
+                                            color: _detailMuted,
+                                            fontSize: 11,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                        _licensePartReviewCard(doc, 'front'),
+                                        _licensePartReviewCard(doc, 'back'),
+                                      ] else if (manualIdentity) ...[
                                         const SizedBox(height: 5),
                                         const Text(
                                           'Aprueba o rechaza cada fotografía por separado. '
