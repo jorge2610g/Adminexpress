@@ -1,0 +1,29 @@
+name: Validate Fare Rounding Admin
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/admin_fare_rounding.dart'
+      - 'lib/admin_control_sections.dart'
+      - '.github/workflows/fare-rounding-validate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze fare rounding and dependent admin pages
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos lib/admin_fare_rounding.dart lib/admin_control_sections.dart lib/admin_panel.dart lib/main.dart
+      - name: Build central Adminexpress Web
+        run: flutter build web --release --base-href /
