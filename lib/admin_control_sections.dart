@@ -11,6 +11,7 @@ import 'admin_country_coverage.dart';
 import 'admin_admob_settings.dart';
 import 'admin_distance_fares.dart';
 import 'admin_fare_rounding.dart';
+import 'admin_driver_quick_offers.dart';
 import 'admin_zone_coverage_editor.dart';
 import 'core/admin_zone_coverage_label.dart';
 
@@ -5043,6 +5044,15 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                 key: ValueKey('fare-rounding-${data.zone!['currency_code']}-${widget.channel}'),
                 channel: widget.channel,
                 currencyCode: (data.zone!['currency_code'] ?? 'BOB').toString(),
+              ),
+              const SizedBox(height: 14),
+            ],
+            if (data.zone != null) ...[
+              AdminDriverQuickOffersEditor(
+                key: ValueKey('quick-offers-${data.zone!['id']}-${widget.channel}'),
+                channel: widget.channel,
+                zone: data.zone!,
+                services: data.services,
               ),
               const SizedBox(height: 14),
             ],
