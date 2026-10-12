@@ -12,6 +12,7 @@
 - RPC requerido: `admin_driver_license_review_part`; lo implementa la migración versionada de `Expressdelivery/supabase/migrations/20261012015500_driver_license_individual_evidence_review.sql`. La seguridad del RPC exige `is_admin()`, canal de la cuenta y versión de evidencia actual; preservar el estado de la cara opuesta y bloquear imágenes vacías.
 - Documentos de licencia heredados con estado `verified` y fotos existentes muestran las dos caras aprobadas hasta que se cambie alguna imagen. El trigger resetea solo la cara cuya ruta cambia.
 - Una sola web `admin.expressviajes.online`; entornos Preview y Producción dependen de la cuenta, **nunca** de dos builds.
+- La lista histórica de `identity_verifications` se distingue de los estados de fotografías y muestra fecha de cada intento, evitando confundir «pendiente/pendiente/aprobado» con tres fotos distintas.
 
 ## Regla de promoción
 1. Respaldo en `backup/before-license-photo-review-20261011`.
