@@ -1,3 +1,9 @@
+## Pendiente QA 2026-10-11: revisión individual de licencia / visor embebido
+
+Trabajo propuesto en `fix/license-photo-review-inline-20261011`, respaldo `backup/before-license-photo-review-20261011`. El cambio sustituye la navegación a otra pestaña de archivos por modal interno y agrega filas independientes a licencia frente/reverso. Requiere backend `admin_driver_license_review_part` pendiente de aplicar desde migración de `Expressdelivery`. No fusionar UI sin RPC en Producción, pruebas con datos Preview y paridad de cuentas. Ver `docs/DRIVER_LICENSE_INLINE_REVIEW_2026-10-11.md`.
+
+---
+
 # Adminexpress — handoff vigente 2026-10-11
 
 Este es el handoff operativo vigente para cualquier IA o desarrollador.
