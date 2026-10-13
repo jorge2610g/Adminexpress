@@ -10,10 +10,6 @@ const _productionPublishableKey =
 const supabaseUrl = _productionUrl;
 const supabasePublishableKey = _productionPublishableKey;
 
-/// Canonical OAuth return destination for the single Adminexpress web app.
-const adminGoogleOAuthRedirectUrl =
-    'https://admin.expressviajes.online/';
-
 /// Startup guard: Adminexpress must always use the primary Express project.
 /// Environment authorization is intentionally NOT decided at build time.
 void validateAdminDeployment() {
