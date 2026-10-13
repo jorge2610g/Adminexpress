@@ -458,9 +458,6 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
       Expanded(child: page),
     ]);
   }
-}      Expanded(child: page),
-    ]);
-  }
 }
 
 class _UnifiedMerchantDialog extends StatefulWidget {
