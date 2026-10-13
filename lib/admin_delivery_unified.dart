@@ -118,6 +118,103 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
     if (mounted) setState(_refresh);
   }
 
+
+  // Preview shares the administrator's existing permissions. It is not
+  // an impersonation session and never grants merchant credentials.
+  Future<void> _previewMerchant(Map<String, dynamic> merchant) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _UnifiedMerchantDialog(
+        merchant: merchant,
+        channel: widget.channel,
+        readOnly: true,
+        openProducts: () {},
+      ),
+    );
+  }
+
+  Widget _metric(String label, int count, IconData icon, Color accent) =>
+      Card(child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+        child: Row(children: [
+          Icon(icon, color: accent, size: 23),
+          const SizedBox(width: 9),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11,
+                  color: Color(0xFF64748B))),
+              Text(count.toString(),
+                style: const TextStyle(fontSize: 21,
+                  fontWeight: FontWeight.w900)),
+            ],
+          )),
+        ]),
+      ));
+
+  Widget _merchantCard(Map<String, dynamic> merchant) {
+    final status = _merchantStatus(merchant);
+    final color = status == 'active' ? const Color(0xFF15803D)
+      : status == 'pending' ? const Color(0xFFB45309)
+      : const Color(0xFF64748B);
+    return Card(child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAF2FF),
+                borderRadius: BorderRadius.circular(9)),
+              child: const Icon(Icons.storefront,
+                color: Color(0xFF2563EB)),
+            ),
+            const Spacer(),
+            Flexible(child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: status == 'active' ? const Color(0xFFDCFCE7)
+                  : status == 'pending' ? const Color(0xFFFEF3C7)
+                  : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(7)),
+              child: Text(_statusLabel(status), maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: color, fontSize: 10,
+                  fontWeight: FontWeight.w800)),
+            )),
+          ]),
+          const SizedBox(height: 10),
+          Text(merchant['name']?.toString() ?? 'Comercio',
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14,
+              fontWeight: FontWeight.w900)),
+          const SizedBox(height: 3),
+          Text(merchant['category_key']?.toString() ?? 'Sin categoría',
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 11,
+              color: Color(0xFF64748B))),
+          const Spacer(),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => _openMerchant(merchant),
+              child: const Text('Configurar',
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            )),
+            const SizedBox(width: 7),
+            Expanded(child: FilledButton(
+              onPressed: () => _previewMerchant(merchant),
+              child: const Text('Ver panel',
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            )),
+          ]),
+        ]),
+    ));
+  }
+
   Widget _businesses() => FutureBuilder<Map<String, dynamic>>(
     future: businesses,
     builder: (context, snapshot) {
@@ -125,78 +222,111 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
         return const Center(child: CircularProgressIndicator());
       }
       if (snapshot.hasError) {
-        return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('No se pudieron cargar los locales: ${snapshot.error}'),
-          TextButton(onPressed: () => setState(_refresh),
+        return Center(child: Column(mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('No se pudieron cargar los negocios.'),
+            TextButton(onPressed: () => setState(_refresh),
               child: const Text('Reintentar')),
-        ]));
+          ]));
       }
       final all = _rows(snapshot.data?['merchants']);
       final needle = search.text.trim().toLowerCase();
       final filtered = all.where((row) {
         final matchText = needle.isEmpty ||
-            (row['name'] ?? '').toString().toLowerCase().contains(needle) ||
-            (row['category_key'] ?? '').toString().toLowerCase().contains(needle);
+          (row['name'] ?? '').toString().toLowerCase().contains(needle) ||
+          (row['category_key'] ?? '').toString().toLowerCase().contains(needle);
         return matchText &&
-            (statusFilter == 'all' || _merchantStatus(row) == statusFilter);
+          (statusFilter == 'all' || _merchantStatus(row) == statusFilter);
       }).toList();
       final pending = all.where((r) => _merchantStatus(r) == 'pending').length;
       final active = all.where((r) => _merchantStatus(r) == 'active').length;
       final inactive = all.where((r) => _merchantStatus(r) == 'inactive').length;
-      return ListView(padding: const EdgeInsets.all(18), children: [
-        Text('Negocios de la zona', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 4),
-        Text('${all.length} locales registrados · $active activos · '
-            '$pending pendientes · $inactive inactivos',
-            style: Theme.of(context).textTheme.bodySmall),
-        const SizedBox(height: 12),
-        Wrap(spacing: 9, runSpacing: 9, children: [
-          SizedBox(width: 250, child: TextField(
-            controller: search,
-            decoration: const InputDecoration(
-              hintText: 'Buscar negocio o categoría',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
-              isDense: true,
+      return LayoutBuilder(builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final compact = width < 560;
+        final cols = width >= 1160 ? 4 : width >= 800 ? 3
+            : width >= 530 ? 2 : 1;
+        return ListView(
+          padding: EdgeInsets.all(compact ? 12 : 18),
+          children: [
+            Text('Negocios de la zona',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w900)),
+            const SizedBox(height: 4),
+            const Text('Gestiona la visibilidad y publicidad de cada local.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+            const SizedBox(height: 13),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: width >= 760 ? 4 : 2,
+              mainAxisExtent: 75,
+              mainAxisSpacing: 9, crossAxisSpacing: 9,
+              children: [
+                _metric('Locales', all.length, Icons.storefront_outlined,
+                  const Color(0xFF2563EB)),
+                _metric('Activos', active, Icons.check_circle_outline,
+                  const Color(0xFF15803D)),
+                _metric('Pendientes', pending, Icons.schedule_outlined,
+                  const Color(0xFFB45309)),
+                _metric('Inactivos', inactive, Icons.pause_circle_outline,
+                  const Color(0xFF64748B)),
+              ],
             ),
-            onChanged: (_) => setState(() {}),
-          )),
-          for (final status in ['all','active','pending','inactive'])
-            ChoiceChip(
-              label: Text('${_statusLabel(status)}'
-                '${status == 'all' ? ' (${all.length})' : ''}'),
-              selected: statusFilter == status,
-              onSelected: (_) => setState(() => statusFilter = status),
-            ),
-          IconButton(onPressed: () => setState(_refresh),
-            tooltip: 'Actualizar', icon: const Icon(Icons.refresh)),
-        ]),
-        const SizedBox(height: 16),
-        if (filtered.isEmpty) const Card(child: Padding(
-          padding: EdgeInsets.all(22),
-          child: Text('No hay comercios con este filtro en la zona seleccionada.'),
-        )),
-        for (final merchant in filtered)
-          Card(
-            child: ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.storefront)),
-              title: Text(merchant['name']?.toString() ?? 'Comercio',
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('${merchant['category_key'] ?? 'Sin categoría'}'
-                ' · ${_statusLabel(_merchantStatus(merchant))}'
-                ' · ${widget.channel.toUpperCase()}'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _openMerchant(merchant),
-            ),
-          ),
-        const SizedBox(height: 20),
-        if (!widget.readOnly && (widget.zoneId ?? '').isNotEmpty)
-          AdminMarketplaceDemoSection(
-            zoneId: widget.zoneId!,
-            channel: widget.channel,
-            onOpenProducts: _openProducts,
-          ),
-      ]);
+            const SizedBox(height: 15),
+            Wrap(spacing: 9, runSpacing: 9,
+              crossAxisAlignment: WrapCrossAlignment.center, children: [
+                SizedBox(width: compact ? width - 24 : 300,
+                  child: TextField(
+                    controller: search,
+                    decoration: const InputDecoration(
+                      hintText: 'Buscar negocio o categoría',
+                      prefixIcon: Icon(Icons.search)),
+                    onChanged: (_) => setState(() {}),
+                  )),
+                for (final status in ['all', 'active', 'pending', 'inactive'])
+                  ChoiceChip(
+                    label: Text(status == 'all'
+                      ? 'Todos (' + all.length.toString() + ')'
+                      : _statusLabel(status)),
+                    selected: statusFilter == status,
+                    onSelected: (_) => setState(() => statusFilter = status),
+                  ),
+                IconButton(
+                  tooltip: 'Actualizar',
+                  onPressed: () => setState(_refresh),
+                  icon: const Icon(Icons.refresh_rounded)),
+              ]),
+            const SizedBox(height: 14),
+            if (filtered.isEmpty)
+              const Card(child: Padding(
+                padding: EdgeInsets.all(22),
+                child: Text('No hay locales con los filtros seleccionados.'),
+              )),
+            if (filtered.isNotEmpty)
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: filtered.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cols,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  mainAxisExtent: 189,
+                ),
+                itemBuilder: (context, index) =>
+                    _merchantCard(filtered[index]),
+              ),
+            const SizedBox(height: 22),
+            if (!widget.readOnly && (widget.zoneId ?? '').isNotEmpty)
+              AdminMarketplaceDemoSection(
+                zoneId: widget.zoneId!,
+                channel: widget.channel,
+                onOpenProducts: _openProducts,
+              ),
+          ],
+        );
+      });
     },
   );
 
@@ -236,35 +366,99 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
         channel: widget.channel, zoneId: widget.zoneId,
       ),
     };
+
     return Column(children: [
       Material(color: Colors.white, child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 13, 18, 12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            const Icon(Icons.local_shipping, color: Color(0xFF2563EB)),
-            const SizedBox(width: 9),
-            Text('Delivery', style: Theme.of(context).textTheme.titleLarge),
-            const Spacer(),
-            Chip(label: Text(widget.channel == 'preview'
+        padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Container(
+                height: 38, width: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF2FF),
+                  borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.local_shipping_rounded,
+                  color: Color(0xFF2563EB)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Delivery',
+                    style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w900)),
+                  const Text('Gestión unificada de comercios y repartos',
+                    maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11,
+                      color: Color(0xFF64748B))),
+                ],
+              )),
+              Chip(label: Text(widget.channel == 'preview'
                 ? 'PRUEBAS' : 'PRODUCCIÓN')),
-          ]),
-          const Text('Comercios, productos, publicidad, repartos, '
-            'Express Plus y liquidaciones en un solo lugar.'),
-          const SizedBox(height: 10),
-          SingleChildScrollView(scrollDirection: Axis.horizontal,
-            child: Row(children: [
-              for (var i = 0; i < choices.length; i++)
-                Padding(padding: const EdgeInsets.only(right: 7), child:
-                  ChoiceChip(
-                    avatar: Icon(choices[i].$2, size: 17),
-                    label: Text(choices[i].$1),
-                    selected: selectedTab == i,
-                    onSelected: (_) => setState(() => selectedTab = i),
-                  )),
-            ])),
-        ]),
+            ]),
+            const SizedBox(height: 12),
+            LayoutBuilder(builder: (context, box) {
+              final cols = box.maxWidth >= 1120 ? 6
+                  : box.maxWidth >= 600 ? 3 : 2;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: choices.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cols,
+                  mainAxisSpacing: 8, crossAxisSpacing: 8,
+                  mainAxisExtent: 58,
+                ),
+                itemBuilder: (context, index) {
+                  final chosen = index == selectedTab;
+                  return Semantics(
+                    button: true, selected: chosen,
+                    child: Material(
+                      color: chosen ? const Color(0xFF2563EB)
+                        : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => setState(() => selectedTab = index),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: chosen
+                              ? const Color(0xFF2563EB)
+                              : const Color(0xFFE2E8F0)),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(choices[index].$2, size: 18,
+                                color: chosen ? Colors.white
+                                  : const Color(0xFF475569)),
+                              const SizedBox(width: 5),
+                              Flexible(child: Text(choices[index].$1,
+                                textAlign: TextAlign.center,
+                                maxLines: 2, overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: chosen ? Colors.white
+                                    : const Color(0xFF334155)))),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+            }),
+          ],
+        ),
       )),
       Expanded(child: page),
+    ]);
+  }
+}      Expanded(child: page),
     ]);
   }
 }
@@ -419,6 +613,11 @@ class _UnifiedMerchantDialogState extends State<_UnifiedMerchantDialog> {
             '${row['active'] != true ? 'Inactivo' : visible ?
               'Activo' : 'Pendiente de publicar'}'),
           const Divider(),
+          if (widget.readOnly) const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: Text('Vista administrativa de solo lectura. No es una sesión del dueño del restaurante.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+          ),
           const Text('Perfil y visibilidad',
             style: TextStyle(fontWeight: FontWeight.bold)),
           Text('Categoría: ${row['category_key'] ?? '-'}'),
@@ -452,7 +651,7 @@ class _UnifiedMerchantDialogState extends State<_UnifiedMerchantDialog> {
             ),
           const SizedBox(height: 14),
           Wrap(spacing: 10, runSpacing: 9, children: [
-            OutlinedButton.icon(onPressed: widget.openProducts,
+            OutlinedButton.icon(onPressed: widget.readOnly ? null : widget.openProducts,
               icon: const Icon(Icons.restaurant_menu),
               label: const Text('Editar menú y productos')),
             OutlinedButton.icon(
