@@ -1,5 +1,14 @@
 # AGENTS.md — Adminexpress
 
+## ACLARACIÓN PRIORITARIA DEL PROPIETARIO (2026-10-13): MISMO CÓDIGO EN PRUEBA Y PRODUCCIÓN
+
+- Cada implementación de Express Web o Adminexpress se integra **una sola vez**, en el mismo código y la misma web canónica. Al desplegarla, su código y pantallas deben estar presentes tanto para cuentas Preview como para cuentas Producción: **no existe un despliegue exclusivamente Preview**, otro bundle ni retraso de implementación de Producción.
+- El propietario prueba con su **cuenta Preview**; el uso de esa cuenta **no autoriza a bloquear el inicio de sesión, la navegación ni los servicios existentes de las cuentas de Producción**, ni a aplicar un veto general a las funciones nuevas por el mero hecho de estar pendientes de QA.
+- **Disponibilidad de código no equivale a activación de un servicio de negocio.** Mantener los controles existentes por zona, rol, permisos y canal; una función nueva puede estar implementada y desplegada para ambos contextos y tener su módulo comercial (p. ej., Market) deshabilitado para usuarios reales por configuración hasta que se active expresamente. No encender ni apagar flags de Producción en respuesta a un despliegue sin instrucción concreta del propietario.
+- Si se cambia un parámetro en Preview, modificar únicamente los datos Preview; si se activa un servicio en Producción, hacerlo por su ajuste específico, sin modificar el código ni crear nueva aplicación. No mezclar datos de viajes, pedidos, dinero o cuentas entre contextos.
+- **Interpretación de «despliega para que pruebe»:** publicar la implementación común en la URL oficial y verificar que el usuario Preview puede probarla; los usuarios de Producción deben conservar acceso y comportamiento normal. No bloquear toda Producción ni esperar una segunda publicación para que el código exista allí. **Solo generar APK cuando se solicite expresamente.**
+- Si una regla antigua parece exigir bloqueo general de funciones o implementación diferida para Producción, prevalece esta aclaración. Conservar, en cambio, autorizaciones explícitas y switches de seguridad por servicio.
+
 ## FLUJO OBLIGATORIO DE PUBLICACIÓN DEL PROPIETARIO (2026-10-12)
 
 - **«Despliega en Adminexpress», «despliega para probar», «sube a prueba»** significa compilar, validar y publicar **la única web administrativa canónica https://admin.expressviajes.online/**. No publicar páginas adicionales, Admin Preview, subdominios ni APK.
@@ -7,7 +16,7 @@
 - **«Genera APK»** es una solicitud distinta y explícita: solo entonces crear **un único APK oficial `com.express.usuario1`**, para QA físico Android después de aprobar Web; permitir excepción anterior solo cuando una capacidad nativa no pueda probarse en Web. Nunca APK Preview/QA paralelo, AAB o Google Play implícitos.
 - **Prueba/Preview y Producción están dentro del mismo frontend/binario y proyecto Supabase**, asignadas por la **cuenta autenticada**. Al entrar con cuenta de Prueba deben filtrarse todas las zonas, tarifas, viajes, pedidos, comercios, conductores, premios, documentos, liquidaciones, permisos y operaciones, sin mezclar registros ni acciones con usuarios reales. Aplicar control de backend/RLS/RPC además de UI.
 - **Orden:** desarrollar una sola implementación -> CI/build + revisión de permisos y aislamiento -> publicar en dominio canónico solicitado -> verificar versión exacta `version.json` y página accesible -> propietario revisa con cuenta de Prueba -> corregir -> solo cuando solicite APK, generar el único paquete Android.
-- **Alcance:** despliegue web autoriza compartir código visual pero **no activar flags o servicios no aprobados para Producción**, cambiar reglas de taxi real, publicar Play Store ni crear un entorno adicional. Las ramas PR/QA son solo revisión de código y no representan otra web.
+- **Alcance:** el mismo código se publica simultáneamente para cuentas Preview y Producción; la cuenta Preview sirve para validarlo, **no para bloquear Producción**. Mantener sin cambios los flags específicos de activación comercial (por zona/canal) y la operación real de taxi hasta solicitud explícita. No publicar Play Store ni crear entornos adicionales. Las ramas PR/QA solo revisan código.
 - Si textos antiguos de este repositorio contradicen estas reglas, son **HISTÓRICOS / SUPERADOS**. No volver a interpretarlos como instrucciones para duplicar servicios o APK.
 
 ## REGLA ABSOLUTA DEL PROPIETARIO (2026-10-12): UNA WEB + UNA APP
