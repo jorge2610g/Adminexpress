@@ -2354,6 +2354,10 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     );
 
     if (save == true) {
+      if (!showRides && !showParcels && !showMarket) {
+        if (mounted) _snack(context, 'Selecciona al menos un servicio.');
+        return;
+      }
       if (coverageMode == 'polygon' && polygonPoints.length < 3) {
         _snack(context, 'Dibuja tres o más puntos para el polígono.');
         return;
@@ -2398,10 +2402,6 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'p_currency_code': currency.text.trim().toUpperCase(),
             },
           );
-        }
-        if (!showRides && !showParcels && !showMarket) {
-          if (mounted) _snack(context, 'Selecciona al menos un servicio.');
-          return;
         }
         final landingModules = <Map<String, Object>>[
           if (showRides) <String, Object>{
