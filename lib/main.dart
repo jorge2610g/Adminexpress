@@ -231,27 +231,6 @@ class _AdminLoginState extends State<_AdminLogin> {
     }
   }
 
-  Future<void> _googleLogin() async {
-    if (busy) return;
-    setState(() {
-      busy = true;
-      error = null;
-    });
-    try {
-      final started = await supabase.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: adminGoogleOAuthRedirectUrl,
-      );
-      if (!started && mounted) {
-        setState(() => error = 'No se pudo iniciar sesión con Google.');
-      }
-    } catch (e) {
-      if (mounted) setState(() => error = e.toString());
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 900;
@@ -350,16 +329,6 @@ class _AdminLoginState extends State<_AdminLogin> {
                                     )
                                   : const Icon(Icons.login_rounded),
                               label: const Text('Ingresar al panel'),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 46,
-                            child: OutlinedButton.icon(
-                              onPressed: busy ? null : _googleLogin,
-                              icon: const Icon(Icons.account_circle_outlined),
-                              label: const Text('Acceder con Google'),
                             ),
                           ),
                           const SizedBox(height: 8),
