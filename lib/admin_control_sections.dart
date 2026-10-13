@@ -2136,7 +2136,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                         ),
                         const SizedBox(height: 6),
                         const Text(
-                          'Elige exactamente qué servicios verá el pasajero en esta zona. Puedes mostrar uno, dos o los tres. La configuración del comercio se administra en Delivery.',
+                          'Estas casillas eligen las tarjetas de inicio. Para que Viajes o Envíos aparezcan, también debes activar su disponibilidad y visibilidad para pasajeros en Menú Servicios de esta zona. Market usa sus propios controles comerciales.',
                           style: TextStyle(
                             color: _muted,
                             fontSize: 11,
