@@ -12,12 +12,14 @@ class AdminMarketplacePage extends StatefulWidget {
   final String channel;
   final String? countryCode;
   final String? zoneId;
+  final bool showMerchants;
 
   const AdminMarketplacePage({
     super.key,
     this.channel = 'production',
     this.countryCode,
     this.zoneId,
+    this.showMerchants = true,
   });
 
   @override
@@ -998,7 +1000,8 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                     .toList(),
               ),
               const SizedBox(height: 26),
-              if (widget.zoneId != null && widget.zoneId!.isNotEmpty)
+              if (widget.showMerchants &&
+                  widget.zoneId != null && widget.zoneId!.isNotEmpty)
                 AdminMarketplaceDemoSection(
                   key:ValueKey('${widget.channel}-${widget.zoneId}'),
                   zoneId:widget.zoneId!,
@@ -1006,7 +1009,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   onOpenProducts:_openProducts,
                 ),
               const SizedBox(height: 26),
-              _section(
+              if (widget.showMerchants) _section(
                 'Comercios y productos',
                 'Locales, tiempos, costo de envío y catálogo.',
                 'Nuevo comercio',
@@ -1290,4 +1293,13 @@ class _MerchantProductsPageState extends State<_MerchantProductsPage> {
       ),
     );
   }
+}
+
+/// Public entry to an existing merchant's catalog editor from unified Delivery.
+class AdminMerchantCatalogPage extends StatelessWidget {
+  final Map<String, dynamic> merchant;
+  const AdminMerchantCatalogPage({super.key, required this.merchant});
+
+  @override
+  Widget build(BuildContext context) => _MerchantProductsPage(merchant: merchant);
 }
