@@ -300,6 +300,9 @@ class _DriverEditorDialog extends StatefulWidget {
 }
 
 class _DriverEditorDialogState extends State<_DriverEditorDialog> {
+  List<Map<String, dynamic>> workPermissions = const [];
+  String? workPermissionsError;
+  bool workPermissionSaving = false;
   bool loading = true;
   bool saving = false;
   String? error;
@@ -351,6 +354,20 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
         },
       );
       final loadedZones = await _zones(widget.channel);
+      List<Map<String, dynamic>> loadedWorkPermissions = const [];
+      String? permissionError;
+      try {
+        loadedWorkPermissions = _maps(await supabase.rpc(
+          'admin_driver_work_permission_list',
+          params: {
+            'p_driver_id': widget.userId,
+            'p_channel': widget.channel,
+          },
+        ));
+      } catch (_) {
+        permissionError = 'Los permisos independientes todavía no están '
+            'disponibles en este entorno.';
+      }
       final loaded = _map(detailValue);
       final user = _map(loaded['user']);
       final driver = _map(loaded['driver']);
@@ -372,6 +389,8 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
       setState(() {
         detail = loaded;
         zones = loadedZones;
+        workPermissions = loadedWorkPermissions;
+        workPermissionsError = permissionError;
         accountStatus = _text(user['account_status'], 'active');
         approvalStatus = _text(driver['approval_status'], 'pending');
         onlineStatus = _text(driver['online_status'], 'offline');
@@ -409,6 +428,106 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
         loading = false;
       });
     }
+  }
+
+  Future<void> _setWorkPermission(String serviceKey, String status) async {
+    if (workPermissionSaving) return;
+    setState(() {
+      workPermissionSaving = true;
+      workPermissionsError = null;
+    });
+    try {
+      await supabase.rpc('admin_set_driver_work_permission', params: {
+        'p_driver_id': widget.userId,
+        'p_service_key': serviceKey,
+        'p_status': status,
+        'p_channel': widget.channel,
+      });
+      final fresh = _maps(await supabase.rpc(
+        'admin_driver_work_permission_list',
+        params: {
+          'p_driver_id': widget.userId,
+          'p_channel': widget.channel,
+        },
+      ));
+      if (mounted) {
+        setState(() => workPermissions = fresh);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Permiso actualizado: $serviceKey · $status')),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() =>
+          workPermissionsError = 'No se pudo actualizar el permiso: $e');
+    } finally {
+      if (mounted) setState(() => workPermissionSaving = false);
+    }
+  }
+
+  Widget _workPermissionPanel() {
+    const labels = <String, String>{
+      'ride': 'Taxi / pasajeros',
+      'parcel': 'Envíos / paquetería',
+      'market': 'Delivery de comercios',
+    };
+    return _Section(
+      title: 'Servicios autorizados al conductor',
+      icon: Icons.fact_check_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'El tipo de vehículo no otorga permisos de trabajo. '
+            'Aprueba por separado Taxi, Envíos y Delivery.',
+            style: TextStyle(fontSize: 11, color: _detailMuted),
+          ),
+          if (workPermissionsError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(workPermissionsError!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12)),
+            ),
+          for (final key in const ['ride', 'parcel', 'market']) ...[
+            const SizedBox(height: 12),
+            Builder(builder: (context) {
+              final row = workPermissions.where(
+                (r) => r['service_key']?.toString() == key,
+              );
+              final status = row.isEmpty
+                  ? 'not_requested'
+                  : row.first['status']?.toString() ?? 'not_requested';
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(labels[key] ?? key,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(switch (status) {
+                    'approved' => 'Aprobado',
+                    'pending' => 'Solicitud pendiente',
+                    'rejected' => 'No autorizado',
+                    _ => 'Sin solicitar',
+                  }, style: const TextStyle(fontSize: 11)),
+                  const SizedBox(height: 6),
+                  Wrap(spacing: 8, children: [
+                    OutlinedButton(
+                      onPressed: workPermissionSaving || workPermissionsError != null
+                          ? null : () => _setWorkPermission(key, 'approved'),
+                      child: const Text('Aprobar'),
+                    ),
+                    OutlinedButton(
+                      onPressed: workPermissionSaving || workPermissionsError != null
+                          ? null : () => _setWorkPermission(key, 'rejected'),
+                      child: const Text('Revocar'),
+                    ),
+                  ]),
+                ],
+              );
+            }),
+          ],
+        ],
+      ),
+    );
   }
 
   Future<void> _save() async {
@@ -1465,6 +1584,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                           ],
                         ),
                       ),
+                      _workPermissionPanel(),
                       _Section(
                         title: 'Vehículo',
                         icon: Icons.two_wheeler_rounded,
