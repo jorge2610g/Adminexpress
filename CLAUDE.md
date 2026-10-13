@@ -1,5 +1,17 @@
 # Claude / Cloud — reglas de trabajo en Adminexpress
 
+## REGLA ABSOLUTA DEL PROPIETARIO (2026-10-12): UNA WEB + UNA APP
+
+- **Una sola web administrativa:** https://admin.expressviajes.online/ (repositorio Adminexpress). No crear Admin Preview, sitio espejo, Vercel Preview, GitHub Pages externo ni una segunda URL para pruebas.
+- **Una sola aplicación Android oficial:** Expressdelivery, package `com.express.usuario1`. No crear, compilar, desplegar ni actualizar un APK con package `com.express.usuario.preview` o `com.express.usuario.qa`.
+- **Prueba y Producción son contextos internos de datos, NO aplicaciones ni despliegues independientes.** La cuenta autenticada determina el contexto en Supabase; nunca por URL, selector manual ni una APK diferente.
+- Cuando se pida «probar en Preview», «subir a prueba», «ver en prueba» o similar, usar el **mismo panel/la misma app** con una cuenta de prueba y datos de prueba aislados. No interpretar esas palabras como autorización para crear otra web/aplicación.
+- Cualquier cambio de esta arquitectura exige una revocación expresa de esta regla por parte del propietario, no una inferencia a partir de la palabra «Preview».
+- El código publicado es compartido: proteger funciones todavía no aprobadas con controles de acceso/feature flags y reglas backend; no exponerlas a producción solo porque se despliegue el mismo bundle.
+- Las ramas temporales y los PR de revisión son permitidos; no representan otra web ni otra app. Mantener CI y QA en el mismo código y probar el APK oficial firmado antes de publicarlo.
+- No borrar ni relajar el aislamiento por cuenta, zona, permisos, RLS, RPC, tarifas, viajes, pedidos o liquidaciones. Mantener en servicio taxi y producción.
+
+
 Claude, Cloud, ChatGPT, Codex y cualquier otra IA **autorizada por el propietario** pueden programar en este repositorio. No existe una regla vigente que limite a Claude/Cloud a arquitectura, lectura o revisión.
 
 ## Alcance autorizado del repositorio
