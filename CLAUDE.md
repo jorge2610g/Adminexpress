@@ -1,3 +1,11 @@
+## Flujo permanente exigido por el propietario (2026-10-12)
+
+1. Para Adminexpress, «despliega» significa solo `https://admin.expressviajes.online/`: misma web y mismo código para cuenta Preview o Producción, con datos/zonas/roles filtrados por identidad desde backend.
+2. Para pasajero/conductor, «despliega» significa solo `https://expressviajes.online/` (Expressdelivery), QA Web primero. No crear otra web de pruebas.
+3. No generar APK con cambios de web, ni versiones «APK Preview» o «QA» alternativas. Solo cuando el propietario diga **«genera APK»**, y tras verificar web o necesidad nativa, generar el único paquete oficial `com.express.usuario1` para prueba Android; Play Store/AAB requieren autorización por separado.
+4. Secuencia: código único -> CI y seguridad -> despliegue canónico -> comprobar SHA/version.json -> probar con cuenta Preview -> arreglar -> Android solo a petición. Nunca afectar datos o configuraciones de taxi Producción para facilitar QA.
+5. Esta regla prevalece sobre referencias antiguas de Preview web/Android o Shorebird. Ver `AGENTS.md`.
+
 # Claude / Cloud — reglas de trabajo en Adminexpress
 
 ## REGLA ABSOLUTA DEL PROPIETARIO (2026-10-12): UNA WEB + UNA APP
