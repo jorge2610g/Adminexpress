@@ -301,6 +301,9 @@ class _DriverEditorDialog extends StatefulWidget {
 
 class _DriverEditorDialogState extends State<_DriverEditorDialog> {
   List<Map<String, dynamic>> workPermissions = const [];
+  List<Map<String, dynamic>> parcelVehicleGrants = const [];
+  String? parcelGrantError;
+  bool parcelGrantSaving = false;
   String? workPermissionsError;
   bool workPermissionSaving = false;
   bool loading = true;
@@ -368,6 +371,18 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
         permissionError = 'Los permisos independientes todavía no están '
             'disponibles en este entorno.';
       }
+      List<Map<String, dynamic>> parcelGrants = const [];
+      String? parcelReadError;
+      if (widget.channel == 'preview') {
+        try {
+          parcelGrants = _maps(await supabase
+            .from('driver_parcel_vehicle_grants')
+            .select('vehicle_id,parcel_kind,enabled')
+            .eq('driver_id',widget.userId).eq('channel','preview'));
+        } catch (_) {
+          parcelReadError = 'Permisos por vehículo aún no disponibles.';
+        }
+      }
       final loaded = _map(detailValue);
       final user = _map(loaded['user']);
       final driver = _map(loaded['driver']);
@@ -390,6 +405,8 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
         detail = loaded;
         zones = loadedZones;
         workPermissions = loadedWorkPermissions;
+        parcelVehicleGrants = parcelGrants;
+        parcelGrantError = parcelReadError;
         workPermissionsError = permissionError;
         accountStatus = _text(user['account_status'], 'active');
         approvalStatus = _text(driver['approval_status'], 'pending');
@@ -527,6 +544,92 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
           ],
         ],
       ),
+    );
+  }
+
+
+  int _parcelCapacity(String type) => switch(type) {
+    'motorcycle' || 'moto' => 1,
+    'car' || 'auto' => 2,
+    'xl' || 'van' || 'truck' || 'camioneta' || 'camion' => 3,
+    _ => 0,
+  };
+  Future<void> _setParcelVehicleGrant(
+      String vehicleId, String kind, bool enabled) async {
+    if (parcelGrantSaving || widget.channel != 'preview') return;
+    setState(() { parcelGrantSaving = true; parcelGrantError = null; });
+    try {
+      await supabase.rpc('admin_set_driver_parcel_vehicle_grant', params: {
+        'p_driver_id': widget.userId,
+        'p_vehicle_id': vehicleId,
+        'p_channel': 'preview',
+        'p_parcel_kind': kind,
+        'p_enabled': enabled,
+      });
+      final refreshed = _maps(await supabase
+        .from('driver_parcel_vehicle_grants')
+        .select('vehicle_id,parcel_kind,enabled')
+        .eq('driver_id',widget.userId).eq('channel','preview'));
+      if (mounted) setState(() => parcelVehicleGrants = refreshed);
+    } catch (e) {
+      if (mounted) setState(() =>
+        parcelGrantError = 'No se pudo actualizar permiso: ' + e.toString());
+    } finally {
+      if (mounted) setState(() => parcelGrantSaving = false);
+    }
+  }
+
+  Widget _parcelVehiclePermissionsPanel() {
+    final vehicles = _maps(detail['vehicles'])
+      .where((vehicle) => vehicle['is_active'] == true).toList();
+    return _Section(
+      title: 'Envíos permitidos por vehículo',
+      icon: Icons.inventory_2_outlined,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Moto, Auto y Carga requieren permiso explícito '
+          'del administrador para cada vehículo activo.',
+          style: TextStyle(fontSize: 11, color: _detailMuted)),
+        if (widget.channel != 'preview')
+          const Text('Disponible primero en Preview.')
+        else if (vehicles.isEmpty)
+          const Text('No hay vehículo activo.')
+        else
+          for (final vehicle in vehicles) ...[
+            const SizedBox(height: 10),
+            Text('Vehículo: ' +
+              (vehicle['brand']?.toString() ?? '') + ' ' +
+              (vehicle['model']?.toString() ?? '') + ' · ' +
+              (vehicle['plate']?.toString() ?? ''),
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+            Wrap(spacing: 8, runSpacing: 5, children: [
+              for (final kind in const [
+                ('moto', 'Moto', 1),
+                ('auto', 'Auto', 2),
+                ('carga', 'Carga', 3),
+              ])
+                Builder(builder: (context) {
+                  final id = vehicle['id']?.toString() ?? '';
+                  final eligible = id.isNotEmpty &&
+                    _parcelCapacity(vehicle['vehicle_type']?.toString() ?? '')
+                      >= kind.$3;
+                  final selected = parcelVehicleGrants.any((grant) =>
+                    grant['vehicle_id']?.toString() == id &&
+                    grant['parcel_kind']?.toString() == kind.$1 &&
+                    grant['enabled'] == true);
+                  return FilterChip(
+                    label: Text(kind.$2), selected: selected,
+                    onSelected: eligible && !parcelGrantSaving &&
+                      parcelGrantError == null
+                      ? (checked) => _setParcelVehicleGrant(
+                          id,kind.$1,checked)
+                      : null,
+                  );
+                }),
+            ]),
+          ],
+        if (parcelGrantError != null)
+          Text(parcelGrantError!,style: const TextStyle(color: Colors.red)),
+      ]),
     );
   }
 
@@ -1377,6 +1480,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                       // Approvals belong inside the driver's existing editor, not
                       // only in a detached helper that cannot be navigated to.
                       _workPermissionPanel(),
+                      _parcelVehiclePermissionsPanel(),
                       _Section(
                         title: 'Fotos para aprobación',
                         icon: Icons.photo_library_outlined,
@@ -1588,6 +1692,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                         ),
                       ),
                       _workPermissionPanel(),
+                      _parcelVehiclePermissionsPanel(),
                       _Section(
                         title: 'Vehículo',
                         icon: Icons.two_wheeler_rounded,
