@@ -1,3 +1,10 @@
+## 2026-10-13 · Conductor document and service approvals
+- Repaired missing widget in existing driver edit dialog: "Servicios autorizados al conductor" now visibly renders inside the conductor sheet instead of being an unreachable private helper.
+- Driver work services ride/parcel/market keep individual pending/approved/rejected states and channel-scoped RPCs. No auto-approval.
+- The shared Supabase country-from-zone normalization fixes identity document save, allowing the admin detail RPC to show saved evidence to authorized reviewers after the driver submits.
+- QA required: open individual Preview and Production drivers, confirm independent service approvals, verify manual identity photos and per-photo review states; no cross-environment reads.
+- Publication pending build and validation.
+
 ## 2026-10-13 · Publicación de panel central con Delivery unificado
 
 - PR #86 fusionado en el único Adminexpress: comercios, pedidos, logística, liquidaciones y selección de servicios por zona.
