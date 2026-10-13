@@ -2201,7 +2201,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                             ),
                             DropdownMenuItem(
                               value: 'always',
-                              child: Text('Mostrar siempre el panel'),
+                              child: Text('Mostrar panel con varios servicios'),
                             ),
                             DropdownMenuItem(
                               value: 'direct',
@@ -2301,7 +2301,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           landingMode == 'auto'
                               ? 'Automático: con varios módulos visibles muestra el panel; con uno solo entra directo.'
                               : landingMode == 'always'
-                                  ? 'Siempre: muestra el panel aunque haya un solo módulo visible.'
+                                  ? 'Con varios servicios: muestra el panel; con uno solo entra directamente a su pantalla.'
                                   : 'Directo: abre el servicio predeterminado sin mostrar el panel.',
                           style: const TextStyle(
                             color: _muted,
