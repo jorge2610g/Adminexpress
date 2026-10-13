@@ -1374,6 +1374,9 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                             ),
                           ),
                         ),
+                      // Approvals belong inside the driver's existing editor, not
+                      // only in a detached helper that cannot be navigated to.
+                      _workPermissionPanel(),
                       _Section(
                         title: 'Fotos para aprobación',
                         icon: Icons.photo_library_outlined,
