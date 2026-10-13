@@ -122,15 +122,11 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
   // Preview shares the administrator's existing permissions. It is not
   // an impersonation session and never grants merchant credentials.
   Future<void> _previewMerchant(Map<String, dynamic> merchant) async {
-    await showDialog<void>(
-      context: context,
-      builder: (_) => _UnifiedMerchantDialog(
-        merchant: merchant,
-        channel: widget.channel,
-        readOnly: true,
-        openProducts: () {},
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _DeliveryMerchantPreview(
+        merchant: merchant, channel: widget.channel,
       ),
-    );
+    ));
   }
 
   Widget _metric(String label, int count, IconData icon, Color accent) =>
@@ -665,4 +661,177 @@ class _UnifiedMerchantDialogState extends State<_UnifiedMerchantDialog> {
       },
     ),
   ));
+}
+
+
+/// Read-only view of the merchant, fetched with the signed-in administrator's
+/// existing access rights. No merchant password, session swap or role elevation.
+class _DeliveryMerchantPreview extends StatefulWidget {
+  final Map<String, dynamic> merchant;
+  final String channel;
+  const _DeliveryMerchantPreview({
+    required this.merchant, required this.channel,
+  });
+
+  @override
+  State<_DeliveryMerchantPreview> createState() =>
+      _DeliveryMerchantPreviewState();
+}
+
+class _DeliveryMerchantPreviewState extends State<_DeliveryMerchantPreview> {
+  late final Future<Map<String, dynamic>> details = () async {
+    final data = await supabase.rpc('admin_marketplace_merchant_detail',
+      params: {'p_merchant_id': widget.merchant['id']});
+    return data is Map ? Map<String, dynamic>.from(data) : {};
+  }();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFFF1F5F9),
+    appBar: AppBar(
+      title: const Text('Panel del restaurante · Vista'),
+      leading: IconButton(
+        tooltip: 'Volver a Delivery',
+        onPressed: () => Navigator.pop(context),
+        icon: const Icon(Icons.arrow_back_rounded),
+      ),
+    ),
+    body: FutureBuilder<Map<String, dynamic>>(
+      future: details,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Center(child: snapshot.hasError
+            ? const Text('No se pudo cargar el restaurante.')
+            : const CircularProgressIndicator());
+        }
+        final raw = snapshot.data!;
+        final merchant = raw['merchant'] is Map
+          ? Map<String, dynamic>.from(raw['merchant'] as Map)
+          : widget.merchant;
+        final products = raw['products'] is List
+          ? (raw['products'] as List).whereType<Map>()
+            .map((p) => Map<String, dynamic>.from(p)).toList()
+          : <Map<String, dynamic>>[];
+        final featured = products.where(
+          (p) => p['is_featured'] == true).length;
+        return LayoutBuilder(builder: (context, bounds) {
+          final width = bounds.maxWidth;
+          final columns = width >= 1050 ? 3
+              : width >= 620 ? 2 : 1;
+          return ListView(
+            padding: EdgeInsets.all(width < 600 ? 12 : 20),
+            children: [
+              Card(child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('VISTA ADMINISTRATIVA · SOLO LECTURA',
+                      style: TextStyle(fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF2563EB))),
+                    const SizedBox(height: 8),
+                    Text(merchant['name']?.toString() ?? 'Restaurante',
+                      style: Theme.of(context).textTheme.headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 5),
+                    Text((merchant['category_key']?.toString() ?? 'Comercio')
+                      + ' · ' + widget.channel.toUpperCase(),
+                      style: const TextStyle(color: Color(0xFF64748B))),
+                    const SizedBox(height: 7),
+                    Text(merchant['address']?.toString() ??
+                        'Sin dirección configurada',
+                      style: const TextStyle(fontSize: 12)),
+                    const Divider(height: 24),
+                    const Text('Estás consultando este local con tu cuenta '
+                      'de administrador. Esto no inicia una sesión como '
+                      'propietario ni permite modificar sus pedidos.',
+                      style: TextStyle(fontSize: 12,
+                        color: Color(0xFF475569))),
+                  ],
+                ),
+              )),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(child: _previewMetric('Productos',
+                  products.length.toString(), Icons.restaurant_menu_outlined)),
+                const SizedBox(width: 9),
+                Expanded(child: _previewMetric('Destacados',
+                  featured.toString(), Icons.star_border_rounded)),
+              ]),
+              const SizedBox(height: 18),
+              Text('Productos del local', style: Theme.of(context)
+                .textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900)),
+              const SizedBox(height: 10),
+              if (products.isEmpty)
+                const Card(child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('Este negocio no tiene productos registrados.'),
+                )),
+              if (products.isNotEmpty)
+                GridView.builder(
+                  itemCount: products.length,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    mainAxisSpacing: 10, crossAxisSpacing: 10,
+                    mainAxisExtent: 110,
+                  ),
+                  itemBuilder: (context, index) {
+                    final p = products[index];
+                    return Card(child: Padding(
+                      padding: const EdgeInsets.all(13),
+                      child: Row(children: [
+                        const Icon(Icons.lunch_dining_outlined,
+                          color: Color(0xFF2563EB)),
+                        const SizedBox(width: 12),
+                        Expanded(child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(p['name']?.toString() ?? 'Producto',
+                              maxLines: 2, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13,
+                                fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 4),
+                            Text((p['currency_code']?.toString() ?? '')
+                              + ' ' + (p['price']?.toString() ?? ''),
+                              style: const TextStyle(fontSize: 12,
+                                color: Color(0xFF64748B))),
+                            if (p['is_featured'] == true)
+                              const Text('★ Destacado',
+                                style: TextStyle(fontSize: 11,
+                                  color: Color(0xFFB45309))),
+                          ],
+                        )),
+                      ]),
+                    ));
+                  },
+                ),
+            ],
+          );
+        });
+      },
+    ),
+  );
+
+  Widget _previewMetric(String label, String count, IconData icon) =>
+    Card(child: Padding(
+      padding: const EdgeInsets.all(15),
+      child: Row(children: [
+        Icon(icon, color: const Color(0xFF2563EB)),
+        const SizedBox(width: 10),
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(
+              color: Color(0xFF64748B), fontSize: 11)),
+            Text(count, style: const TextStyle(fontSize: 21,
+              fontWeight: FontWeight.w900)),
+          ],
+        )),
+      ]),
+    ));
 }
