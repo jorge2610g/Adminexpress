@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Adminexpress uses one canonical web application and one Supabase project.
+/// Canonical admin address: https://admin.expressviajes.online/
 /// Preview vs Production is resolved server-side from the authenticated
 /// administrator identity. The browser build never chooses the data channel.
 const _productionUrl = 'https://zgpijrznvaskgcmauwxx.supabase.co';
@@ -9,10 +10,6 @@ const _productionPublishableKey =
 
 const supabaseUrl = _productionUrl;
 const supabasePublishableKey = _productionPublishableKey;
-
-/// Canonical OAuth return destination for the single Adminexpress web app.
-const adminGoogleOAuthRedirectUrl =
-    'https://admin.expressviajes.online/';
 
 /// Startup guard: Adminexpress must always use the primary Express project.
 /// Environment authorization is intentionally NOT decided at build time.
