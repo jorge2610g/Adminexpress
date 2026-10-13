@@ -551,7 +551,8 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
   int _parcelCapacity(String type) => switch(type) {
     'motorcycle' || 'moto' => 1,
     'car' || 'auto' => 2,
-    'xl' || 'van' || 'truck' || 'camioneta' || 'camion' => 3,
+    'xl' => 2,
+    'van' || 'truck' || 'camioneta' || 'camion' => 3,
     _ => 0,
   };
   Future<void> _setParcelVehicleGrant(
