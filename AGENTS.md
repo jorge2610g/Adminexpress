@@ -1,5 +1,15 @@
 # AGENTS.md — Adminexpress
 
+## FLUJO OBLIGATORIO DE PUBLICACIÓN DEL PROPIETARIO (2026-10-12)
+
+- **«Despliega en Adminexpress», «despliega para probar», «sube a prueba»** significa compilar, validar y publicar **la única web administrativa canónica https://admin.expressviajes.online/**. No publicar páginas adicionales, Admin Preview, subdominios ni APK.
+- **«Despliega pasajero/conductor»** se dirige a la única Express Web **https://expressviajes.online/** (repositorio `Expressdelivery`), no a Adminexpress ni a otro sitio.
+- **«Genera APK»** es una solicitud distinta y explícita: solo entonces crear **un único APK oficial `com.express.usuario1`**, para QA físico Android después de aprobar Web; permitir excepción anterior solo cuando una capacidad nativa no pueda probarse en Web. Nunca APK Preview/QA paralelo, AAB o Google Play implícitos.
+- **Prueba/Preview y Producción están dentro del mismo frontend/binario y proyecto Supabase**, asignadas por la **cuenta autenticada**. Al entrar con cuenta de Prueba deben filtrarse todas las zonas, tarifas, viajes, pedidos, comercios, conductores, premios, documentos, liquidaciones, permisos y operaciones, sin mezclar registros ni acciones con usuarios reales. Aplicar control de backend/RLS/RPC además de UI.
+- **Orden:** desarrollar una sola implementación -> CI/build + revisión de permisos y aislamiento -> publicar en dominio canónico solicitado -> verificar versión exacta `version.json` y página accesible -> propietario revisa con cuenta de Prueba -> corregir -> solo cuando solicite APK, generar el único paquete Android.
+- **Alcance:** despliegue web autoriza compartir código visual pero **no activar flags o servicios no aprobados para Producción**, cambiar reglas de taxi real, publicar Play Store ni crear un entorno adicional. Las ramas PR/QA son solo revisión de código y no representan otra web.
+- Si textos antiguos de este repositorio contradicen estas reglas, son **HISTÓRICOS / SUPERADOS**. No volver a interpretarlos como instrucciones para duplicar servicios o APK.
+
 ## REGLA ABSOLUTA DEL PROPIETARIO (2026-10-12): UNA WEB + UNA APP
 
 - **Una sola web administrativa:** https://admin.expressviajes.online/ (repositorio Adminexpress). No crear Admin Preview, sitio espejo, Vercel Preview, GitHub Pages externo ni una segunda URL para pruebas.
