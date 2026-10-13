@@ -2136,7 +2136,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                         ),
                         const SizedBox(height: 6),
                         const Text(
-                          'Elige exactamente qué servicios verá el pasajero en esta zona. Puedes mostrar uno, dos o los tres. La configuración del comercio se administra en Delivery.',
+                          'Estas casillas eligen las tarjetas de inicio. Para que Viajes o Envíos aparezcan, también debes activar su disponibilidad y visibilidad para pasajeros en Menú Servicios de esta zona. Market usa sus propios controles comerciales.',
                           style: TextStyle(
                             color: _muted,
                             fontSize: 11,
@@ -2201,7 +2201,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                             ),
                             DropdownMenuItem(
                               value: 'always',
-                              child: Text('Mostrar siempre el panel'),
+                              child: Text('Mostrar panel con varios servicios'),
                             ),
                             DropdownMenuItem(
                               value: 'direct',
@@ -2301,7 +2301,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           landingMode == 'auto'
                               ? 'Automático: con varios módulos visibles muestra el panel; con uno solo entra directo.'
                               : landingMode == 'always'
-                                  ? 'Siempre: muestra el panel aunque haya un solo módulo visible.'
+                                  ? 'Con varios servicios: muestra el panel; con uno solo entra directamente a su pantalla.'
                                   : 'Directo: abre el servicio predeterminado sin mostrar el panel.',
                           style: const TextStyle(
                             color: _muted,
