@@ -1,3 +1,10 @@
+## 2026-10-13 · Publicación de panel central con Delivery unificado
+
+- PR #86 fusionado en el único Adminexpress: comercios, pedidos, logística, liquidaciones y selección de servicios por zona.
+- Deploy explícito en el dominio canónico `https://admin.expressviajes.online/`, **sin crear Admin Preview** y sin generar APK.
+- Acceso Preview/Producción separado por identidad en Supabase; no activar Delivery para cuentas reales durante QA.
+- La selección de uno a tres servicios requiere que la función de visibilidad del backend y la Web de Express queden actualizadas, verificadas en el PR #199.
+
 ## 2026-10-12 · Campeonato Express web
 
 - Nueva página de conductor desde Mi perfil con Inicio, Top 10 y Premios; ranking real de viajes completados por zona/servicio y período.
