@@ -72,7 +72,7 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
       'p_country_code': widget.countryCode,
       'p_zone_id': widget.zoneId,
     });
-    return data is Map ? Map<String, dynamic>.from(data) : {};
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
   }
 
   List<Map<String, dynamic>> _rows(Object? raw) {
@@ -480,7 +480,7 @@ class _UnifiedMerchantDialogState extends State<_UnifiedMerchantDialog> {
     info = () async {
       final value = await supabase.rpc('admin_marketplace_merchant_detail',
         params: {'p_merchant_id': widget.merchant['id']});
-      return value is Map ? Map<String, dynamic>.from(value) : {};
+      return value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
     }();
   }
   List<Map<String, dynamic>> _products(Object? data) =>
@@ -682,7 +682,7 @@ class _DeliveryMerchantPreviewState extends State<_DeliveryMerchantPreview> {
   late final Future<Map<String, dynamic>> details = () async {
     final data = await supabase.rpc('admin_marketplace_merchant_detail',
       params: {'p_merchant_id': widget.merchant['id']});
-    return data is Map ? Map<String, dynamic>.from(data) : {};
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
   }();
 
   @override
