@@ -1914,6 +1914,9 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         (row == null ? 'auto' : 'direct');
     var landingDefault =
         row?['passenger_default_module']?.toString() ?? 'ride';
+    var showRides = landingOrder.contains('ride');
+    var showParcels = landingOrder.contains('delivery');
+    var showMarket = landingOrder.contains('market');
     var active = row?['active'] != false;
     var driverRegistrationEnabled =
         row?['driver_registration_enabled'] != false;
@@ -2133,7 +2136,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                         ),
                         const SizedBox(height: 6),
                         const Text(
-                          'Decide si esta zona entra directo a un servicio o muestra un panel para elegir entre Viajes, Envíos y Express Market.',
+                          'Elige exactamente qué servicios verá el pasajero en esta zona. Puedes mostrar uno, dos o los tres. La configuración del comercio se administra en Delivery.',
                           style: TextStyle(
                             color: _muted,
                             fontSize: 11,
@@ -2141,6 +2144,51 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           ),
                         ),
                         const SizedBox(height: 12),
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text('Servicios visibles en la zona',
+                            style: TextStyle(fontWeight: FontWeight.w900)),
+                        ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: showRides,
+                          title: const Text('Viajes · Taxi / mototaxi'),
+                          subtitle: const Text('Traslados de pasajeros'),
+                          onChanged: (value) => setLocal(() {
+                            showRides = value == true;
+                            if (!showRides && landingDefault == 'ride') {
+                              landingDefault = showParcels ? 'delivery' :
+                                  showMarket ? 'market' : 'ride';
+                            }
+                          }),
+                        ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: showParcels,
+                          title: const Text('Envíos · Paquetería'),
+                          subtitle: const Text('Enviar objetos y documentos'),
+                          onChanged: (value) => setLocal(() {
+                            showParcels = value == true;
+                            if (!showParcels && landingDefault == 'delivery') {
+                              landingDefault = showRides ? 'ride' :
+                                  showMarket ? 'market' : 'delivery';
+                            }
+                          }),
+                        ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: showMarket,
+                          title: const Text('Market · Restaurantes y tiendas'),
+                          subtitle: const Text('Comprar productos y pedir entrega'),
+                          onChanged: (value) => setLocal(() {
+                            showMarket = value == true;
+                            if (!showMarket && landingDefault == 'market') {
+                              landingDefault = showRides ? 'ride' :
+                                  showParcels ? 'delivery' : 'market';
+                            }
+                          }),
+                        ),
+                        const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
                           initialValue: landingMode,
                           decoration: const InputDecoration(
@@ -2306,6 +2354,10 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     );
 
     if (save == true) {
+      if (!showRides && !showParcels && !showMarket) {
+        if (mounted) _snack(context, 'Selecciona al menos un servicio.');
+        return;
+      }
       if (coverageMode == 'polygon' && polygonPoints.length < 3) {
         _snack(context, 'Dibuja tres o más puntos para el polígono.');
         return;
@@ -2352,15 +2404,15 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           );
         }
         final landingModules = <Map<String, Object>>[
-          <String, Object>{
+          if (showRides) <String, Object>{
             'key': 'ride',
             'order': int.tryParse(rideLandingOrder.text.trim()) ?? 1,
           },
-          <String, Object>{
+          if (showParcels) <String, Object>{
             'key': 'delivery',
             'order': int.tryParse(deliveryLandingOrder.text.trim()) ?? 2,
           },
-          <String, Object>{
+          if (showMarket) <String, Object>{
             'key': 'market',
             'order': int.tryParse(marketLandingOrder.text.trim()) ?? 3,
           },
@@ -2368,6 +2420,10 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
             (a, b) =>
                 (a['order'] as int).compareTo(b['order'] as int),
           );
+
+        if (!landingModules.any((element) => element['key'] == landingDefault)) {
+          landingDefault = landingModules.first['key'].toString();
+        }
 
         if (_environment.isPreview) {
           await _environment.previewUpsert(
