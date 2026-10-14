@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_marketplace.dart';
@@ -204,7 +205,7 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
             const SizedBox(width: 7),
             Expanded(child: FilledButton(
               onPressed: () => _previewMerchant(merchant),
-              child: const Text('Ver panel',
+              child: const Text('Vista del local',
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             )),
           ]),
@@ -250,7 +251,7 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w900)),
             const SizedBox(height: 4),
-            const Text('Gestiona la visibilidad y publicidad de cada local.',
+            const Text('Todos los negocios registrados en la zona, incluso los demos ocultos. La lista inferior muestra solo demos vinculados al entorno actual.',
               style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
             const SizedBox(height: 13),
             GridView.count(
@@ -698,7 +699,7 @@ class _DeliveryMerchantPreviewState extends State<_DeliveryMerchantPreview> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFF1F5F9),
     appBar: AppBar(
-      title: const Text('Panel del restaurante · Vista'),
+      title: const Text('Vista administrativa del local'),
       leading: IconButton(
         tooltip: 'Volver a Delivery',
         onPressed: () => Navigator.pop(context),
@@ -735,7 +736,7 @@ class _DeliveryMerchantPreviewState extends State<_DeliveryMerchantPreview> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('VISTA ADMINISTRATIVA · SOLO LECTURA',
+                    const Text('RESUMEN DEL LOCAL · SOLO LECTURA',
                       style: TextStyle(fontSize: 11,
                         fontWeight: FontWeight.w900,
                         color: Color(0xFF2563EB))),
@@ -752,11 +753,19 @@ class _DeliveryMerchantPreviewState extends State<_DeliveryMerchantPreview> {
                         'Sin dirección configurada',
                       style: const TextStyle(fontSize: 12)),
                     const Divider(height: 24),
-                    const Text('Estás consultando este local con tu cuenta '
-                      'de administrador. Esto no inicia una sesión como '
-                      'propietario ni permite modificar sus pedidos.',
+                    const Text('Esta es una vista administrativa. Para '
+                      'gestionar pedidos y productos, el propietario debe '
+                      'acceder con su propia cuenta al portal de restaurantes.',
                       style: TextStyle(fontSize: 12,
                         color: Color(0xFF475569))),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.open_in_new_rounded),
+                      label: const Text('Abrir portal de propietarios'),
+                      onPressed: () => launchUrl(
+                        Uri.parse('https://expressviajes.online/restaurantes/'),
+                        mode: LaunchMode.externalApplication),
+                    ),
                   ],
                 ),
               )),
