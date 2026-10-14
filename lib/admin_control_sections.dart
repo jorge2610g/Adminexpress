@@ -2342,26 +2342,72 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
             },
           );
         }
-        final landingModules = <Map<String, Object>>[
-          if (showRides) <String, Object>{
-            'key': 'ride',
-            'order': int.tryParse(rideLandingOrder.text.trim()) ?? 1,
-          },
-          if (showParcels) <String, Object>{
-            'key': 'delivery',
-            'order': int.tryParse(deliveryLandingOrder.text.trim()) ?? 2,
-          },
-          if (showMarket) <String, Object>{
-            'key': 'market',
-            'order': int.tryParse(marketLandingOrder.text.trim()) ?? 3,
-          },
-        ]..sort(
-            (a, b) =>
-                (a['order'] as int).compareTo(b['order'] as int),
-          );
+        final landingModules = <String>[
+          if (showRides) 'ride',
+          if (showParcels) 'delivery',
+          if (showMarket) 'market',
+        ];
+        final landingDefault = landingModules.first;
+        const landingMode = 'auto';
 
-        if (!landingModules.any((element) => element['key'] == landingDefault)) {
-          landingDefault = landingModules.first['key'].toString();
+        // The same Save synchronizes the actual zone service flags. This
+        // eliminates the need to edit module checkboxes elsewhere.
+        final moduleUpdates = zonePassengerServiceChanges(
+          services: zoneServiceRows,
+          rides: showRides,
+          parcels: showParcels,
+          countryCode: selectedCountryCode ?? '',
+        );
+        for (final serviceRow in moduleUpdates) {
+          final key = serviceRow['service_key']!.toString();
+          final desiredEnabled = serviceRow['enabled'] == true;
+          final desiredVisible = serviceRow['passenger_visible'] == true;
+          if (_environment.isPreview) {
+            await _environment.previewUpsert(
+              'zone_services',
+              savedZoneId.toString() + ':' + key,
+              <String, dynamic>{
+                ...serviceRow,
+                'zone_id': savedZoneId.toString(),
+                'service_key': key,
+                'enabled': desiredEnabled,
+                'passenger_visible': desiredVisible,
+              },
+            );
+          } else {
+            await supabase.rpc('admin_set_zone_service', params: {
+              'p_zone_id': savedZoneId,
+              'p_service_key': key,
+              'p_enabled': desiredEnabled,
+              'p_passenger_visible': desiredVisible,
+              'p_driver_visible': serviceRow['driver_visible'] == true,
+              'p_allow_bidding': serviceRow['allow_bidding'] != false,
+              'p_allow_fixed_price': serviceRow['allow_fixed_price'] != false,
+              'p_scheduled_enabled': serviceRow['scheduled_enabled'] != false,
+              'p_sort_order': (serviceRow['sort_order'] as num?)?.toInt() ?? 100,
+            });
+          }
+        }
+
+        // Market has a separate global commercial readiness gate. Enable
+        // only the selected channel, only with an active visible merchant;
+        // never turn off another zone's business availability.
+        if (showMarket && !marketChannelEnabled) {
+          await supabase.rpc('admin_marketplace_update_settings', params: {
+            'p_preview_enabled':
+                _environment.isPreview || marketSettings['preview_enabled'] == true,
+            'p_production_enabled':
+                _environment.isProduction || marketSettings['production_enabled'] == true,
+            'p_module_name': marketSettings['module_name']?.toString() ??
+                'Express Delivery',
+            'p_search_placeholder':
+                marketSettings['search_placeholder']?.toString() ??
+                'Busca restaurantes, tiendas o productos',
+            'p_hero_title': marketSettings['hero_title']?.toString() ??
+                'Pide lo que quieras con Express Delivery',
+            'p_hero_subtitle': marketSettings['hero_subtitle']?.toString() ??
+                'Restaurantes, supermercados y más.',
+          });
         }
 
         if (_environment.isPreview) {
@@ -2395,9 +2441,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'passenger_default_module': landingDefault,
               'passenger_landing_title': landingTitle.text.trim(),
               'passenger_landing_subtitle': landingSubtitle.text.trim(),
-              'passenger_landing_order': landingModules
-                  .map((item) => item['key'].toString())
-                  .toList(),
+              'passenger_landing_order': landingModules,
             },
           );
         } else {
@@ -2409,9 +2453,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'p_default_module': landingDefault,
               'p_title': landingTitle.text.trim(),
               'p_subtitle': landingSubtitle.text.trim(),
-              'p_order': landingModules
-                  .map((item) => item['key'].toString())
-                  .toList(),
+              'p_order': landingModules,
             },
           );
         }
@@ -2419,24 +2461,10 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         if (mounted) {
           setState(() => revision++);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Zona y cobertura guardadas. Solo se usará el método seleccionado.',
-              ),
-            ),
+            SnackBar(content: Text(
+              'Zona guardada. ${zonePassengerStartHint(landingModules)}.',
+            )),
           );
-          final zoneForPayments = <String, dynamic>{
-            ...?row,
-            'id': savedZoneId?.toString(),
-            'name': name.text.trim(),
-            'city': city.text.trim(),
-            'region_department': regionDepartment.text.trim(),
-            'country': selectedCountry()?['name']?.toString() ?? '',
-            'country_code': selectedCountryCode,
-            'currency_code': currency.text.trim().toUpperCase(),
-          };
-          await showAdminZonePaymentMethodsEditor(context, zoneForPayments, channel: widget.channel);
-          if (mounted) setState(() => revision++);
         }
       } catch (e) {
         if (mounted) _snack(context, e);
@@ -2453,9 +2481,6 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     radius.dispose();
     landingTitle.dispose();
     landingSubtitle.dispose();
-    rideLandingOrder.dispose();
-    deliveryLandingOrder.dispose();
-    marketLandingOrder.dispose();
   }
 
   @override
