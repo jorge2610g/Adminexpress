@@ -1,3 +1,5 @@
+> **ACTUALIZACIÓN OBLIGATORIA 2026-10-14:** Antes de administrar o mover Delivery/Restaurante/Repartidor leer `docs/EXPRESS_FOUR_APPS_CODE_AUDIT_20261014.md`. Express Principal conserva cinco funciones (cliente Taxi, Envíos, Delivery; conductor Taxi, Envíos). La nueva Express Repartidor solo maneja pedidos de comercios, la nueva Express Restaurante solo el negocio, y Adminexpress permanece independiente. No eliminar código merchant, liquidaciones, backend o rutas antes de migración, push y QA E2E. El mockup aprobado NO es una app construida.
+
 # AGENTS.md — Adminexpress
 
 ## ACLARACIÓN PRIORITARIA DEL PROPIETARIO (2026-10-13): MISMO CÓDIGO EN PRUEBA Y PRODUCCIÓN

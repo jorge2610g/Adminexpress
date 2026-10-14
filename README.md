@@ -1,3 +1,5 @@
+> **Continuidad 2026-10-14:** [Auditoría de código y separación de las cuatro aplicaciones](docs/EXPRESS_FOUR_APPS_CODE_AUDIT_20261014.md). Adminexpress permanece como **único panel global**; Principal conserva cinco funciones y las nuevas apps Restaurante/Repartidor están por construir, sin migración terminada. No borrar módulos de comercio o liquidaciones hasta validar reemplazos.
+
 # Adminexpress
 
 Panel administrativo web de **Express**.

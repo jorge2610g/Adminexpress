@@ -1,3 +1,10 @@
+## 2026-10-14 · Auditoría documental de módulos Admin y división en cuatro apps
+
+- Documento `docs/EXPRESS_FOUR_APPS_CODE_AUDIT_20261014.md`: inventario de archivos Admin para comercios, demos, pedidos, logística, liquidaciones, permisos, Builder; quién conserva qué y contratos con Principal/Restaurante/Repartidor.
+- Decisión definitiva: Principal conserva cinco recorridos y solo extrajo las nuevas ofertas comerciales del conductor (Expressdelivery PR #235 fusionada). Las apps independientes Repartidor/Restaurante **aún no funcionan**; no quitar soporte administrativo ni RPC legacy.
+- Se distinguen hechos/PR fusionadas, propuesta UI de cliente en Expressdelivery PR #234 pendiente, mockup simulado y pruebas reales faltantes. Se conserva Preview/Producción aislado.
+- Esta entrada y enlaces son **solo documentación**: ninguna zona, flag, pago, usuario, permiso, API, app móvil, despliegue o firma cambia.
+
 ## 2026-10-14 · Autorizaciones unificadas, capacidad heredada y publicación central
 - PR #95 fusionado tras validación Flutter Web y acceso central: «Servicios autorizados» aparece una sola vez en la ficha y los tamaños Moto/Auto/Carga quedan dentro del mismo bloque, con alerta de falta de permisos por vehículo.
 - Se aclara la jerarquía de capacidad: autorizar Auto incluye paquetes Moto; autorizar solo Moto nunca incluye Auto. El backend compartido se corrigió mediante Expressdelivery PR #229 y migración `parcel_grant_capacity_inheritance_20261014`, con pruebas aprobadas.
