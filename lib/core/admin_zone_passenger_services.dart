@@ -53,6 +53,18 @@ List<Map<String, dynamic>> zonePassengerServiceChanges({
       'sort_order': key == 'parcel' ? 48 : 50,
     });
   }
+  // New zones may have no zone service rows yet. Seed one passenger
+  // category through the existing secure zone RPC, never the entire fleet.
+  if (rides && !zonePassengerRideServiceKeys.any(entries.containsKey)) {
+    final key = countryCode.toUpperCase() == 'BO'
+        ? 'motorcycle' : 'economy';
+    entries[key] = <String, dynamic>{
+      'service_key': key, 'enabled': false, 'passenger_visible': false,
+      'driver_visible': false, 'allow_bidding': true,
+      'allow_fixed_price': true, 'scheduled_enabled': true,
+      'sort_order': 10,
+    };
+  }
   final rideKeys = zonePassengerRideServiceKeys
       .where(entries.containsKey).toList();
   final visibleRides = rideKeys.where(
