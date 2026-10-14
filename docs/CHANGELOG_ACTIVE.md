@@ -1,3 +1,9 @@
+## 2026-10-14 · Autorizaciones unificadas, capacidad heredada y publicación central
+- PR #95 fusionado tras validación Flutter Web y acceso central: «Servicios autorizados» aparece una sola vez en la ficha y los tamaños Moto/Auto/Carga quedan dentro del mismo bloque, con alerta de falta de permisos por vehículo.
+- Se aclara la jerarquía de capacidad: autorizar Auto incluye paquetes Moto; autorizar solo Moto nunca incluye Auto. El backend compartido se corrigió mediante Expressdelivery PR #229 y migración `parcel_grant_capacity_inheritance_20261014`, con pruebas aprobadas.
+- **No se otorgan permisos automáticamente ni se activan zonas o nuevos servicios.** Si el conductor está aprobado para Envíos pero no tiene ningún grant compatible, seguirá sin ofertas hasta que se habilite desde su ficha.
+- Publicación del panel central mediante workflow canónico y marcador obligatorio, sin crear una segunda web ni APK.
+
 ## 2026-10-14 · Ficha de conductor sin controles duplicados; Envíos Producción
 - Corregida doble inclusión de **Servicios autorizados al conductor** y **Envíos permitidos por vehículo**. Cada sección se ve una sola vez; los permisos guardados no se modifican.
 - La ficha permite leer y guardar grants Moto/Auto/Carga en el entorno que corresponda, sin fijar Preview. El RPC sigue siendo de administrador, con verificación del entorno y capacidad real del vehículo; depende de la migración coordinada en Expressdelivery.
