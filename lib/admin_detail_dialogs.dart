@@ -1210,12 +1210,19 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
   Future<void> _reviewLicensePart(
     Map<String, dynamic> document,
     String slot,
-    String status,
-  ) async {
+    String status, {
+    bool generic = false,
+  }) async {
     if (saving) return;
     final id = _text(document['id'], '');
     if (id.isEmpty) return;
-    final label = slot == 'front' ? 'Frente de la licencia' : 'Reverso de la licencia';
+    final label = generic
+        ? switch (slot) {
+            'front' => 'Frente del documento',
+            'back' => 'Reverso del documento',
+            _ => 'Fotografía facial',
+          }
+        : slot == 'front' ? 'Frente de la licencia' : 'Reverso de la licencia';
     final rejecting = status == 'rejected';
     final note = TextEditingController();
     final accepted = await showDialog<bool>(
@@ -1271,7 +1278,9 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
       error = null;
     });
     try {
-      await supabase.rpc('admin_driver_license_review_part', params: {
+      await supabase.rpc(
+        generic ? 'admin_driver_document_review_part_v2'
+                : 'admin_driver_license_review_part', params: {
         'p_document_id': id,
         'p_slot': slot,
         'p_status': status,
@@ -1296,13 +1305,27 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
 
   Widget _licensePartReviewCard(
     Map<String, dynamic> document,
-    String slot,
-  ) {
+    String slot, {
+    bool generic = false,
+  }) {
     final front = slot == 'front';
     final path = _text(
-      document[front ? 'front_object_path' : 'back_object_path'], '');
+      document[switch (slot) {
+        'front' => 'front_object_path',
+        'back' => 'back_object_path',
+        _ => 'selfie_object_path',
+      }], '');
     final entry = _map(_map(document['review_parts'])[slot]);
-    final status = driverLicensePartStatus(document, slot);
+    final status = generic
+        ? _text(entry['status'], 'pending').toLowerCase()
+        : driverLicensePartStatus(document, slot);
+    final label = generic
+        ? switch (slot) {
+            'front' => 'Frente',
+            'back' => 'Reverso',
+            _ => 'Fotografía facial',
+          }
+        : front ? 'Frente de la licencia' : 'Reverso de la licencia';
     final tone = status == 'approved'
         ? const Color(0xFF067647)
         : status == 'rejected'
@@ -1328,12 +1351,12 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
         children: [
           Row(
             children: [
-              Icon(front ? Icons.credit_card_rounded
-                  : Icons.flip_to_back_rounded, size: 17, color: tone),
+              Icon(slot == 'front' ? Icons.credit_card_rounded
+                  : slot == 'back' ? Icons.flip_to_back_rounded : Icons.face_rounded,
+                  size: 17, color: tone),
               const SizedBox(width: 7),
               Expanded(
-                child: Text(front ? 'Frente de la licencia'
-                    : 'Reverso de la licencia',
+                child: Text(label,
                   style: const TextStyle(fontSize: 12,
                       fontWeight: FontWeight.w800)),
               ),
@@ -1370,21 +1393,24 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                 if (status != 'approved')
                   FilledButton.icon(
                     onPressed: saving ? null
-                        : () => _reviewLicensePart(document, slot, 'approved'),
+                         : () => _reviewLicensePart(document, slot, 'approved',
+                            generic: generic),
                     icon: const Icon(Icons.check_circle_outline, size: 16),
                     label: const Text('Aprobar'),
                   ),
                 if (status != 'rejected')
                   OutlinedButton.icon(
                     onPressed: saving ? null
-                        : () => _reviewLicensePart(document, slot, 'rejected'),
+                         : () => _reviewLicensePart(document, slot, 'rejected',
+                            generic: generic),
                     icon: const Icon(Icons.cancel_outlined, size: 16),
                     label: const Text('Rechazar'),
                   ),
                 if (status != 'pending')
                   TextButton.icon(
                     onPressed: saving ? null
-                        : () => _reviewLicensePart(document, slot, 'pending'),
+                         : () => _reviewLicensePart(document, slot, 'pending',
+                            generic: generic),
                     icon: const Icon(Icons.restart_alt_rounded, size: 16),
                     label: const Text('Reabrir'),
                   ),
@@ -1873,6 +1899,16 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                         ),
                                         _licensePartReviewCard(doc, 'front'),
                                         _licensePartReviewCard(doc, 'back'),
+                                      ] else if (!manualIdentity &&
+                                          _text(doc['requirement_id'], '').isNotEmpty &&
+                                          _map(doc['review_parts']).containsKey('front') &&
+                                          _text(doc['document_type'], '').toLowerCase() != 'driver_license') ...[
+                                        const SizedBox(height: 5),
+                                        const Text('Revisa por foto sin alterar las otras evidencias aprobadas.',
+                                          style: TextStyle(color: _detailMuted, fontSize: 11)),
+                                        for (final slot in const <String>['front', 'back', 'selfie'])
+                                          if (_map(doc['review_parts']).containsKey(slot))
+                                            _licensePartReviewCard(doc, slot, generic: true),
                                       ] else if (manualIdentity) ...[
                                         const SizedBox(height: 5),
                                         const Text(
