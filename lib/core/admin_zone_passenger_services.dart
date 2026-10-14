@@ -55,26 +55,30 @@ List<Map<String, dynamic>> zonePassengerServiceChanges({
   }
   final rideKeys = zonePassengerRideServiceKeys
       .where(entries.containsKey).toList();
-  final currentlyEnabled = rideKeys.where(
+  final visibleRides = rideKeys.where(
+    (key) => zonePassengerServiceActive(entries[key]!),
+  ).toList();
+  final enabledRides = rideKeys.where(
     (key) => entries[key]?['enabled'] == true,
   ).toList();
   final fallbackKey = countryCode.toUpperCase() == 'BO'
       ? 'motorcycle' : 'economy';
-  final chosenRideKey = currentlyEnabled.isNotEmpty
-      ? currentlyEnabled.first
-      : entries.containsKey(fallbackKey)
-          ? fallbackKey
-          : rideKeys.isNotEmpty ? rideKeys.first : null;
+  final chosenRideKey = enabledRides.contains(fallbackKey)
+      ? fallbackKey
+      : enabledRides.isNotEmpty ? enabledRides.first
+      : entries.containsKey(fallbackKey) ? fallbackKey
+      : rideKeys.isNotEmpty ? rideKeys.first : null;
 
   final updates = <Map<String, dynamic>>[];
   for (final key in rideKeys) {
     final old = entries[key]!;
-    final turnOn = rides && (old['enabled'] == true || key == chosenRideKey);
-    final wantedEnabled = rides && key == chosenRideKey &&
-            currentlyEnabled.isEmpty
-        ? true
-        : old['enabled'] == true;
-    final wantedVisible = turnOn;
+    // An active Taxi category stays unchanged. Avoid turning on a vehicle
+    // class that was deliberately hidden in the advanced service catalog.
+    final needsFallback = rides && visibleRides.isEmpty && key == chosenRideKey;
+    final wantedEnabled = needsFallback ? true : old['enabled'] == true;
+    final wantedVisible = rides
+        ? (old['passenger_visible'] == true || needsFallback)
+        : false;
     if (old['enabled'] == wantedEnabled &&
         old['passenger_visible'] == wantedVisible) continue;
     updates.add(<String, dynamic>{
