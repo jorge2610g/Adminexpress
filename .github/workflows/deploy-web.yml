@@ -108,27 +108,6 @@ jobs:
           }
           EOF
 
-      - name: Redirect old Preview URL to the central admin
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p build/web/preview
-          cat > build/web/preview/index.html <<'EOF'
-          <!doctype html>
-          <html lang="es">
-            <head>
-              <meta charset="utf-8">
-              <meta http-equiv="refresh" content="0; url=/">
-              <link rel="canonical" href="https://admin.expressviajes.online/">
-              <title>Adminexpress</title>
-            </head>
-            <body>
-              <p>Adminexpress ahora usa una sola página. <a href="/">Abrir panel</a>.</p>
-              <script>location.replace('/');</script>
-            </body>
-          </html>
-          EOF
-
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
@@ -163,8 +142,6 @@ jobs:
           print('PASS: canonical Adminexpress is live and account-scoped.')
           PY
             then
-              curl -fsSL --max-time 20 -H "Cache-Control: no-cache"                 "$BASE/preview/?check=$EXPECTED_SHA" -o /tmp/old-preview.html
-              grep -Fq "Adminexpress ahora usa una sola página" /tmp/old-preview.html
               exit 0
             fi
             sleep 10
