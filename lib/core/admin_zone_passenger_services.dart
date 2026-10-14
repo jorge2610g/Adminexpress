@@ -27,7 +27,7 @@ String zonePassengerStartHint(List<String> modules) {
 }
 
 /// Produce only changed service flags. Never edits fares, bidding, scheduling,
-/// driver visibility, identity permissions or service catalog metadata.
+/// driver identities, individual grants or service catalog metadata.
 ///
 /// Taxi category availability remains intact when the module is toggled off:
 /// only passenger visibility changes. When turning Taxi on with no enabled
@@ -101,13 +101,18 @@ List<Map<String, dynamic>> zonePassengerServiceChanges({
   }
   for (final key in zonePassengerParcelServiceKeys) {
     final old = entries[key]!;
-    if (old['enabled'] == parcels && old['passenger_visible'] == parcels) {
+    // Module visibility for drivers follows the passenger-facing switch.
+    // Individual driver approval and vehicle capacity are still required.
+    if (old['enabled'] == parcels &&
+        old['passenger_visible'] == parcels &&
+        old['driver_visible'] == parcels) {
       continue;
     }
     updates.add(<String, dynamic>{
       ...old,
       'enabled': parcels,
       'passenger_visible': parcels,
+      'driver_visible': parcels,
     });
   }
   return updates;

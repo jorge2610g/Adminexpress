@@ -41,7 +41,10 @@ void main() {
     );
     expect(updates.where((v) => zonePassengerRideServiceKeys
         .contains(v['service_key'])), isEmpty);
-    expect(updates.every((v) => v['driver_visible'] == true), isTrue);
+    expect(updates.every((v) =>
+        v['service_key'] == 'parcel' || v['service_key'] == 'delivery'
+            ? v['driver_visible'] == false
+            : v['driver_visible'] == true), isTrue);
   });
 
   test('switching off Taxi hides passenger service without changing enabled',
@@ -70,6 +73,35 @@ void main() {
     expect(updates.every((v) => v['enabled'] == true &&
         v['passenger_visible'] == true), isTrue);
     expect(updates.every((v) => v['driver_visible'] == true), isTrue);
+  });
+
+  test('Envíos activates passenger and zone-wide driver discovery together', () {
+    final updates = zonePassengerServiceChanges(
+      services: [
+        service('economy', enabled: true, visible: true),
+        service('parcel', enabled: true, visible: true, driverVisible: false),
+        service('delivery', enabled: true, visible: true, driverVisible: false),
+      ],
+      rides: true, parcels: true, countryCode: 'CL',
+    );
+    expect(updates.map((v) => v['service_key']).toSet(), {'parcel', 'delivery'});
+    expect(updates.every((v) =>
+        v['enabled'] == true &&
+        v['passenger_visible'] == true &&
+        v['driver_visible'] == true), isTrue);
+  });
+
+  test('Switching Envíos off stops discovery, not other vehicle categories', () {
+    final updates = zonePassengerServiceChanges(
+      services: [
+        service('economy', enabled: true, visible: true),
+        service('parcel', enabled: true, visible: true),
+        service('delivery', enabled: true, visible: true),
+      ],
+      rides: true, parcels: false, countryCode: 'CL',
+    );
+    expect(updates.map((v) => v['service_key']).toSet(), {'parcel', 'delivery'});
+    expect(updates.every((v) => v['driver_visible'] == false), isTrue);
   });
 
   test('re-enabling single Taxi falls back to correct existing country type',
