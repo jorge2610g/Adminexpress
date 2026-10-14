@@ -2183,196 +2183,71 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
-                          children: [
-                            Icon(Icons.dashboard_customize_outlined,
-                                color: _blue),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Pantalla inicial del pasajero',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                        const Row(children: [
+                          Icon(Icons.dashboard_customize_outlined, color: _blue),
+                          SizedBox(width: 8),
+                          Expanded(child: Text(
+                            'Servicios para pasajeros',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          )),
+                        ]),
                         const SizedBox(height: 6),
                         const Text(
-                          'Estas casillas eligen las tarjetas de inicio. Para que Viajes o Envíos aparezcan, también debes activar su disponibilidad y visibilidad para pasajeros en Menú Servicios de esta zona. Market usa sus propios controles comerciales.',
+                          'Elige qué servicios ofreces en esta zona. '
+                          'Se sincronizan con su disponibilidad real al guardar.',
                           style: TextStyle(
-                            color: _muted,
-                            fontSize: 11,
-                            height: 1.35,
+                            color: _muted, fontSize: 11, height: 1.4,
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        const Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text('Servicios visibles en la zona',
-                            style: TextStyle(fontWeight: FontWeight.w900)),
-                        ),
+                        const SizedBox(height: 8),
                         CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
                           value: showRides,
                           title: const Text('Viajes · Taxi / mototaxi'),
                           subtitle: const Text('Traslados de pasajeros'),
-                          onChanged: (value) => setLocal(() {
-                            showRides = value == true;
-                            if (!showRides && landingDefault == 'ride') {
-                              landingDefault = showParcels ? 'delivery' :
-                                  showMarket ? 'market' : 'ride';
-                            }
-                          }),
+                          onChanged: (value) =>
+                              setLocal(() => showRides = value == true),
                         ),
                         CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
                           value: showParcels,
                           title: const Text('Envíos · Paquetería'),
-                          subtitle: const Text('Enviar objetos y documentos'),
-                          onChanged: (value) => setLocal(() {
-                            showParcels = value == true;
-                            if (!showParcels && landingDefault == 'delivery') {
-                              landingDefault = showRides ? 'ride' :
-                                  showMarket ? 'market' : 'delivery';
-                            }
-                          }),
+                          subtitle: const Text('Paquetes y documentos'),
+                          onChanged: (value) =>
+                              setLocal(() => showParcels = value == true),
                         ),
                         CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
                           value: showMarket,
-                          title: const Text('Market · Restaurantes y tiendas'),
-                          subtitle: const Text('Comprar productos y pedir entrega'),
-                          onChanged: (value) => setLocal(() {
-                            showMarket = value == true;
-                            if (!showMarket && landingDefault == 'market') {
-                              landingDefault = showRides ? 'ride' :
-                                  showParcels ? 'delivery' : 'market';
-                            }
-                          }),
-                        ),
-                        const SizedBox(height: 10),
-                        DropdownButtonFormField<String>(
-                          initialValue: landingMode,
-                          decoration: const InputDecoration(
-                            labelText: 'Comportamiento de inicio',
+                          title: const Text('Express Market · Delivery'),
+                          subtitle: Text(
+                            marketHasVisibleMerchants
+                                ? marketChannelEnabled
+                                    ? 'Restaurantes, tiendas y productos'
+                                    : 'Se habilitará Market para este entorno al guardar'
+                                : 'Sin comercios disponibles en esta zona',
                           ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'auto',
-                              child: Text('Automático'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'always',
-                              child: Text('Mostrar panel con varios servicios'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'direct',
-                              child: Text('Entrada directa'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setLocal(() => landingMode = value);
-                            }
-                          },
+                          onChanged: marketHasVisibleMerchants
+                              ? (value) =>
+                                  setLocal(() => showMarket = value == true)
+                              : null,
                         ),
-                        const SizedBox(height: 10),
-                        DropdownButtonFormField<String>(
-                          initialValue: landingDefault,
-                          decoration: const InputDecoration(
-                            labelText: 'Servicio predeterminado',
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'ride',
-                              child: Text('Viajes'),
+                        const Divider(height: 22),
+                        Row(children: [
+                          const Icon(Icons.auto_awesome_rounded,
+                              color: _blue, size: 20),
+                          const SizedBox(width: 9),
+                          Expanded(child: Text(
+                            zonePassengerStartHint(<String>[
+                              if (showRides) 'ride',
+                              if (showParcels) 'delivery',
+                              if (showMarket) 'market',
+                            ]),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: 12,
                             ),
-                            DropdownMenuItem(
-                              value: 'delivery',
-                              child: Text('Envíos / Delivery'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'market',
-                              child: Text('Express Market'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setLocal(() => landingDefault = value);
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: landingTitle,
-                          decoration: const InputDecoration(
-                            labelText: 'Título del panel',
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: landingSubtitle,
-                          decoration: const InputDecoration(
-                            labelText: 'Subtítulo del panel',
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Orden de tarjetas',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: rideLandingOrder,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                  labelText: 'Viajes',
-                                  hintText: '1',
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextField(
-                                controller: deliveryLandingOrder,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                  labelText: 'Envíos',
-                                  hintText: '2',
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextField(
-                                controller: marketLandingOrder,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                  labelText: 'Market',
-                                  hintText: '3',
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          landingMode == 'auto'
-                              ? 'Automático: con varios módulos visibles muestra el panel; con uno solo entra directo.'
-                              : landingMode == 'always'
-                                  ? 'Con varios servicios: muestra el panel; con uno solo entra directamente a su pantalla.'
-                                  : 'Directo: abre el servicio predeterminado sin mostrar el panel.',
-                          style: const TextStyle(
-                            color: _muted,
-                            fontSize: 11,
-                            height: 1.35,
-                          ),
-                        ),
+                          )),
+                        ]),
                       ],
                     ),
                   ),
