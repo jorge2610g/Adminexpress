@@ -86,12 +86,15 @@ jobs:
           grep -Fq "name: Deploy Adminexpress Central" "$FILE"
           grep -Fq "flutter build web --release --base-href /" "$FILE"
           grep -Fq '"mode": "account_scoped"' "$FILE"
-          grep -Fq "Redirect old Preview URL to the central admin" "$FILE"
+          if grep -Fq "build/web/preview" "$FILE" || grep -Fq '$BASE/preview/' "$FILE"; then
+            echo "ERROR: legacy Preview URL must not be generated."
+            exit 1
+          fi
           if grep -Fq -- "--base-href /preview/" "$FILE"; then
             echo "ERROR: a second Preview web bundle is still being built."
             exit 1
           fi
-          echo "PASS: one web bundle is deployed; /preview/ only redirects to the canonical URL."
+          echo "PASS: only canonical Adminexpress web is deployed."
 
       - name: Verify admin design gates when present
         shell: bash
