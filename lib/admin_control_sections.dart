@@ -2580,16 +2580,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           (row['driver_registration_enabled'] == false
                               ? 'OFF'
                               : 'ON') +
-                          ' · Inicio: ' +
-                          ((row['passenger_landing_mode'] ?? 'direct')
-                                      .toString() ==
-                                  'auto'
-                              ? 'Automático'
-                              : (row['passenger_landing_mode'] ?? 'direct')
-                                          .toString() ==
-                                      'always'
-                                  ? 'Panel'
-                                  : 'Directo'),
+                          ' · Inicio: automático',
                     ),
                     isThreeLine: true,
                     trailing: Row(
