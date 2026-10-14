@@ -4,6 +4,7 @@ import 'core/supabase_client.dart';
 import 'admin_marketplace.dart';
 import 'admin_marketplace_demos.dart';
 import 'admin_marketplace_phase2.dart';
+import 'admin_landing_banners.dart';
 import 'admin_delivery_settlements.dart';
 
 /// Admin central: a single Delivery menu, shared merchant IDs, scoped by zone
@@ -335,6 +336,7 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
       ('Pedidos', Icons.receipt_long),
       ('Envíos directos', Icons.inventory_2),
       ('Liquidaciones', Icons.account_balance_wallet),
+      ('Publicidad de inicio', Icons.collections_outlined),
     ];
     Widget page = switch (selectedTab) {
       0 => _businesses(),
@@ -357,10 +359,17 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
       ),
       4 => widget.buildDirectDeliveries?.call() ??
           const Center(child: Text('Envíos no disponibles para esta cuenta.')),
-      _ => AdminDeliverySettlementsPage(
+      5 => AdminDeliverySettlementsPage(
         key: ValueKey('settlements-${widget.channel}-${widget.zoneId}'),
         channel: widget.channel, zoneId: widget.zoneId,
       ),
+      _ => widget.zoneId == null || widget.zoneId!.isEmpty
+          ? const Center(child: Text('Selecciona una zona.'))
+          : AdminLandingBannersPage(
+              key: ValueKey('landing-ads-${widget.channel}-${widget.zoneId}'),
+              channel: widget.channel,
+              zoneId: widget.zoneId!,
+            ),
     };
 
     return Column(children: [
