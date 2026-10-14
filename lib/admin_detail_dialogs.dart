@@ -373,15 +373,14 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
       }
       List<Map<String, dynamic>> parcelGrants = const [];
       String? parcelReadError;
-      if (widget.channel == 'preview') {
-        try {
-          parcelGrants = _maps(await supabase
-            .from('driver_parcel_vehicle_grants')
-            .select('vehicle_id,parcel_kind,enabled')
-            .eq('driver_id',widget.userId).eq('channel','preview'));
-        } catch (_) {
-          parcelReadError = 'Permisos por vehículo aún no disponibles.';
-        }
+      try {
+        parcelGrants = _maps(await supabase
+          .from('driver_parcel_vehicle_grants')
+          .select('vehicle_id,parcel_kind,enabled')
+          .eq('driver_id', widget.userId)
+          .eq('channel', widget.channel));
+      } catch (_) {
+        parcelReadError = 'No se pudieron consultar los permisos por vehículo.';
       }
       final loaded = _map(detailValue);
       final user = _map(loaded['user']);
@@ -557,20 +556,21 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
   };
   Future<void> _setParcelVehicleGrant(
       String vehicleId, String kind, bool enabled) async {
-    if (parcelGrantSaving || widget.channel != 'preview') return;
+    if (parcelGrantSaving || parcelGrantError != null) return;
     setState(() { parcelGrantSaving = true; parcelGrantError = null; });
     try {
       await supabase.rpc('admin_set_driver_parcel_vehicle_grant', params: {
         'p_driver_id': widget.userId,
         'p_vehicle_id': vehicleId,
-        'p_channel': 'preview',
+        'p_channel': widget.channel,
         'p_parcel_kind': kind,
         'p_enabled': enabled,
       });
       final refreshed = _maps(await supabase
         .from('driver_parcel_vehicle_grants')
         .select('vehicle_id,parcel_kind,enabled')
-        .eq('driver_id',widget.userId).eq('channel','preview'));
+        .eq('driver_id',widget.userId)
+        .eq('channel',widget.channel));
       if (mounted) setState(() => parcelVehicleGrants = refreshed);
     } catch (e) {
       if (mounted) setState(() =>
@@ -587,12 +587,10 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
       title: 'Envíos permitidos por vehículo',
       icon: Icons.inventory_2_outlined,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Moto, Auto y Carga requieren permiso explícito '
-          'del administrador para cada vehículo activo.',
+        const Text('Selecciona los tamaños de envío permitidos para '
+          'cada vehículo activo. No modifica los permisos de Taxi.',
           style: TextStyle(fontSize: 11, color: _detailMuted)),
-        if (widget.channel != 'preview')
-          const Text('Disponible primero en Preview.')
-        else if (vehicles.isEmpty)
+        if (vehicles.isEmpty)
           const Text('No hay vehículo activo.')
         else
           for (final vehicle in vehicles) ...[
@@ -1480,8 +1478,6 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                         ),
                       // Approvals belong inside the driver's existing editor, not
                       // only in a detached helper that cannot be navigated to.
-                      _workPermissionPanel(),
-                      _parcelVehiclePermissionsPanel(),
                       _Section(
                         title: 'Fotos para aprobación',
                         icon: Icons.photo_library_outlined,
