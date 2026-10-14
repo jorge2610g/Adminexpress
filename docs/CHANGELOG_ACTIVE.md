@@ -1,3 +1,9 @@
+## 2026-10-14 · Ficha de conductor sin controles duplicados; Envíos Producción
+- Corregida doble inclusión de **Servicios autorizados al conductor** y **Envíos permitidos por vehículo**. Cada sección se ve una sola vez; los permisos guardados no se modifican.
+- La ficha permite leer y guardar grants Moto/Auto/Carga en el entorno que corresponda, sin fijar Preview. El RPC sigue siendo de administrador, con verificación del entorno y capacidad real del vehículo; depende de la migración coordinada en Expressdelivery.
+- La casilla única «Servicios para pasajeros» sincroniza `driver_visible` de `parcel` y `delivery` con el estado de Envíos para esa zona. No crea autorización personal ni concede servicio a conductores no aprobados.
+- Regresiones `test/admin_single_driver_permissions_test.dart` y `test/admin_zone_passenger_services_test.dart`. Respaldo `backup/before-driver-parcel-grants-editor-20261014`.
+
 ## 2026-10-14 · Un solo flujo para servicios de pasajeros por zona
 - En Zonas de operación, el editor ofrece un único grupo de selección: Viajes, Envíos y Market. Se retiraron los selectores redundantes de modo de aterrizaje, servicio predeterminado y orden numérico. El orden queda fijo (Viajes, Envíos, Market) y el modo de inicio se guarda como `auto`.
 - Al guardar, la misma operación sincroniza la visibilidad de pasajeros con el catálogo zonal por canal. Para Envíos actualiza tanto la clave del motor `parcel` como la clave `delivery` usada por la portada. Mantiene sin cambio autorizaciones de conductor, tarifas, reglas de ofertas, programación y métodos de pago. Una categoría de Taxi oculta permanece oculta; si ninguna está visible, usa una categoría disponible apropiada a CL/BO.
