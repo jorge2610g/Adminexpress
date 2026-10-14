@@ -14,6 +14,7 @@ import 'admin_fare_rounding.dart';
 import 'admin_driver_quick_offers.dart';
 import 'admin_zone_coverage_editor.dart';
 import 'core/admin_zone_coverage_label.dart';
+import 'core/admin_zone_passenger_services.dart';
 
 const Color _blue = Color(0xFF2563EB);
 const Color _dark = Color(0xFF0F172A);
@@ -1895,28 +1896,91 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
       text: row?['passenger_landing_subtitle']?.toString() ??
           'Elige un servicio de Express',
     );
+    // One source of truth: the checked modules and their actual passenger
+    // availability. The old landing mode/order/default controls are retired.
     final rawLandingOrder = row?['passenger_landing_order'];
     final landingOrder = rawLandingOrder is List
         ? rawLandingOrder.map((item) => item.toString()).toList()
         : <String>['ride', 'delivery', 'market'];
-    int landingPosition(String key) {
-      final index = landingOrder.indexOf(key);
-      return index < 0 ? 99 : index + 1;
+    final currentZoneId = row?['id']?.toString() ?? '';
+    var zoneServiceRows = <Map<String, dynamic>>[];
+    var marketSettings = <String, dynamic>{};
+    var marketHasVisibleMerchants = false;
+    var marketChannelEnabled = false;
+    if (currentZoneId.isNotEmpty) {
+      try {
+        zoneServiceRows = _list(await supabase.rpc(
+          'admin_zone_service_list',
+          params: {'p_zone_id': currentZoneId},
+        ));
+        if (_environment.isPreview) {
+          final byKey = <String, Map<String, dynamic>>{
+            for (final service in zoneServiceRows)
+              service['service_key'].toString():
+                  Map<String, dynamic>.from(service),
+          };
+          final overrides = await _environment.previewList('zone_services');
+          for (final override in overrides) {
+            if (override['zone_id']?.toString() != currentZoneId) continue;
+            final key = override['service_key']?.toString();
+            if (key == null || key.isEmpty) continue;
+            byKey[key] = <String, dynamic>{
+              ...?byKey[key],
+              ...override,
+            };
+          }
+          zoneServiceRows = byKey.values.toList();
+        }
+        final marketData = await supabase.rpc(
+          'admin_marketplace_state_scoped',
+          params: {
+            'p_country_code': row?['country_code']?.toString() ?? '',
+            'p_zone_id': currentZoneId,
+          },
+        );
+        if (marketData is Map) {
+          final state = Map<String, dynamic>.from(marketData);
+          if (state['settings'] is Map) {
+            marketSettings =
+                Map<String, dynamic>.from(state['settings'] as Map);
+          }
+          final availabilityKey = _environment.isPreview
+              ? 'preview_visible' : 'production_visible';
+          final merchants = state['merchants'];
+          marketHasVisibleMerchants = merchants is List &&
+              merchants.whereType<Map>().any((merchant) =>
+                  merchant['active'] == true &&
+                  merchant[availabilityKey] == true);
+          marketChannelEnabled =
+              marketSettings[_environment.isPreview
+                  ? 'preview_enabled' : 'production_enabled'] == true;
+        }
+      } catch (error) {
+        if (mounted) {
+          _snack(context, 'No fue posible consultar los servicios: $error');
+        }
+        return;
+      }
     }
-
-    final rideLandingOrder =
-        TextEditingController(text: landingPosition('ride').toString());
-    final deliveryLandingOrder =
-        TextEditingController(text: landingPosition('delivery').toString());
-    final marketLandingOrder =
-        TextEditingController(text: landingPosition('market').toString());
-    var landingMode = row?['passenger_landing_mode']?.toString() ??
-        (row == null ? 'auto' : 'direct');
-    var landingDefault =
-        row?['passenger_default_module']?.toString() ?? 'ride';
-    var showRides = landingOrder.contains('ride');
-    var showParcels = landingOrder.contains('delivery');
-    var showMarket = landingOrder.contains('market');
+    final effectiveRides = zoneServiceRows.any((service) =>
+        zonePassengerRideServiceKeys.contains(
+          service['service_key']?.toString(),
+        ) && zonePassengerServiceActive(service));
+    final effectiveParcel = zoneServiceRows.any((service) =>
+        service['service_key'] == 'parcel' &&
+        zonePassengerServiceActive(service));
+    final effectiveDelivery = zoneServiceRows.any((service) =>
+        service['service_key'] == 'delivery' &&
+        zonePassengerServiceActive(service));
+    // A zone's saved order is a visibility allow-list, not evidence that a
+    // service is operational. Never show a stale checked box in Admin.
+    var showRides = row == null || (landingOrder.contains('ride') && effectiveRides);
+    var showParcels = row != null &&
+        landingOrder.contains('delivery') &&
+        (effectiveParcel || effectiveDelivery);
+    var showMarket = row != null &&
+        landingOrder.contains('market') &&
+        marketChannelEnabled && marketHasVisibleMerchants;
     var active = row?['active'] != false;
     var driverRegistrationEnabled =
         row?['driver_registration_enabled'] != false;
@@ -2119,196 +2183,71 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
-                          children: [
-                            Icon(Icons.dashboard_customize_outlined,
-                                color: _blue),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Pantalla inicial del pasajero',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                        const Row(children: [
+                          Icon(Icons.dashboard_customize_outlined, color: _blue),
+                          SizedBox(width: 8),
+                          Expanded(child: Text(
+                            'Servicios para pasajeros',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          )),
+                        ]),
                         const SizedBox(height: 6),
                         const Text(
-                          'Estas casillas eligen las tarjetas de inicio. Para que Viajes o Envíos aparezcan, también debes activar su disponibilidad y visibilidad para pasajeros en Menú Servicios de esta zona. Market usa sus propios controles comerciales.',
+                          'Elige qué servicios ofreces en esta zona. '
+                          'Se sincronizan con su disponibilidad real al guardar.',
                           style: TextStyle(
-                            color: _muted,
-                            fontSize: 11,
-                            height: 1.35,
+                            color: _muted, fontSize: 11, height: 1.4,
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        const Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text('Servicios visibles en la zona',
-                            style: TextStyle(fontWeight: FontWeight.w900)),
-                        ),
+                        const SizedBox(height: 8),
                         CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
                           value: showRides,
                           title: const Text('Viajes · Taxi / mototaxi'),
                           subtitle: const Text('Traslados de pasajeros'),
-                          onChanged: (value) => setLocal(() {
-                            showRides = value == true;
-                            if (!showRides && landingDefault == 'ride') {
-                              landingDefault = showParcels ? 'delivery' :
-                                  showMarket ? 'market' : 'ride';
-                            }
-                          }),
+                          onChanged: (value) =>
+                              setLocal(() => showRides = value == true),
                         ),
                         CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
                           value: showParcels,
                           title: const Text('Envíos · Paquetería'),
-                          subtitle: const Text('Enviar objetos y documentos'),
-                          onChanged: (value) => setLocal(() {
-                            showParcels = value == true;
-                            if (!showParcels && landingDefault == 'delivery') {
-                              landingDefault = showRides ? 'ride' :
-                                  showMarket ? 'market' : 'delivery';
-                            }
-                          }),
+                          subtitle: const Text('Paquetes y documentos'),
+                          onChanged: (value) =>
+                              setLocal(() => showParcels = value == true),
                         ),
                         CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
                           value: showMarket,
-                          title: const Text('Market · Restaurantes y tiendas'),
-                          subtitle: const Text('Comprar productos y pedir entrega'),
-                          onChanged: (value) => setLocal(() {
-                            showMarket = value == true;
-                            if (!showMarket && landingDefault == 'market') {
-                              landingDefault = showRides ? 'ride' :
-                                  showParcels ? 'delivery' : 'market';
-                            }
-                          }),
-                        ),
-                        const SizedBox(height: 10),
-                        DropdownButtonFormField<String>(
-                          initialValue: landingMode,
-                          decoration: const InputDecoration(
-                            labelText: 'Comportamiento de inicio',
+                          title: const Text('Express Market · Delivery'),
+                          subtitle: Text(
+                            marketHasVisibleMerchants
+                                ? marketChannelEnabled
+                                    ? 'Restaurantes, tiendas y productos'
+                                    : 'Se habilitará Market para este entorno al guardar'
+                                : 'Sin comercios disponibles en esta zona',
                           ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'auto',
-                              child: Text('Automático'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'always',
-                              child: Text('Mostrar panel con varios servicios'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'direct',
-                              child: Text('Entrada directa'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setLocal(() => landingMode = value);
-                            }
-                          },
+                          onChanged: marketHasVisibleMerchants
+                              ? (value) =>
+                                  setLocal(() => showMarket = value == true)
+                              : null,
                         ),
-                        const SizedBox(height: 10),
-                        DropdownButtonFormField<String>(
-                          initialValue: landingDefault,
-                          decoration: const InputDecoration(
-                            labelText: 'Servicio predeterminado',
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'ride',
-                              child: Text('Viajes'),
+                        const Divider(height: 22),
+                        Row(children: [
+                          const Icon(Icons.auto_awesome_rounded,
+                              color: _blue, size: 20),
+                          const SizedBox(width: 9),
+                          Expanded(child: Text(
+                            zonePassengerStartHint(<String>[
+                              if (showRides) 'ride',
+                              if (showParcels) 'delivery',
+                              if (showMarket) 'market',
+                            ]),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: 12,
                             ),
-                            DropdownMenuItem(
-                              value: 'delivery',
-                              child: Text('Envíos / Delivery'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'market',
-                              child: Text('Express Market'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setLocal(() => landingDefault = value);
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: landingTitle,
-                          decoration: const InputDecoration(
-                            labelText: 'Título del panel',
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: landingSubtitle,
-                          decoration: const InputDecoration(
-                            labelText: 'Subtítulo del panel',
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Orden de tarjetas',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: rideLandingOrder,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                  labelText: 'Viajes',
-                                  hintText: '1',
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextField(
-                                controller: deliveryLandingOrder,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                  labelText: 'Envíos',
-                                  hintText: '2',
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextField(
-                                controller: marketLandingOrder,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                  labelText: 'Market',
-                                  hintText: '3',
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          landingMode == 'auto'
-                              ? 'Automático: con varios módulos visibles muestra el panel; con uno solo entra directo.'
-                              : landingMode == 'always'
-                                  ? 'Con varios servicios: muestra el panel; con uno solo entra directamente a su pantalla.'
-                                  : 'Directo: abre el servicio predeterminado sin mostrar el panel.',
-                          style: const TextStyle(
-                            color: _muted,
-                            fontSize: 11,
-                            height: 1.35,
-                          ),
-                        ),
+                          )),
+                        ]),
                       ],
                     ),
                   ),
@@ -2403,26 +2342,72 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
             },
           );
         }
-        final landingModules = <Map<String, Object>>[
-          if (showRides) <String, Object>{
-            'key': 'ride',
-            'order': int.tryParse(rideLandingOrder.text.trim()) ?? 1,
-          },
-          if (showParcels) <String, Object>{
-            'key': 'delivery',
-            'order': int.tryParse(deliveryLandingOrder.text.trim()) ?? 2,
-          },
-          if (showMarket) <String, Object>{
-            'key': 'market',
-            'order': int.tryParse(marketLandingOrder.text.trim()) ?? 3,
-          },
-        ]..sort(
-            (a, b) =>
-                (a['order'] as int).compareTo(b['order'] as int),
-          );
+        final landingModules = <String>[
+          if (showRides) 'ride',
+          if (showParcels) 'delivery',
+          if (showMarket) 'market',
+        ];
+        final landingDefault = landingModules.first;
+        const landingMode = 'auto';
 
-        if (!landingModules.any((element) => element['key'] == landingDefault)) {
-          landingDefault = landingModules.first['key'].toString();
+        // The same Save synchronizes the actual zone service flags. This
+        // eliminates the need to edit module checkboxes elsewhere.
+        final moduleUpdates = zonePassengerServiceChanges(
+          services: zoneServiceRows,
+          rides: showRides,
+          parcels: showParcels,
+          countryCode: selectedCountryCode ?? '',
+        );
+        for (final serviceRow in moduleUpdates) {
+          final key = serviceRow['service_key']!.toString();
+          final desiredEnabled = serviceRow['enabled'] == true;
+          final desiredVisible = serviceRow['passenger_visible'] == true;
+          if (_environment.isPreview) {
+            await _environment.previewUpsert(
+              'zone_services',
+              savedZoneId.toString() + ':' + key,
+              <String, dynamic>{
+                ...serviceRow,
+                'zone_id': savedZoneId.toString(),
+                'service_key': key,
+                'enabled': desiredEnabled,
+                'passenger_visible': desiredVisible,
+              },
+            );
+          } else {
+            await supabase.rpc('admin_set_zone_service', params: {
+              'p_zone_id': savedZoneId,
+              'p_service_key': key,
+              'p_enabled': desiredEnabled,
+              'p_passenger_visible': desiredVisible,
+              'p_driver_visible': serviceRow['driver_visible'] == true,
+              'p_allow_bidding': serviceRow['allow_bidding'] != false,
+              'p_allow_fixed_price': serviceRow['allow_fixed_price'] != false,
+              'p_scheduled_enabled': serviceRow['scheduled_enabled'] != false,
+              'p_sort_order': (serviceRow['sort_order'] as num?)?.toInt() ?? 100,
+            });
+          }
+        }
+
+        // Market has a separate global commercial readiness gate. Enable
+        // only the selected channel, only with an active visible merchant;
+        // never turn off another zone's business availability.
+        if (showMarket && !marketChannelEnabled) {
+          await supabase.rpc('admin_marketplace_update_settings', params: {
+            'p_preview_enabled':
+                _environment.isPreview || marketSettings['preview_enabled'] == true,
+            'p_production_enabled':
+                _environment.isProduction || marketSettings['production_enabled'] == true,
+            'p_module_name': marketSettings['module_name']?.toString() ??
+                'Express Delivery',
+            'p_search_placeholder':
+                marketSettings['search_placeholder']?.toString() ??
+                'Busca restaurantes, tiendas o productos',
+            'p_hero_title': marketSettings['hero_title']?.toString() ??
+                'Pide lo que quieras con Express Delivery',
+            'p_hero_subtitle': marketSettings['hero_subtitle']?.toString() ??
+                'Restaurantes, supermercados y más.',
+          });
         }
 
         if (_environment.isPreview) {
@@ -2456,9 +2441,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'passenger_default_module': landingDefault,
               'passenger_landing_title': landingTitle.text.trim(),
               'passenger_landing_subtitle': landingSubtitle.text.trim(),
-              'passenger_landing_order': landingModules
-                  .map((item) => item['key'].toString())
-                  .toList(),
+              'passenger_landing_order': landingModules,
             },
           );
         } else {
@@ -2470,9 +2453,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'p_default_module': landingDefault,
               'p_title': landingTitle.text.trim(),
               'p_subtitle': landingSubtitle.text.trim(),
-              'p_order': landingModules
-                  .map((item) => item['key'].toString())
-                  .toList(),
+              'p_order': landingModules,
             },
           );
         }
@@ -2480,24 +2461,10 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         if (mounted) {
           setState(() => revision++);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Zona y cobertura guardadas. Solo se usará el método seleccionado.',
-              ),
-            ),
+            SnackBar(content: Text(
+              'Zona guardada. ${zonePassengerStartHint(landingModules)}.',
+            )),
           );
-          final zoneForPayments = <String, dynamic>{
-            ...?row,
-            'id': savedZoneId?.toString(),
-            'name': name.text.trim(),
-            'city': city.text.trim(),
-            'region_department': regionDepartment.text.trim(),
-            'country': selectedCountry()?['name']?.toString() ?? '',
-            'country_code': selectedCountryCode,
-            'currency_code': currency.text.trim().toUpperCase(),
-          };
-          await showAdminZonePaymentMethodsEditor(context, zoneForPayments, channel: widget.channel);
-          if (mounted) setState(() => revision++);
         }
       } catch (e) {
         if (mounted) _snack(context, e);
@@ -2514,9 +2481,6 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     radius.dispose();
     landingTitle.dispose();
     landingSubtitle.dispose();
-    rideLandingOrder.dispose();
-    deliveryLandingOrder.dispose();
-    marketLandingOrder.dispose();
   }
 
   @override
@@ -2616,16 +2580,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           (row['driver_registration_enabled'] == false
                               ? 'OFF'
                               : 'ON') +
-                          ' · Inicio: ' +
-                          ((row['passenger_landing_mode'] ?? 'direct')
-                                      .toString() ==
-                                  'auto'
-                              ? 'Automático'
-                              : (row['passenger_landing_mode'] ?? 'direct')
-                                          .toString() ==
-                                      'always'
-                                  ? 'Panel'
-                                  : 'Directo'),
+                          ' · Inicio: automático',
                     ),
                     isThreeLine: true,
                     trailing: Row(
@@ -2906,25 +2861,35 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                         const InputDecoration(labelText: 'Orden en la app'),
                   ),
                   const SizedBox(height: 6),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: enabled,
-                    onChanged: (value) => setLocal(() => enabled = value),
-                    title: Text('Disponible en $zoneName'),
-                    subtitle: const Text(
-                      'Activa o bloquea solicitudes. La visibilidad se controla por separado.',
+                  if (row?['service_key'] == 'delivery' ||
+                      row?['service_key'] == 'parcel')
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Text(
+                        'La activación de Envíos se gestiona desde '
+                        'Zonas de operación → Servicios para pasajeros. '
+                        'Aquí solo se ajustan las reglas avanzadas.',
+                        style: TextStyle(fontSize: 12, color: _muted),
+                      ),
+                    )
+                  else ...[
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: enabled,
+                      onChanged: (value) => setLocal(() => enabled = value),
+                      title: Text('Categoría disponible en $zoneName'),
+                      subtitle: const Text(
+                        'Define la disponibilidad de esta categoría de vehículo.',
+                      ),
                     ),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: passengerVisible,
-                    onChanged: (value) =>
-                        setLocal(() => passengerVisible = value),
-                    title: const Text('Visible para pasajeros'),
-                    subtitle: const Text(
-                      'Si está visible pero no disponible, aparecerá como “No disponible”.',
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: passengerVisible,
+                      onChanged: (value) =>
+                          setLocal(() => passengerVisible = value),
+                      title: const Text('Categoría visible para pasajeros'),
                     ),
-                  ),
+                  ],
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: driverVisible,

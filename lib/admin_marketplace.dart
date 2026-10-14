@@ -116,26 +116,13 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: preview,
-                    onChanged: widget.channel == 'preview'
-                        ? (value) => setLocal(() => preview = value)
-                        : null,
-                    title: const Text('Activo en Preview'),
-                    subtitle: const Text(
-                      'Permite probar el módulo sin activarlo en producción.',
-                    ),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: production,
-                    onChanged: widget.channel == 'production'
-                        ? (value) => setLocal(() => production = value)
-                        : null,
-                    title: const Text('Activo en Producción'),
-                    subtitle: const Text(
-                      'Actívalo solo después de aprobar la Preview.',
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: Text(
+                      'La disponibilidad de Market para cada zona se elige '
+                      'desde Zonas de operación → Servicios para pasajeros. '
+                      'Aquí solamente se personaliza el contenido de Market.',
+                      style: TextStyle(fontSize: 12, height: 1.4),
                     ),
                   ),
                   const SizedBox(height: 8),

@@ -1,3 +1,10 @@
+## 2026-10-14 · Un solo flujo para servicios de pasajeros por zona
+- En Zonas de operación, el editor ofrece un único grupo de selección: Viajes, Envíos y Market. Se retiraron los selectores redundantes de modo de aterrizaje, servicio predeterminado y orden numérico. El orden queda fijo (Viajes, Envíos, Market) y el modo de inicio se guarda como `auto`.
+- Al guardar, la misma operación sincroniza la visibilidad de pasajeros con el catálogo zonal por canal. Para Envíos actualiza tanto la clave del motor `parcel` como la clave `delivery` usada por la portada. Mantiene sin cambio autorizaciones de conductor, tarifas, reglas de ofertas, programación y métodos de pago. Una categoría de Taxi oculta permanece oculta; si ninguna está visible, usa una categoría disponible apropiada a CL/BO.
+- Market requiere comercios activos y visibles en ese entorno y conserva el filtro zonal, aun con el módulo global habilitado. Se quitaron sus interruptores globales duplicados del editor de contenido Market.
+- 0 servicios: no guardar. 1: entrada directa al único servicio. 2–3: portada. Cambios aislados en Preview mediante `admin_environment_config` y en Producción mediante RPC protegido.
+- **No se cambiaron los flags comerciales de Producción ni se activaron Envíos/Market durante este desarrollo.** Respaldo `backup/before-unified-zone-services-20261014`. Regresión: `test/admin_zone_passenger_services_test.dart`.
+
 ## 2026-10-13 · Conductor document and service approvals
 - Repaired missing widget in existing driver edit dialog: "Servicios autorizados al conductor" now visibly renders inside the conductor sheet instead of being an unreachable private helper.
 - Driver work services ride/parcel/market keep individual pending/approved/rejected states and channel-scoped RPCs. No auto-approval.
