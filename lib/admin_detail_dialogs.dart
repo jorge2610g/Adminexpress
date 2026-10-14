@@ -612,8 +612,11 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
               ),
             ),
           ),
-        const Text('Selecciona los tamaños de envío permitidos para '
-          'cada vehículo activo. No modifica los permisos de Taxi.',
+        const Text('Selecciona el tamaño máximo autorizado por vehículo. '
+          'Auto también admite solicitudes Moto; Carga admite Auto y Moto. '
+          'Moto no puede recibir Auto ni Carga. '
+          'Sin ninguna selección, Envíos no se ofrece al conductor. '
+          'No modifica los permisos de Taxi.',
           style: TextStyle(fontSize: 11, color: _detailMuted)),
         if (vehicles.isEmpty)
           const Text('No hay vehículo activo.')
