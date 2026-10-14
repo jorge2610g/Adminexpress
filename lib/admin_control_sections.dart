@@ -14,6 +14,7 @@ import 'admin_fare_rounding.dart';
 import 'admin_driver_quick_offers.dart';
 import 'admin_zone_coverage_editor.dart';
 import 'core/admin_zone_coverage_label.dart';
+import 'core/admin_zone_passenger_services.dart';
 
 const Color _blue = Color(0xFF2563EB);
 const Color _dark = Color(0xFF0F172A);
@@ -1895,28 +1896,91 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
       text: row?['passenger_landing_subtitle']?.toString() ??
           'Elige un servicio de Express',
     );
+    // One source of truth: the checked modules and their actual passenger
+    // availability. The old landing mode/order/default controls are retired.
     final rawLandingOrder = row?['passenger_landing_order'];
     final landingOrder = rawLandingOrder is List
         ? rawLandingOrder.map((item) => item.toString()).toList()
         : <String>['ride', 'delivery', 'market'];
-    int landingPosition(String key) {
-      final index = landingOrder.indexOf(key);
-      return index < 0 ? 99 : index + 1;
+    final currentZoneId = row?['id']?.toString() ?? '';
+    var zoneServiceRows = <Map<String, dynamic>>[];
+    var marketSettings = <String, dynamic>{};
+    var marketHasVisibleMerchants = false;
+    var marketChannelEnabled = false;
+    if (currentZoneId.isNotEmpty) {
+      try {
+        zoneServiceRows = _list(await supabase.rpc(
+          'admin_zone_service_list',
+          params: {'p_zone_id': currentZoneId},
+        ));
+        if (_environment.isPreview) {
+          final byKey = <String, Map<String, dynamic>>{
+            for (final service in zoneServiceRows)
+              service['service_key'].toString():
+                  Map<String, dynamic>.from(service),
+          };
+          final overrides = await _environment.previewList('zone_services');
+          for (final override in overrides) {
+            if (override['zone_id']?.toString() != currentZoneId) continue;
+            final key = override['service_key']?.toString();
+            if (key == null || key.isEmpty) continue;
+            byKey[key] = <String, dynamic>{
+              ...?byKey[key],
+              ...override,
+            };
+          }
+          zoneServiceRows = byKey.values.toList();
+        }
+        final marketData = await supabase.rpc(
+          'admin_marketplace_state_scoped',
+          params: {
+            'p_country_code': row?['country_code']?.toString() ?? '',
+            'p_zone_id': currentZoneId,
+          },
+        );
+        if (marketData is Map) {
+          final state = Map<String, dynamic>.from(marketData);
+          if (state['settings'] is Map) {
+            marketSettings =
+                Map<String, dynamic>.from(state['settings'] as Map);
+          }
+          final availabilityKey = _environment.isPreview
+              ? 'preview_visible' : 'production_visible';
+          final merchants = state['merchants'];
+          marketHasVisibleMerchants = merchants is List &&
+              merchants.whereType<Map>().any((merchant) =>
+                  merchant['active'] == true &&
+                  merchant[availabilityKey] == true);
+          marketChannelEnabled =
+              marketSettings[_environment.isPreview
+                  ? 'preview_enabled' : 'production_enabled'] == true;
+        }
+      } catch (error) {
+        if (mounted) {
+          _snack(context, 'No fue posible consultar los servicios: $error');
+        }
+        return;
+      }
     }
-
-    final rideLandingOrder =
-        TextEditingController(text: landingPosition('ride').toString());
-    final deliveryLandingOrder =
-        TextEditingController(text: landingPosition('delivery').toString());
-    final marketLandingOrder =
-        TextEditingController(text: landingPosition('market').toString());
-    var landingMode = row?['passenger_landing_mode']?.toString() ??
-        (row == null ? 'auto' : 'direct');
-    var landingDefault =
-        row?['passenger_default_module']?.toString() ?? 'ride';
-    var showRides = landingOrder.contains('ride');
-    var showParcels = landingOrder.contains('delivery');
-    var showMarket = landingOrder.contains('market');
+    final effectiveRides = zoneServiceRows.any((service) =>
+        zonePassengerRideServiceKeys.contains(
+          service['service_key']?.toString(),
+        ) && zonePassengerServiceActive(service));
+    final effectiveParcel = zoneServiceRows.any((service) =>
+        service['service_key'] == 'parcel' &&
+        zonePassengerServiceActive(service));
+    final effectiveDelivery = zoneServiceRows.any((service) =>
+        service['service_key'] == 'delivery' &&
+        zonePassengerServiceActive(service));
+    // A zone's saved order is a visibility allow-list, not evidence that a
+    // service is operational. Never show a stale checked box in Admin.
+    var showRides = row == null || (landingOrder.contains('ride') && effectiveRides);
+    var showParcels = row != null &&
+        landingOrder.contains('delivery') &&
+        (effectiveParcel || effectiveDelivery);
+    var showMarket = row != null &&
+        landingOrder.contains('market') &&
+        marketChannelEnabled && marketHasVisibleMerchants;
     var active = row?['active'] != false;
     var driverRegistrationEnabled =
         row?['driver_registration_enabled'] != false;
