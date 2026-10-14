@@ -541,6 +541,13 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
               );
             }),
           ],
+          const Divider(height: 28),
+          const Text(
+            'Tamaños de paquete por vehículo',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          _parcelVehiclePermissionsPanel(),
         ],
       ),
     );
@@ -582,13 +589,34 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
 
   Widget _parcelVehiclePermissionsPanel() {
     final vehicles = _maps(detail['vehicles'])
-      .where((vehicle) => vehicle['is_active'] == true).toList();
-    return _Section(
-      title: 'Envíos permitidos por vehículo',
-      icon: Icons.inventory_2_outlined,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Selecciona los tamaños de envío permitidos para '
-          'cada vehículo activo. No modifica los permisos de Taxi.',
+        .where((vehicle) => vehicle['is_active'] == true)
+        .toList();
+    final parcelApproved = workPermissions.any((row) =>
+        row['service_key'] == 'parcel' && row['status'] == 'approved');
+    final hasEnabledGrant = parcelVehicleGrants.any((grant) =>
+        grant['enabled'] == true &&
+        vehicles.any((vehicle) =>
+            vehicle['id']?.toString() == grant['vehicle_id']?.toString()));
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (parcelApproved && !hasEnabledGrant)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Envíos está aprobado, pero este conductor no recibirá ofertas '
+              'de Paquetes hasta autorizar al menos un tamaño compatible '
+              'con su vehículo activo.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF965A00),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        const Text('Selecciona el tamaño máximo autorizado por vehículo. '
+          'Auto también admite solicitudes Moto; Carga admite Auto y Moto. '
+          'Moto no puede recibir Auto ni Carga. '
+          'Sin ninguna selección, Envíos no se ofrece al conductor. '
+          'No modifica los permisos de Taxi.',
           style: TextStyle(fontSize: 11, color: _detailMuted)),
         if (vehicles.isEmpty)
           const Text('No hay vehículo activo.')
@@ -628,8 +656,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
           ],
         if (parcelGrantError != null)
           Text(parcelGrantError!,style: const TextStyle(color: Colors.red)),
-      ]),
-    );
+      ]);
   }
 
   Future<void> _save() async {
@@ -1689,7 +1716,6 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                         ),
                       ),
                       _workPermissionPanel(),
-                      _parcelVehiclePermissionsPanel(),
                       _Section(
                         title: 'Vehículo',
                         icon: Icons.two_wheeler_rounded,
