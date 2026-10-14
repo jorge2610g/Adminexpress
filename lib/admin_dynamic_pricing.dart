@@ -247,6 +247,10 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
   }
 
   Future<void> _override(String cityKey, String level) async {
+    if (widget.channel != 'preview') {
+      _snack('Los controles QA solo están disponibles en Preview.');
+      return;
+    }
     try {
       await supabase.rpc(
         'admin_set_dynamic_pricing_qa_override',

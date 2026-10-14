@@ -131,10 +131,11 @@ class _AdminDriverSubscriptionsPageState
         }
 
         final rawDrivers = await supabase.rpc(
-          'admin_driver_subscriptions',
+          'admin_driver_subscriptions_scoped',
           params: {
             'p_search': search.text.trim(),
             'p_zone_key': zoneKey,
+            'p_channel': widget.channel,
           },
         );
         final qaDrivers = _maps(rawDrivers)
@@ -258,10 +259,11 @@ class _AdminDriverSubscriptionsPageState
 
       try {
         final driverRows = await supabase.rpc(
-          'admin_driver_subscriptions',
+          'admin_driver_subscriptions_scoped',
           params: {
             'p_search': search.text.trim(),
             'p_zone_key': zoneKey,
+            'p_channel': widget.channel,
           },
         );
         if (mounted) {

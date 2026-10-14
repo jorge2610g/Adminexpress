@@ -174,6 +174,10 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
 
   Future<void> _call(String action) async {
     if (busy) return;
+    if (widget.channel != 'preview' || targetScope == 'production') {
+      setState(() => error = 'El laboratorio QA está bloqueado en Producción.');
+      return;
+    }
     if (action == 'seed' &&
         targetScope == 'production' &&
         !await _confirmProductionLaunch()) {
@@ -237,6 +241,12 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
 
   Future<void> _applyDemand({bool silent = false}) async {
     if (!silent && busy) return;
+    if (widget.channel != 'preview' || targetScope == 'production') {
+      if (!silent && mounted) {
+        setState(() => error = 'La demanda QA solo se controla desde Preview.');
+      }
+      return;
+    }
     try {
       final value = await supabase.rpc(
         'admin_set_dynamic_pricing_qa_override',
