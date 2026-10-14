@@ -1,3 +1,5 @@
+> **Estado 2026-10-14:** las reglas de Preview y Producción de este documento quedan superadas en lo que contradigan `docs/ARQUITECTURA_UNICA_2026-10-14.md` (una app, una web, entorno decidido por la cuenta). Se conserva como histórico.
+
 # Adminexpress — inventario y responsabilidades después de separar Restaurante/Repartidor (2026-10-14)
 
 **Estado:** mapa documental de código real, sin modificación funcional. Inspeccionado árbol de Adminexpress `main` (102 entradas), archivos principales de Delivery/comercios/conductores y repositorios de Express.

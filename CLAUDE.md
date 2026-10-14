@@ -8,6 +8,8 @@
 
 # Claude / Cloud — reglas de trabajo en Adminexpress
 
+> **Vigente desde 2026-10-14:** prevalece sobre las secciones de aislamiento y paridad de este archivo la guía `docs/ARQUITECTURA_UNICA_2026-10-14.md`.
+
 ## REGLA ABSOLUTA DEL PROPIETARIO (2026-10-12): UNA WEB + UNA APP
 
 - **Una sola web administrativa:** https://admin.expressviajes.online/ (repositorio Adminexpress). No crear Admin Preview, sitio espejo, Vercel Preview, GitHub Pages externo ni una segunda URL para pruebas.
@@ -17,7 +19,7 @@
 - Cualquier cambio de esta arquitectura exige una revocación expresa de esta regla por parte del propietario, no una inferencia a partir de la palabra «Preview».
 - El código publicado es compartido: proteger funciones todavía no aprobadas con controles de acceso/feature flags y reglas backend; no exponerlas a producción solo porque se despliegue el mismo bundle.
 - Las ramas temporales y los PR de revisión son permitidos; no representan otra web ni otra app. Mantener CI y QA en el mismo código y probar el APK oficial firmado antes de publicarlo.
-- No borrar ni relajar el aislamiento por cuenta, zona, permisos, RLS, RPC, tarifas, viajes, pedidos o liquidaciones. Mantener en servicio taxi y producción.
+- No borrar ni relajar el aislamiento de conductores, zona de prueba y solicitudes de prueba (RLS, RPC y permisos). Tarifas, pagos, suscripciones y configuración compartida se mantienen iguales a Producción; cambiarlas requiere orden expresa del propietario. Mantener en servicio taxi y producción.
 
 
 Claude, Cloud, ChatGPT, Codex y cualquier otra IA **autorizada por el propietario** pueden programar en este repositorio. No existe una regla vigente que limite a Claude/Cloud a arquitectura, lectura o revisión.
@@ -62,7 +64,7 @@ Los documentos marcados **HISTÓRICO / SUPERADO** no son instrucciones vigentes.
 
 Para cualquier cambio no visual, Claude/Cloud y cualquier otro agente deben aplicar `docs/PREVIEW_PRODUCTION_PARITY_RULE.md`.
 
-En resumen: una sola implementación compartida, más una rama temporal `preview/<slug>` para validar el mismo cambio con datos Preview antes del merge. No crear una segunda versión permanente del código.
+En resumen: una sola implementación compartida; el mismo commit se valida con una cuenta Preview antes del merge. No se crean ramas `preview/<slug>` ni una segunda versión del código.
 
 ## Reglas de seguridad
 
@@ -71,3 +73,4 @@ En resumen: una sola implementación compartida, más una rama temporal `preview
 - No crear una segunda página administrativa por entorno.
 - No publicar Producción o Google Play sin autorización explícita del propietario y validaciones verdes.
 - Mantener trazabilidad con ramas/commits/migraciones y actualizar documentación cuando cambie una regla operativa.
+- Antes de cualquier cambio se crea una copia de seguridad (rama `backup/<tema>-<fecha>`) en cada repositorio afectado, subida al remoto. Ver §9 de `docs/ARQUITECTURA_UNICA_2026-10-14.md`.

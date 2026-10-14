@@ -1,3 +1,10 @@
+## 2026-10-14 · Arquitectura única y copias de seguridad (documentación)
+
+- Nueva guía vigente en `docs/ARQUITECTURA_UNICA_2026-10-14.md`: una web Admin; Preview o Producción lo decide la cuenta. Solo se aíslan conductores, zona de prueba y solicitudes de prueba; el resto se muestra igual que en Producción.
+- `AGENTS.md` y `CLAUDE.md` se actualizan: la lista amplia de aislamiento y las ramas `preview/<slug>` quedan superadas. Los documentos con reglas de dos páginas o `ADMIN_ENV` quedan marcados como superados en lo que contradigan.
+- Regla de copias de seguridad: antes de cada cambio, rama `backup/<tema>-<fecha>` en cada repositorio afectado. Copia vigente: `backup/main-20261014` (producción, `ea3dae4`).
+- Sin cambios de código, base de datos, workflows ni despliegues. Pendiente: código con `ADMIN_ENV` en `lib/` y confirmación de escritura de la cuenta Preview.
+
 ## 2026-10-14 · Auditoría documental de módulos Admin y división en cuatro apps
 
 - Documento `docs/EXPRESS_FOUR_APPS_CODE_AUDIT_20261014.md`: inventario de archivos Admin para comercios, demos, pedidos, logística, liquidaciones, permisos, Builder; quién conserva qué y contratos con Principal/Restaurante/Repartidor.

@@ -1,3 +1,5 @@
+> **Estado 2026-10-14:** las reglas de Preview y Producción de este documento quedan superadas en lo que contradigan `docs/ARQUITECTURA_UNICA_2026-10-14.md` (una app, una web, entorno decidido por la cuenta). Se conserva como histórico.
+
 ## 2026-10-11 — Migración de licencia aplicada; panel aún en QA
 
 **Estado actualizado 2026-10-11:** el propietario autorizó aplicar la migración de licencia al Supabase compartido. Se ejecutó correctamente mediante Supabase y quedó registrada como versión `20261012021954`, nombre `driver_license_individual_evidence_review`. La función `admin_driver_license_review_part` y el trigger `trg_driver_license_part_states` existen; `anon` no tiene ejecución. La licencia existente de Producción mantiene estado `verified`. **No hay licencias de Preview registradas para QA E2E; la UI aún no está fusionada ni desplegada.** Conservar las ramas PR en borrador y exigir validación Preview antes de publicar la interfaz. La migración compartida es aditiva, no equivale a aprobación del flujo ni a publicación web.

@@ -1,3 +1,5 @@
+> **Estado 2026-10-14:** las reglas de Preview y Producción de este documento quedan superadas en lo que contradigan `docs/ARQUITECTURA_UNICA_2026-10-14.md` (una app, una web, entorno decidido por la cuenta). Se conserva como histórico.
+
 > **PRIMERO — corte 2026-10-14:** `docs/EXPRESS_FOUR_APPS_CODE_AUDIT_20261014.md` registra código existente, funcionalidades retiradas y plan de separación de cuatro aplicaciones con un solo Supabase. Los documentos del 2026-10-11 no reflejan todavía la nueva decisión de Repartidor/Restaurante.
 
 # ADMINEXPRESS — START HERE

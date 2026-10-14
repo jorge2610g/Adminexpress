@@ -1,3 +1,5 @@
+> **ARQUITECTURA VIGENTE 2026-10-14 (prevalece sobre cualquier regla anterior de este archivo):** lee `docs/ARQUITECTURA_UNICA_2026-10-14.md`. Adminexpress tiene una web; Preview o Producción lo decide la cuenta, no la URL ni un build. Sin `/preview/`, sin `ADMIN_ENV` y sin ramas `preview/<slug>` permanentes. Solo se aíslan conductores, zona de prueba y solicitudes de prueba; el resto es igual a Producción. Las reglas de seguridad de `CLAUDE.md` siguen vigentes.
+>
 > **ACTUALIZACIÓN OBLIGATORIA 2026-10-14:** Antes de administrar o mover Delivery/Restaurante/Repartidor leer `docs/EXPRESS_FOUR_APPS_CODE_AUDIT_20261014.md`. Express Principal conserva cinco funciones (cliente Taxi, Envíos, Delivery; conductor Taxi, Envíos). La nueva Express Repartidor solo maneja pedidos de comercios, la nueva Express Restaurante solo el negocio, y Adminexpress permanece independiente. No eliminar código merchant, liquidaciones, backend o rutas antes de migración, push y QA E2E. El mockup aprobado NO es una app construida.
 
 # AGENTS.md — Adminexpress
@@ -16,7 +18,7 @@
 - **«Despliega en Adminexpress», «despliega para probar», «sube a prueba»** significa compilar, validar y publicar **la única web administrativa canónica https://admin.expressviajes.online/**. No publicar páginas adicionales, Admin Preview, subdominios ni APK.
 - **«Despliega pasajero/conductor»** se dirige a la única Express Web **https://expressviajes.online/** (repositorio `Expressdelivery`), no a Adminexpress ni a otro sitio.
 - **«Genera APK»** es una solicitud distinta y explícita: solo entonces crear **un único APK oficial `com.express.usuario1`**, para QA físico Android después de aprobar Web; permitir excepción anterior solo cuando una capacidad nativa no pueda probarse en Web. Nunca APK Preview/QA paralelo, AAB o Google Play implícitos.
-- **Prueba/Preview y Producción están dentro del mismo frontend/binario y proyecto Supabase**, asignadas por la **cuenta autenticada**. Al entrar con cuenta de Prueba deben filtrarse todas las zonas, tarifas, viajes, pedidos, comercios, conductores, premios, documentos, liquidaciones, permisos y operaciones, sin mezclar registros ni acciones con usuarios reales. Aplicar control de backend/RLS/RPC además de UI.
+- **Prueba y Producción están dentro del mismo frontend y del mismo proyecto Supabase**, asignadas por la **cuenta autenticada**. Con cuenta de Prueba solo se aíslan conductores, la zona de prueba y las solicitudes de prueba; todo lo demás se muestra igual que en Producción. Las solicitudes de prueba nunca se asignan a usuarios ni conductores de Producción. Cambiar configuración compartida requiere orden expresa del propietario (ver `docs/ARQUITECTURA_UNICA_2026-10-14.md`). Aplicar control de backend/RLS/RPC además de UI.
 - **Orden:** desarrollar una sola implementación -> CI/build + revisión de permisos y aislamiento -> publicar en dominio canónico solicitado -> verificar versión exacta `version.json` y página accesible -> propietario revisa con cuenta de Prueba -> corregir -> solo cuando solicite APK, generar el único paquete Android.
 - **Alcance:** el mismo código se publica simultáneamente para cuentas Preview y Producción; la cuenta Preview sirve para validarlo, **no para bloquear Producción**. Mantener sin cambios los flags específicos de activación comercial (por zona/canal) y la operación real de taxi hasta solicitud explícita. No publicar Play Store ni crear entornos adicionales. Las ramas PR/QA solo revisan código.
 - Si textos antiguos de este repositorio contradicen estas reglas, son **HISTÓRICOS / SUPERADOS**. No volver a interpretarlos como instrucciones para duplicar servicios o APK.
@@ -86,13 +88,17 @@ Reglas:
 Todo cambio **no visual** de flujo, backend, permisos, RPC, SQL, configuración o comportamiento debe quedar funcionando también en Preview antes de considerarse terminado.
 
 - el código es único y compartido;
-- para cada cambio funcional/backend se crea una rama temporal `preview/<slug>` para validar el mismo commit con datos Preview;
-- esa rama NO puede convertirse en otra implementación permanente;
+- para validar un cambio funcional/backend se usa una cuenta Preview sobre el mismo commit; no se crean ramas `preview/<slug>`;
 - si QA exige correcciones, se corrige la rama principal del cambio y Preview se vuelve a sincronizar al mismo código;
 - no se acepta “Producción ahora y Preview después” salvo excepción explícita del propietario;
 - cambios visuales puros quedan fuera si no alteran flujo, consultas, permisos ni acciones.
 
 Contrato completo: `docs/PREVIEW_PRODUCTION_PARITY_RULE.md`.
+
+## Copias de seguridad (obligatorio, 2026-10-14)
+
+- Antes de cualquier cambio de código o documentación se crea una rama `backup/<tema>-<fecha>` que apunte al commit actual, subida al remoto. Ver §9 de `docs/ARQUITECTURA_UNICA_2026-10-14.md`.
+- Copia vigente de Adminexpress: `backup/main-20261014` (producción, `ea3dae4`).
 
 ## Acceso por usuario
 
