@@ -2861,25 +2861,35 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                         const InputDecoration(labelText: 'Orden en la app'),
                   ),
                   const SizedBox(height: 6),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: enabled,
-                    onChanged: (value) => setLocal(() => enabled = value),
-                    title: Text('Disponible en $zoneName'),
-                    subtitle: const Text(
-                      'Activa o bloquea solicitudes. La visibilidad se controla por separado.',
+                  if (row?['service_key'] == 'delivery' ||
+                      row?['service_key'] == 'parcel')
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Text(
+                        'La activación de Envíos se gestiona desde '
+                        'Zonas de operación → Servicios para pasajeros. '
+                        'Aquí solo se ajustan las reglas avanzadas.',
+                        style: TextStyle(fontSize: 12, color: _muted),
+                      ),
+                    )
+                  else ...[
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: enabled,
+                      onChanged: (value) => setLocal(() => enabled = value),
+                      title: Text('Categoría disponible en $zoneName'),
+                      subtitle: const Text(
+                        'Define la disponibilidad de esta categoría de vehículo.',
+                      ),
                     ),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: passengerVisible,
-                    onChanged: (value) =>
-                        setLocal(() => passengerVisible = value),
-                    title: const Text('Visible para pasajeros'),
-                    subtitle: const Text(
-                      'Si está visible pero no disponible, aparecerá como “No disponible”.',
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: passengerVisible,
+                      onChanged: (value) =>
+                          setLocal(() => passengerVisible = value),
+                      title: const Text('Categoría visible para pasajeros'),
                     ),
-                  ),
+                  ],
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: driverVisible,
