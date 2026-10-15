@@ -1901,7 +1901,8 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                         _licensePartReviewCard(doc, 'back'),
                                       ] else if (!manualIdentity &&
                                           _text(doc['requirement_id'], '').isNotEmpty &&
-                                          _map(doc['review_parts']).containsKey('front') &&
+                                          const <String>['front', 'back', 'selfie'].any(
+                                            (slot) => _map(doc['review_parts']).containsKey(slot)) &&
                                           _text(doc['document_type'], '').toLowerCase() != 'driver_license') ...[
                                         const SizedBox(height: 5),
                                         const Text('Revisa por foto sin alterar las otras evidencias aprobadas.',

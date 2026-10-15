@@ -8,7 +8,7 @@ void main() {
     expect(source, contains("generic: generic"));
     expect(source, contains("'p_expected_version': version"));
     expect(source, contains("'p_channel': widget.channel"));
-    expect(source, contains("containsKey('front')"));
+    expect(source, contains("'front', 'back', 'selfie'].any"));
     expect(source, contains("containsKey(slot)"));
     expect(source, contains("'selfie_object_path'"));
     expect(source, contains("if (rejecting && reason.length < 5)"));
