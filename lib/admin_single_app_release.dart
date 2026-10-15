@@ -139,7 +139,8 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
 
   Future<void> _queue() async {
     if (!canManage || busy) return;
-    final currentVersion = candidate['version_name']?.toString() ?? '1.6.1';
+    // Explicit source target; do not default to the last (possibly stale) candidate.
+    const currentVersion = '1.6.2';
     final version = TextEditingController(text: currentVersion);
     final changes = TextEditingController();
     final data = await showDialog<Map<String, String>>(
@@ -154,14 +155,17 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               const Text(
                 'Se usará el código vigente de main, el paquete oficial '
                 'com.express.usuario1 y la firma Android existente. '
-                'No crea Express Preview ni publica en Google Play.',
+                'No crea Express Preview ni publica en Google Play. '
+                'El trabajo quedará en cola: la APK solo se compila después '
+                'de la autorización manual AUTORIZO APK QA en GitHub. '
+                'El SHA, 1.6.2 y build 140 deben corresponder al código fuente.',
               ),
               const SizedBox(height: 14),
               TextField(
                 controller: version,
                 decoration: const InputDecoration(
                   labelText: 'Versión (igual a pubspec.yaml)',
-                  hintText: '1.6.1',
+                  hintText: '1.6.2',
                 ),
               ),
               const SizedBox(height: 10),
@@ -198,10 +202,14 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     version.dispose();
     changes.dispose();
     if (data == null || data['version']?.isEmpty != false) return;
+    if (data['version'] != currentVersion) {
+      _message('Versión incorrecta: para este candidato usa 1.6.2.');
+      return;
+    }
     await _call('admin_queue_single_app_candidate', {
       'p_version_name': data['version'],
       'p_changelog': data['notes'],
-    }, 'Candidato real en cola. No afecta el APK instalado ni Google Play.');
+    }, 'Trabajo registrado en cola; NO se compilará hasta autorización manual en GitHub. No afecta Google Play.');
   }
 
   Future<void> _certify() async {
@@ -554,8 +562,8 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
           fontSize: 23, fontWeight: FontWeight.w900)),
         const SizedBox(height: 8),
         const Text('Desarrollo y pruebas compartidas: Web primero. '
-            'Android usa lib/mobile_main.dart y se compila cuando hay '
-            'una función nativa que verificar o una nueva publicación.'),
+            'Android usa lib/mobile_main.dart. La generación de APK/AAB requiere '
+            'aprobación manual explícita, además de la cola de compilación.'),
         const SizedBox(height: 12),
         if (!canManage)
           _section('Solo lectura',
@@ -573,13 +581,14 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             Text('Google Play: build vigente ${status['production_store_build'] ?? '—'} '
                 '· siguiente ${status['next_google_play_build'] ?? '—'}'),
             const SizedBox(height: 8),
-            const Text('Preparar APK/AAB firmado → probar ese mismo APK → '
-              'certificar → aprobar → promover el mismo archivo → publicar.'),
+            const Text('Poner candidato en cola → autorizar APK QA en GitHub → '
+              'comprobar hashes y firma → probar esa misma APK → '
+              'certificar → aprobar → publicar solo con visto bueno.'),
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: canManage && !busy ? _queue : null,
               icon: const Icon(Icons.build_rounded),
-              label: const Text('Crear candidato Android (sin APK Preview)'),
+              label: const Text('Preparar candidato 1.6.2 (no compila aún)'),
             ),
             if (hasCandidate) ...[
               const SizedBox(height: 16),
