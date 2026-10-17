@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
+import 'admin_shared_global_timing.dart';
 import 'admin_driver_document_requirements.dart';
 import 'admin_country_coverage.dart';
 import 'admin_admob_settings.dart';
@@ -7771,9 +7772,16 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
   }) async {
     final environment = AdminEnvironmentStore(channel);
     try {
-      final row = environment.isPreview
+      final stored = environment.isPreview
           ? await environment.previewGet('app_settings')
           : _map(await supabase.rpc('admin_settings_get'));
+      // Preview: los tiempos globales son los reales de app_settings (compartidos).
+      final row = environment.isPreview
+          ? {
+              ...stored,
+              ...await readSharedGlobalTiming((fn) => supabase.rpc(fn)),
+            }
+          : stored;
 
       if (!mounted ||
           revision != _settingsLoadRevision ||
@@ -7855,7 +7863,11 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       };
 
       if (environment.isPreview) {
-        await environment.previewUpsert('app_settings', 'default', next);
+        await environment.previewUpsert(
+          'app_settings',
+          'default',
+          withoutSharedGlobalTiming(next),
+        );
         settings = next;
       } else {
         await supabase.rpc(
@@ -8034,6 +8046,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
             _NumberField(
               controller: timeout,
               label: 'Duración de oferta en segundos',
+              readOnly: AdminEnvironmentStore(widget.channel).isPreview,
             ),
           ],
         );
@@ -8253,7 +8266,11 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
 
   Future<Map<String, dynamic>> _load() async {
     if (_environment.isPreview) {
-      return _environment.previewGet('app_settings');
+      final stored = await _environment.previewGet('app_settings');
+      return {
+        ...stored,
+        ...await readSharedGlobalTiming((fn) => supabase.rpc(fn)),
+      };
     }
     final value = await supabase.rpc('admin_settings_get');
     return _map(value);
@@ -8262,7 +8279,11 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
   Future<void> _save(Map<String, dynamic> current, Map<String, dynamic> patch) async {
     final next = <String, dynamic>{...current, ...patch};
     if (_environment.isPreview) {
-      await _environment.previewUpsert('app_settings', 'default', next);
+      await _environment.previewUpsert(
+        'app_settings',
+        'default',
+        withoutSharedGlobalTiming(next),
+      );
     } else {
       await supabase.rpc(
         'admin_advanced_settings_update',
@@ -8421,9 +8442,9 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _NumberField(controller: search, label: 'Búsqueda máxima · segundos')),
+                      Expanded(child: _NumberField(controller: search, label: 'Búsqueda máxima · segundos', readOnly: _environment.isPreview)),
                       const SizedBox(width: 10),
-                      Expanded(child: _NumberField(controller: visible, label: 'Solicitud visible · segundos')),
+                      Expanded(child: _NumberField(controller: visible, label: 'Solicitud visible · segundos', readOnly: _environment.isPreview)),
                     ],
                   ),
                   const SizedBox(height: 10),
@@ -8446,6 +8467,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                   _NumberField(
                     controller: before,
                     label: 'Publicar viaje programado antes · minutos',
+                    readOnly: _environment.isPreview,
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
@@ -9194,21 +9216,27 @@ class _Kpi extends StatelessWidget {
 class _NumberField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
+  final bool readOnly;
 
   const _NumberField({
     required this.controller,
     required this.label,
+    this.readOnly = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      readOnly: readOnly,
       keyboardType: const TextInputType.numberWithOptions(
         decimal: true,
         signed: true,
       ),
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(
+        labelText: readOnly ? '$label · $kSharedGlobalTimingNote' : label,
+        helperText: readOnly ? 'Valor real de producción. Cámbialo solo desde el flujo de configuración global.' : null,
+      ),
     );
   }
 }
