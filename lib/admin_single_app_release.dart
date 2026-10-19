@@ -28,6 +28,7 @@ class AdminSingleAppReleasePage extends StatefulWidget {
 class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
   Map<String, dynamic> status = const {};
   List<Map<String, dynamic>> releases = const [];
+  List<Map<String, dynamic>> internalAabJobs = const [];
   Map<String, dynamic> publishedRelease = const {};
   String? error;
   bool loading = true;
@@ -70,6 +71,11 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
       final rawStatus = results[0];
       final rawRows = results[1];
       final rawPublished = results[2];
+      final androidRows = (rawRows is List ? rawRows : const [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .where((row) => row['platform'] == 'android')
+          .toList();
       setState(() {
         publishedRelease = rawPublished is Map
             ? Map<String, dynamic>.from(rawPublished)
@@ -77,13 +83,12 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
         status = rawStatus is Map
             ? Map<String, dynamic>.from(rawStatus)
             : <String, dynamic>{};
-        releases = (rawRows is List ? rawRows : const [])
-            .whereType<Map>()
-            .map((row) => Map<String, dynamic>.from(row))
-            .where((row) =>
-                row['platform'] == 'android' &&
-                (row['artifact_type'] == 'apk+aab' ||
-                 row['artifact_type'] == 'aab'))
+        releases = androidRows
+            .where((row) => row['artifact_type'] == 'apk+aab')
+            .take(15)
+            .toList();
+        internalAabJobs = androidRows
+            .where((row) => row['artifact_type'] == 'aab')
             .take(15)
             .toList();
         error = null;
@@ -651,6 +656,9 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
       children: [
         Text('Versión ${row['version_name']} · build ${row['build_number']} '
             '· ${row['status']}'),
+        if (row['id'] != null)
+          SelectableText('Trabajo GitHub: ${row['id']}',
+              style: const TextStyle(fontSize: 12)),
         if (sha.isNotEmpty)
           SelectableText('Código SHA: $sha', style: const TextStyle(fontSize: 12)),
         if (row['apk_sha256'] != null)
@@ -794,6 +802,25 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               'la publicación de Google Play.',
               style: TextStyle(fontSize: 12),
             ),
+          ],
+        )),
+        _section('Compilaciones AAB · Pruebas internas', Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Estos trabajos no son publicaciones de Producción. '
+              'Solo compilan el AAB y requieren aprobación del '
+              'propietario en GitHub. La subida a Play es independiente.',
+            ),
+            if (internalAabJobs.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text('Todavía no hay trabajos AAB internos solicitados.'),
+              ),
+            for (final job in internalAabJobs) ...[
+              const Divider(),
+              _details(job),
+            ],
           ],
         )),
         _section('Publicaciones de Producción', Column(
