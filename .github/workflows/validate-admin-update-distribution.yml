@@ -31,3 +31,5 @@ jobs:
         run: flutter analyze --no-fatal-warnings --no-fatal-infos lib/admin_single_app_release.dart
       - name: Verify distribution modal, server authorization and production isolation
         run: flutter test test/admin_distribution_controls_contract_test.dart
+      - name: Build Admin Express Web
+        run: flutter build web --release --no-tree-shake-icons
