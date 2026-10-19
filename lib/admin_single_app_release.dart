@@ -916,53 +916,42 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
 
   Widget _historyDistributionRow(Map<String, dynamic> build) {
     final id = build['id']?.toString() ?? '';
-    final number = build['build_number']?.toString() ?? '';
-    final isInternalAab = build['artifact_type'] == 'aab';
-    final channel = isInternalAab ? 'internal' : (
-      number == status['production_store_build']?.toString()
-          ? 'production' : 'internal'
-    );
-    final saved = _savedDistribution(id, channel);
+    final saved = _savedDistribution(id, 'production');
+    final current = saved?['is_current'] == true;
+    final critical = saved?['is_critical'] == true;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 9),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Wrap(
         spacing: 12,
-        runSpacing: 9,
+        runSpacing: 10,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           SizedBox(
-            width: 220,
+            width: 240,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Android · ' + (build['version_name']?.toString() ?? '') +
-                  ' (Build ' + number + ')',
+                  'Express ${build['version_name']} · Build ${build['build_number']}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
+                const Text(
+                  'Google Play · Producción · AAB firmado',
+                  style: TextStyle(fontSize: 12),
+                ),
                 Text(
-                  isInternalAab ? 'AAB · Pruebas internas' :
-                    'APK/AAB · Firmado',
+                  current
+                    ? (critical ? 'Aviso crítico activo' : 'Aviso normal activo')
+                    : 'Aviso desactivado',
                   style: const TextStyle(fontSize: 12),
                 ),
-                if (saved != null)
-                  Text(
-                    saved['is_current'] == true
-                      ? (saved['is_critical'] == true
-                          ? 'Distribución crítica configurada'
-                          : 'Distribución actual configurada')
-                      : 'Distribución guardada · Sin aviso activo',
-                    style: const TextStyle(
-                      fontSize: 11, color: Color(0xFF25624D),
-                    ),
-                  ),
               ],
             ),
           ),
           OutlinedButton.icon(
             onPressed: canManage && !busy
-                ? () => _configureDistribution(build)
-                : null,
+              ? () => _configureDistribution(build)
+              : null,
             icon: const Icon(Icons.rocket_launch_outlined),
             label: const Text('Distribución'),
           ),
@@ -970,13 +959,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             TextButton.icon(
               onPressed: () => _open(build['aab_url']?.toString()),
               icon: const Icon(Icons.file_download_outlined),
-              label: const Text('AAB'),
-            ),
-          if (build['apk_url'] != null)
-            TextButton.icon(
-              onPressed: () => _open(build['apk_url']?.toString()),
-              icon: const Icon(Icons.android),
-              label: const Text('APK'),
+              label: const Text('Ver AAB'),
             ),
         ],
       ),
@@ -989,16 +972,17 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
       ? 1 : (buildHistory.length + pageSize - 1) ~/ pageSize;
     final safePage = historyPage < maxPages ? historyPage : 0;
     final rows = buildHistory.skip(safePage * pageSize).take(pageSize);
-    return _section('Historial de Builds · Distribución', Column(
+    return _section('Distribución de actualizaciones · Producción', Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Configura avisos, notas y enlaces por compilación. '
-          'Las pruebas internas no activan avisos en Producción.',
+          'Controla el aviso de actualización para la versión '
+          'verificada en Google Play Producción. '
+          'No modifica Google Play ni envía notificaciones push.',
         ),
         const SizedBox(height: 12),
         if (buildHistory.isEmpty)
-          const Text('Aún no hay compilaciones Android firmadas.'),
+          const Text('No se encontró una versión firmada y verificada en Google Play Producción.'),
         for (final build in rows) ...[
           const Divider(height: 12),
           _historyDistributionRow(build),
