@@ -971,6 +971,117 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     );
   }
 
+
+  Widget _historyDistributionRow(Map<String, dynamic> build) {
+    final id = build['id']?.toString() ?? '';
+    final number = build['build_number']?.toString() ?? '';
+    final isInternalAab = build['artifact_type'] == 'aab';
+    final channel = isInternalAab ? 'internal' : (
+      number == status['production_store_build']?.toString()
+          ? 'production' : 'internal'
+    );
+    final saved = _savedDistribution(id, channel);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 9,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          SizedBox(
+            width: 220,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Android · ' + (build['version_name']?.toString() ?? '') +
+                  ' (Build ' + number + ')',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  isInternalAab ? 'AAB · Pruebas internas' :
+                    'APK/AAB · Firmado',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                if (saved != null)
+                  Text(
+                    saved['is_current'] == true
+                      ? (saved['is_critical'] == true
+                          ? 'Distribución crítica configurada'
+                          : 'Distribución actual configurada')
+                      : 'Distribución guardada · Sin aviso activo',
+                    style: const TextStyle(
+                      fontSize: 11, color: Color(0xFF25624D),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: canManage && !busy
+                ? () => _configureDistribution(build)
+                : null,
+            icon: const Icon(Icons.rocket_launch_outlined),
+            label: const Text('Distribución'),
+          ),
+          if (build['aab_url'] != null)
+            TextButton.icon(
+              onPressed: () => _open(build['aab_url']?.toString()),
+              icon: const Icon(Icons.file_download_outlined),
+              label: const Text('AAB'),
+            ),
+          if (build['apk_url'] != null)
+            TextButton.icon(
+              onPressed: () => _open(build['apk_url']?.toString()),
+              icon: const Icon(Icons.android),
+              label: const Text('APK'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDistributionHistory() {
+    const pageSize = 8;
+    final maxPages = buildHistory.isEmpty
+      ? 1 : (buildHistory.length + pageSize - 1) ~/ pageSize;
+    final safePage = historyPage < maxPages ? historyPage : 0;
+    final rows = buildHistory.skip(safePage * pageSize).take(pageSize);
+    return _section('Historial de Builds · Distribución', Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Configura avisos, notas y enlaces por compilación. '
+          'Las pruebas internas no activan avisos en Producción.',
+        ),
+        const SizedBox(height: 12),
+        if (buildHistory.isEmpty)
+          const Text('Aún no hay compilaciones Android firmadas.'),
+        for (final build in rows) ...[
+          const Divider(height: 12),
+          _historyDistributionRow(build),
+        ],
+        const SizedBox(height: 8),
+        Row(children: [
+          OutlinedButton(
+            onPressed: safePage > 0
+              ? () => setState(() => historyPage = safePage - 1) : null,
+            child: const Text('Anterior'),
+          ),
+          const SizedBox(width: 10),
+          Text('Página ' + (safePage + 1).toString() +
+              ' de ' + maxPages.toString()),
+          const SizedBox(width: 10),
+          OutlinedButton(
+            onPressed: safePage + 1 < maxPages
+              ? () => setState(() => historyPage = safePage + 1) : null,
+            child: const Text('Siguiente'),
+          ),
+        ]),
+      ],
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final row = candidate;
@@ -1062,6 +1173,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             ],
           ],
         )),
+        _buildDistributionHistory(),
         _section('Avisar actualización a pasajeros y conductores', Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
