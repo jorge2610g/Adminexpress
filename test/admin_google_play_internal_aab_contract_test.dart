@@ -19,6 +19,14 @@ void main() {
     expect(panel, contains("'admin_create_build_job'"));
     expect(panel, contains('Preparar solo AAB'));
     expect(panel, contains('Preparar solo AAB · Build 141'));
+    expect(panel, contains('Future<String> _currentSignedQaSha() async'));
+    expect(panel, contains('if (await _currentSignedQaSha() != sourceSha)'));
+    expect(panel, contains('readOnly: true'));
+    expect(panel, contains('internalAabJobs = androidRows'));
+    expect(panel, contains("row['artifact_type'] == 'aab'"));
+    expect(panel, contains("row['artifact_type'] == 'apk+aab'"));
+    expect(panel, contains('Compilaciones AAB · Pruebas internas'));
+    expect(panel, contains('Trabajo GitHub:'));
   });
 
   test('request requires production admin capability and exact source SHA', () {
