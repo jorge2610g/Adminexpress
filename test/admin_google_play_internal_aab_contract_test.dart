@@ -17,7 +17,7 @@ void main() {
     expect(panel, contains("'p_build_number': 141"));
     expect(panel, contains("'p_commit_sha': sourceSha"));
     expect(panel, contains("'admin_create_build_job'"));
-    expect(panel, contains('Solo AAB'));
+    expect(panel, contains('Preparar solo AAB'));
     expect(panel, contains('Preparar solo AAB · Build 141'));
   });
 
