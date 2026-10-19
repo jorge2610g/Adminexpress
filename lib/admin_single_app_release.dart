@@ -316,7 +316,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     sha.dispose();
     notes.dispose();
     if (result == null) return;
-    final sourceSha = result['sha'] ?? '';
+    sourceSha = result['sha'] ?? '';
     if (!RegExp(r'^[0-9a-f]{40}$').hasMatch(sourceSha)) {
       _message('SHA firmado inválido. Reintenta.');
       return;
