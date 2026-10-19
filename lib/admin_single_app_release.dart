@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
@@ -25,6 +28,7 @@ class AdminSingleAppReleasePage extends StatefulWidget {
 class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
   Map<String, dynamic> status = const {};
   List<Map<String, dynamic>> releases = const [];
+  List<Map<String, dynamic>> internalAabJobs = const [];
   Map<String, dynamic> publishedRelease = const {};
   String? error;
   bool loading = true;
@@ -67,6 +71,11 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
       final rawStatus = results[0];
       final rawRows = results[1];
       final rawPublished = results[2];
+      final androidRows = (rawRows is List ? rawRows : const [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .where((row) => row['platform'] == 'android')
+          .toList();
       setState(() {
         publishedRelease = rawPublished is Map
             ? Map<String, dynamic>.from(rawPublished)
@@ -74,12 +83,12 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
         status = rawStatus is Map
             ? Map<String, dynamic>.from(rawStatus)
             : <String, dynamic>{};
-        releases = (rawRows is List ? rawRows : const [])
-            .whereType<Map>()
-            .map((row) => Map<String, dynamic>.from(row))
-            .where((row) =>
-                row['platform'] == 'android' &&
-                row['artifact_type'] == 'apk+aab')
+        releases = androidRows
+            .where((row) => row['artifact_type'] == 'apk+aab')
+            .take(15)
+            .toList();
+        internalAabJobs = androidRows
+            .where((row) => row['artifact_type'] == 'aab')
             .take(15)
             .toList();
         error = null;
@@ -210,6 +219,133 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
       'p_version_name': data['version'],
       'p_changelog': data['notes'],
     }, 'Trabajo registrado en cola; NO se compilará hasta autorización manual en GitHub. No afecta Google Play.');
+  }
+
+  /// Consulta el SHA firmado actual. Nunca toma SHA de campos de usuario.
+  Future<String> _currentSignedQaSha() async {
+    final url = Uri.parse(
+      'https://api.github.com/repos/jorge2610g/Expressdelivery/'
+      'branches/work%2Fexpress-unified-android-build141',
+    );
+    final response = await http.get(url, headers: {
+      'Accept': 'application/vnd.github+json',
+    }).timeout(const Duration(seconds: 12));
+    if (response.statusCode != 200) {
+      throw StateError('No se pudo consultar el SHA de la rama firmada.');
+    }
+    final obj = jsonDecode(response.body);
+    final raw = obj is Map && obj['commit'] is Map
+        ? (obj['commit'] as Map)['sha']
+        : null;
+    final sha = raw?.toString().toLowerCase() ?? '';
+    if (!RegExp(r'^[0-9a-f]{40}$').hasMatch(sha)) {
+      throw StateError('Respuesta SHA inválida de GitHub.');
+    }
+    return sha;
+  }
+
+  /// Solo el administrador autenticado puede registrar el trabajo oficial.
+  Future<void> _queueInternalAab() async {
+    if (!canManage || busy) return;
+    String sourceSha;
+    try {
+      sourceSha = await _currentSignedQaSha();
+    } catch (_) {
+      _message('No se pudo verificar GitHub. Ningún AAB se solicitó.');
+      return;
+    }
+    if (!mounted || !canManage || busy) return;
+    final sha = TextEditingController(text: sourceSha);
+    final notes = TextEditingController();
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Generar solo AAB · Pruebas internas'),
+        content: SizedBox(
+          width: 500,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Se generará solo el AAB firmado de Express '
+                  '(com.express.usuario1), sin APK. '
+                  'No publica en Google Play ni afecta Producción. '
+                  'El servidor debe tener activado el modo AAB-only.',
+                ),
+                const SizedBox(height: 12),
+                const Text('Versión 1.6.3 · Build 141'),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: sha,
+                  autocorrect: false,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'SHA firmado (verificado en GitHub)',
+                    helperText: 'Se comprobará nuevamente antes de ponerlo en cola',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: notes,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Notas (opcional)',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'El trabajo quedará en cola hasta autorizarlo en GitHub. '
+                  'Subir a Pruebas internas requerirá una segunda autorización.',
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, {
+              'sha': sha.text.trim().toLowerCase(),
+              'notes': notes.text.trim(),
+            }),
+            child: const Text('Solicitar AAB'),
+          ),
+        ],
+      ),
+    );
+    sha.dispose();
+    notes.dispose();
+    if (result == null) return;
+    sourceSha = result['sha'] ?? '';
+    if (!RegExp(r'^[0-9a-f]{40}$').hasMatch(sourceSha)) {
+      _message('SHA firmado inválido. Reintenta.');
+      return;
+    }
+    try {
+      if (await _currentSignedQaSha() != sourceSha) {
+        _message('La rama firmada cambió. Vuelve a solicitar el AAB.');
+        return;
+      }
+    } catch (_) {
+      _message('No se pudo verificar GitHub. Ningún AAB se solicitó.');
+      return;
+    }
+    if (!mounted || !canManage || busy) return;
+    await _call('admin_create_build_job', {
+      'p_platform': 'android',
+      'p_artifact_type': 'aab',
+      'p_version_name': '1.6.3',
+      'p_build_number': 141,
+      'p_changelog': result['notes']?.isNotEmpty == true
+          ? result['notes']
+          : 'AAB solo para Google Play Pruebas internas.',
+      'p_commit_sha': sourceSha,
+    }, 'AAB en cola. Falta autorización de compilación en GitHub. No publicado en Play.');
   }
 
   Future<void> _certify() async {
@@ -520,6 +656,9 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
       children: [
         Text('Versión ${row['version_name']} · build ${row['build_number']} '
             '· ${row['status']}'),
+        if (row['id'] != null)
+          SelectableText('Trabajo GitHub: ${row['id']}',
+              style: const TextStyle(fontSize: 12)),
         if (sha.isNotEmpty)
           SelectableText('Código SHA: $sha', style: const TextStyle(fontSize: 12)),
         if (row['apk_sha256'] != null)
@@ -590,6 +729,21 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               icon: const Icon(Icons.build_rounded),
               label: const Text('Preparar candidato 1.6.2 (no compila aún)'),
             ),
+            const SizedBox(height: 14),
+            const Divider(),
+            const Text('Google Play · Pruebas internas',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            const Text(
+              'Prepara únicamente el AAB firmado. No genera APK '
+              'ni publica automáticamente en Google Play.',
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: canManage && !busy ? _queueInternalAab : null,
+              icon: const Icon(Icons.inventory_2_outlined),
+              label: const Text('Preparar solo AAB · Build 141'),
+            ),
             if (hasCandidate) ...[
               const SizedBox(height: 16),
               _details(row),
@@ -648,6 +802,25 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               'la publicación de Google Play.',
               style: TextStyle(fontSize: 12),
             ),
+          ],
+        )),
+        _section('Compilaciones AAB · Pruebas internas', Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Estos trabajos no son publicaciones de Producción. '
+              'Solo compilan el AAB y requieren aprobación del '
+              'propietario en GitHub. La subida a Play es independiente.',
+            ),
+            if (internalAabJobs.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text('Todavía no hay trabajos AAB internos solicitados.'),
+              ),
+            for (final job in internalAabJobs) ...[
+              const Divider(),
+              _details(job),
+            ],
           ],
         )),
         _section('Publicaciones de Producción', Column(
