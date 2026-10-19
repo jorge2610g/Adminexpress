@@ -660,6 +660,21 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               icon: const Icon(Icons.build_rounded),
               label: const Text('Preparar candidato 1.6.2 (no compila aún)'),
             ),
+            const SizedBox(height: 14),
+            const Divider(),
+            const Text('Google Play · Pruebas internas',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            const Text(
+              'Prepara únicamente el AAB firmado. No genera APK '
+              'ni publica automáticamente en Google Play.',
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: canManage && !busy ? _queueInternalAab : null,
+              icon: const Icon(Icons.inventory_2_outlined),
+              label: const Text('Preparar solo AAB · Build 141'),
+            ),
             if (hasCandidate) ...[
               const SizedBox(height: 16),
               _details(row),
