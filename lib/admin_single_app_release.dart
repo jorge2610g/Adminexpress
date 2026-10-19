@@ -29,6 +29,9 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
   Map<String, dynamic> status = const {};
   List<Map<String, dynamic>> releases = const [];
   List<Map<String, dynamic>> internalAabJobs = const [];
+  List<Map<String, dynamic>> buildHistory = const [];
+  List<Map<String, dynamic>> distributions = const [];
+  int historyPage = 0;
   Map<String, dynamic> publishedRelease = const {};
   String? error;
   bool loading = true;
@@ -66,11 +69,13 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
         supabase.rpc('admin_build_list'),
         supabase.rpc('latest_app_release',
           params: {'p_platform': 'android'}),
+        supabase.rpc('admin_android_update_distributions'),
       ]);
       if (!mounted) return;
       final rawStatus = results[0];
       final rawRows = results[1];
       final rawPublished = results[2];
+      final rawDistributions = results[3];
       final androidRows = (rawRows is List ? rawRows : const [])
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
@@ -83,6 +88,18 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
         status = rawStatus is Map
             ? Map<String, dynamic>.from(rawStatus)
             : <String, dynamic>{};
+        distributions = (rawDistributions is List ? rawDistributions : const [])
+            .whereType<Map>()
+            .map((row) => Map<String, dynamic>.from(row))
+            .toList();
+        buildHistory = androidRows.where((row) {
+          final type = row['artifact_type']?.toString();
+          return row['status'] == 'ready' &&
+              (type == 'aab' || type == 'apk+aab' ||
+               type == 'single-app-candidate-apk+aab' ||
+               type == 'candidate-apk+aab');
+        }).take(100).toList();
+        if (historyPage * 8 >= buildHistory.length) historyPage = 0;
         releases = androidRows
             .where((row) => row['artifact_type'] == 'apk+aab')
             .take(15)
