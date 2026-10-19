@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
@@ -213,10 +216,41 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     }, 'Trabajo registrado en cola; NO se compilará hasta autorización manual en GitHub. No afecta Google Play.');
   }
 
-  /// Crea solo un trabajo AAB en la cola protegida; no publica en Play.
+  /// Consulta el SHA firmado actual. Nunca toma SHA de campos de usuario.
+  Future<String> _currentSignedQaSha() async {
+    final url = Uri.parse(
+      'https://api.github.com/repos/jorge2610g/Expressdelivery/'
+      'branches/work%2Fexpress-unified-android-build141',
+    );
+    final response = await http.get(url, headers: {
+      'Accept': 'application/vnd.github+json',
+    }).timeout(const Duration(seconds: 12));
+    if (response.statusCode != 200) {
+      throw StateError('No se pudo consultar el SHA de la rama firmada.');
+    }
+    final obj = jsonDecode(response.body);
+    final raw = obj is Map && obj['commit'] is Map
+        ? (obj['commit'] as Map)['sha']
+        : null;
+    final sha = raw?.toString().toLowerCase() ?? '';
+    if (!RegExp(r'^[0-9a-f]{40}$').hasMatch(sha)) {
+      throw StateError('Respuesta SHA inválida de GitHub.');
+    }
+    return sha;
+  }
+
+  /// Solo el administrador autenticado puede registrar el trabajo oficial.
   Future<void> _queueInternalAab() async {
     if (!canManage || busy) return;
-    final sha = TextEditingController();
+    String sourceSha;
+    try {
+      sourceSha = await _currentSignedQaSha();
+    } catch (_) {
+      _message('No se pudo verificar GitHub. Ningún AAB se solicitó.');
+      return;
+    }
+    if (!mounted || !canManage || busy) return;
+    final sha = TextEditingController(text: sourceSha);
     final notes = TextEditingController();
     final result = await showDialog<Map<String, String>>(
       context: context,
@@ -241,9 +275,10 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                 TextField(
                   controller: sha,
                   autocorrect: false,
+                  readOnly: true,
                   decoration: const InputDecoration(
-                    labelText: 'SHA completo del commit autorizado',
-                    hintText: '40 caracteres del código firmado',
+                    labelText: 'SHA firmado (verificado en GitHub)',
+                    helperText: 'Se comprobará nuevamente antes de ponerlo en cola',
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -283,9 +318,19 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     if (result == null) return;
     final sourceSha = result['sha'] ?? '';
     if (!RegExp(r'^[0-9a-f]{40}$').hasMatch(sourceSha)) {
-      _message('Necesitas el SHA completo de la rama firmada de Express.');
+      _message('SHA firmado inválido. Reintenta.');
       return;
     }
+    try {
+      if (await _currentSignedQaSha() != sourceSha) {
+        _message('La rama firmada cambió. Vuelve a solicitar el AAB.');
+        return;
+      }
+    } catch (_) {
+      _message('No se pudo verificar GitHub. Ningún AAB se solicitó.');
+      return;
+    }
+    if (!mounted || !canManage || busy) return;
     await _call('admin_create_build_job', {
       'p_platform': 'android',
       'p_artifact_type': 'aab',
