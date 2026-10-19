@@ -92,13 +92,17 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             .whereType<Map>()
             .map((row) => Map<String, dynamic>.from(row))
             .toList();
-        buildHistory = androidRows.where((row) {
-          final type = row['artifact_type']?.toString();
-          return row['status'] == 'ready' &&
-              (type == 'aab' || type == 'apk+aab' ||
-               type == 'single-app-candidate-apk+aab' ||
-               type == 'candidate-apk+aab');
-        }).take(100).toList();
+        // Show ONLY the specific signed AAB verified in Play Production.
+        // Other builds sharing versionCode 141 must not be offered for updates.
+        final verifiedJobId = rawStatus is Map
+            ? rawStatus['production_verified_build_job_id']?.toString()
+            : null;
+        buildHistory = androidRows.where((row) =>
+            verifiedJobId != null &&
+            row['id']?.toString() == verifiedJobId &&
+            row['status'] == 'ready' &&
+            row['signing_mode'] == 'production'
+        ).take(1).toList();
         if (historyPage * 8 >= buildHistory.length) historyPage = 0;
         releases = androidRows
             .where((row) => row['artifact_type'] == 'apk+aab')
