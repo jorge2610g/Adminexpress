@@ -1,0 +1,33 @@
+name: Express Admin - Internal AAB-only QA
+
+on:
+  push:
+    branches:
+      - work/express-play-internal-aab-qa-20261019
+    paths:
+      - lib/admin_single_app_release.dart
+      - test/admin_google_play_internal_aab_contract_test.dart
+      - .github/workflows/internal-aab-qa-validate.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Analyze and test Express AAB-only Admin
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+      - name: Install Flutter dependencies
+        run: flutter pub get
+      - name: Analyze AAB-only admin panel
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos lib/admin_single_app_release.dart
+      - name: Validate internal AAB admin contracts
+        run: flutter test test/admin_google_play_internal_aab_contract_test.dart
