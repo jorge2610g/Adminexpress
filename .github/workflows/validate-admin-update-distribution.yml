@@ -1,0 +1,33 @@
+name: Validate Admin Express Update Distribution
+
+on:
+  push:
+    branches:
+      - work/admin-android-build-distribution-20261019
+    paths:
+      - 'lib/admin_single_app_release.dart'
+      - 'test/admin_distribution_controls_contract_test.dart'
+      - '.github/workflows/validate-admin-update-distribution.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Flutter analyze & distribution contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze Admin Express release and update UI
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos lib/admin_single_app_release.dart
+      - name: Verify distribution modal, server authorization and production isolation
+        run: flutter test test/admin_distribution_controls_contract_test.dart
