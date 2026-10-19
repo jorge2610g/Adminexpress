@@ -529,6 +529,274 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     }, 'Versión registrada. Google Play debe estar disponible antes de este paso.');
   }
 
+
+  Map<String, dynamic>? _savedDistribution(String jobId, String channel) {
+    for (final item in distributions) {
+      if (item['build_job_id']?.toString() == jobId &&
+          item['channel']?.toString() == channel) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  /// Configuración visual semejante a Historial de Builds → Distribución.
+  /// Solo el canal production confirmado alimenta latest_app_release.
+  Future<void> _configureDistribution(Map<String, dynamic> job) async {
+    if (!canManage || busy || job['status'] != 'ready') return;
+    final jobId = job['id']?.toString() ?? '';
+    final buildNumber = int.tryParse(job['build_number']?.toString() ?? '') ?? 0;
+    final productionBuild =
+        int.tryParse(status['production_store_build']?.toString() ?? '') ?? 0;
+    final hasOfficialApk = job['apk_url']?.toString().isNotEmpty == true;
+    final productionEligible = buildNumber == productionBuild &&
+        hasOfficialApk && job['signing_mode'] == 'production';
+    if (jobId.isEmpty || buildNumber <= 0) return;
+
+    String channel = productionEligible ? 'production' : 'internal';
+    Map<String, dynamic>? saved = _savedDistribution(jobId, channel);
+    bool isCurrent = saved?['is_current'] == true;
+    bool isCritical = saved?['is_critical'] == true;
+    bool confirmedPlay = false;
+    bool confirmedCritical = false;
+    final notes = TextEditingController(text: saved?['notes']?.toString() ?? '');
+    final playUrl = TextEditingController(
+      text: saved?['play_store_url']?.toString() ??
+        'https://play.google.com/store/apps/details?id=com.express.usuario1',
+    );
+
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialog) {
+          void changeChannel(String next) {
+            setDialog(() {
+              channel = next;
+              saved = _savedDistribution(jobId, next);
+              isCurrent = saved?['is_current'] == true;
+              isCritical = saved?['is_critical'] == true;
+              notes.text = saved?['notes']?.toString() ?? '';
+              playUrl.text = saved?['play_store_url']?.toString() ??
+                  'https://play.google.com/store/apps/details?id=com.express.usuario1';
+              confirmedPlay = false;
+              confirmedCritical = false;
+            });
+          }
+
+          final productionNotice = channel == 'production' && isCurrent;
+          final mustConfirm = productionNotice && !confirmedPlay;
+          final mustConfirmCritical = productionNotice && isCritical &&
+              !confirmedCritical;
+          return AlertDialog(
+            title: const Text('Distribución del Build'),
+            content: SizedBox(
+              width: 510,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Configura cómo se distribuye este build:',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Express ' + (job['version_name']?.toString() ?? '') +
+                      ' · Build ' + buildNumber.toString(),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 12),
+                    if (productionEligible)
+                      DropdownButtonFormField<String>(
+                        key: ValueKey('distribution-' + channel),
+                        initialValue: channel,
+                        decoration: const InputDecoration(labelText: 'Canal'),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'production',
+                            child: Text('Google Play · Producción'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'internal',
+                            child: Text('Google Play · Pruebas internas'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) changeChannel(value);
+                        },
+                      )
+                    else
+                      const Text(
+                        'Canal: Pruebas internas. Este Build todavía no está '
+                        'verificado como disponible para toda Producción.',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    const SizedBox(height: 12),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Versión actual'),
+                      subtitle: const Text(
+                        'Cuando se activa para Producción, los usuarios que '
+                        'tengan una versión anterior verán un aviso de '
+                        'actualización. Solo aparece si Play ofrece el Build.',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      value: isCurrent,
+                      onChanged: (value) => setDialog(() {
+                        isCurrent = value;
+                        if (!value) isCritical = false;
+                        confirmedPlay = false;
+                        confirmedCritical = false;
+                      }),
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Actualización crítica'),
+                      subtitle: const Text(
+                        'Bloquea el uso de la aplicación a quienes tengan '
+                        'un Build anterior, hasta actualizar. Activar solo '
+                        'ante cambios de seguridad o incompatibilidad.',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      value: isCritical,
+                      onChanged: (value) => setDialog(() {
+                        isCritical = value;
+                        if (value) isCurrent = true;
+                        confirmedCritical = false;
+                        confirmedPlay = false;
+                      }),
+                    ),
+                    if (isCritical) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF1F0),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'Aviso: una actualización crítica en Producción '
+                          'impide continuar hasta actualizar. No activarla '
+                          'mientras haya viajes o entregas en curso.',
+                          style: TextStyle(
+                            fontSize: 12, color: Color(0xFFB42318),
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (channel == 'internal') ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF8E8),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'Pruebas internas: esta configuración se guarda '
+                          'solo para control administrativo. No activa '
+                          'avisos para los usuarios de Producción. '
+                          'La app actual no distingue automáticamente '
+                          'los probadores internos para estos avisos.',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: notes,
+                      minLines: 2,
+                      maxLines: 4,
+                      maxLength: 800,
+                      decoration: const InputDecoration(
+                        labelText: 'Notas de la versión',
+                        hintText: 'Correcciones de estabilidad y mejoras...',
+                        helperText: 'Se muestran en el aviso de actualización.',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: playUrl,
+                      autocorrect: false,
+                      decoration: const InputDecoration(
+                        labelText: 'URL de Play Store (opcional)',
+                        helperText: 'Solo se acepta el enlace oficial de Express.',
+                      ),
+                    ),
+                    if (productionNotice) ...[
+                      const SizedBox(height: 10),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: confirmedPlay,
+                        onChanged: (value) => setDialog(
+                          () => confirmedPlay = value == true,
+                        ),
+                        title: const Text(
+                          'Confirmo que este Build está disponible '
+                          'en Google Play Producción',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      if (isCritical)
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: confirmedCritical,
+                          onChanged: (value) => setDialog(
+                            () => confirmedCritical = value == true,
+                          ),
+                          title: const Text(
+                            'Confirmo el bloqueo de las versiones antiguas',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: mustConfirm || mustConfirmCritical ? null : () {
+                  Navigator.pop(dialogContext, {
+                    'channel': channel,
+                    'is_current': isCurrent,
+                    'is_critical': isCritical,
+                    'notes': notes.text.trim(),
+                    'play_store_url': playUrl.text.trim(),
+                    'confirmed_play': confirmedPlay,
+                    'confirmed_critical': confirmedCritical,
+                  });
+                },
+                child: const Text('Guardar distribución'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    notes.dispose();
+    playUrl.dispose();
+    if (values == null) return;
+    await _call('admin_save_android_update_distribution', {
+      'p_build_id': jobId,
+      'p_channel': values['channel'],
+      'p_is_current': values['is_current'],
+      'p_is_critical': values['is_critical'],
+      'p_notes': values['notes'],
+      'p_play_store_url': values['play_store_url'],
+      'p_confirmed_in_play': values['confirmed_play'],
+      'p_confirmed_critical': values['confirmed_critical'],
+    }, values['channel'] == 'internal'
+      ? 'Distribución interna guardada. No se enviaron avisos a Producción.'
+      : 'Distribución de Producción guardada. Se actualizará el aviso '
+        'de la aplicación solo para Builds antiguos.');
+  }
+
   Future<void> _announcePublishedRelease() async {
     final version = publishedRelease['version_name']?.toString();
     if (!canManage || busy || version == null ||
