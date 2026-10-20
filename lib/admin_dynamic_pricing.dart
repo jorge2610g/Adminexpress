@@ -2,6 +2,19 @@ import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
 
+/// Nombre en español de cada nivel de demanda (el código interno no se muestra).
+String _levelName(String level) =>
+    const {
+      'automatic': 'Automático',
+      'low': 'Baja',
+      'normal': 'Normal',
+      'medium': 'Media',
+      'high': 'Alta',
+      'very_high': 'Muy alta',
+      'critical': 'Crítica',
+    }[level] ??
+    level;
+
 class AdminDynamicPricingPage extends StatefulWidget {
   final String channel;
   final String? countryCode;
@@ -108,7 +121,7 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
         builder: (context, setLocal) => AlertDialog(
           title: Text(
             'Demanda dinámica · ' +
-                (channel == 'preview' ? 'Preview' : 'Producción'),
+                (channel == 'preview' ? 'Prueba' : 'Producción'),
           ),
           content: SizedBox(
             width: 720,
@@ -322,9 +335,9 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Precio recomendado autoritativo · ' +
+                          'Precio recomendado · ' +
                               (widget.channel == 'preview'
-                                  ? 'Preview'
+                                  ? 'Prueba'
                                   : 'Producción'),
                         ),
                       ],
@@ -378,12 +391,12 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
               if (widget.channel == 'preview') ...[
                 const SizedBox(height: 20),
                 const Text(
-                  'Simulación QA por ciudad',
+                  'Simulación de demanda por ciudad',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Solo Preview. Las simulaciones expiran automáticamente y no modifican Producción.',
+                  'Solo en Prueba. Las simulaciones vencen solas y no cambian Producción.',
                 ),
                 const SizedBox(height: 10),
                 ...cities.map((city) {
@@ -400,7 +413,7 @@ class _AdminDynamicPricingPageState extends State<AdminDynamicPricingPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            name + ' · ' + level,
+                            name + ' · ' + _levelName(level),
                             style: const TextStyle(fontWeight: FontWeight.w900),
                           ),
                           const SizedBox(height: 10),

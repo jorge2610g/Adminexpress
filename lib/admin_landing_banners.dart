@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_dropdown_field.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -149,7 +151,7 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
                     hintText: 'https://...',
                   )),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
+                AdminDropdownField<String>(
                   initialValue: ['','ride','delivery','market'].contains(target)
                       ? target : '',
                   decoration: const InputDecoration(
@@ -167,7 +169,7 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
                   decoration: const InputDecoration(
                     labelText: 'Enlace HTTPS externo (opcional)')),
                 const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
+                AdminDropdownField<String>(
                   initialValue: ['blue','orange','yellow','green','purple']
                       .contains(color) ? color : 'blue',
                   decoration: const InputDecoration(labelText: 'Color'),
@@ -326,7 +328,7 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
           if (snapshot.hasError)
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Text(snapshot.error.toString(),
+              child: Text(friendlyError(snapshot.error),
                 style: const TextStyle(color: Colors.red)),
             ),
           if (snapshot.connectionState == ConnectionState.waiting)
