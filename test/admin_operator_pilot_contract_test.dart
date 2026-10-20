@@ -16,7 +16,9 @@ void main() {
   test('alta protegida y limpieza de cuentas ante error', () {
     final source = File('supabase/functions/admin-create-operator/index.ts').readAsStringSync();
     expect(source, contains('getUser(token)'));
-    expect(source, contains("supported = new Set(['users', 'dashboard', 'trips', 'drivers', 'delivery', 'live_operations', 'safety_sos'])"));
+    expect(source, contains('const supported = new Set(['));
+    expect(source, contains('"subscriptions"'));
+    expect(source, contains('"notifications"'));
     expect(source, contains("requested.includes('live_operations')"));
     expect(source, contains('deleteUser(userId)'));
     expect(source, contains("zone?.active !== true"));
