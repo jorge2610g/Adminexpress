@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('fase 2 mantiene control de modulo, zona y entorno en servidor', () {
-    final file = File('supabase/migrations/20261020143000_operator_zone_scope_phase2.sql');
+    final file = File('supabase/migrations/20261020133005_operator_zone_scope_phase2.sql');
     expect(file.existsSync(), isTrue);
     final sql = file.readAsStringSync();
     expect(sql, contains('admin_operator_assert_module'));
