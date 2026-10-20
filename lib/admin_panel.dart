@@ -13,6 +13,7 @@ import 'package:latlong2/latlong.dart';
 import 'core/supabase_client.dart';
 import 'admin_runtime_scope.dart';
 import 'core/preview_operations_navigation.dart';
+import 'core/zone_coverage_geometry.dart';
 import 'admin_control_sections.dart';
 import 'admin_operators.dart';
 import 'admin_operator_fares.dart';
@@ -488,7 +489,26 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     }
     final state = await _dashboardState();
     final zones = await _filterZones();
-    return (state: state, zones: zones);
+
+    // A zone can retain a legacy radius even when a polygon is active.
+    // Read the authoritative geometry through a read-only scoped RPC.
+    final selectedZoneId = adminZoneId;
+    if (selectedZoneId == null) return (state: state, zones: zones);
+    final rawCoverage = await supabase.rpc(
+      'admin_live_zone_coverage_get',
+      params: {
+        'p_zone_id': selectedZoneId,
+        'p_channel': adminChannel,
+      },
+    );
+    final coverage = rawCoverage is Map
+        ? Map<String, dynamic>.from(rawCoverage)
+        : const <String, dynamic>{};
+    final scopedZones = zones.map((zone) {
+      if (zone['id']?.toString() != selectedZoneId) return zone;
+      return <String, dynamic>{...zone, ...coverage};
+    }).toList();
+    return (state: state, zones: scopedZones);
   }
 
   String _zoneCountryCode(Map<String, dynamic> row) {
@@ -4598,6 +4618,10 @@ class _OperationsMapState extends State<_OperationsMap> {
     final zoneLat = _toDouble(widget.selectedZone?['center_latitude']);
     final zoneLng = _toDouble(widget.selectedZone?['center_longitude']);
     final zoneRadiusKm = _toDouble(widget.selectedZone?['radius_km']);
+    final zoneMode = widget.selectedZone?['coverage_mode'];
+    final polygonPoints = usesPolygonCoverage(zoneMode)
+        ? parseZonePolygon(widget.selectedZone?['polygon'])
+        : const <LatLng>[];
     final fallback = zoneLat != null && zoneLng != null
         ? LatLng(zoneLat, zoneLng)
         : _center(
@@ -4609,12 +4633,14 @@ class _OperationsMapState extends State<_OperationsMap> {
 
     final camera = focused
         ? _cameraFor(cameraPoints, fallback)
-        : (
-            center: fallback,
-            zoom: widget.selectedZone != null
-                ? 13.5
-                : (widget.fullScreen ? 13.0 : 12.0),
-          );
+        : polygonPoints.isNotEmpty
+            ? _cameraFor(polygonPoints, fallback)
+            : (
+                center: fallback,
+                zoom: widget.selectedZone != null
+                    ? 13.5
+                    : (widget.fullScreen ? 13.0 : 12.0),
+              );
 
     final available = widget.drivers
         .where((d) => _driverLiveStatus(d, widget.trips) == 'available')
@@ -4648,7 +4674,20 @@ class _OperationsMapState extends State<_OperationsMap> {
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           userAgentPackageName: 'com.express.delivery',
         ),
+        if (!focused && polygonPoints.length >= 3)
+          PolygonLayer(
+            polygons: [
+              Polygon(
+                points: polygonPoints,
+                color: const Color(0x1F0B57D0),
+                borderColor: adminBlue,
+                borderStrokeWidth: 2,
+                isFilled: true,
+              ),
+            ],
+          ),
         if (!focused &&
+            usesRadiusCoverage(zoneMode) &&
             zoneLat != null &&
             zoneLng != null &&
             zoneRadiusKm != null)
