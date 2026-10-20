@@ -35,6 +35,28 @@ void main() {
     );
   });
 
+  test('habilitaciones de producción respetan las dependencias del mapa', () {
+    expect(
+      operatorNormalizedModules({'live_operations'}),
+      containsAll(['users', 'live_operations', 'dashboard', 'drivers']),
+    );
+    final reduced = operatorToggledModules(
+      {'users', 'live_operations', 'dashboard', 'drivers'}, 'drivers', false,
+    );
+    expect(reduced, isNot(contains('live_operations')));
+    expect(reduced, contains('dashboard'));
+    expect(reduced, isNot(contains('drivers')));
+  });
+
+  test('Delivery de lectura está disponible pero funciones sensibles no', () {
+    expect(operatorNormalizedModules(
+      {'users', 'delivery', 'manual_dispatch', 'safety_sos', 'payments'}),
+      {'users', 'delivery'},
+    );
+    expect(operatorSelectorModules.firstWhere((m) => m.key == 'delivery').ready, isTrue);
+    expect(operatorSelectorModules.firstWhere((m) => m.key == 'manual_dispatch').ready, isFalse);
+  });
+
   test('solo los módulos ya permitidos por el servidor están marcados como listos', () {
     final ready = operatorSelectorModules
         .where((m) => m.ready)
@@ -42,9 +64,11 @@ void main() {
         .toSet();
     expect(ready, {
       'dashboard',
+      'live_operations',
       'trips',
       'drivers',
       'users',
+      'delivery',
     });
   });
 }
