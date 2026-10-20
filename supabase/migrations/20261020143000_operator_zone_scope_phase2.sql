@@ -16,7 +16,7 @@ begin
   if v_role <> 'operator' or v_zone is null
     or not coalesce(public.admin_environment_allowed('production'),false)
     or public.admin_current_runtime_environment() <> 'production'
-    or p_module not in ('users','drivers','trips','marketplace','delivery','delivery_orders','partners')
+    or p_module not in ('dashboard','users','drivers','trips','marketplace','delivery','delivery_orders','partners')
     or not (p_module = any(coalesce(v_modules, array[]::text[]))) then
     raise exception 'Modulo no autorizado para este operador';
   end if;
@@ -284,11 +284,12 @@ begin
     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='public' and p.proname in
       ('admin_user_list_v4','admin_driver_list_v3','admin_trip_list_v4',
-       'admin_delivery_list_v4','admin_marketplace_orders_v2')
+       'admin_delivery_list_v4','admin_marketplace_orders_v2','admin_dashboard_state_v2')
   loop
     v_def:=r.def;
     if position('admin_operator_assert_module' in v_def)>0 then continue; end if;
     v_module:=case r.proname
+      when 'admin_dashboard_state_v2' then 'dashboard'
       when 'admin_user_list_v4' then 'users'
       when 'admin_driver_list_v3' then 'drivers'
       when 'admin_trip_list_v4' then 'trips'

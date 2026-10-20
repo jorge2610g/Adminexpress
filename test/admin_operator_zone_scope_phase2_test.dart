@@ -17,6 +17,7 @@ void main() {
       'admin_user_detail_v2', 'admin_driver_detail_v2', 'admin_trip_detail_v2',
       'admin_update_user_profile_v2', 'admin_user_list_v4',
       'admin_driver_list_v3', 'admin_trip_list_v4', 'admin_delivery_list_v4',
+      'admin_dashboard_state_v2',
     ]) {
       expect(sql, contains(section));
     }
