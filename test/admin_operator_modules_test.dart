@@ -27,10 +27,10 @@ void main() {
     }
   });
 
-  test('finanzas y análisis se pueden elegir aunque aún necesiten ajuste', () {
+  test('módulos financieros locales habilitados; análisis global pendiente', () {
     expect(keys, containsAll(['payments', 'fares', 'subscriptions', 'reports']));
     expect(
-      operatorSelectorModules.firstWhere((m) => m.key == 'payments').ready,
+      operatorSelectorModules.firstWhere((m) => m.key == 'reports').ready,
       isFalse,
     );
   });
@@ -75,6 +75,10 @@ void main() {
       'users',
       'delivery',
       'safety_sos',
+      'payments',
+      'fares',
+      'subscriptions',
+      'notifications',
     });
   });
 }
