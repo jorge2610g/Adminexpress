@@ -9,7 +9,7 @@ import 'core/supabase_client.dart';
 
 /// Módulo que el administrador puede dar a un operador de zona.
 /// [ready]: las funciones del servidor ya lo permiten a un operador.
-/// Todos se pueden asignar. El servidor solo activa los que estén protegidos por zona.
+/// Todos se pueden asignar. El servidor solo permite los que tienen controles por zona.
 class OperatorModule {
   const OperatorModule(this.key, this.label, this.group, {this.ready = false});
 
@@ -37,12 +37,12 @@ const List<OperatorModule> operatorSelectorModules = [
   OperatorModule('delivery_phase2', 'Delivery Fase 2 / Express Plus', 'Módulos'),
   OperatorModule('marketplace', 'Restaurantes', 'Módulos'),
   OperatorModule('driver_priority', 'Prioridad conductores', 'Módulos'),
-  OperatorModule('payments', 'Pagos / Billetera', 'Finanzas'),
-  OperatorModule('fares', 'Tarifas', 'Finanzas'),
-  OperatorModule('subscriptions', 'Suscripciones', 'Finanzas'),
+  OperatorModule('payments', 'Pagos / Billetera', 'Finanzas', ready: true),
+  OperatorModule('fares', 'Tarifas', 'Finanzas', ready: true),
+  OperatorModule('subscriptions', 'Suscripciones', 'Finanzas', ready: true),
   OperatorModule('dynamic_pricing', 'Demanda y precios', 'Finanzas'),
   OperatorModule('reports', 'Reportes', 'Análisis'),
-  OperatorModule('notifications', 'Notificaciones / Avisos', 'Comunicación'),
+  OperatorModule('notifications', 'Notificaciones / Avisos', 'Comunicación', ready: true),
   OperatorModule('zones', 'Zonas y cobertura', 'Configuración'),
   OperatorModule('services', 'Servicios', 'Configuración'),
   OperatorModule('geo_safety', 'Cobertura y seguridad', 'Configuración'),
