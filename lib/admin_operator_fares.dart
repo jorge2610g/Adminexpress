@@ -140,7 +140,7 @@ class _AdminOperatorFaresPageState extends State<AdminOperatorFaresPage> {
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('No se pudo guardar: $'+'e')));
+                        SnackBar(content: Text('No se pudo guardar: \$e')));
                       update(() => saving = false);
                     }
                   }
@@ -169,7 +169,7 @@ class _AdminOperatorFaresPageState extends State<AdminOperatorFaresPage> {
       ]),
       const SizedBox(height: 14),
       if (loading) const Center(child: CircularProgressIndicator()),
-      if (error != null) Text('No se pudieron cargar las tarifas: $'+'error'),
+      if (error != null) Text('No se pudieron cargar las tarifas: \$error'),
       if (!loading && error == null) ...[
         FilledButton.icon(
           onPressed: services.isEmpty ? null : () => _edit(),
