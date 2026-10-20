@@ -1,0 +1,31 @@
+name: Validate Operator Pilot
+
+on:
+  pull_request:
+    paths:
+      - 'lib/admin_operators.dart'
+      - 'lib/admin_panel.dart'
+      - 'supabase/functions/admin-create-operator/**'
+      - 'test/admin_operator*'
+      - 'test/operator_edit_dialog_test.dart'
+      - '.github/workflows/validate-operator-pilot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  operator-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Check pilot module and authorisation contracts
+        run: flutter test test/admin_operator_modules_test.dart test/operator_edit_dialog_test.dart test/admin_operator_pilot_contract_test.dart
+      - name: Analyze operator UI
+        run: flutter analyze lib/admin_operators.dart lib/admin_panel.dart
