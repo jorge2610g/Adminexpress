@@ -445,6 +445,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       adminZoneId = assignedZone;
       liveZoneId = adminZoneId;
     }
+    // Un operador con solo Usuarios no debe aterrizar en Dashboard sin permiso.
+    if (!_sectionAllowed(section)) {
+      final available = _allowedSections.toList()..sort();
+      if (available.isEmpty) return false;
+      section = available.first;
+    }
     return true;
   }
 
