@@ -21,3 +21,23 @@ const Set<int> previewOperationalSections = <int>{
 /// Production keeps its existing navigation and role/module checks unchanged.
 bool isSectionVisibleForRuntime(String runtime, int index) =>
     runtime != 'preview' || previewOperationalSections.contains(index);
+
+/// Account-specific access is always the intersection of the visible runtime
+/// menu, the role, and the server-provided *effective* modules. In particular,
+/// 'assigned_modules' (including modules not yet runtime-ready) must not be
+/// substituted for 'allowed_modules' returned by admin_access_context.
+bool isAdminSectionAllowed({
+  required String runtime,
+  required int section,
+  required String role,
+  required Set<String> effectiveModules,
+  required Map<int, String> moduleKeys,
+}) {
+  if (!isSectionVisibleForRuntime(runtime, section)) return false;
+  if (section == 18 || section == 27) return false;
+  if (section == 32 && role != 'super_admin') return false;
+  if (section == 23 && role == 'operator') return false;
+  final module = moduleKeys[section];
+  if (module == null) return false;
+  return effectiveModules.contains('*') || effectiveModules.contains(module);
+}
