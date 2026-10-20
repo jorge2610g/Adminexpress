@@ -8,6 +8,7 @@ void main() {
     expect(panel, contains("32: 'operators'"));
     expect(panel, contains('return const AdminOperatorsPage();'));
     expect(panel, contains("if (_zoneScoped)"));
+    expect(panel, contains('section = available.first;'));
   });
 
   test('alta protegida y limpieza de cuentas ante error', () {
