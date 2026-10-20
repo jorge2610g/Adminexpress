@@ -344,6 +344,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     // identity entries are deliberately unreachable.
     if (index == 18 || index == 27) return false;
     if (index == 32 && adminAccess['role'] != 'super_admin') return false;
+    // El panel Delivery unificado requiere funciones centrales. Para operadores
+    // se autoriza solo el listado de entregas (sección 3), restringido por zona.
+    if (index == 23 && adminAccess['role'] == 'operator') return false;
     final module = _sectionModuleKeys[index];
     if (module == null) return false;
     final allowed = _allowedModules;
@@ -2278,7 +2281,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     ' · ' +
                     _formatDate(row['created_at']),
               ),
-              trailing: _readOnly
+              // Operadores pueden revisar SOS de su zona, pero resolver es exclusivo del admin central.
+              trailing: (_readOnly || adminAccess['role'] == 'operator')
                   ? null
                   : FilledButton.icon(
                       onPressed: () =>
