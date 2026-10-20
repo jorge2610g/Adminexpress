@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
 
 import 'core/supabase_client.dart';
 
@@ -185,7 +186,7 @@ class _AdminPreviewModulePageState extends State<AdminPreviewModulePage> {
                       decoration: InputDecoration(
                         labelText: _label(key),
                         helperText:
-                            structured ? 'JSON exclusivo de Preview' : null,
+                            structured ? 'Solo en Prueba' : null,
                       ),
                     ),
                   );
@@ -220,7 +221,7 @@ class _AdminPreviewModulePageState extends State<AdminPreviewModulePage> {
           try {
             values[entry.key] = jsonDecode(text);
           } catch (_) {
-            _snack('JSON inválido en ' + _label(entry.key));
+            _snack('Revisa el formato de ' + _label(entry.key));
             return;
           }
         } else {
@@ -275,7 +276,7 @@ class _AdminPreviewModulePageState extends State<AdminPreviewModulePage> {
         .take(4)
         .map((e) => _label(e.key) + ': ' + (e.value ?? '—').toString())
         .join(' · ');
-    return visible.isEmpty ? 'Configuración Preview' : visible;
+    return visible.isEmpty ? 'Configuración de Prueba' : visible;
   }
 
   @override
@@ -292,7 +293,7 @@ class _AdminPreviewModulePageState extends State<AdminPreviewModulePage> {
             child: FilledButton.icon(
               onPressed: _refresh,
               icon: const Icon(Icons.refresh_rounded),
-              label: Text('Reintentar: ' + snapshot.error.toString()),
+              label: Text('Reintentar: ' + friendlyError(snapshot.error)),
             ),
           );
         }
@@ -338,7 +339,7 @@ class _AdminPreviewModulePageState extends State<AdminPreviewModulePage> {
                   child: Padding(
                     padding: EdgeInsets.all(24),
                     child: Text(
-                      'No hay configuración Preview cargada para este módulo.',
+                      'No hay configuración de Prueba para este módulo.',
                       style: TextStyle(color: _previewMuted),
                     ),
                   ),
@@ -371,7 +372,7 @@ class _AdminPreviewModulePageState extends State<AdminPreviewModulePage> {
                 ),
               const SizedBox(height: 8),
               const Text(
-                'Los cambios de esta pantalla se guardan exclusivamente en Preview. '
+                'Los cambios de esta pantalla solo se guardan en Prueba. '
                 'No escriben en las tablas de Producción.',
                 style: TextStyle(
                   color: _previewMuted,

@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_dropdown_field.dart';
 
 import 'core/supabase_client.dart';
 
@@ -91,7 +93,7 @@ class _PartnerExpressPanelState extends State<PartnerExpressPanel> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          snapshot.error.toString(),
+                          friendlyError(snapshot.error),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
@@ -297,7 +299,7 @@ class _PartnerShell extends StatelessWidget {
                   ),
                   Padding(
                     padding: const EdgeInsets.all(14),
-                    child: DropdownButtonFormField<String>(
+                    child: AdminDropdownField<String>(
                       initialValue: partner['partner_id']?.toString(),
                       dropdownColor: Colors.white,
                       decoration: InputDecoration(
@@ -697,7 +699,7 @@ class _PartnerDriversState extends State<_PartnerDrivers> {
             return const LinearProgressIndicator();
           }
           if (snapshot.hasError) {
-            return Text(snapshot.error.toString());
+            return Text(friendlyError(snapshot.error));
           }
           final rows = snapshot.data ?? const [];
           if (rows.isEmpty) {
@@ -829,7 +831,7 @@ class _PartnerJoinRequestsState extends State<_PartnerJoinRequests> {
               !snapshot.hasData) {
             return const LinearProgressIndicator();
           }
-          if (snapshot.hasError) return Text(snapshot.error.toString());
+          if (snapshot.hasError) return Text(friendlyError(snapshot.error));
           final rows = snapshot.data ?? const [];
           if (rows.isEmpty) {
             return const Card(
@@ -922,7 +924,7 @@ class _PartnerPayments extends StatelessWidget {
               !snapshot.hasData) {
             return const LinearProgressIndicator();
           }
-          if (snapshot.hasError) return Text(snapshot.error.toString());
+          if (snapshot.hasError) return Text(friendlyError(snapshot.error));
           final rows = snapshot.data ?? const [];
           if (rows.isEmpty) {
             return const Card(

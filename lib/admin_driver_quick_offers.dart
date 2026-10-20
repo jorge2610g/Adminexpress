@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
+import 'core/admin_dropdown_field.dart';
 
 /// Admin settings are per runtime, city (zone) and service. The server returns
 /// the same increments with the driver's existing dispatch RPC response.
@@ -200,7 +201,7 @@ class _AdminDriverQuickOffersEditorState
               style: const TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
+            AdminDropdownField<String>(
               key: ValueKey('quick-offer-$_zoneId-$_service-${widget.channel}'),
               isExpanded: true,
               initialValue: _service,

@@ -90,7 +90,7 @@ class _AdminDeliverySettlementsPageState
          return const Center(child:CircularProgressIndicator());
        if(snapshot.hasError)return Center(child:Column(
          mainAxisSize:MainAxisSize.min,children:[
-         Text('Error leyendo cortes: ${snapshot.error}'),
+         Text('No se pudieron cargar los cortes. Intenta de nuevo.'),
          FilledButton(onPressed:()=>setState(_reload),
            child:const Text('Reintentar'))]));
        final cuts=snapshot.data??<Map<String,dynamic>>[];
@@ -104,7 +104,7 @@ class _AdminDeliverySettlementsPageState
              children:[
              Text('Liquidaciones de restaurantes',
                style:Theme.of(context).textTheme.headlineSmall),
-             Text('Cortes semanales · ${widget.channel.toUpperCase()} · '
+             Text('Cortes semanales · ${widget.channel == 'preview' ? 'Prueba' : 'Producción'} · '
                'desglose privado de Express'),
            ])),
            IconButton(onPressed:()=>setState(_reload),

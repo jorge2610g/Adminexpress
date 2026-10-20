@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/supabase_client.dart';
+import 'core/admin_dropdown_field.dart';
 
 /// Updates authoritative server-side fare increments, never presentation-only prices.
 class AdminFareRoundingEditor extends StatefulWidget {
@@ -134,7 +135,7 @@ class _AdminFareRoundingEditorState extends State<AdminFareRoundingEditor> {
             else
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final dropdown = DropdownButtonFormField<String>(
+                  final dropdown = AdminDropdownField<String>(
                     key: ValueKey('fare-round-$_currency-${widget.channel}'),
                     initialValue: _increment,
                     isExpanded: true,
