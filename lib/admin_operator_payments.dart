@@ -58,7 +58,7 @@ class _AdminOperatorPaymentsPageState extends State<AdminOperatorPaymentsPage> {
         'Los pagos globales o sin zona verificable permanecen con la administración central.'),
       const SizedBox(height: 16),
       if (loading) const Center(child: CircularProgressIndicator()),
-      if (error != null) Text('No pudimos cargar los pagos: $'+'error'),
+      if (error != null) Text('No pudimos cargar los pagos: $error'),
       if (!loading && error == null) ...[
         Card(child: Padding(
           padding: const EdgeInsets.all(16),
