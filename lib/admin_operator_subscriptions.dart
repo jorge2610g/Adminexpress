@@ -114,7 +114,7 @@ class _AdminOperatorSubscriptionsPageState extends State<AdminOperatorSubscripti
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error al guardar el plan: $'+'e')));
+                        SnackBar(content: Text('Error al guardar el plan: $e')));
                       update(() => saving = false);
                     }
                   }
@@ -146,7 +146,7 @@ class _AdminOperatorSubscriptionsPageState extends State<AdminOperatorSubscripti
       ]),
       const SizedBox(height: 16),
       if (loading) const Center(child: CircularProgressIndicator()),
-      if (error != null) Text('No se pudieron cargar las suscripciones: $'+'error'),
+      if (error != null) Text('No se pudieron cargar las suscripciones: $error'),
       if (!loading && error == null) ...[
         FilledButton.icon(onPressed: () => _edit(),
           icon: const Icon(Icons.add), label: const Text('Crear plan de mi zona')),
@@ -156,7 +156,7 @@ class _AdminOperatorSubscriptionsPageState extends State<AdminOperatorSubscripti
         for (final plan in plans) Card(
           child: ListTile(
             title: Text(plan['name']?.toString() ?? 'Plan'),
-            subtitle: Text('${plan['amount']} $'+'currency · ${plan['days']} días · ${plan['active'] == false ? 'Inactivo' : 'Activo'}'),
+            subtitle: Text('${plan['amount']} $currency · ${plan['days']} días · ${plan['active'] == false ? 'Inactivo' : 'Activo'}'),
             trailing: IconButton(icon: const Icon(Icons.edit_outlined),
               tooltip: 'Editar plan de zona', onPressed: () => _edit(plan)),
           ),
