@@ -107,18 +107,19 @@ begin
       push_enabled_recipients=coalesce(v_push,0)
   where id=v_campaign;
 
-  perform public.admin_log_action(
-    'send_announcement','notification_campaigns',v_campaign::text,
-    jsonb_build_object(
-      'environment',v_channel,
-      'title',v_title,
-      'recipients',v_count,
-      'push_enabled',v_push,
-      'audience',p_audience,
-      'zone_id',p_zone_id,
-      'partner_id',p_partner_id
-    )
-  );
+  if public.admin_zone_role_now()='operator' then
+    insert into public.admin_audit_log(admin_user_id,action,entity_type,entity_id,details)
+    values(auth.uid(),'send_announcement','notification_campaigns',v_campaign::text,
+      jsonb_build_object('environment',v_channel,'recipients',v_count,
+        'push_enabled',v_push,'audience',p_audience,'zone_id',p_zone_id,
+        'partner_id',p_partner_id));
+  else
+    perform public.admin_log_action(
+      'send_announcement','notification_campaigns',v_campaign::text,
+      jsonb_build_object('environment',v_channel,'recipients',v_count,
+        'push_enabled',v_push,'audience',p_audience,'zone_id',p_zone_id,
+        'partner_id',p_partner_id));
+  end if;
 
   return jsonb_build_object(
     'campaign_id',v_campaign,
