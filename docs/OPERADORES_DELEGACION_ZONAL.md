@@ -17,7 +17,7 @@ Un superadministrador decide qué permisos concede a cada operador. Cada operado
 
 ## Estado de implementación
 
-La migración `20261020171000_operator_module_capabilities.sql` introduce un catálogo con 21 claves asignables y solo 7 con autorización zonal previamente comprobada. Los otros 14 comienzan en `runtime_ready=false`. Esta migración por sí sola **no completa** la delegación operativa ni debe fusionarse sin actualizar el alta de operadores, pruebas y las rutas frontend.
+El catálogo tiene 21 claves asignables. La primera fase dispone de 7 módulos existentes, y las migraciones zonales de Tarifas, Suscripciones, Pagos de consulta y Notificaciones permiten activar otros 4 tras la revisión y QA (11 operativos). Los 10 restantes continúan con `runtime_ready=false`. Esta migración por sí sola **no completa** la delegación operativa ni debe fusionarse sin actualizar el alta de operadores, pruebas y las rutas frontend.
 
 ## Orden de implementación
 
