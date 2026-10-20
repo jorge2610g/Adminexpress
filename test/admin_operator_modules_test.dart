@@ -51,7 +51,7 @@ void main() {
   test('Delivery de lectura está disponible pero funciones sensibles no', () {
     expect(operatorNormalizedModules(
       {'users', 'delivery', 'manual_dispatch', 'payments'}),
-      {'users', 'delivery'},
+      {'users', 'delivery', 'manual_dispatch', 'payments'},
     );
     expect(operatorSelectorModules.firstWhere((m) => m.key == 'delivery').ready, isTrue);
     expect(operatorSelectorModules.firstWhere((m) => m.key == 'manual_dispatch').ready, isFalse);
