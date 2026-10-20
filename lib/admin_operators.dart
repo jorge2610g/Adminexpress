@@ -9,7 +9,7 @@ import 'core/supabase_client.dart';
 
 /// Módulo que el administrador puede dar a un operador de zona.
 /// [ready]: las funciones del servidor ya lo permiten a un operador.
-/// Los módulos no habilitados se muestran, pero no pueden asignarse.
+/// Todos se pueden asignar. El servidor solo activa los que estén protegidos por zona.
 class OperatorModule {
   const OperatorModule(this.key, this.label, this.group, {this.ready = false});
 
@@ -50,8 +50,8 @@ const List<OperatorModule> operatorSelectorModules = [
 
 
 Set<String> operatorNormalizedModules(Iterable<String> source) {
-  final ready = operatorSelectorModules.where((module) => module.ready).map((module) => module.key).toSet();
-  final result = <String>{operatorBaseModule, ...source.where(ready.contains)};
+  final known = operatorSelectorModules.map((module) => module.key).toSet();
+  final result = <String>{operatorBaseModule, ...source.where(known.contains)};
   if (result.contains('live_operations') || result.contains('safety_sos')) {
     result.addAll(const ['dashboard', 'drivers']);
   }
@@ -716,10 +716,10 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
                   : module.ready
                       ? null
                       : const Text(
-                          'Pendiente de habilitar',
+                          'Permiso guardable. Función en preparación para la zona.',
                           style: TextStyle(fontSize: 11, color: Color(0xFFB54708)),
                         ),
-      onChanged: busy || locked || !module.ready
+      onChanged: busy || locked
           ? null
           : (value) => setState(() {
                 final next = operatorToggledModules(modules, module.key, value == true);
@@ -846,7 +846,7 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                 style: TextStyle(fontWeight: FontWeight.w900, color: _dark),
               ),
               const Text(
-                'Lo que no marques queda oculto. Usuarios siempre va incluido.',
+                'Los permisos pendientes quedarán guardados; se abrirán cuando la función de zona esté preparada. Usuarios siempre incluido.',
                 style: TextStyle(fontSize: 12, color: _muted),
               ),
               for (final group in _groupOrder) ...[
@@ -875,7 +875,7 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                             style: TextStyle(fontSize: 11, color: _muted),
                           )
                         : null,
-                    onChanged: module.key == operatorBaseModule || !module.ready
+                    onChanged: module.key == operatorBaseModule
                         ? null
                         : (value) => setState(() {
                               final next = operatorToggledModules(modules, module.key, value == true);
