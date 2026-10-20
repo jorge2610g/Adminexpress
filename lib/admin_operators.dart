@@ -26,13 +26,13 @@ const String operatorBaseModule = 'users';
 /// Operadores no se pueden dar: quedan solo para el administrador central.
 const List<OperatorModule> operatorSelectorModules = [
   OperatorModule('dashboard', 'Dashboard', 'General', ready: true),
-  OperatorModule('live_operations', 'Operación en vivo', 'Operaciones'),
+  OperatorModule('live_operations', 'Operación en vivo', 'Operaciones', ready: true),
   OperatorModule('trips', 'Viajes', 'Operaciones', ready: true),
   OperatorModule('manual_dispatch', 'Despacho manual', 'Operaciones'),
   OperatorModule('drivers', 'Conductores', 'Operaciones', ready: true),
   OperatorModule('users', 'Usuarios', 'Operaciones', ready: true),
   OperatorModule('safety_sos', 'Seguridad / SOS', 'Operaciones'),
-  OperatorModule('delivery', 'Delivery', 'Módulos'),
+  OperatorModule('delivery', 'Delivery', 'Módulos', ready: true),
   OperatorModule('delivery_orders', 'Pedidos Delivery', 'Módulos'),
   OperatorModule('delivery_phase2', 'Delivery Fase 2 / Express Plus', 'Módulos'),
   OperatorModule('marketplace', 'Restaurantes', 'Módulos'),
@@ -47,6 +47,29 @@ const List<OperatorModule> operatorSelectorModules = [
   OperatorModule('services', 'Servicios', 'Configuración'),
   OperatorModule('geo_safety', 'Cobertura y seguridad', 'Configuración'),
 ];
+
+
+Set<String> operatorNormalizedModules(Iterable<String> source) {
+  final ready = operatorSelectorModules.where((module) => module.ready).map((module) => module.key).toSet();
+  final result = <String>{operatorBaseModule, ...source.where(ready.contains)};
+  if (result.contains('live_operations')) {
+    result.addAll(const ['dashboard', 'drivers']);
+  }
+  return result;
+}
+
+Set<String> operatorToggledModules(Iterable<String> current, String key, bool enabled) {
+  final result = operatorNormalizedModules(current);
+  if (enabled) {
+    result.add(key);
+    return operatorNormalizedModules(result);
+  }
+  result.remove(key);
+  if (key == 'dashboard' || key == 'drivers') {
+    result.remove('live_operations');
+  }
+  return operatorNormalizedModules(result);
+}
 
 const List<String> _groupOrder = [
   'General',
@@ -253,8 +276,7 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
           'p_zone_id': zone,
           'p_active': active,
           'p_environment': 'production',
-          'p_allowed_modules': {operatorBaseModule, ...allowed.where((key) =>
-              operatorSelectorModules.any((module) => module.key == key && module.ready))}.toList(),
+          'p_allowed_modules': operatorNormalizedModules(allowed).toList(),
         },
       );
       if (!mounted) return;
@@ -334,13 +356,9 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
 
   Set<String> _modulesOf(Map<String, dynamic> row) {
     if (row['allowed_modules'] is List) {
-      return (row['allowed_modules'] as List)
-          .map((e) => e.toString())
-          .where((key) => key == operatorBaseModule ||
-              operatorSelectorModules.any((module) => module.key == key && module.ready))
-          .toSet();
+      return operatorNormalizedModules((row['allowed_modules'] as List).map((e) => e.toString()));
     }
-    return operatorSelectorModules.where((m) => m.ready).map((m) => m.key).toSet();
+    return operatorNormalizedModules(operatorSelectorModules.where((m) => m.ready).map((m) => m.key));
   }
 
   // Crea la cuenta con correo y contraseña en el servidor y le da acceso de operador.
@@ -372,8 +390,7 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
           'password': password,
           'full_name': newName.text.trim(),
           'zone_id': zone,
-          'allowed_modules': {operatorBaseModule, ...modules.where((key) =>
-              operatorSelectorModules.any((module) => module.key == key && module.ready))}.toList(),
+          'allowed_modules': operatorNormalizedModules(modules).toList(),
         },
       );
       if (!mounted) return;
@@ -695,11 +712,8 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
       onChanged: busy || locked || !module.ready
           ? null
           : (value) => setState(() {
-                if (value == true) {
-                  modules.add(module.key);
-                } else {
-                  modules.remove(module.key);
-                }
+                final next = operatorToggledModules(modules, module.key, value == true);
+                modules..clear()..addAll(next);
               }),
     );
   }
@@ -783,7 +797,7 @@ class OperatorEditDialog extends StatefulWidget {
 
 class _OperatorEditDialogState extends State<OperatorEditDialog> {
   late bool active = widget.initialActive;
-  late final Set<String> modules = {operatorBaseModule, ...widget.initialModules};
+  late final Set<String> modules = operatorNormalizedModules(widget.initialModules);
 
   @override
   Widget build(BuildContext context) {
@@ -854,11 +868,8 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                     onChanged: module.key == operatorBaseModule || !module.ready
                         ? null
                         : (value) => setState(() {
-                              if (value == true) {
-                                modules.add(module.key);
-                              } else {
-                                modules.remove(module.key);
-                              }
+                              final next = operatorToggledModules(modules, module.key, value == true);
+                              modules..clear()..addAll(next);
                             }),
                   ),
               ],
