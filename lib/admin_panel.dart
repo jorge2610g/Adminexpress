@@ -13,6 +13,7 @@ import 'package:latlong2/latlong.dart';
 import 'core/supabase_client.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
+import 'admin_operators.dart';
 import 'admin_single_app_release.dart';
 import 'admin_audit_sandbox.dart';
 import 'admin_load_lab.dart';
@@ -292,6 +293,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Map<String, dynamic> adminAccess = const {};
 
   bool get _readOnly => adminAccess['read_only'] == true;
+  bool get _zoneScoped =>
+      (adminAccess['zone_id'] ?? '').toString().trim().isNotEmpty;
 
   Set<String> get _allowedModules {
     final raw = adminAccess['allowed_modules'];
@@ -333,12 +336,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     29: 'fares',
     30: 'marketplace',
     31: 'payments',
+    32: 'operators',
   };
 
   bool _sectionAllowed(int index) {
     // Identity review is already part of the driver record. The old standalone
     // identity entries are deliberately unreachable.
     if (index == 18 || index == 27) return false;
+    if (index == 32 && adminAccess['role'] != 'super_admin') return false;
     final module = _sectionModuleKeys[index];
     if (module == null) return false;
     final allowed = _allowedModules;
@@ -351,7 +356,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // country, city or service zone. Operational sections still require scope.
   // These administration modules cover the entire Express system rather than
   // an operational country, zone, or a separate Preview/Production mode.
-  static const Set<int> _globalSections = {10, 12, 14}; // Reports, Builds, Audit
+  static const Set<int> _globalSections = {10, 12, 14, 32}; // Reports, Builds, Audit
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
 
@@ -842,7 +847,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _globalGeoScopeSwitcher() {
-    if (_readOnly) {
+    if (_zoneScoped) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
@@ -862,7 +867,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Monitor de zona · ' +
+                (_readOnly ? 'Monitor de zona · ' : 'Operador de zona · ') +
                     (adminAccess['country'] ?? '').toString() +
                     ' · ' +
                     (adminAccess['zone_name'] ?? '').toString(),
@@ -873,14 +878,15 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                 ),
               ),
             ),
-            const Text(
-              'Solo lectura',
-              style: TextStyle(
-                color: Color(0xFF166534),
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
+            if (_readOnly)
+              const Text(
+                'Solo lectura',
+                style: TextStyle(
+                  color: Color(0xFF166534),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
           ],
         ),
       );
@@ -1484,6 +1490,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
         );
+      case 32:
+        return const AdminOperatorsPage();
       case 31:
         return AdminDeliverySettlementsPage(
           channel: adminChannel,
