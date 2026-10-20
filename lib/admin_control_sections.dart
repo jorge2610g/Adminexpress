@@ -1,6 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_friendly_labels.dart';
+import 'core/admin_money.dart';
+import 'core/admin_hero.dart';
+import 'core/admin_ui.dart';
+import 'core/admin_dropdown_field.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -128,9 +134,21 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
       return zoneId != null && scopedZoneIds.contains(zoneId);
     }
 
+    // Cada solicitud lleva la moneda de su zona para mostrar el importe correcto.
+    final currencyByZone = <String, String>{
+      for (final zone in zones)
+        if (zone['id'] != null && zone['currency_code'] != null)
+          zone['id'].toString(): zone['currency_code'].toString(),
+    };
+    Map<String, dynamic> withCurrency(Map<String, dynamic> row) => {
+          ...row,
+          'currency': currencyByZone[row['zone_id']?.toString()] ?? '',
+        };
+
     return (
-      rides: _list(requests['rides']).where(inScope).toList(),
-      deliveries: _list(requests['deliveries']).where(inScope).toList(),
+      rides: _list(requests['rides']).where(inScope).map(withCurrency).toList(),
+      deliveries:
+          _list(requests['deliveries']).where(inScope).map(withCurrency).toList(),
       drivers: _list(values[1]).where(inScope).toList(),
     );
   }
@@ -176,7 +194,7 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
                       (ride['destination_address'] ?? 'Destino').toString(),
                 ),
                 const SizedBox(height: 14),
-                DropdownButtonFormField<String>(
+                AdminDropdownField<String>(
                   initialValue: driverId,
                   decoration:
                       const InputDecoration(labelText: 'Conductor disponible'),
@@ -279,7 +297,7 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
                       (delivery['dropoff_address'] ?? 'Destino').toString(),
                 ),
                 const SizedBox(height: 14),
-                DropdownButtonFormField<String>(
+                AdminDropdownField<String>(
                   initialValue: driverId,
                   decoration:
                       const InputDecoration(labelText: 'Repartidor disponible'),
@@ -375,29 +393,50 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
                   ? 'Despacho manual · Prueba'
                   : 'Despacho manual · Producción',
               subtitle: widget.channel == 'preview'
-                  ? 'Solo solicitudes y conductores del entorno Preview / QA.'
+                  ? 'Solo solicitudes y conductores de Prueba.'
                   : 'Solo servicios reales de clientes en Producción.',
             ),
             const SizedBox(height: 14),
-            Card(
-              color: const Color(0xFFEAF2FF),
-              elevation: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Text(
-                  'Conductores disponibles ahora: ' +
-                      data.drivers.length.toString(),
-                  style: const TextStyle(
-                    color: _blue,
-                    fontWeight: FontWeight.w900,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              decoration: BoxDecoration(
+                color: adminUiBlueSoft,
+                border: Border.all(color: const Color(0xFFCFDCF7)),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.directions_car_rounded,
+                      color: _blue,
+                      size: 17,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Conductores disponibles ahora: ' +
+                        data.drivers.length.toString(),
+                    style: const TextStyle(
+                      color: _blue,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 20),
             const Text(
               'Solicitudes de viaje',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             if (data.rides.isEmpty)
@@ -407,20 +446,27 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
                 (row) => _DispatchItem(
                   icon: Icons.local_taxi_rounded,
                   title:
-                      (row['pickup_address'] ?? 'Origen').toString() +
+                      friendlyAddress(
+                        (row['pickup_address'] ?? 'Origen').toString(),
+                      ) +
                       ' → ' +
-                      (row['destination_address'] ?? 'Destino').toString(),
+                      friendlyAddress(
+                        (row['destination_address'] ?? 'Destino').toString(),
+                      ),
                   subtitle:
                       (row['passenger_name'] ?? 'Pasajero').toString() +
-                      ' · Bs ' +
-                      (row['proposed_fare'] ?? '—').toString(),
+                      ' · ' +
+                      adminMoney(
+                        row['proposed_fare'],
+                        row['currency']?.toString(),
+                      ),
                   onAssign: () => _assignRide(row, data.drivers),
                 ),
               ),
             const SizedBox(height: 22),
             const Text(
               'Delivery esperando',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             if (data.deliveries.isEmpty)
@@ -430,13 +476,20 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
                 (row) => _DispatchItem(
                   icon: Icons.local_shipping_rounded,
                   title:
-                      (row['pickup_address'] ?? 'Origen').toString() +
+                      friendlyAddress(
+                        (row['pickup_address'] ?? 'Origen').toString(),
+                      ) +
                       ' → ' +
-                      (row['dropoff_address'] ?? 'Destino').toString(),
+                      friendlyAddress(
+                        (row['dropoff_address'] ?? 'Destino').toString(),
+                      ),
                   subtitle:
                       (row['customer_name'] ?? 'Cliente').toString() +
-                      ' · Bs ' +
-                      (row['proposed_fare'] ?? '—').toString(),
+                      ' · ' +
+                      adminMoney(
+                        row['proposed_fare'],
+                        row['currency']?.toString(),
+                      ),
                   onAssign: () => _assignDelivery(row, data.drivers),
                 ),
               ),
@@ -806,7 +859,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
+                  AdminDropdownField<String>(
                     initialValue: type,
                     decoration:
                         const InputDecoration(labelText: 'Tipo de organización'),
@@ -829,7 +882,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     },
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
+                  AdminDropdownField<String>(
                     initialValue: status,
                     decoration: const InputDecoration(labelText: 'Estado'),
                     items: const [
@@ -1015,7 +1068,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
+                  AdminDropdownField<String>(
                     initialValue: role,
                     decoration: const InputDecoration(labelText: 'Rol'),
                     items: const [
@@ -1315,7 +1368,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'gross_amount': 0,
               'commission_amount': 0,
               'status': 'pending',
-              'notes': 'Liquidación creada desde Adminexpress Preview',
+              'notes': 'Liquidación creada desde Adminexpress (Prueba)',
               'created_at': DateTime.now().toUtc().toIso8601String(),
             },
           );
@@ -1863,7 +1916,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           }
         }
       } catch (error) {
-        if (mounted) _snack(context, 'No se pudo cargar la cobertura: $error');
+        if (mounted) _snack(context, 'No se pudo cargar la cobertura: ${friendlyError(error)}');
         return;
       }
     }
@@ -1957,7 +2010,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         }
       } catch (error) {
         if (mounted) {
-          _snack(context, 'No fue posible consultar los servicios: $error');
+          _snack(context, 'No fue posible consultar los servicios: ${friendlyError(error)}');
         }
         return;
       }
@@ -2067,7 +2120,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     decoration: const InputDecoration(labelText: 'Ciudad'),
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
+                  AdminDropdownField<String>(
                     initialValue: selectedCountryCode,
                     isExpanded: true,
                     decoration: const InputDecoration(
@@ -2200,23 +2253,23 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        CheckboxListTile(
+                        Material(type: MaterialType.transparency, child: CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
                           value: showRides,
                           title: const Text('Viajes · Taxi / mototaxi'),
                           subtitle: const Text('Traslados de pasajeros'),
                           onChanged: (value) =>
                               setLocal(() => showRides = value == true),
-                        ),
-                        CheckboxListTile(
+                        )),
+                        Material(type: MaterialType.transparency, child: CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
                           value: showParcels,
                           title: const Text('Envíos · Paquetería'),
                           subtitle: const Text('Paquetes y documentos'),
                           onChanged: (value) =>
                               setLocal(() => showParcels = value == true),
-                        ),
-                        CheckboxListTile(
+                        )),
+                        Material(type: MaterialType.transparency, child: CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
                           value: showMarket,
                           title: const Text('Express Market · Delivery'),
@@ -2231,7 +2284,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                               ? (value) =>
                                   setLocal(() => showMarket = value == true)
                               : null,
-                        ),
+                        )),
                         const Divider(height: 22),
                         Row(children: [
                           const Icon(Icons.auto_awesome_rounded,
@@ -2546,7 +2599,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                     border: Border.all(color: const Color(0xFFE7ECF3)),
                     borderRadius: BorderRadius.circular(11),
                   ),
-                  child: ListTile(
+                  child: Material(type: MaterialType.transparency, child: ListTile(
                     dense: true,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -2574,13 +2627,10 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           (row['currency_code'] ?? 'BOB').toString() +
                           ' · Cobertura: ' +
                           adminZoneCoverageSummary(row) +
-                          '\nClave: ' +
-                          (row['zone_key'] ?? '—').toString() +
-                          ' · Registro: ' +
+                          '\nRegistro de conductores: ' +
                           (row['driver_registration_enabled'] == false
-                              ? 'OFF'
-                              : 'ON') +
-                          ' · Inicio: automático',
+                              ? 'pausado'
+                              : 'activado'),
                     ),
                     isThreeLine: true,
                     trailing: Row(
@@ -2626,7 +2676,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                         ),
                       ],
                     ),
-                  ),
+                  )),
                 ),
               ),
           ],
@@ -2833,7 +2883,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                     decoration: const InputDecoration(labelText: 'Descripción'),
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
+                  AdminDropdownField<String>(
                     initialValue: vehicle,
                     decoration:
                         const InputDecoration(labelText: 'Vehículo requerido'),
@@ -3099,7 +3149,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                       ),
                       const SizedBox(width: 14),
                       Expanded(
-                        child: DropdownButtonFormField<String>(
+                        child: AdminDropdownField<String>(
                           initialValue: selectedZoneId,
                           decoration: const InputDecoration(
                             isDense: true,
@@ -3167,7 +3217,8 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                             enabled
                                 ? 'Disponible en $zoneName'
                                 : 'No disponible',
-                            row['vehicle_type']?.toString() ?? 'car',
+                            if (friendlyVehicle(row['vehicle_type']?.toString() ?? 'car').isNotEmpty)
+                              friendlyVehicle(row['vehicle_type']?.toString() ?? 'car'),
                             if (row['allow_bidding'] == true) 'Ofertas',
                             if (row['allow_fixed_price'] == true) 'Precio fijo',
                             if (row['passenger_visible'] == true)
@@ -3290,136 +3341,6 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
       .map((point) => {'lat': point.latitude, 'lng': point.longitude})
       .toList();
 
-  Future<void> _editCoverage(
-    List<Map<String, dynamic>> zones, [
-    Map<String, dynamic>? row,
-  ]) async {
-    if (zones.isEmpty) {
-      _snack(context, 'Primero crea una zona de operación.');
-      return;
-    }
-    var zoneId = row?['zone_id']?.toString() ?? zones.first['id'].toString();
-    var active = row?['active'] != false;
-    final name = TextEditingController(
-      text: row?['name']?.toString() ?? 'Cobertura principal',
-    );
-    var points = _points(row?['polygon']);
-
-    final save = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Dibujar cobertura' : 'Editar cobertura'),
-          content: SizedBox(
-            width: 760,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: zoneId,
-                          decoration: const InputDecoration(labelText: 'Zona'),
-                          items: zones
-                              .map(
-                                (zone) => DropdownMenuItem(
-                                  value: zone['id'].toString(),
-                                  child: Text(zone['name']?.toString() ?? 'Zona'),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            if (value != null) setLocal(() => zoneId = value);
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: name,
-                          decoration: const InputDecoration(labelText: 'Nombre del polígono'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _PolygonEditor(
-                    points: points,
-                    tone: _blue,
-                    title: 'Toca el mapa para marcar la cobertura',
-                    onAdd: (point) => setLocal(() => points = [...points, point]),
-                    onUndo: () {
-                      if (points.isNotEmpty) {
-                        setLocal(() => points = points.sublist(0, points.length - 1));
-                      }
-                    },
-                    onClear: () => setLocal(() => points = <LatLng>[]),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: active,
-                    onChanged: (value) => setLocal(() => active = value),
-                    title: const Text('Polígono activo'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton.icon(
-              onPressed: points.length < 3
-                  ? null
-                  : () => Navigator.pop(dialogContext, true),
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('Guardar polígono'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (save == true) {
-      try {
-        if (_environment.isPreview) {
-          final key = row == null
-              ? _environment.createRecordKey('coverage')
-              : AdminEnvironmentStore.recordKey(row);
-          await _environment.previewUpsert(
-            'service_zone_polygons',
-            key,
-            <String, dynamic>{
-              ...?row,
-              'zone_id': zoneId,
-              'name': name.text.trim(),
-              'polygon': _jsonPoints(points),
-              'active': active,
-            },
-          );
-        } else {
-          await supabase.rpc(
-            'admin_upsert_zone_polygon',
-            params: {
-              'p_id': row?['id'],
-              'p_zone_id': zoneId,
-              'p_name': name.text.trim(),
-              'p_polygon': _jsonPoints(points),
-              'p_active': active,
-            },
-          );
-        }
-        if (mounted) setState(() => revision++);
-      } catch (e) {
-        if (mounted) _snack(context, e);
-      }
-    }
-    name.dispose();
-  }
-
   Future<void> _editSafety([Map<String, dynamic>? row]) async {
     var type = row?['zone_type']?.toString() ?? 'red';
     var applies = row?['applies_to']?.toString() ?? 'both';
@@ -3452,7 +3373,7 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<String>(
+                        child: AdminDropdownField<String>(
                           initialValue: type,
                           decoration: const InputDecoration(labelText: 'Tipo'),
                           items: const [
@@ -3467,7 +3388,7 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: DropdownButtonFormField<String>(
+                        child: AdminDropdownField<String>(
                           initialValue: applies,
                           decoration: const InputDecoration(labelText: 'Aplica a'),
                           items: const [
@@ -4153,7 +4074,7 @@ class _GeoRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(13),
         border: Border.all(color: const Color(0xFFE4EAF2)),
       ),
-      child: ListTile(
+      child: Material(type: MaterialType.transparency, child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         leading: Container(
           width: 40,
@@ -4192,7 +4113,7 @@ class _GeoRow extends StatelessWidget {
           ],
         ),
         onTap: onTap,
-      ),
+      )),
     );
   }
 }
@@ -4389,7 +4310,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
+                  AdminDropdownField<String>(
                     initialValue: scope,
                     decoration: const InputDecoration(labelText: 'Jerarquía'),
                     items: const [
@@ -4412,7 +4333,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                   ),
                   if (scope != 'global') ...[
                     const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
+                    AdminDropdownField<String>(
                       initialValue: service,
                       decoration:
                           const InputDecoration(labelText: 'Servicio'),
@@ -4435,7 +4356,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                   ],
                   if (scope == 'zone_service') ...[
                     const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
+                    AdminDropdownField<String>(
                       initialValue: zoneId,
                       decoration: const InputDecoration(labelText: 'Zona'),
                       items: zones
@@ -4646,7 +4567,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<String>(
+                        child: AdminDropdownField<String>(
                           initialValue: type,
                           decoration: const InputDecoration(
                             labelText: 'Tipo de sector',
@@ -4674,7 +4595,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: DropdownButtonFormField<String>(
+                        child: AdminDropdownField<String>(
                           initialValue: service,
                           decoration: const InputDecoration(
                             labelText: 'Servicio',
@@ -5099,7 +5020,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                       ),
                       const SizedBox(width: 14),
                       Expanded(
-                        child: DropdownButtonFormField<String>(
+                        child: AdminDropdownField<String>(
                           initialValue: selectedZoneId,
                           decoration: const InputDecoration(
                             isDense: true,
@@ -5141,7 +5062,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                     border: Border.all(color: const Color(0xFFE7ECF3)),
                     borderRadius: BorderRadius.circular(11),
                   ),
-                  child: ListTile(
+                  child: Material(type: MaterialType.transparency, child: ListTile(
                     dense: true,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -5173,7 +5094,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                           _edit(data.zones, data.services, row),
                       icon: const Icon(Icons.edit_outlined),
                     ),
-                  ),
+                  )),
                 ),
               ),
           ],
@@ -5293,7 +5214,7 @@ Future<bool> showAdminZonePaymentMethodsEditor(
                         ),
                         child: Column(
                           children: [
-                            CheckboxListTile(
+                            Material(type: MaterialType.transparency, child: CheckboxListTile(
                               dense: true,
                               contentPadding: EdgeInsets.zero,
                               value: selected,
@@ -5325,7 +5246,7 @@ Future<bool> showAdminZonePaymentMethodsEditor(
                                     ? (value) => setFlag('enabled', value)
                                     : null,
                               ),
-                            ),
+                            )),
                             if (selected)
                               Align(
                                 alignment: Alignment.centerLeft,
@@ -5580,7 +5501,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
     final values = _map(raw);
     if (values.isEmpty) return '0';
     return values.entries
-        .map((entry) => entry.key.toString() + ' ' + entry.value.toString())
+        .map((entry) => adminMoney(entry.value, entry.key.toString()))
         .join(' · ');
   }
 
@@ -5673,7 +5594,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
             'settings': <String, dynamic>{
               'public_key': stored['public_key'] ?? '',
               'has_access_token': stored['has_access_token'] == true,
-              'nickname': stored['nickname'] ?? 'Preview',
+              'nickname': stored['nickname'] ?? 'Prueba',
               'account_email': stored['account_email'] ?? '',
             },
           };
@@ -5933,7 +5854,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
             'has_access_token':
                 accessToken.text.trim().isNotEmpty || hasToken,
             'verified': true,
-            'nickname': 'Mercado Pago Preview',
+            'nickname': 'Mercado Pago (Prueba)',
           },
         );
       } else {
@@ -6037,8 +5958,10 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
           (approved
                   ? 'Se acreditará '
                   : 'Se rechazará la solicitud de ') +
-              'Bs ' +
-              (row['amount'] ?? 0).toString() +
+              adminMoney(
+                row['amount'],
+                (row['currency'] ?? row['currency_code'])?.toString(),
+              ) +
               ' para ' +
               (row['full_name'] ?? 'este usuario').toString() +
               '.',
@@ -6375,7 +6298,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                   children: [
                     SizedBox(
                       width: 210,
-                      child: DropdownButtonFormField<String?>(
+                      child: AdminDropdownField<String?>(
                         value: selectedPaymentZoneId,
                         isExpanded: true,
                         decoration: const InputDecoration(
@@ -6527,7 +6450,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                       border: Border.all(color: const Color(0xFFE7ECF3)),
                       borderRadius: BorderRadius.circular(11),
                     ),
-                    child: ListTile(
+                    child: Material(type: MaterialType.transparency, child: ListTile(
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 6,
@@ -6546,8 +6469,11 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                         ),
                       ),
                       subtitle: Text(
-                        'Bs ' +
-                            (row['amount'] ?? 0).toString() +
+                        adminMoney(
+                              row['amount'],
+                              (row['currency'] ?? row['currency_code'])
+                                  ?.toString(),
+                            ) +
                             ' · ' +
                             _formatDate(row['created_at']) +
                             (row['phone'] == null
@@ -6567,7 +6493,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                           ),
                         ],
                       ),
-                    ),
+                    )),
                   ),
                 ),
               const SizedBox(height: 24),
@@ -6590,7 +6516,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                       border: Border.all(color: const Color(0xFFE7ECF3)),
                       borderRadius: BorderRadius.circular(11),
                     ),
-                    child: ListTile(
+                    child: Material(type: MaterialType.transparency, child: ListTile(
                       dense: true,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14,
@@ -6619,7 +6545,7 @@ class _AdminPaymentsPageState extends State<AdminPaymentsPage> {
                             ' · ' +
                             _formatDate(row['created_at']),
                       ),
-                    ),
+                    )),
                   ),
                 ),
             ],
@@ -6983,7 +6909,7 @@ class _AdminCommunicationsPageState
                           : const Color(0xFFE7ECF3),
                     ),
                   ),
-                  child: ListTile(
+                  child: Material(type: MaterialType.transparency, child: ListTile(
                     dense: true,
                     leading: const CircleAvatar(
                       child: Icon(Icons.person_outline_rounded),
@@ -7017,7 +6943,7 @@ class _AdminCommunicationsPageState
                           row['full_name']?.toString() ?? 'Usuario Express';
                       revision++;
                     }),
-                  ),
+                  )),
                 );
               }).toList(),
             );
@@ -7217,7 +7143,7 @@ class _AdminCommunicationsPageState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DropdownButtonFormField<String>(
+              AdminDropdownField<String>(
                 initialValue: audience,
                 decoration: const InputDecoration(
                   labelText: 'Destinatarios',
@@ -7246,7 +7172,7 @@ class _AdminCommunicationsPageState
                 },
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String?>(
+              AdminDropdownField<String?>(
                 initialValue: campaignZoneId,
                 decoration: const InputDecoration(
                   labelText: 'Zona',
@@ -7269,7 +7195,7 @@ class _AdminCommunicationsPageState
               ),
               if (audience == 'drivers' && campaignPartners.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String?>(
+                AdminDropdownField<String?>(
                   initialValue: campaignPartnerId,
                   decoration: const InputDecoration(
                     labelText: 'Empresa / sindicato / cooperativa',
@@ -7438,7 +7364,7 @@ class _AdminCommunicationsPageState
             if (snapshot.hasError) {
               return _AdminPaymentNotice(
                 text: 'No se pudo cargar la telemetría: ' +
-                    snapshot.error.toString(),
+                    friendlyError(snapshot.error),
               );
             }
             final campaigns =
@@ -7555,6 +7481,14 @@ class _AdminCommunicationsPageState
       length: 2,
       child: Column(
         children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(22, 20, 22, 14),
+            child: AdminHero(
+              icon: Icons.notifications_active_rounded,
+              title: 'Notificaciones / Avisos',
+              subtitle: 'Soporte a usuarios y avisos enviados a pasajeros y conductores.',
+            ),
+          ),
           const Material(
             color: Colors.white,
             child: TabBar(
@@ -7585,112 +7519,16 @@ class _AdminCommunicationsPageState
 }
 
 
-class AdminReportsPage extends StatefulWidget {
-  const AdminReportsPage({super.key});
-
-  @override
-  State<AdminReportsPage> createState() => _AdminReportsPageState();
-}
-
-class _AdminReportsPageState extends State<AdminReportsPage> {
-  DateTime from = DateTime.now().subtract(const Duration(days: 30));
-  DateTime to = DateTime.now().add(const Duration(days: 1));
-  int revision = 0;
-
-  Future<Map<String, dynamic>> _load() async {
-    final value = await supabase.rpc(
-      'admin_report_summary',
-      params: {
-        'p_from': from.toUtc().toIso8601String(),
-        'p_to': to.toUtc().toIso8601String(),
-      },
-    );
-    return _map(value);
-  }
-
-  Future<void> _pickFrom() async {
-    final selected = await showDatePicker(
-      context: context,
-      firstDate: DateTime(2024),
-      lastDate: DateTime.now(),
-      initialDate: from,
-    );
-    if (selected != null) {
-      setState(() {
-        from = selected;
-        revision++;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
-      key: ValueKey(revision),
-      future: _load(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading(title: 'Generando reporte');
-        }
-        if (snapshot.hasError) {
-          return _Error(error: snapshot.error, onRetry: () => setState(() => revision++));
-        }
-
-        final data = snapshot.data ?? const {};
-        return ListView(
-          padding: const EdgeInsets.all(22),
-          children: [
-            _Header(
-              title: 'Reportes',
-              subtitle:
-                  'Resumen operativo y financiero del período seleccionado.',
-              action: OutlinedButton.icon(
-                onPressed: _pickFrom,
-                icon: const Icon(Icons.date_range_outlined),
-                label: Text('Desde ' + _dateOnly(from)),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _Kpi('Viajes', (data['trips_total'] ?? 0).toString()),
-                _Kpi(
-                  'Viajes completados',
-                  (data['trips_completed'] ?? 0).toString(),
-                ),
-                _Kpi(
-                  'Viajes cancelados',
-                  (data['trips_cancelled'] ?? 0).toString(),
-                ),
-                _Kpi('Delivery', (data['delivery_total'] ?? 0).toString()),
-                _Kpi(
-                  'Delivery completados',
-                  (data['delivery_completed'] ?? 0).toString(),
-                ),
-                _Kpi(
-                  'Cobrado',
-                  'Bs ' + (data['paid_volume'] ?? 0).toString(),
-                ),
-                _Kpi('Usuarios nuevos', (data['new_users'] ?? 0).toString()),
-                _Kpi('Emergencias', (data['emergencies'] ?? 0).toString()),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
 class AdminSettingsPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminSettingsPage({
     super.key,
     this.channel = 'production',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -7698,8 +7536,8 @@ class AdminSettingsPage extends StatefulWidget {
 }
 
 class _AdminSettingsPageState extends State<AdminSettingsPage> {
-  AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+  // Zona seleccionada: País y Moneda del resumen salen de aquí, igual en Prueba y Producción.
+  Map<String, dynamic> _scopeZone = const {};
   Map<String, dynamic>? settings;
   bool loading = true;
   bool saving = false;
@@ -7765,6 +7603,22 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
     _load(channel: channel, revision: revision);
   }
 
+  /// Zona del ámbito seleccionado. Es la misma en Prueba y Producción.
+  Future<Map<String, dynamic>> _zoneForScope() async {
+    final countryCode = widget.countryCode;
+    if (countryCode == null || countryCode.isEmpty) return const {};
+    final zones = _list(await supabase.rpc(
+      'admin_zone_list_for_country',
+      params: {'p_country_code': countryCode},
+    ));
+    for (final zone in zones) {
+      if (widget.zoneId != null && zone['id']?.toString() == widget.zoneId) {
+        return zone;
+      }
+    }
+    return zones.isEmpty ? const {} : zones.first;
+  }
+
   Future<void> _load({
     required String channel,
     required int revision,
@@ -7774,6 +7628,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       final row = environment.isPreview
           ? await environment.previewGet('app_settings')
           : _map(await supabase.rpc('admin_settings_get'));
+      final scopeZone = await _zoneForScope();
 
       if (!mounted ||
           revision != _settingsLoadRevision ||
@@ -7782,6 +7637,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       }
 
       settings = row;
+      _scopeZone = scopeZone;
       currency.text = (row['currency'] ?? 'BOB').toString();
       rideMin.text = (row['min_ride_fare'] ?? 5).toString();
       deliveryMin.text = (row['min_delivery_fare'] ?? 5).toString();
@@ -8008,11 +7864,14 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           title: 'Operación y dispatch',
           subtitle: 'Define cómo se distribuyen las solicitudes a conductores.',
           children: [
-            DropdownButtonFormField<String>(
+            AdminDropdownField<String>(
               initialValue: dispatchMode,
-              decoration: const InputDecoration(labelText: 'Modo de dispatch'),
+              decoration: const InputDecoration(labelText: 'Modo de despacho'),
               items: const [
-                DropdownMenuItem(value: 'broadcast', child: Text('Broadcast')),
+                DropdownMenuItem(
+                  value: 'broadcast',
+                  child: Text('Difusión a conductores disponibles'),
+                ),
                 DropdownMenuItem(value: 'progressive', child: Text('Progresivo')),
                 DropdownMenuItem(value: 'manual', child: Text('Manual')),
               ],
@@ -8089,7 +7948,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
         content = _SettingsCard(
           title: 'Verificación de teléfono por SMS',
           subtitle:
-              'Control independiente para pasajeros y conductores. Preview prueba el proveedor; Producción solo aplica el bloqueo después de una OTP real confirmada.',
+              'Control independiente para pasajeros y conductores. Prueba confirma el proveedor; Producción solo aplica el bloqueo después de una OTP real confirmada.',
           children: [
             _InlineNotice(
               icon: settings?['sms_provider_verified_at'] != null
@@ -8097,7 +7956,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                   : Icons.sms_outlined,
               text: settings?['sms_provider_verified_at'] != null
                   ? 'Proveedor SMS verificado con OTP real. Producción puede aplicar la exigencia según los switches de abajo.'
-                  : 'Proveedor SMS pendiente de prueba real. Preview exige OTP; Producción permanece en modo seguro y no bloqueará usuarios hasta que una OTP se confirme correctamente.',
+                  : 'Proveedor SMS pendiente de prueba real. Prueba exige código SMS; Producción permanece en modo seguro y no bloqueará usuarios hasta que una OTP se confirme correctamente.',
             ),
             const SizedBox(height: 8),
             SwitchListTile.adaptive(
@@ -8154,9 +8013,15 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
               subtitle: 'Parámetros principales de la empresa.',
               children: [
                 _ReadOnlyRow(label: 'Empresa', value: 'Express Delivery'),
-                _ReadOnlyRow(label: 'País', value: country.text),
-                _ReadOnlyRow(label: 'Moneda', value: currency.text),
-                _ReadOnlyRow(label: 'Dispatch', value: dispatchMode),
+                _ReadOnlyRow(
+                  label: 'País',
+                  value: _scopeZone['country']?.toString() ?? '—',
+                ),
+                _ReadOnlyRow(
+                  label: 'Moneda',
+                  value: _scopeZone['currency_code']?.toString() ?? '—',
+                ),
+                _ReadOnlyRow(label: 'Despacho', value: friendlyDispatch(dispatchMode)),
               ],
             ),
           ],
@@ -8613,7 +8478,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<int>(
+                      child: AdminDropdownField<int>(
                         initialValue: min,
                         decoration: const InputDecoration(labelText: 'Mínimo'),
                         items: [1, 2, 3, 4, 5]
@@ -8626,7 +8491,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: DropdownButtonFormField<int>(
+                      child: AdminDropdownField<int>(
                         initialValue: max,
                         decoration: const InputDecoration(labelText: 'Máximo'),
                         items: [1, 2, 3, 4, 5]
@@ -8746,7 +8611,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  DropdownButtonFormField<String>(
+                  AdminDropdownField<String>(
                     initialValue: selectedVersion,
                     decoration: const InputDecoration(
                       labelText: 'Versión mínima permitida',
@@ -9163,14 +9028,20 @@ class _Kpi extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 23,
-                    height: 1,
-                    fontWeight: FontWeight.w900,
-                    color: _dark,
-                    letterSpacing: -.5,
+                // Si el importe es largo, el texto se reduce en vez de partirse en dos líneas.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      fontSize: 23,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                      color: _dark,
+                      letterSpacing: -.5,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 5),
@@ -9241,7 +9112,7 @@ class _SettingsCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
+      child: Material(type: MaterialType.transparency, child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -9290,7 +9161,7 @@ class _SettingsCard extends StatelessWidget {
           const SizedBox(height: 8),
           ...children,
         ],
-      ),
+      )),
     );
   }
 }
@@ -9392,8 +9263,8 @@ class _DispatchItem extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: _dark,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -9401,7 +9272,8 @@ class _DispatchItem extends StatelessWidget {
                       subtitle,
                       style: const TextStyle(
                         color: _muted,
-                        fontSize: 10,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -9533,7 +9405,7 @@ class _Error extends StatelessWidget {
             children: [
               const Icon(Icons.error_outline_rounded, size: 46),
               const SizedBox(height: 10),
-              Text(error.toString()),
+              Text(friendlyError(error)),
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: onRetry,
@@ -9567,7 +9439,7 @@ num? _num(String value) {
 
 void _snack(BuildContext context, Object error) {
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('Error: ' + error.toString())),
+    SnackBar(content: Text(friendlyError(error))),
   );
 }
 
@@ -9598,10 +9470,4 @@ String _formatDate(Object? raw) {
       hour +
       ':' +
       minute;
-}
-
-String _dateOnly(DateTime value) {
-  final day = value.day.toString().padLeft(2, '0');
-  final month = value.month.toString().padLeft(2, '0');
-  return day + '/' + month + '/' + value.year.toString();
 }

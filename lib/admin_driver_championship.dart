@@ -1,5 +1,18 @@
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_dropdown_field.dart';
 import 'core/supabase_client.dart';
+import 'core/admin_friendly_labels.dart';
+
+/// Servicio del campeonato en español; «*» significa todos los servicios.
+String _serviceName(String key) => friendlyService(key);
+
+String _championshipState(String state) => switch (state) {
+      'draft' => 'Borrador',
+      'active' => 'Activo',
+      'closed' => 'Cerrado',
+      _ => state,
+    };
 
 /// Admin championships by assigned city and account-bound runtime.
 /// Writes are limited to superadmins in the Postgres RPC.
@@ -121,7 +134,7 @@ class _AdminDriverChampionshipPageState
         content:Text('Campeonato guardado correctamente.')));
     }catch(e){
       if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:Text('No se pudo guardar: '+e.toString())));
+        content:Text('No se pudo guardar: '+ friendlyError(e))));
     }finally{
       if(mounted)setState(()=>_saving=false);
     }
@@ -145,7 +158,7 @@ class _AdminDriverChampionshipPageState
           return const Center(child:CircularProgressIndicator());
         if(snapshot.hasError)
           return Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
-            Text('No se pudieron cargar los campeonatos: '+snapshot.error.toString()),
+            Text('No se pudieron cargar los campeonatos: '+friendlyError(snapshot.error)),
             TextButton(onPressed:()=>setState(_reload),
               child:const Text('Reintentar')),
           ]));
@@ -167,7 +180,7 @@ class _AdminDriverChampionshipPageState
           Card(child:Padding(padding:const EdgeInsets.all(16),
             child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
               Text('Campeonatos de esta zona · '+(widget.channel=='preview'
-                ?'ENTORNO DE PRUEBA':'PRODUCCIÓN'),
+                ?'PRUEBA':'PRODUCCIÓN'),
                 style:const TextStyle(fontWeight:FontWeight.w800)),
               const SizedBox(height:10),
               if(records.isEmpty)const Text('Todavía no se ha creado un campeonato.'),
@@ -176,8 +189,8 @@ class _AdminDriverChampionshipPageState
                   leading:const Icon(Icons.emoji_events_outlined),
                   title:Text(row['title']?.toString()??''),
                   subtitle:Text(
-                    (row['service_key']?.toString()??'*')+
-                    ' · '+(row['state']?.toString()??'draft')),
+                    _serviceName(row['service_key']?.toString()??'*')+
+                    ' · '+_championshipState(row['state']?.toString()??'draft')),
                   selected:_id==row['id']?.toString(),
                   trailing:const Icon(Icons.edit_outlined),
                   onTap:()=>_open(row),
@@ -191,7 +204,7 @@ class _AdminDriverChampionshipPageState
               const SizedBox(height:12),
               _input('Nombre del campeonato',_title),
               const SizedBox(height:12),
-              DropdownButtonFormField<String>(
+              AdminDropdownField<String>(
                 initialValue:_service,
                 decoration:const InputDecoration(labelText:'Servicio'),
                 items:const [
@@ -207,7 +220,7 @@ class _AdminDriverChampionshipPageState
                 _dateTile('Fin',_ends,false),
               ]),
               const SizedBox(height:12),
-              DropdownButtonFormField<String>(
+              AdminDropdownField<String>(
                 initialValue:_state,
                 decoration:const InputDecoration(labelText:'Estado'),
                 items:const [

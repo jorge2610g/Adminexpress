@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_dropdown_field.dart';
 
 import 'core/supabase_client.dart';
 
@@ -359,7 +361,7 @@ class _AdminMarketplacePhase2PageState
                     onChanged: widget.channel == 'preview'
                         ? (v) => setLocal(() => preview = v)
                         : null,
-                    title: const Text('Delivery Fase 2 en Preview'),
+                    title: const Text('Delivery Fase 2 en Prueba'),
                   ),
                   SwitchListTile.adaptive(
                     value: production,
@@ -534,7 +536,7 @@ class _AdminMarketplacePhase2PageState
                     onChanged: widget.channel == 'preview'
                         ? (v) => setLocal(() => preview = v)
                         : null,
-                    title: const Text('Visible Preview'),
+                    title: const Text('Visible en Prueba'),
                   ),
                   SwitchListTile.adaptive(
                     value: production,
@@ -650,7 +652,7 @@ class _AdminMarketplacePhase2PageState
                   onChanged: (v) => setLocal(() => exclusive = v),
                   title: const Text('Promoción exclusiva Plus'),
                 ),
-                DropdownButtonFormField<String>(
+                AdminDropdownField<String>(
                   initialValue: fundedBy,
                   decoration: const InputDecoration(
                     labelText: 'Quién financia el descuento',
@@ -1696,7 +1698,7 @@ class _AdminMarketplacePhase2PageState
               child: FilledButton.icon(
                 onPressed: _refresh,
                 icon: const Icon(Icons.refresh_rounded),
-                label: Text(snapshot.error.toString()),
+                label: Text(friendlyError(snapshot.error)),
               ),
             );
           }

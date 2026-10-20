@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'admin_panel.dart';
@@ -39,6 +40,7 @@ class AdminExpressApp extends StatelessWidget {
         useMaterial3: true,
         colorSchemeSeed: const Color(0xFF0B57D0),
         scaffoldBackgroundColor: const Color(0xFFF7F9FC),
+        fontFamily: 'Plus Jakarta Sans',
       ),
       home: startupError == null
           ? const _AdminAuthGate()
@@ -129,7 +131,7 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
         if (snapshot.hasError) {
           return _AccessDenied(
             title: 'No se pudo validar tu acceso',
-            message: snapshot.error.toString(),
+            message: friendlyError(snapshot.error),
             onExit: _logout,
           );
         }
@@ -149,7 +151,7 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
             return _AccessDenied(
               title: 'Cuenta sin acceso administrativo',
               message:
-                  'Esta cuenta no tiene un entorno administrativo habilitado. '
+                  'Esta cuenta no tiene acceso al panel administrativo. '
                   'Cierra sesión y utiliza las credenciales correspondientes.',
               onExit: _logout,
             );
@@ -245,8 +247,19 @@ class _AdminLoginState extends State<_AdminLogin> {
                 padding: const EdgeInsets.all(28),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 430),
-                  child: Card(
-                    elevation: 0,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFDDE6F0)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x140F172A),
+                          blurRadius: 44,
+                          offset: Offset(0, 18),
+                        ),
+                      ],
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(28),
                       child: Column(
@@ -256,12 +269,13 @@ class _AdminLoginState extends State<_AdminLogin> {
                             'Adminexpress',
                             style: TextStyle(
                               fontSize: 28,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
                             ),
                           ),
                           const SizedBox(height: 6),
                           const Text(
-                            'Acceso central · entorno según tu cuenta',
+                            'Acceso al panel administrativo',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -274,32 +288,56 @@ class _AdminLoginState extends State<_AdminLogin> {
                             style: TextStyle(color: Color(0xFF667085)),
                           ),
                           const SizedBox(height: 26),
-                          TextField(
-                            controller: email,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                              labelText: 'Correo administrador',
-                              prefixIcon: Icon(Icons.mail_outline_rounded),
+                          const Text(
+                            'Correo administrador',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Semantics(
+                            label: 'Correo administrador',
+                            textField: true,
+                            child: TextField(
+                              controller: email,
+                              keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.mail_outline_rounded),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 12),
-                          TextField(
-                            controller: password,
-                            obscureText: obscure,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _submit(),
-                            decoration: InputDecoration(
-                              labelText: 'Contraseña',
-                              prefixIcon:
-                                  const Icon(Icons.lock_outline_rounded),
-                              suffixIcon: IconButton(
-                                onPressed: () =>
-                                    setState(() => obscure = !obscure),
-                                icon: Icon(
-                                  obscure
-                                      ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined,
+                          const Text(
+                            'Contraseña',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Semantics(
+                            label: 'Contraseña',
+                            textField: true,
+                            child: TextField(
+                              controller: password,
+                              obscureText: obscure,
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) => _submit(),
+                              decoration: InputDecoration(
+                                prefixIcon:
+                                    const Icon(Icons.lock_outline_rounded),
+                                suffixIcon: IconButton(
+                                  onPressed: () =>
+                                      setState(() => obscure = !obscure),
+                                  icon: Icon(
+                                    obscure
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                  ),
                                 ),
                               ),
                             ),
@@ -333,8 +371,8 @@ class _AdminLoginState extends State<_AdminLogin> {
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            'Preview o Producción se asignan automáticamente '
-                            'según la cuenta autenticada.',
+                            'Tu cuenta define si ves datos de Prueba o de Producción '
+                            'y qué información puedes ver.',
                             style: TextStyle(
                               color: Color(0xFF667085),
                               fontSize: 11,
@@ -343,8 +381,7 @@ class _AdminLoginState extends State<_AdminLogin> {
                           const SizedBox(height: 12),
                           const Center(
                             child: Text(
-                              'Una sola página administrativa. El canal de datos '
-                              'lo determina tu usuario.',
+                              'Tu cuenta define qué información puedes ver.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 11, color: Color(0xFF667085),
@@ -387,60 +424,132 @@ class _AdminBrandPanel extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF073B8C),
-            Color(0xFF0B57D0),
-            Color(0xFF39A0FF),
+            Color(0xFF0B1220),
+            Color(0xFF0F2854),
+            Color(0xFF174B91),
+            Color(0xFF0D6B8D),
           ],
+          stops: [0.0, 0.38, 0.72, 1.0],
         ),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: Colors.white,
-                child: Icon(
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF2563EB), Color(0xFF22D3EE)],
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x4D22D3EE),
+                      blurRadius: 20,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Icon(
                   Icons.bolt_rounded,
-                  color: Color(0xFF0B57D0),
-                  size: 30,
+                  color: Colors.white,
+                  size: 26,
                 ),
               ),
-              SizedBox(width: 12),
-              Text(
+              const SizedBox(width: 14),
+              const Text(
                 'EXPRESS',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 28,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
                 ),
               ),
             ],
           ),
-          Spacer(),
-          Text(
+          const Spacer(),
+          const Text(
             'Administra Express\ndesde un solo lugar.',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 42,
-              height: 1.05,
-              fontWeight: FontWeight.w900,
+              fontSize: 44,
+              height: 1.08,
+              letterSpacing: -1,
+              fontWeight: FontWeight.w800,
             ),
           ),
-          SizedBox(height: 16),
-          Text(
-            'Operación, conductores, seguridad, tarifas, builds y releases.',
-            style: TextStyle(
-              color: Color(0xFFDCEAFF),
-              fontSize: 17,
-              height: 1.45,
+          const SizedBox(height: 18),
+          const SizedBox(
+            width: 460,
+            child: Text(
+              'Operación, conductores, seguridad, tarifas, builds y releases.',
+              style: TextStyle(
+                color: Color(0xFFD7E7FA),
+                fontSize: 17,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          Spacer(),
-          Text(
+          const SizedBox(height: 28),
+          const Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _BrandChip(icon: Icons.map_outlined, label: 'Operación'),
+              _BrandChip(icon: Icons.drive_eta_outlined, label: 'Conductores'),
+              _BrandChip(icon: Icons.shield_outlined, label: 'Seguridad'),
+            ],
+          ),
+          const Spacer(),
+          const Text(
             'Adminexpress · Solo web',
-            style: TextStyle(color: Color(0xFFBFD8FF)),
+            style: TextStyle(
+              color: Color(0xFF8FB4E8),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BrandChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _BrandChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: const Color(0xFFD7E7FA)),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFFD7E7FA),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -536,7 +645,7 @@ class _StartupError extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Text(error.toString(), textAlign: TextAlign.center),
+                  Text(friendlyError(error), textAlign: TextAlign.center),
                 ],
               ),
             ),

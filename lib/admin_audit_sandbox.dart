@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_dropdown_field.dart';
 
 import 'core/supabase_client.dart';
 
@@ -124,7 +126,7 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
       _snack('Entorno de prueba creado.');
       _refresh();
     } catch (error) {
-      _snack('No se pudo crear el entorno: $error', error: true);
+      _snack('No se pudo crear el entorno: ${friendlyError(error)}', error: true);
     } finally {
       nameController.dispose();
       slugController.dispose();
@@ -146,7 +148,7 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
           : 'Entorno pausado. Sus miembros siguen aislados y no reciben tráfico de producción.');
       _refresh();
     } catch (error) {
-      _snack('No se pudo actualizar el entorno: $error', error: true);
+      _snack('No se pudo actualizar el entorno: ${friendlyError(error)}', error: true);
     }
   }
 
@@ -178,7 +180,7 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
           title: Text('Añadir $roleLabel'),
           content: SizedBox(
             width: 520,
-            child: DropdownButtonFormField<String>(
+            child: AdminDropdownField<String>(
               isExpanded: true,
               initialValue: selectedId,
               decoration: InputDecoration(
@@ -234,7 +236,7 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
       _snack('Cuenta añadida al entorno de prueba.');
       _refresh();
     } catch (error) {
-      _snack('No se pudo asignar la cuenta: $error', error: true);
+      _snack('No se pudo asignar la cuenta: ${friendlyError(error)}', error: true);
     }
   }
 
@@ -248,7 +250,7 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Quitar del entorno'),
         content: Text(
-          '¿Quitar a $label? Al salir del sandbox volverá al alcance normal de producción.',
+          '¿Quitar a $label del entorno de prueba? Volverá a la operación normal.',
         ),
         actions: [
           TextButton(
@@ -273,7 +275,7 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
       _snack('Cuenta retirada del entorno.');
       _refresh();
     } catch (error) {
-      _snack('No se pudo retirar la cuenta: $error', error: true);
+      _snack('No se pudo retirar la cuenta: ${friendlyError(error)}', error: true);
     }
   }
 
@@ -306,7 +308,7 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Cambia el selector superior a Prueba para administrar cuentas QA y sandboxes. '
+                    'Para administrar cuentas de prueba, entra con una cuenta de prueba. '
                     'Producción no carga ni muestra esos registros.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: _auditMuted, height: 1.4),
@@ -353,7 +355,7 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        snapshot.error.toString(),
+                        friendlyError(snapshot.error),
                         textAlign: TextAlign.center,
                         style: const TextStyle(color: _auditMuted),
                       ),
@@ -450,7 +452,7 @@ class _AuditHero extends StatelessWidget {
             children: [
               _HeroStat(label: 'ENTORNOS', value: groupCount.toString()),
               const SizedBox(width: 10),
-              _HeroStat(label: 'CUENTAS QA', value: memberCount.toString()),
+              _HeroStat(label: 'CUENTAS DE PRUEBA', value: memberCount.toString()),
             ],
           );
 
@@ -608,7 +610,7 @@ class _IsolationNotice extends StatelessWidget {
           SizedBox(width: 11),
           Expanded(
             child: Text(
-              'Aislamiento activo en backend: viajes, ofertas, Realtime, push, conductores cercanos y delivery solo cruzan entre cuentas del mismo entorno. Las cuentas sin entorno continúan operando normalmente en producción.',
+              'Aislamiento activo: viajes, ofertas, avisos y delivery solo se cruzan entre cuentas de prueba del mismo entorno. Las cuentas sin entorno continúan operando normalmente en producción.',
               style: TextStyle(
                 color: Color(0xFF05603A),
                 fontSize: 11,
@@ -695,20 +697,11 @@ class _AuditGroupCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          (group['name'] ?? 'Entorno QA').toString(),
+                          (group['name'] ?? 'Entorno de prueba').toString(),
                           style: const TextStyle(
                             color: _auditDark,
                             fontSize: 15,
                             fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          (group['slug'] ?? '').toString(),
-                          style: const TextStyle(
-                            color: _auditMuted,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
@@ -730,12 +723,12 @@ class _AuditGroupCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      active ? 'AISLADO / ACTIVO' : 'PAUSADO / AISLADO',
+                      active ? 'Aislado · activo' : 'Pausado · aislado',
                       style: TextStyle(
                         color: active
                             ? const Color(0xFF067647)
                             : _auditMuted,
-                        fontSize: 8,
+                        fontSize: 10,
                         fontWeight: FontWeight.w900,
                         letterSpacing: .5,
                       ),

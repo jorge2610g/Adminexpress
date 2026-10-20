@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_friendly_labels.dart';
+import 'core/admin_dropdown_field.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
@@ -136,7 +139,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
       if (mounted && revision == _revision) {
         setState(() {
           _loading = false;
-          _error = 'No se pudieron cargar las tarifas: $error';
+          _error = 'No se pudieron cargar las tarifas: ${friendlyError(error)}';
         });
       }
     }
@@ -190,13 +193,13 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(
             _environment.isPreview
-                ? 'Tarifas de prueba guardadas solo en Preview.'
+                ? 'Tarifas de prueba guardadas.'
                 : 'Tarifas escalonadas de Producción guardadas.')),
       );
       await _load();
     } catch (error) {
       if (mounted) {
-        setState(() => _error = 'No se pudo guardar: $error');
+        setState(() => _error = 'No se pudo guardar: ${friendlyError(error)}');
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -240,7 +243,7 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Text(
-                  'PREVIEW · Simulación QA: estos escalones no modifican '
+                  'PRUEBA · Simulación: estos escalones no modifican '
                   'las tarifas de pasajeros ni los precios de Producción.',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                 ),
@@ -257,13 +260,13 @@ class _AdminDistanceFaresEditorState extends State<AdminDistanceFaresEditor> {
             if (_services.isEmpty)
               const Text('No hay servicios configurados en esta zona.')
             else
-              DropdownButtonFormField<String>(
+              AdminDropdownField<String>(
                 key: ValueKey('step-service-${widget.zone['id']}-$_service'),
                 initialValue: _services.contains(_service) ? _service : null,
                 decoration: const InputDecoration(
                   labelText: 'Servicio', border: OutlineInputBorder()),
                 items: _services.map((service) => DropdownMenuItem(
-                  value: service, child: Text(service))).toList(),
+                  value: service, child: Text(friendlyService(service)))).toList(),
                 onChanged: _saving ? null : (service) {
                   if (service == null) return;
                   _service = service;

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_dropdown_field.dart';
 
 import 'core/supabase_client.dart';
 
@@ -210,7 +212,7 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
     } catch(error) {
       setActivationBusy(false);
       if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:Text('No se pudo activar: $error')));
+        content:Text('No se pudo activar: ${friendlyError(error)}')));
     }
   }
 
@@ -348,7 +350,7 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
             const SizedBox(height:12),
             if(!alreadyActive) ...[
               if(_text(currentDocument['zone_id']).isEmpty)
-                DropdownButtonFormField<String>(
+                AdminDropdownField<String>(
                   value:selectedZoneId,
                   decoration:const InputDecoration(
                     border:OutlineInputBorder(),

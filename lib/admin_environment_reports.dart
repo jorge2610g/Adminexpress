@@ -1,6 +1,19 @@
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
 
 import 'core/supabase_client.dart';
+
+/// Importes con separador de miles y coma decimal: 40250.62 → 40.250,62.
+String _formatAmount(Object? value) {
+  final number = value is num ? value : num.tryParse('${value ?? 0}') ?? 0;
+  final fixed = number.abs().toStringAsFixed(2).split('.');
+  final whole = fixed[0].replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (match) => '.',
+  );
+  final decimals = fixed[1] == '00' ? '' : ',${fixed[1]}';
+  return '${number < 0 ? '-' : ''}$whole$decimals';
+}
 
 const _bg = Color(0xFFF1F5F9);
 const _ink = Color(0xFF0F172A);
@@ -151,7 +164,10 @@ class _AdminEnvironmentReportsPageState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text((item.$2 ?? 0).toString(),
+                          Text(
+                              item.$1 == 'Cobrado'
+                                  ? _formatAmount(item.$2)
+                                  : (item.$2 ?? 0).toString(),
                               style: const TextStyle(
                                 color: _ink, fontSize: 20,
                                 fontWeight: FontWeight.w900)),
@@ -196,7 +212,7 @@ class _AdminEnvironmentReportsPageState
                           fontSize: 15, fontWeight: FontWeight.w900)),
                   Text(
                     isTest
-                        ? 'Datos QA separados: no se suman a los resultados reales.'
+                        ? 'Datos de prueba separados: no se suman a los resultados reales.'
                         : 'Datos reales de clientes y operaciones.',
                     style: const TextStyle(color: _ink, fontSize: 12),
                   ),
@@ -229,7 +245,7 @@ class _AdminEnvironmentReportsPageState
               child: FilledButton.icon(
                 onPressed: _refresh,
                 icon: const Icon(Icons.refresh_rounded),
-                label: Text('Reintentar: ' + snapshot.error.toString()),
+                label: Text('Reintentar: ' + friendlyError(snapshot.error)),
               ),
             );
           }
@@ -241,8 +257,8 @@ class _AdminEnvironmentReportsPageState
                 color: _ink, fontSize: 24, fontWeight: FontWeight.w900)),
               const SizedBox(height: 4),
               const Text(
-                'Resumen general de Express. Una sola pantalla, sin cambiar '
-                'el modo del panel ni seleccionar país o zona.',
+                'Resumen general de Express, de todos los países y zonas. '
+                'Los datos de prueba se muestran aparte.',
                 style: TextStyle(color: _muted),
               ),
               const SizedBox(height: 14),

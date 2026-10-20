@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_friendly_labels.dart';
+import 'core/admin_ui.dart';
+import 'core/admin_dropdown_field.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_environment_store.dart';
@@ -138,52 +142,91 @@ class _DialogFrame extends StatelessWidget {
   final String subtitle;
   final Widget child;
   final List<Widget> actions;
+  // Elementos opcionales de la cabecera: avatar a la izquierda y estado a la derecha.
+  final Widget? leading;
+  final Widget? trailing;
 
   const _DialogFrame({
     required this.title,
     required this.subtitle,
     required this.child,
     required this.actions,
+    this.leading,
+    this.trailing,
   });
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final maxWidth = width < 900 ? width - 28 : 820.0;
+    final maxWidth = width < 900 ? width - 28 : 860.0;
+    final base = Theme.of(context);
     return AlertDialog(
       insetPadding: const EdgeInsets.all(14),
-      titlePadding: const EdgeInsets.fromLTRB(22, 20, 22, 8),
-      contentPadding: const EdgeInsets.fromLTRB(22, 6, 22, 6),
-      actionsPadding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
-      title: Column(
+      titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 14),
+      contentPadding: const EdgeInsets.fromLTRB(24, 6, 24, 6),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
+      title: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: _detailDark,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
+          if (leading != null) ...[
+            leading!,
+            const SizedBox(width: 12),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: _detailDark,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: _detailMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: _detailMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          if (trailing != null) ...[
+            const SizedBox(width: 12),
+            trailing!,
+          ],
         ],
       ),
-      content: SizedBox(
-        width: maxWidth,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * .72,
+      content: Theme(
+        // Etiquetas de campo un poco mayores dentro de las fichas.
+        data: base.copyWith(
+          inputDecorationTheme: base.inputDecorationTheme.copyWith(
+            labelStyle: const TextStyle(
+              color: _detailMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+            floatingLabelStyle: const TextStyle(
+              color: _detailMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          child: child,
+        ),
+        child: SizedBox(
+          width: maxWidth,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * .74,
+            ),
+            child: child,
+          ),
         ),
       ),
       actions: actions,
@@ -247,11 +290,16 @@ class _InfoGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (_, constraints) {
-        final itemWidth =
-            constraints.maxWidth < 560 ? constraints.maxWidth : (constraints.maxWidth - 12) / 2;
+        // Tres columnas en diálogos anchos, como en la referencia; una en pantallas angostas.
+        final columns = constraints.maxWidth < 480
+            ? 1
+            : constraints.maxWidth < 680
+                ? 2
+                : 3;
+        final itemWidth = (constraints.maxWidth - 16.0 * (columns - 1)) / columns;
         return Wrap(
-          spacing: 12,
-          runSpacing: 10,
+          spacing: 16,
+          runSpacing: 12,
           children: items
               .map(
                 (item) => SizedBox(
@@ -263,16 +311,16 @@ class _InfoGrid extends StatelessWidget {
                         item.$1,
                         style: const TextStyle(
                           color: _detailMuted,
-                          fontSize: 9,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 3),
                       SelectableText(
                         item.$2,
                         style: const TextStyle(
                           color: _detailDark,
-                          fontSize: 11,
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -284,6 +332,66 @@ class _InfoGrid extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+// Círculo con las iniciales del nombre, como en la cabecera de la referencia.
+class _InitialsAvatar extends StatelessWidget {
+  final String name;
+  const _InitialsAvatar(this.name);
+
+  @override
+  Widget build(BuildContext context) {
+    final words = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .toList();
+    final initials =
+        words.isEmpty ? '?' : words.take(2).map((word) => word[0].toUpperCase()).join();
+    return Container(
+      width: 42,
+      height: 42,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        color: adminUiBlueSoft,
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: _detailBlue,
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+String _accountLabel(String status) {
+  switch (status) {
+    case 'active':
+      return 'Activa';
+    case 'suspended':
+      return 'Suspendida';
+    case 'blocked':
+      return 'Bloqueada';
+    default:
+      return status;
+  }
+}
+
+String _approvalLabel(String status) {
+  switch (status) {
+    case 'pending':
+      return 'Pendiente';
+    case 'approved':
+      return 'Aprobado';
+    case 'rejected':
+      return 'Rechazado';
+    default:
+      return status;
   }
 }
 
@@ -440,7 +548,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        error = e.toString();
+        error = friendlyError(e);
         loading = false;
       });
     }
@@ -581,7 +689,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
       if (mounted) setState(() => parcelVehicleGrants = refreshed);
     } catch (e) {
       if (mounted) setState(() =>
-        parcelGrantError = 'No se pudo actualizar permiso: ' + e.toString());
+        parcelGrantError = 'No se pudo actualizar permiso: ' + friendlyError(e));
     } finally {
       if (mounted) setState(() => parcelGrantSaving = false);
     }
@@ -726,7 +834,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        error = e.toString();
+        error = friendlyError(e);
         saving = false;
       });
     }
@@ -1489,6 +1597,15 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
       subtitle: loading
           ? 'Cargando información completa...'
           : _text(user['email'], widget.userId),
+      leading: _InitialsAvatar(
+        fullName.text.trim().isNotEmpty
+            ? fullName.text.trim()
+            : _text(user['full_name'], _text(user['email'], '?')),
+      ),
+      trailing: AdminStatusPill(
+        label: _approvalLabel(approvalStatus),
+        color: adminStatusColor(approvalStatus),
+      ),
       actions: [
         TextButton(
           onPressed: saving ? null : () => Navigator.pop(context, false),
@@ -1611,7 +1728,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                   children: [
                                     SizedBox(
                                       width: w,
-                                      child: DropdownButtonFormField<String>(
+                                      child: AdminDropdownField<String>(
                                         initialValue: accountStatus,
                                         decoration: const InputDecoration(labelText: 'Estado de cuenta'),
                                         items: const [
@@ -1626,7 +1743,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                     ),
                                     SizedBox(
                                       width: w,
-                                      child: DropdownButtonFormField<String>(
+                                      child: AdminDropdownField<String>(
                                         initialValue: approvalStatus,
                                         decoration: const InputDecoration(labelText: 'Aprobación conductor'),
                                         items: const [
@@ -1642,7 +1759,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                     ),
                                     SizedBox(
                                       width: w,
-                                      child: DropdownButtonFormField<String>(
+                                      child: AdminDropdownField<String>(
                                         initialValue: onlineStatus,
                                         decoration: const InputDecoration(labelText: 'Estado operativo'),
                                         items: const [
@@ -1657,7 +1774,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                     ),
                                     SizedBox(
                                       width: w,
-                                      child: DropdownButtonFormField<String>(
+                                      child: AdminDropdownField<String>(
                                         key: ValueKey('driver-country-${selectedCountryCode ?? 'unselected'}'),
                                         initialValue: selectedCountryCode,
                                         isExpanded: true,
@@ -1691,7 +1808,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                               },
                             ),
                             const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
+                            AdminDropdownField<String>(
                               key: ValueKey('driver-zone-${countryCode ?? 'unselected'}'),
                               initialValue: selectedZoneId,
                               isExpanded: true,
@@ -1747,7 +1864,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                         icon: Icons.two_wheeler_rounded,
                         child: Column(
                           children: [
-                            DropdownButtonFormField<String>(
+                            AdminDropdownField<String>(
                               initialValue: vehicleType,
                               decoration: const InputDecoration(labelText: 'Tipo'),
                               items: const [
@@ -2100,7 +2217,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                           ('Calificación', '${_text(rating['average'], '0')} / 5 · ${_text(rating['count'], '0')} evaluaciones'),
                           ('Suscripción', subscription.isEmpty ? 'Sin suscripción' : '${_text(subscription['plan_name'])} · ${_text(subscription['status'])}'),
                           ('Vence suscripción', _date(subscription['expires_at'])),
-                          ('QA / pruebas', qa.isEmpty ? 'Cuenta real' : '${_text(qa['group_name'])} · ${_text(qa['role'])}'),
+                          ('Cuenta', qa.isEmpty ? 'Cuenta real' : '${_text(qa['group_name'])} · ${_text(qa['role'])}'),
                           ('Empresa / sindicato', partner.isEmpty ? 'Sin organización' : _text(partner['name'])),
                           ('Alta', _date(user['created_at'])),
                         ]),
@@ -2178,7 +2295,7 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        error = e.toString();
+        error = friendlyError(e);
         loading = false;
       });
     }
@@ -2208,7 +2325,7 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        error = e.toString();
+        error = friendlyError(e);
         saving = false;
       });
     }
@@ -2222,9 +2339,17 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
     final qa = _map(detail['qa']);
     final recentTrips = _maps(detail['recent_trips']);
 
+    final displayName = fullName.text.trim().isNotEmpty
+        ? fullName.text.trim()
+        : _text(user['full_name'], _text(user['email'], '?'));
     return _DialogFrame(
       title: 'Ficha del usuario',
       subtitle: loading ? 'Cargando perfil...' : _text(user['email'], widget.userId),
+      leading: _InitialsAvatar(displayName),
+      trailing: AdminStatusPill(
+        label: _accountLabel(accountStatus),
+        color: adminStatusColor(accountStatus),
+      ),
       actions: [
         TextButton(
           onPressed: saving ? null : () => Navigator.pop(context, false),
@@ -2259,85 +2384,111 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
                       _Section(
                         title: 'Perfil y cuenta',
                         icon: Icons.person_rounded,
-                        child: Column(
-                          children: [
-                            TextField(
-                              controller: fullName,
-                              decoration: const InputDecoration(labelText: 'Nombre completo'),
-                            ),
-                            const SizedBox(height: 10),
-                            TextField(
-                              controller: phone,
-                              decoration: const InputDecoration(labelText: 'Teléfono'),
-                            ),
-                            const SizedBox(height: 10),
-                            TextFormField(
-                              initialValue: _text(user['email'], ''),
-                              readOnly: true,
-                              decoration: const InputDecoration(labelText: 'Correo (solo lectura)'),
-                            ),
-                            const SizedBox(height: 10),
-                            LayoutBuilder(
-                              builder: (_, c) {
-                                final w = c.maxWidth < 560 ? c.maxWidth : (c.maxWidth - 10) / 2;
-                                return Wrap(
-                                  spacing: 10,
-                                  runSpacing: 10,
-                                  children: [
-                                    SizedBox(
-                                      width: w,
-                                      child: DropdownButtonFormField<String>(
-                                        initialValue: activeMode,
-                                        decoration: const InputDecoration(labelText: 'Modo activo'),
-                                        items: const [
-                                          DropdownMenuItem(value: 'passenger', child: Text('Pasajero')),
-                                          DropdownMenuItem(value: 'driver', child: Text('Conductor')),
-                                        ],
-                                        onChanged: (value) {
-                                          if (value != null) setState(() => activeMode = value);
-                                        },
-                                      ),
+                        child: LayoutBuilder(
+                          builder: (_, c) {
+                            // Tres columnas en diálogos anchos, como en la referencia; una en pantallas angostas.
+                            final columns = c.maxWidth < 480
+                                ? 1
+                                : c.maxWidth < 680
+                                    ? 2
+                                    : 3;
+                            final w = (c.maxWidth - 14.0 * (columns - 1)) / columns;
+                            return Wrap(
+                              spacing: 14,
+                              runSpacing: 12,
+                              children: [
+                                SizedBox(
+                                  width: w,
+                                  child: AdminFormField(
+                                    label: 'Nombre completo',
+                                    child: TextField(
+                                      controller: fullName,
+                                      decoration: const InputDecoration(isDense: true),
                                     ),
-                                    SizedBox(
-                                      width: w,
-                                      child: DropdownButtonFormField<String>(
-                                        initialValue: accountStatus,
-                                        decoration: const InputDecoration(labelText: 'Estado'),
-                                        items: const [
-                                          DropdownMenuItem(value: 'active', child: Text('Activa')),
-                                          DropdownMenuItem(value: 'suspended', child: Text('Suspendida')),
-                                          DropdownMenuItem(value: 'blocked', child: Text('Bloqueada')),
-                                        ],
-                                        onChanged: (value) {
-                                          if (value != null) setState(() => accountStatus = value);
-                                        },
-                                      ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: w,
+                                  child: AdminFormField(
+                                    label: 'Teléfono',
+                                    child: TextField(
+                                      controller: phone,
+                                      decoration: const InputDecoration(isDense: true),
                                     ),
-                                    SizedBox(
-                                      width: w,
-                                      child: DropdownButtonFormField<String?>(
-                                        initialValue: zoneId,
-                                        decoration: const InputDecoration(labelText: 'Zona'),
-                                        items: [
-                                          const DropdownMenuItem<String?>(
-                                            value: null,
-                                            child: Text('Sin zona asignada'),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: w,
+                                  child: AdminFormField(
+                                    label: 'Correo (solo lectura)',
+                                    child: TextFormField(
+                                      initialValue: _text(user['email'], ''),
+                                      readOnly: true,
+                                      decoration: const InputDecoration(isDense: true),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: w,
+                                  child: AdminFormField(
+                                    label: 'Modo activo',
+                                    child: AdminDropdownField<String>(
+                                      initialValue: activeMode,
+                                      decoration: const InputDecoration(isDense: true),
+                                      items: const [
+                                        DropdownMenuItem(value: 'passenger', child: Text('Pasajero')),
+                                        DropdownMenuItem(value: 'driver', child: Text('Conductor')),
+                                      ],
+                                      onChanged: (value) {
+                                        if (value != null) setState(() => activeMode = value);
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: w,
+                                  child: AdminFormField(
+                                    label: 'Estado',
+                                    child: AdminDropdownField<String>(
+                                      initialValue: accountStatus,
+                                      decoration: const InputDecoration(isDense: true),
+                                      items: const [
+                                        DropdownMenuItem(value: 'active', child: Text('Activa')),
+                                        DropdownMenuItem(value: 'suspended', child: Text('Suspendida')),
+                                        DropdownMenuItem(value: 'blocked', child: Text('Bloqueada')),
+                                      ],
+                                      onChanged: (value) {
+                                        if (value != null) setState(() => accountStatus = value);
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: w,
+                                  child: AdminFormField(
+                                    label: 'Zona',
+                                    child: AdminDropdownField<String?>(
+                                      initialValue: zoneId,
+                                      decoration: const InputDecoration(isDense: true),
+                                      items: [
+                                        const DropdownMenuItem<String?>(
+                                          value: null,
+                                          child: Text('Sin zona asignada'),
+                                        ),
+                                        ...zones.map(
+                                          (z) => DropdownMenuItem<String?>(
+                                            value: z['id']?.toString(),
+                                            child: Text(_text(z['name'])),
                                           ),
-                                          ...zones.map(
-                                            (z) => DropdownMenuItem<String?>(
-                                              value: z['id']?.toString(),
-                                              child: Text(_text(z['name'])),
-                                            ),
-                                          ),
-                                        ],
-                                        onChanged: (value) => setState(() => zoneId = value),
-                                      ),
+                                        ),
+                                      ],
+                                      onChanged: (value) => setState(() => zoneId = value),
                                     ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ),
                       _Section(
@@ -2346,7 +2497,7 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
                         child: _InfoGrid([
                           ('Billetera', wallet.isEmpty ? 'Sin billetera' : _money(wallet['balance'], _text(wallet['currency'], ''))),
                           ('Calificación', '${_text(rating['average'], '0')} / 5 · ${_text(rating['count'], '0')} evaluaciones'),
-                          ('QA / pruebas', qa.isEmpty ? 'Cuenta real' : '${_text(qa['group_name'])} · ${_text(qa['role'])}'),
+                          ('Cuenta', qa.isEmpty ? 'Cuenta real' : '${_text(qa['group_name'])} · ${_text(qa['role'])}'),
                           ('Alta', _date(user['created_at'])),
                         ]),
                       ),
@@ -2360,23 +2511,48 @@ class _UserEditorDialogState extends State<_UserEditorDialog> {
                               )
                             : Column(
                                 children: recentTrips.take(10).map(
-                                  (trip) => ListTile(
-                                    dense: true,
-                                    contentPadding: EdgeInsets.zero,
-                                    leading: const Icon(Icons.route_rounded, color: _detailBlue),
-                                    title: Text(
-                                      _text(trip['pickup_address'], 'Origen') +
-                                          ' → ' +
-                                          _text(trip['destination_address'], 'Destino'),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    subtitle: Text(
-                                      _text(trip['status']) +
-                                          ' · ' +
-                                          _money(trip['final_fare']) +
-                                          ' · ' +
-                                          _date(trip['created_at']),
+                                  (trip) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Row(
+                                      children: [
+                                        const AdminIconTile(icon: Icons.route_rounded),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                _text(trip['pickup_address'], 'Origen') +
+                                                    ' → ' +
+                                                    _text(trip['destination_address'], 'Destino'),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: _detailDark,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                _money(trip['final_fare']) +
+                                                    ' · ' +
+                                                    _date(trip['created_at']),
+                                                style: const TextStyle(
+                                                  color: _detailMuted,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        AdminStatusPill(
+                                          label: friendlyStatus(_text(trip['status'], '—')),
+                                          color: adminStatusColor(_text(trip['status'], '')),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ).toList(),
@@ -2441,7 +2617,7 @@ class _TripDetailDialogState extends State<_TripDetailDialog> {
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                snapshot.error.toString(),
+                friendlyError(snapshot.error),
                 style: const TextStyle(color: Colors.red),
               ),
             );

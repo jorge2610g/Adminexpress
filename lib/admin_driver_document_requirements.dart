@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_dropdown_field.dart';
 
 import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
@@ -186,7 +188,7 @@ class _AdminDriverDocumentRequirementsPanelState
                       ),
                     ),
                     const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
+                    AdminDropdownField<String>(
                       initialValue: scope,
                       decoration: const InputDecoration(
                         labelText: 'Aplicar a',
@@ -211,7 +213,7 @@ class _AdminDriverDocumentRequirementsPanelState
                     ),
                     if (scope != 'global') ...[
                       const SizedBox(height: 10),
-                      DropdownButtonFormField<String>(
+                      AdminDropdownField<String>(
                         initialValue: countryCode,
                         decoration: const InputDecoration(labelText: 'País'),
                         items: [
@@ -239,7 +241,7 @@ class _AdminDriverDocumentRequirementsPanelState
                     ],
                     if (scope == 'zone') ...[
                       const SizedBox(height: 10),
-                      DropdownButtonFormField<String>(
+                      AdminDropdownField<String>(
                         initialValue: zoneId,
                         decoration: const InputDecoration(labelText: 'Ciudad'),
                         items: zoneOptions
@@ -479,7 +481,7 @@ class _AdminDriverDocumentRequirementsPanelState
                 children: [
                   const Icon(Icons.error_outline_rounded, color: Color(0xFFD92D20)),
                   const SizedBox(width: 10),
-                  Expanded(child: Text(snapshot.error.toString())),
+                  Expanded(child: Text(friendlyError(snapshot.error))),
                   TextButton(
                     onPressed: () => setState(() => revision++),
                     child: const Text('Reintentar'),

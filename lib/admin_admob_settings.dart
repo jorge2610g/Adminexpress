@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
 
 import 'core/supabase_client.dart';
 
@@ -72,7 +73,7 @@ class _AdminAdMobSettingsPageState extends State<AdminAdMobSettingsPage> {
       if (!mounted || currentRevision != _revision) return;
       setState(() {
         _loading = false;
-        _error = 'No se pudo cargar la configuración: $error';
+        _error = 'No se pudo cargar la configuración: ${friendlyError(error)}';
       });
     }
   }
@@ -128,7 +129,7 @@ class _AdminAdMobSettingsPageState extends State<AdminAdMobSettingsPage> {
       );
     } catch (error) {
       if (mounted && currentRevision == _revision) {
-        setState(() => _error = 'No se pudieron guardar los anuncios: $error');
+        setState(() => _error = 'No se pudieron guardar los anuncios: ${friendlyError(error)}');
       }
     } finally {
       if (mounted && currentRevision == _revision) {
@@ -156,7 +157,7 @@ class _AdminAdMobSettingsPageState extends State<AdminAdMobSettingsPage> {
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
-          helperText: 'ID público de AdMob. No introduzcas contraseñas ni tokens.',
+          helperText: 'ID público de AdMob. No incluyas contraseñas.',
           helperMaxLines: 2,
           border: const OutlineInputBorder(),
         ),
@@ -229,7 +230,7 @@ class _AdminAdMobSettingsPageState extends State<AdminAdMobSettingsPage> {
               const Padding(
                 padding: EdgeInsets.only(bottom: 12),
                 child: Text(
-                  'Preview usa las unidades oficiales de prueba de Google. '
+                  'En Prueba se usan los anuncios de prueba oficiales de Google. '
                   'No necesitas colocar identificadores reales aquí.',
                 ),
               )

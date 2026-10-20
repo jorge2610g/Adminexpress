@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
 
 import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
@@ -56,7 +57,7 @@ class _AdminCountryCoveragePageState
         title: const Text('Preparar países de prueba'),
         content: const Text(
           'Se copiarán únicamente nombre, código de país, moneda y prefijo '
-          'a la configuración QA de Preview. Todos los países y registros de '
+          'a la configuración de Prueba. Todos los países y registros de '
           'conductores quedarán desactivados por defecto. No se modificarán '
           'los países reales de Producción.',
         ),
@@ -67,7 +68,7 @@ class _AdminCountryCoveragePageState
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Preparar QA'),
+            child: const Text('Preparar prueba'),
           ),
         ],
       ),
@@ -112,7 +113,7 @@ class _AdminCountryCoveragePageState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'QA preparado: $created países de prueba. '
+              'Prueba preparada: $created países de prueba. '
               'Producción permanece sin cambios.',
             ),
           ),
@@ -138,7 +139,7 @@ class _AdminCountryCoveragePageState
     if (raw.contains('Prefijo telefónico internacional inválido')) {
       return 'Usa el prefijo internacional con +, por ejemplo +56, +591, +55 o +54.';
     }
-    return raw.replaceFirst('PostgrestException(message: ', '');
+    return friendlyError(error);
   }
 
   Future<void> _edit([Map<String, dynamic>? row]) async {
@@ -260,7 +261,7 @@ class _AdminCountryCoveragePageState
                     subtitle: Text(
                       'Carné frontal, reverso y selfie. La revisión '
                       'se gestiona en Verificación de identidad. '
-                      'Didit y la verificación SMS están retirados.',
+                      'La verificación con Didit y por SMS está retirada.',
                     ),
                   ),
                 ],
@@ -388,7 +389,7 @@ class _AdminCountryCoveragePageState
       appBar: AppBar(
         title: Text(
           _environment.isPreview
-              ? 'Países y cobertura · Preview'
+              ? 'Países y cobertura · Prueba'
               : 'Países y cobertura · Producción',
         ),
         backgroundColor: Colors.white,
@@ -446,7 +447,7 @@ class _AdminCountryCoveragePageState
                     OutlinedButton.icon(
                       onPressed: _seedPreviewCountryReferences,
                       icon: const Icon(Icons.copy_all_outlined),
-                      label: const Text('Preparar países QA'),
+                      label: const Text('Preparar países de prueba'),
                     ),
                   FilledButton.icon(
                     onPressed: () => _edit(),

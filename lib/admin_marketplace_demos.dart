@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/supabase_client.dart';
+import 'core/admin_dropdown_field.dart';
 
 /// Scoped, idempotent demo restaurants for Preview or hidden Production QA.
 /// Production demos never enter the public customer catalogue.
@@ -48,10 +49,10 @@ class _AdminMarketplaceDemoSectionState extends State<AdminMarketplaceDemoSectio
             constraints:const BoxConstraints(maxWidth:460),
             child:Column(mainAxisSize:MainAxisSize.min,
               crossAxisAlignment:CrossAxisAlignment.start,children:[
-              Text('Ciudad seleccionada · ${widget.channel.toUpperCase()}',
+              Text('Ciudad seleccionada · ${widget.channel == 'preview' ? 'Prueba' : 'Producción'}',
                 style:const TextStyle(fontWeight:FontWeight.w600)),
               const SizedBox(height:12),
-              DropdownButtonFormField<String>(
+              AdminDropdownField<String>(
                 initialValue:selected,
                 decoration:const InputDecoration(labelText:'Plantilla con productos'),
                 items:const [
@@ -70,7 +71,7 @@ class _AdminMarketplaceDemoSectionState extends State<AdminMarketplaceDemoSectio
               Text(widget.channel=='production'
                 ? 'Seguridad: el restaurante demo de Producción quedará oculto '
                   'para clientes y bloqueado para pedidos reales, aun si Delivery se habilita.'
-                : 'Este demo será visible exclusivamente dentro de Preview. '
+                : 'Este negocio demo solo se verá en Prueba. '
                   'Se crean menú, productos, extras, precios locales y horarios.'),
               const SizedBox(height:8),
               const Text('Repetir la creación no duplicará productos ni borrará cambios.',
@@ -120,7 +121,7 @@ class _AdminMarketplaceDemoSectionState extends State<AdminMarketplaceDemoSectio
                 keyboardType:TextInputType.emailAddress,
                 decoration:const InputDecoration(labelText:'Correo registrado en Express')),
               const SizedBox(height:12),
-              DropdownButtonFormField<String>(
+              AdminDropdownField<String>(
                 initialValue:role,
                 decoration:const InputDecoration(labelText:'Permiso'),
                 items:const [
@@ -176,7 +177,7 @@ class _AdminMarketplaceDemoSectionState extends State<AdminMarketplaceDemoSectio
         const SizedBox(height:7),
         Text(widget.channel=='production'
           ? 'Demos privados de Producción: no aparecen a clientes ni aceptan pedidos reales.'
-          : 'Demos de Preview: catálogo y pruebas aisladas de Producción.',
+          : 'Negocios demo de Prueba, separados de los negocios reales.',
           style:const TextStyle(fontSize:12,color:Color(0xFF64748B))),
         const SizedBox(height:14),
         FutureBuilder<List<Map<String,dynamic>>>(future:_future,
@@ -205,7 +206,7 @@ class _AdminMarketplaceDemoSectionState extends State<AdminMarketplaceDemoSectio
                   subtitle:Text(
                     '${r['product_count']??0} productos · '
                     '${r['merchant_users']??0} usuarios · '
-                    '${widget.channel=='production'?'Oculto a clientes':'Solo Preview'}'),
+                    '${widget.channel=='production'?'Oculto a clientes':'Solo en Prueba'}'),
                   trailing:Row(mainAxisSize:MainAxisSize.min,children:[
                     IconButton(
                       tooltip:'Ver productos',

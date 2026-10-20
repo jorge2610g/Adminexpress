@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_friendly_labels.dart';
 
 import 'core/supabase_client.dart';
 
@@ -90,13 +92,15 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
         two(value.hour) + ':' + two(value.minute);
   }
 
-  String _label(Map<String, dynamic> row) {
-    final action = row['action']?.toString() ?? 'acción';
-    final entity = row['entity_type']?.toString() ?? 'registro';
-    if (entity == 'environment_config') {
-      return 'Configuración de pruebas internas actualizada';
-    }
-    return action.replaceAll('_', ' ') + ' · ' + entity.replaceAll('_', ' ');
+  /// Describe la acción en español; nunca muestra el código interno como título.
+  String _label(Map<String, dynamic> row) => friendlyAudit(
+        row['action']?.toString() ?? '',
+        row['entity_type']?.toString() ?? '',
+      );
+
+  String _who(Map<String, dynamic> row) {
+    final name = (row['admin_name'] ?? '').toString().trim();
+    return name.isEmpty ? 'Administrador' : name;
   }
 
   @override
@@ -116,7 +120,7 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
               child: FilledButton.icon(
                 onPressed: _refresh,
                 icon: const Icon(Icons.refresh_rounded),
-                label: Text('Reintentar: ' + snapshot.error.toString()),
+                label: Text('Reintentar: ' + friendlyError(snapshot.error)),
               ),
             );
           }
@@ -180,11 +184,8 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
                         title: Text(_label(row),
                           style: const TextStyle(fontWeight: FontWeight.w800)),
                         subtitle: Text(
-                          (row['admin_name'] ?? 'Administrador').toString() +
-                          ' · ' + _date(row['created_at']) + '\n' +
-                          (row['entity_id'] ?? '—').toString(),
+                          _who(row) + ' · ' + _date(row['created_at']),
                         ),
-                        isThreeLine: true,
                         trailing: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 9, vertical: 6),
@@ -194,7 +195,7 @@ class _AdminEnvironmentAuditPageState extends State<AdminEnvironmentAuditPage> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
-                            isTest ? 'QA' : 'REAL',
+                            isTest ? 'PRUEBA' : 'REAL',
                             style: TextStyle(color: color, fontSize: 10,
                               fontWeight: FontWeight.w900),
                           ),

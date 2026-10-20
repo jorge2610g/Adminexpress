@@ -1,13 +1,18 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_dropdown_field.dart';
+import 'core/admin_friendly_labels.dart';
+import 'core/admin_money.dart';
+import 'core/admin_ui.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 import 'core/supabase_client.dart';
-import 'admin_environment_store.dart';
 import 'admin_runtime_scope.dart';
+import 'admin_operators.dart';
 import 'admin_control_sections.dart';
 import 'admin_single_app_release.dart';
 import 'admin_audit_sandbox.dart';
@@ -51,6 +56,20 @@ ThemeData _expressAdminTheme(BuildContext context) {
     colorScheme: scheme,
     scaffoldBackgroundColor: adminBg,
     canvasColor: Colors.white,
+    textTheme: base.textTheme
+        .apply(fontFamily: 'Plus Jakarta Sans')
+        .copyWith(
+          // Texto base de 14 px: los desplegables y las listas heredan este tamaño.
+          titleMedium: base.textTheme.titleMedium?.copyWith(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          bodyLarge: base.textTheme.bodyLarge?.copyWith(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 14,
+          ),
+        ),
     dividerColor: const Color(0xFFEAECF0),
     cardColor: Colors.white,
     cardTheme: CardThemeData(
@@ -101,12 +120,12 @@ ThemeData _expressAdminTheme(BuildContext context) {
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         minimumSize: const Size(0, 40),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(10),
         ),
         textStyle: const TextStyle(
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -114,27 +133,27 @@ ThemeData _expressAdminTheme(BuildContext context) {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(0, 40),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         side: const BorderSide(color: Color(0xFFD0D5DD)),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(10),
         ),
         foregroundColor: adminDark,
         textStyle: const TextStyle(
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: FontWeight.w800,
         ),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        minimumSize: const Size(0, 38),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        minimumSize: const Size(0, 40),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(10),
         ),
         textStyle: const TextStyle(
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -172,25 +191,54 @@ ThemeData _expressAdminTheme(BuildContext context) {
     dialogTheme: DialogThemeData(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
+      elevation: 12,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
       ),
       titleTextStyle: const TextStyle(
+        inherit: false,
         color: adminDark,
         fontSize: 18,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.w800,
       ),
+      contentTextStyle: const TextStyle(
+        inherit: false,
+        color: adminDark,
+        fontSize: 13.5,
+        height: 1.4,
+        fontWeight: FontWeight.w500,
+      ),
+    ),
+    listTileTheme: const ListTileThemeData(
+      iconColor: adminDark,
+      titleTextStyle: TextStyle(
+        inherit: false,
+        color: adminDark,
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+      ),
+      subtitleTextStyle: TextStyle(
+        inherit: false,
+        color: adminMuted,
+        fontSize: 11.5,
+        fontWeight: FontWeight.w600,
+      ),
+      contentPadding: EdgeInsets.symmetric(horizontal: 14),
+      minVerticalPadding: 8,
     ),
     popupMenuTheme: PopupMenuThemeData(
       color: Colors.white,
       surfaceTintColor: Colors.white,
+      elevation: 8,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xFFE4E9F2)),
       ),
       textStyle: const TextStyle(
+        inherit: false,
         color: adminDark,
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
       ),
     ),
     snackBarTheme: SnackBarThemeData(
@@ -246,6 +294,31 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
 
   bool get _readOnly => adminAccess['read_only'] == true;
 
+  // Cuenta con zona asignada (monitor u operador): solo ve su zona, sin selector.
+  bool get _zoneScoped =>
+      (adminAccess['zone_id'] ?? '').toString().trim().isNotEmpty;
+
+  Widget _assignedZoneLabel() {
+    final zone = (adminAccess['zone_name'] ?? '').toString();
+    final country = (adminAccess['country'] ?? '').toString();
+    final text = [zone, country].where((v) => v.isNotEmpty).join(' · ');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF2FF),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        text.isEmpty ? 'Zona asignada' : text,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+          color: adminBlue,
+        ),
+      ),
+    );
+  }
+
   Set<String> get _allowedModules {
     final raw = adminAccess['allowed_modules'];
     if (raw is! List) return const <String>{};
@@ -286,12 +359,15 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     29: 'fares',
     30: 'marketplace',
     31: 'payments',
+    32: 'operators',
   };
 
   bool _sectionAllowed(int index) {
     // Identity review is already part of the driver record. The old standalone
     // identity entries are deliberately unreachable.
     if (index == 18 || index == 27) return false;
+    // Builds (Android) solo se usa en Producción; en Prueba no aparece en el menú.
+    if (index == 12 && adminChannel == 'preview') return false;
     final module = _sectionModuleKeys[index];
     if (module == null) return false;
     final allowed = _allowedModules;
@@ -304,7 +380,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // country, city or service zone. Operational sections still require scope.
   // These administration modules cover the entire Express system rather than
   // an operational country, zone, or a separate Preview/Production mode.
-  static const Set<int> _globalSections = {10, 12, 14}; // Reports, Builds, Audit
+  static const Set<int> _globalSections = {10, 12, 14, 32}; // Reports, Builds, Audit, Operadores
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
 
@@ -348,7 +424,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Verificación de identidad', Icons.verified_user_rounded),
     ('Configuración avanzada', Icons.tune_rounded),
     ('Entornos de prueba', Icons.science_rounded),
-    ('Carga QA', Icons.speed_rounded),
+    ('Prueba de carga', Icons.speed_rounded),
     ('Suscripciones', Icons.workspace_premium_rounded),
     ('Delivery', Icons.storefront_rounded),
     ('Delivery Fase 2 / Express Plus', Icons.delivery_dining_rounded),
@@ -359,6 +435,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Campeonato Express', Icons.emoji_events_outlined),
     ('Restaurantes', Icons.restaurant_rounded),
     ('Liquidaciones de restaurantes', Icons.receipt_long_rounded),
+    ('Operadores', Icons.admin_panel_settings_rounded),
   ];
 
   Future<bool> _authorized() async {
@@ -429,29 +506,6 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     if (country == 'chile') return 'CL';
     if (country == 'bolivia') return 'BO';
     return country.toUpperCase();
-  }
-
-  Future<Set<String>> _geoScopeZoneIds() async {
-    if (adminZoneId != null && adminZoneId!.isNotEmpty) {
-      return {adminZoneId!};
-    }
-    final country = adminCountryCode;
-    if (country == null || country.isEmpty) return <String>{};
-    final zones = await _filterZones();
-    return zones
-        .where((row) => _zoneCountryCode(row) == country)
-        .map((row) => row['id']?.toString())
-        .whereType<String>()
-        .where((value) => value.isNotEmpty)
-        .toSet();
-  }
-
-  bool _matchesGeoScope(Map<String, dynamic> row, Set<String> zoneIds) {
-    if (zoneIds.isEmpty) {
-      return adminCountryCode == null && adminZoneId == null;
-    }
-    final zoneId = row['zone_id']?.toString();
-    return zoneId != null && zoneIds.contains(zoneId);
   }
 
   Future<List<Map<String, dynamic>>> _drivers() async {
@@ -630,24 +684,31 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       spacing: 6,
       runSpacing: 6,
       children: [
-        ChoiceChip(
-          label: const Text('Hoy'),
+        AdminPillChoice(
+          label: 'Hoy',
           selected: period == 'today',
+          showCheck: true,
           onSelected: (_) => select('today'),
         ),
-        ChoiceChip(
-          label: const Text('Semana'),
+        AdminPillChoice(
+          label: 'Semana',
           selected: period == 'week',
+          showCheck: true,
           onSelected: (_) => select('week'),
         ),
-        ChoiceChip(
-          label: const Text('Mes'),
+        AdminPillChoice(
+          label: 'Mes',
           selected: period == 'month',
+          showCheck: true,
           onSelected: (_) => select('month'),
         ),
         OutlinedButton.icon(
           onPressed: selectCustom,
-          icon: const Icon(Icons.date_range_outlined, size: 17),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(0, 32),
+            padding: const EdgeInsets.symmetric(horizontal: 13),
+          ),
+          icon: const Icon(Icons.date_range_outlined, size: 16),
           label: Text(label),
         ),
       ],
@@ -680,7 +741,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           children: [
             SizedBox(
               width: 190,
-              child: DropdownButtonFormField<String?>(
+              child: AdminDropdownField<String?>(
                 value: usersZoneId,
                 isExpanded: true,
                 decoration: const InputDecoration(
@@ -722,7 +783,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
             ),
             SizedBox(
               width: 165,
-              child: DropdownButtonFormField<String?>(
+              child: AdminDropdownField<String?>(
                 value: usersCity,
                 isExpanded: true,
                 decoration: const InputDecoration(
@@ -752,7 +813,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
             ),
             SizedBox(
               width: 180,
-              child: DropdownButtonFormField<String?>(
+              child: AdminDropdownField<String?>(
                 value: usersRegionDepartment,
                 isExpanded: true,
                 decoration: const InputDecoration(
@@ -857,7 +918,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                   zoneSnapshot.data ?? const <Map<String, dynamic>>[];
               return SizedBox(
                 width: 220,
-                child: DropdownButtonFormField<String?>(
+                child: AdminDropdownField<String?>(
                   value: adminZoneId,
                   isExpanded: true,
                   decoration: const InputDecoration(
@@ -907,13 +968,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Row(
+              Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.public_rounded, size: 18, color: adminBlue),
                   SizedBox(width: 6),
                   Text(
-                    'Ámbito obligatorio',
+                    _zoneScoped ? 'Zona asignada' : 'Ámbito obligatorio',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w900,
@@ -922,9 +983,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                   ),
                 ],
               ),
+              if (!_zoneScoped)
               SizedBox(
                 width: 190,
-                child: DropdownButtonFormField<String?>(
+                child: AdminDropdownField<String?>(
                   value: adminCountryCode,
                   isExpanded: true,
                   decoration: const InputDecoration(
@@ -957,7 +1019,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                   },
                 ),
               ),
-              zoneField,
+              if (!_zoneScoped) zoneField,
+              if (_zoneScoped) _assignedZoneLabel(),
               if (!_scopeReady)
                 const Text(
                   'Selecciona país y zona para cargar datos.',
@@ -1001,7 +1064,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           Expanded(
             child: Text(
               preview
-                  ? 'EXPRESS PREVIEW · Datos de prueba'
+                  ? 'PRUEBA · Datos de prueba'
                   : 'EXPRESS PRODUCCIÓN · Datos reales',
               style: TextStyle(
                 color:
@@ -1079,7 +1142,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
 
   void _errorSnack(Object error) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: ' + error.toString())),
+      SnackBar(content: Text(friendlyError(error))),
     );
   }
   Future<void> _resolveEmergency(String id) async {
@@ -1313,7 +1376,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           includeProduction: allowProduction,
         );
       case 11:
-        return AdminSettingsPage(channel: adminChannel);
+        return AdminSettingsPage(
+          key: ValueKey('settings-$adminChannel-$adminCountryCode-$adminZoneId'),
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 12:
         return AdminSingleAppReleasePage(
           productionAccess: allowProduction && adminChannel == 'production',
@@ -1429,6 +1497,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
         );
+      case 32:
+        return const AdminOperatorsPage();
       case 31:
         return AdminDeliverySettlementsPage(
           channel: adminChannel,
@@ -1473,56 +1543,31 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(22, 20, 22, 30),
             children: [
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final header = const _Header(
-                    title: 'Express Delivery',
-                    subtitle: 'Bienvenido al panel de control de tu empresa.',
-                    badge: 'Activa',
-                  );
-                  final liveButton = FilledButton.icon(
-                    onPressed: () => _goTo(1),
-                    icon: const Icon(Icons.bolt_rounded, size: 17),
-                    label: const Text('Ver en vivo'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(0, 38),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                    ),
-                  );
-
-                  if (constraints.maxWidth < 680) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        header,
-                        const SizedBox(height: 12),
-                        liveButton,
-                      ],
-                    );
-                  }
-
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Expanded(child: _Header(
-                        title: 'Express Delivery',
-                        subtitle: 'Bienvenido al panel de control de tu empresa.',
-                        badge: 'Activa',
-                      )),
-                      const SizedBox(width: 16),
-                      liveButton,
-                    ],
-                  );
-                },
+              _Header(
+                title: 'Express Delivery',
+                subtitle: 'Bienvenido al panel de control de tu empresa.',
+                badge: 'Activa',
+                action: FilledButton.icon(
+                  onPressed: () => _goTo(1),
+                  icon: const Icon(Icons.bolt_rounded, size: 17),
+                  label: const Text('Ver en vivo'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(.16),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 38),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
-                  final cardWidth = width < 700
+                  // Cuatro indicadores en fila desde el ancho del diseño (≈984 px).
+                  final cardWidth = width < 480
                       ? width
-                      : width < 1100
-                          ? (width - 12) / 2
+                      : width < 760
+                          ? (width - 14) / 2
                           : (width - 42) / 4;
                   return Wrap(
                     spacing: 14,
@@ -1794,19 +1839,25 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           item: (row) => _OperationCard(
             icon: Icons.local_taxi_rounded,
             title:
-                (row['pickup_address'] ?? 'Origen').toString() +
+                friendlyAddress((row['pickup_address'] ?? 'Origen').toString()) +
                 ' → ' +
-                (row['destination_address'] ?? 'Destino').toString(),
+                friendlyAddress(
+                  (row['destination_address'] ?? 'Destino').toString(),
+                ),
             subtitle:
-                (row['status'] ?? '—').toString() +
+                friendlyStatus((row['status'] ?? '—').toString()) +
                 ' · ' +
-                (row['category'] ?? 'Express').toString() +
-                ' · Bs ' +
-                (row['final_fare'] ?? '—').toString(),
+                friendlyService((row['category'] ?? 'economy').toString()) +
+                ' · ' +
+                adminMoney(
+                  row['final_fare'],
+                  (row['currency'] ?? row['currency_code'])?.toString(),
+                ),
             details: [
               'Pasajero: ' + (row['passenger_name'] ?? '—').toString(),
               'Conductor: ' + (row['driver_name'] ?? '—').toString(),
-              'Pago: ' + (row['payment_status'] ?? '—').toString(),
+              'Pago: ' +
+                  friendlyStatus((row['payment_status'] ?? '—').toString()),
               'Creado: ' + _formatDate(row['created_at']),
             ],
             onTap: _readOnly
@@ -1845,15 +1896,20 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           item: (row) => _OperationCard(
             icon: Icons.local_shipping_rounded,
             title:
-                (row['pickup_address'] ?? 'Origen').toString() +
+                friendlyAddress((row['pickup_address'] ?? 'Origen').toString()) +
                 ' → ' +
-                (row['dropoff_address'] ?? 'Destino').toString(),
+                friendlyAddress(
+                  (row['dropoff_address'] ?? 'Destino').toString(),
+                ),
             subtitle:
-                (row['status'] ?? '—').toString() +
+                friendlyStatus((row['status'] ?? '—').toString()) +
                 ' · ' +
-                (row['package_type'] ?? 'Paquete').toString() +
-                ' · Bs ' +
-                (row['proposed_fare'] ?? '—').toString(),
+                friendlyPackage((row['package_type'] ?? '').toString()) +
+                ' · ' +
+                adminMoney(
+                  row['proposed_fare'],
+                  (row['currency'] ?? row['currency_code'])?.toString(),
+                ),
             details: [
               'Cliente: ' + (row['customer_name'] ?? '—').toString(),
               'Repartidor: ' + (row['courier_name'] ?? '—').toString(),
@@ -2106,7 +2162,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               border: Border.all(color: const Color(0xFFE7ECF3)),
               borderRadius: BorderRadius.circular(11),
             ),
-            child: ListTile(
+            child: Material(type: MaterialType.transparency, child: ListTile(
               dense: true,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
@@ -2131,9 +2187,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               subtitle: Text(
                 (row['email'] ?? '').toString() +
                     ' · ' +
-                    (row['active_mode'] ?? 'passenger').toString() +
+                    friendlyStatus((row['active_mode'] ?? 'passenger').toString()) +
                     ' · ' +
-                    (row['account_status'] ?? 'active').toString(),
+                    friendlyStatus((row['account_status'] ?? 'active').toString()),
               ),
               trailing: _readOnly
                   ? null
@@ -2178,7 +2234,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                   ),
                 ],
               ),
-            ),
+            )),
           ),
         );
       },
@@ -2350,8 +2406,8 @@ class _Navigation extends StatelessWidget {
             ('FINANZAS', [9, 8, 22]),
             ('ANÁLISIS', [10, 14]),
             ('COMUNICACIÓN', [15]),
-            ('CONFIGURACIÓN', [16, 7, 11, 19, 12, 28]),
-            ('HERRAMIENTAS QA', [20, 21]),
+            ('CONFIGURACIÓN', [16, 7, 11, 19, 12, 28, 32]),
+            ('HERRAMIENTAS DE PRUEBA', [20, 21]),
           ];
 
     return source
@@ -2816,11 +2872,14 @@ class _Header extends StatelessWidget {
   final String title;
   final String subtitle;
   final String? badge;
+  // Acción opcional (por ejemplo «Ver en vivo») dentro del banner, a la derecha.
+  final Widget? action;
 
   const _Header({
     required this.title,
     required this.subtitle,
     this.badge,
+    this.action,
   });
 
   @override
@@ -2926,6 +2985,7 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
+          if (action != null) ...[const SizedBox(width: 16), action!],
         ],
       ),
     );
@@ -3159,20 +3219,20 @@ class _QuickActions extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(.72),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(11),
                   ),
-                  child: Icon(action.$3, color: action.$5, size: 19),
+                  child: Icon(action.$3, color: action.$5, size: 20),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   action.$1,
                   style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
                     color: adminDark,
                   ),
                 ),
@@ -3182,9 +3242,10 @@ class _QuickActions extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: adminMuted,
+                    color: Color(0xFF475467),
                     height: 1.3,
-                    fontSize: 9,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -3211,7 +3272,8 @@ class _QuickActions extends StatelessWidget {
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
-              if (constraints.maxWidth < 620) {
+              // Tres mosaicos en fila como en el diseño; apilados solo en pantallas estrechas.
+              if (constraints.maxWidth < 430) {
                 return Column(
                   children: [
                     for (final action in actions) ...[
@@ -3225,19 +3287,17 @@ class _QuickActions extends StatelessWidget {
                 );
               }
 
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (var i = 0; i < actions.length; i++) ...[
-                    Expanded(
-                      child: SizedBox(
-                        height: 166,
-                        child: actionCard(actions[i]),
-                      ),
-                    ),
-                    if (i != actions.length - 1) const SizedBox(width: 10),
+              // Los tres mosaicos comparten la altura del más alto, sin altura fija que recorte el texto.
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < actions.length; i++) ...[
+                      Expanded(child: actionCard(actions[i])),
+                      if (i != actions.length - 1) const SizedBox(width: 10),
+                    ],
                   ],
-                ],
+                ),
               );
             },
           ),
@@ -3459,14 +3519,18 @@ class _LiveZoneStrip extends StatelessWidget {
       );
     }
 
-    return Container(
+    // Material (no Container) como fondo: las fichas usan Ink, que se pinta sobre el
+    // Material más cercano; con un Container blanco encima, el fondo de cada ficha
+    // quedaba tapado y solo se veían el texto y el punto.
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Color(0xFFE4EAF2)),
+      ),
+      child: Container(
       height: 68,
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE4EAF2)),
-      ),
       child: Row(
         children: [
           chip(
@@ -3484,8 +3548,10 @@ class _LiveZoneStrip extends StatelessWidget {
               itemBuilder: (context, index) {
                 final zone = zones[index];
                 final id = (zone['id'] ?? '').toString();
+                final name =
+                    (zone['name'] ?? zone['city'] ?? '').toString().trim();
                 return chip(
-                  label: (zone['name'] ?? 'Zona').toString(),
+                  label: name.isEmpty ? 'Zona ${index + 1}' : name,
                   selected: id.isNotEmpty && id == selectedZoneId,
                   dot: palette[index % palette.length],
                   onTap: () => onSelected(id.isEmpty ? null : id),
@@ -3494,6 +3560,7 @@ class _LiveZoneStrip extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -3900,7 +3967,7 @@ class _LiveTripList extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
-                                status,
+                                friendlyStatus(status),
                                 style: const TextStyle(
                                   color: adminBlue,
                                   fontSize: 8,
@@ -3912,7 +3979,9 @@ class _LiveTripList extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          pickup + '  →  ' + destination,
+                          friendlyAddress(pickup) +
+                              '  →  ' +
+                              friendlyAddress(destination),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -5360,7 +5429,9 @@ class _Activity extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 1),
                                   Text(
-                                    row['subtitle']?.toString() ?? '',
+                                    friendlyAddress(
+                                      row['subtitle']?.toString() ?? '',
+                                    ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -5486,61 +5557,6 @@ class _DailySummary extends StatelessWidget {
   }
 }
 
-class _Totals extends StatelessWidget {
-  final Map<String, dynamic> metrics;
-  const _Totals({required this.metrics});
-
-  @override
-  Widget build(BuildContext context) {
-    final items = <(String, Object?)>[
-      ('Usuarios', metrics['users_total']),
-      ('Conductores', metrics['drivers_total']),
-      ('Pendientes', metrics['drivers_pending']),
-      ('Viajes hoy', metrics['trips_today']),
-      ('Delivery hoy', metrics['deliveries_today']),
-      ('Delivery completados', metrics['completed_deliveries_today']),
-    ];
-
-    return Card(
-      elevation: 0,
-      surfaceTintColor: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Wrap(
-          spacing: 34,
-          runSpacing: 18,
-          children: items
-              .map(
-                (item) => SizedBox(
-                  width: 150,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        (item.$2 ?? 0).toString(),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      Text(
-                        item.$1,
-                        style: const TextStyle(
-                          color: adminMuted,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-              .toList(),
-        ),
-      ),
-    );
-  }
-}
-
 class _Records extends StatefulWidget {
   final String title;
   final String subtitle;
@@ -5614,68 +5630,91 @@ class _RecordsState extends State<_Records> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFE7ECF3)),
           ),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (widget.serverFilters != null) widget.serverFilters!,
-              SizedBox(
-                width: 240,
-                child: TextField(
-                  controller: search,
-                  onChanged: (value) => setState(() => query = value),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    prefixIcon: Icon(Icons.search_rounded, size: 18),
-                    hintText: 'Buscar',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-              ChoiceChip(
-                label: Text('Todos (' + widget.rows.length.toString() + ')'),
-                selected: status == null,
-                onSelected: (_) => setState(() => status = null),
-              ),
-              for (final value in statuses.take(5))
-                ChoiceChip(
-                  label: Text(value),
-                  selected: status == value,
-                  onSelected: (_) => setState(() => status = value),
-                ),
-              if (widget.showQaFilter) ...[
-                const SizedBox(width: 4),
-                ChoiceChip(
-                  avatar: const Icon(Icons.people_alt_outlined, size: 15),
-                  label: const Text('Reales'),
-                  selected: qaFilter == 'real',
-                  onSelected: (_) => setState(() => qaFilter = 'real'),
-                ),
-                ChoiceChip(
-                  avatar: const Icon(Icons.science_outlined, size: 15),
-                  label: const Text('QA / pruebas'),
-                  selected: qaFilter == 'qa',
-                  onSelected: (_) => setState(() => qaFilter = 'qa'),
-                ),
-                if (qaFilter != 'all')
-                  TextButton(
-                    onPressed: () => setState(() => qaFilter = 'all'),
-                    child: const Text('Quitar filtro QA'),
-                  ),
-              ],
-              OutlinedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Exportación CSV/Excel se conectará en el módulo de reportes.',
-                      ),
+              // Fila 1: periodo, búsqueda y Exportar al extremo derecho, como en el diseño.
+              Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (widget.serverFilters != null) widget.serverFilters!,
+                        SizedBox(
+                          width: 240,
+                          height: 40,
+                          child: TextField(
+                            controller: search,
+                            onChanged: (value) => setState(() => query = value),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              prefixIcon: Icon(Icons.search_rounded, size: 18),
+                              hintText: 'Buscar',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  );
-                },
-                icon: const Icon(Icons.download_rounded, size: 17),
-                label: const Text('Exportar'),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'La exportación todavía no está disponible en esta pantalla.',
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.download_rounded, size: 17),
+                    label: const Text('Exportar'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Fila 2: estado, QA y categorías.
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  AdminPillChoice(
+                    label: 'Todos (' + widget.rows.length.toString() + ')',
+                    selected: status == null,
+                    showCheck: true,
+                    onSelected: (_) => setState(() => status = null),
+                  ),
+                  for (final value in statuses.take(5))
+                    AdminPillChoice(
+                      label: friendlyStatus(value),
+                      selected: status == value,
+                      dotColor: adminStatusColor(value),
+                      onSelected: (_) => setState(() => status = value),
+                    ),
+                  if (widget.showQaFilter) ...[
+                    const SizedBox(width: 4),
+                    AdminPillChoice(
+                      label: 'Reales',
+                      selected: qaFilter == 'real',
+                      onSelected: (_) => setState(() => qaFilter = 'real'),
+                    ),
+                    AdminPillChoice(
+                      label: 'Pruebas',
+                      selected: qaFilter == 'qa',
+                      onSelected: (_) => setState(() => qaFilter = 'qa'),
+                    ),
+                    if (qaFilter != 'all')
+                      TextButton(
+                        onPressed: () => setState(() => qaFilter = 'all'),
+                        child: const Text('Quitar filtro de pruebas'),
+                      ),
+                  ],
+                ],
               ),
             ],
           ),
@@ -5718,100 +5757,90 @@ class _OperationCard extends StatelessWidget {
     this.onTap,
   });
 
+  // «Pasajero: María» se muestra como etiqueta «Pasajero» y valor «María».
+  static String _labelOf(String detail) {
+    final cut = detail.indexOf(': ');
+    return cut < 0 ? '' : detail.substring(0, cut);
+  }
+
+  static String _valueOf(String detail) {
+    final cut = detail.indexOf(': ');
+    return cut < 0 ? detail : detail.substring(cut + 2);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final heading = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: adminUiInk,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: adminUiMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+    final cells = Wrap(
+      spacing: 22,
+      runSpacing: 8,
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final detail in details)
+          AdminDetailCell(label: _labelOf(detail), value: _valueOf(detail)),
+      ],
+    );
+    final row = Row(
+      children: [
+        AdminIconTile(icon: icon),
+        const SizedBox(width: 12),
+        Expanded(flex: 5, child: heading),
+        const SizedBox(width: 16),
+        Expanded(
+          flex: 5,
+          child: Align(alignment: Alignment.centerRight, child: cells),
+        ),
+        if (onTap != null) ...[
+          const SizedBox(width: 12),
+          const Tooltip(
+            message: 'Ver detalle completo',
+            child: AdminIconTile(icon: Icons.open_in_new_rounded, size: 34),
+          ),
+        ],
+      ],
+    );
     return Container(
-      margin: const EdgeInsets.only(bottom: 6),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFE7ECF3)),
-        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: adminUiLine),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: onTap != null
-          ? ListTile(
-              dense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-              onTap: onTap,
-              leading: Container(
-                width: 32,
-                height: 32,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: adminBlue, size: 17),
-              ),
-              title: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              subtitle: Text(
-                subtitle,
-                style: const TextStyle(
-                  color: adminMuted,
-                  fontSize: 10,
-                ),
-              ),
-              trailing: const Tooltip(
-                message: 'Ver detalle completo',
-                child: Icon(Icons.open_in_new_rounded, color: adminBlue),
-              ),
-            )
-          : ExpansionTile(
-              dense: true,
-              tilePadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-              childrenPadding: const EdgeInsets.fromLTRB(50, 0, 14, 12),
-              leading: Container(
-                width: 32,
-                height: 32,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: adminBlue, size: 17),
-              ),
-              title: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              subtitle: Text(
-                subtitle,
-                style: const TextStyle(
-                  color: adminMuted,
-                  fontSize: 10,
-                ),
-              ),
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 18,
-                    runSpacing: 6,
-                    children: details
-                        .map(
-                          (value) => Text(
-                            value,
-                            style: const TextStyle(
-                              color: adminMuted,
-                              fontSize: 10,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ),
-              ],
-            ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          child: row,
+        ),
+      ),
     );
   }
 }
@@ -5843,10 +5872,10 @@ class _Chip extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        text,
+        friendlyStatus(text),
         style: TextStyle(
           color: fg,
-          fontSize: 9,
+          fontSize: 11,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -5878,54 +5907,6 @@ class _Line extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _Coming extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String description;
-
-  const _Coming({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(22),
-      children: [
-        _Header(title: title, subtitle: description),
-        const SizedBox(height: 22),
-        Card(
-          elevation: 0,
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              children: [
-                Icon(icon, size: 52, color: adminBlue),
-                const SizedBox(height: 14),
-                const Text(
-                  'Módulo preparado',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Ya está incluido en la navegación. El siguiente bloque conectará sus datos y configuración en Supabase.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: adminMuted),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -5972,19 +5953,20 @@ class _ErrorView extends StatelessWidget {
                 const Icon(Icons.error_outline_rounded, size: 48),
                 const SizedBox(height: 12),
                 const Text(
-                  'No se pudo cargar el módulo',
+                  'No se pudo cargar esta sección',
                   style: TextStyle(
                     fontSize: 20,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  error.toString(),
+                  friendlyError(error),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: adminMuted,
-                    fontSize: 11,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 14),

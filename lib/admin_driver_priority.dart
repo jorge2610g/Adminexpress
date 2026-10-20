@@ -157,7 +157,7 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
                     onChanged: widget.channel == 'preview'
                         ? (value) => setLocal(() => previewEnabled = value)
                         : null,
-                    title: const Text('Mostrar prioridad en Preview'),
+                    title: const Text('Mostrar prioridad en Prueba'),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
@@ -166,7 +166,7 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
                         ? (value) =>
                             setLocal(() => previewEnforcement = value)
                         : null,
-                    title: const Text('Aplicar ranking al despacho Preview'),
+                    title: const Text('Aplicar orden de prioridad al despacho de Prueba'),
                     subtitle: const Text(
                       'Ordena solicitudes, pero no bloquea conductores.',
                     ),
@@ -519,28 +519,28 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
                 children: [
                   _pill(
                     settings['preview_enabled'] == true
-                        ? 'Preview visible'
-                        : 'Preview oculto',
+                        ? 'Visible en pruebas'
+                        : 'Oculto en pruebas',
                     settings['preview_enabled'] == true ? _green : _muted,
                   ),
                   _pill(
                     settings['preview_enforcement_enabled'] == true
-                        ? 'Ranking Preview activo'
-                        : 'Ranking Preview apagado',
+                        ? 'Prioridad activa en pruebas'
+                        : 'Prioridad apagada en pruebas',
                     settings['preview_enforcement_enabled'] == true
                         ? _green
                         : _muted,
                   ),
                   _pill(
                     settings['production_enabled'] == true
-                        ? 'Producción visible'
-                        : 'Producción apagada',
+                        ? 'Visible en Producción'
+                        : 'Oculto en Producción',
                     settings['production_enabled'] == true ? _orange : _muted,
                   ),
                   _pill(
                     settings['production_enforcement_enabled'] == true
-                        ? 'Ranking Producción activo'
-                        : 'Ranking Producción apagado',
+                        ? 'Prioridad activa en Producción'
+                        : 'Prioridad apagada en Producción',
                     settings['production_enforcement_enabled'] == true
                         ? _red
                         : _muted,
