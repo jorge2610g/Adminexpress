@@ -279,6 +279,14 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
     final user = selectedUser;
     final zone = zoneId;
     if (user == null || zone == null) return;
+    // No convertir cuentas de superadmin o monitor al asignar un operador.
+    if (accesses.any((entry) =>
+        entry['user_id']?.toString() == user['user_id']?.toString() &&
+        entry['access_role']?.toString() != 'operator')) {
+      setState(() => notice =
+          'Esta cuenta ya tiene otro rol administrativo. No se puede convertir en operador.');
+      return;
+    }
     final zoneRow = zones.firstWhere(
       (row) => row['id']?.toString() == zone,
       orElse: () => <String, dynamic>{},
