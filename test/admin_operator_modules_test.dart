@@ -27,10 +27,10 @@ void main() {
     }
   });
 
-  test('finanzas y análisis se pueden elegir aunque aún necesiten ajuste', () {
+  test('módulos financieros locales habilitados; análisis global pendiente', () {
     expect(keys, containsAll(['payments', 'fares', 'subscriptions', 'reports']));
     expect(
-      operatorSelectorModules.firstWhere((m) => m.key == 'payments').ready,
+      operatorSelectorModules.firstWhere((m) => m.key == 'reports').ready,
       isFalse,
     );
   });
@@ -51,7 +51,7 @@ void main() {
   test('Delivery de lectura está disponible pero funciones sensibles no', () {
     expect(operatorNormalizedModules(
       {'users', 'delivery', 'manual_dispatch', 'payments'}),
-      {'users', 'delivery'},
+      {'users', 'delivery', 'manual_dispatch', 'payments'},
     );
     expect(operatorSelectorModules.firstWhere((m) => m.key == 'delivery').ready, isTrue);
     expect(operatorSelectorModules.firstWhere((m) => m.key == 'manual_dispatch').ready, isFalse);
@@ -75,6 +75,10 @@ void main() {
       'users',
       'delivery',
       'safety_sos',
+      'payments',
+      'fares',
+      'subscriptions',
+      'notifications',
     });
   });
 }

@@ -6705,12 +6705,14 @@ class AdminCommunicationsPage extends StatefulWidget {
   final String channel;
   final String? countryCode;
   final String? zoneId;
+  final bool operatorOnly;
 
   const AdminCommunicationsPage({
     super.key,
     this.channel = 'production',
     this.countryCode,
     this.zoneId,
+    this.operatorOnly = false,
   });
 
   @override
@@ -6743,6 +6745,24 @@ class _AdminCommunicationsPageState
 
   Future<void> _loadCampaignTargets() async {
     try {
+      if (widget.operatorOnly) {
+        // Los operadores no consultan socios/datos centrales: la zona es fija.
+        final zones = await supabase.rpc(
+          'admin_zone_list_for_country',
+          params: {'p_country_code': widget.countryCode},
+        );
+        if (!mounted) return;
+        setState(() {
+          campaignZones = _list(zones)
+              .where((row) => row['id']?.toString() == widget.zoneId)
+              .toList();
+          campaignPartners = const [];
+          campaignZoneId = widget.zoneId;
+          campaignPartnerId = null;
+          loadingCampaignTargets = false;
+        });
+        return;
+      }
       final values = await Future.wait([
         supabase.rpc(
           'admin_zone_list_for_country',
@@ -6764,7 +6784,13 @@ class _AdminCommunicationsPageState
         loadingCampaignTargets = false;
       });
     } catch (_) {
-      if (mounted) setState(() => loadingCampaignTargets = false);
+      if (!mounted) return;
+      setState(() {
+        // Nunca convertir un fallo de carga en una campaña global.
+        campaignZoneId = widget.zoneId;
+        campaignPartnerId = null;
+        loadingCampaignTargets = false;
+      });
     }
   }
 
@@ -7595,6 +7621,21 @@ class _AdminCommunicationsPageState
 
   @override
   Widget build(BuildContext context) {
+    if (widget.operatorOnly) {
+      // Soporte usa RPC centrales; no mostrarlo hasta aislar su lectura/escritura.
+      return Column(children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(22, 20, 22, 14),
+          child: AdminHero(
+            icon: Icons.notifications_active_rounded,
+            title: 'Notificaciones de mi zona',
+            subtitle: 'Avisos dirigidos exclusivamente a los usuarios de la zona asignada.',
+          ),
+        ),
+        Expanded(child: _announcementsTab()),
+      ]);
+    }
+
     return DefaultTabController(
       length: 2,
       child: Column(

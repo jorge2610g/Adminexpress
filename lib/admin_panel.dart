@@ -14,6 +14,9 @@ import 'core/supabase_client.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
 import 'admin_operators.dart';
+import 'admin_operator_fares.dart';
+import 'admin_operator_payments.dart';
+import 'admin_operator_subscriptions.dart';
 import 'admin_single_app_release.dart';
 import 'admin_audit_sandbox.dart';
 import 'admin_load_lab.dart';
@@ -1366,12 +1369,24 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           ),
         );
       case 8:
+        if (adminAccess['role'] == 'operator') {
+          return AdminOperatorFaresPage(
+            zoneId: adminZoneId ?? '',
+            zoneName: (adminAccess['zone_name'] ?? 'Mi zona').toString(),
+          );
+        }
         return AdminFaresPage(
           channel: adminChannel,
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
         );
       case 9:
+        if (adminAccess['role'] == 'operator') {
+          return AdminOperatorPaymentsPage(
+            zoneId: adminZoneId ?? '',
+            zoneName: (adminAccess['zone_name'] ?? 'Mi zona').toString(),
+          );
+        }
         return AdminPaymentsPage(
           channel: adminChannel,
           countryCode: adminCountryCode,
@@ -1405,6 +1420,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           channel: adminChannel,
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
+          operatorOnly: adminAccess['role'] == 'operator',
         );
       case 16:
         return AdminServicesPage(
@@ -1455,6 +1471,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 21:
         return AdminLoadLabPage(channel: adminChannel);
       case 22:
+        if (adminAccess['role'] == 'operator') {
+          return AdminOperatorSubscriptionsPage(
+            zoneId: adminZoneId ?? '',
+            zoneName: (adminAccess['zone_name'] ?? 'Mi zona').toString(),
+          );
+        }
         return AdminDriverSubscriptionsPage(
           channel: adminChannel,
           countryCode: adminCountryCode,

@@ -9,7 +9,7 @@ import 'core/supabase_client.dart';
 
 /// Módulo que el administrador puede dar a un operador de zona.
 /// [ready]: las funciones del servidor ya lo permiten a un operador.
-/// Los módulos no habilitados se muestran, pero no pueden asignarse.
+/// Todos se pueden asignar. El servidor solo permite los que tienen controles por zona.
 class OperatorModule {
   const OperatorModule(this.key, this.label, this.group, {this.ready = false});
 
@@ -37,12 +37,12 @@ const List<OperatorModule> operatorSelectorModules = [
   OperatorModule('delivery_phase2', 'Delivery Fase 2 / Express Plus', 'Módulos'),
   OperatorModule('marketplace', 'Restaurantes', 'Módulos'),
   OperatorModule('driver_priority', 'Prioridad conductores', 'Módulos'),
-  OperatorModule('payments', 'Pagos / Billetera', 'Finanzas'),
-  OperatorModule('fares', 'Tarifas', 'Finanzas'),
-  OperatorModule('subscriptions', 'Suscripciones', 'Finanzas'),
+  OperatorModule('payments', 'Pagos / Billetera', 'Finanzas', ready: true),
+  OperatorModule('fares', 'Tarifas', 'Finanzas', ready: true),
+  OperatorModule('subscriptions', 'Suscripciones', 'Finanzas', ready: true),
   OperatorModule('dynamic_pricing', 'Demanda y precios', 'Finanzas'),
   OperatorModule('reports', 'Reportes', 'Análisis'),
-  OperatorModule('notifications', 'Notificaciones / Avisos', 'Comunicación'),
+  OperatorModule('notifications', 'Notificaciones / Avisos', 'Comunicación', ready: true),
   OperatorModule('zones', 'Zonas y cobertura', 'Configuración'),
   OperatorModule('services', 'Servicios', 'Configuración'),
   OperatorModule('geo_safety', 'Cobertura y seguridad', 'Configuración'),
@@ -50,8 +50,8 @@ const List<OperatorModule> operatorSelectorModules = [
 
 
 Set<String> operatorNormalizedModules(Iterable<String> source) {
-  final ready = operatorSelectorModules.where((module) => module.ready).map((module) => module.key).toSet();
-  final result = <String>{operatorBaseModule, ...source.where(ready.contains)};
+  final known = operatorSelectorModules.map((module) => module.key).toSet();
+  final result = <String>{operatorBaseModule, ...source.where(known.contains)};
   if (result.contains('live_operations') || result.contains('safety_sos')) {
     result.addAll(const ['dashboard', 'drivers']);
   }
@@ -359,7 +359,8 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
     if (row['allowed_modules'] is List) {
       return operatorNormalizedModules((row['allowed_modules'] as List).map((e) => e.toString()));
     }
-    return operatorNormalizedModules(operatorSelectorModules.where((m) => m.ready).map((m) => m.key));
+    // Una cuenta antigua sin lista explícita no recibe módulos adicionales.
+    return {operatorBaseModule};
   }
 
   // Crea la cuenta con correo y contraseña en el servidor y le da acceso de operador.
@@ -716,10 +717,10 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
                   : module.ready
                       ? null
                       : const Text(
-                          'Pendiente de habilitar',
+                          'Permiso guardable. Función en preparación para la zona.',
                           style: TextStyle(fontSize: 11, color: Color(0xFFB54708)),
                         ),
-      onChanged: busy || locked || !module.ready
+      onChanged: busy || locked
           ? null
           : (value) => setState(() {
                 final next = operatorToggledModules(modules, module.key, value == true);
@@ -846,7 +847,7 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                 style: TextStyle(fontWeight: FontWeight.w900, color: _dark),
               ),
               const Text(
-                'Lo que no marques queda oculto. Usuarios siempre va incluido.',
+                'Los permisos pendientes quedarán guardados; se abrirán cuando la función de zona esté preparada. Usuarios siempre incluido.',
                 style: TextStyle(fontSize: 12, color: _muted),
               ),
               for (final group in _groupOrder) ...[
@@ -875,7 +876,7 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                             style: TextStyle(fontSize: 11, color: _muted),
                           )
                         : null,
-                    onChanged: module.key == operatorBaseModule || !module.ready
+                    onChanged: module.key == operatorBaseModule
                         ? null
                         : (value) => setState(() {
                               final next = operatorToggledModules(modules, module.key, value == true);

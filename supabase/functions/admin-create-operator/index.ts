@@ -52,15 +52,16 @@ Deno.serve(async (req) => {
   const password = String(body.password ?? '');
   const fullName = String(body.full_name ?? '').trim();
   const zoneId = String(body.zone_id ?? '').trim();
-  // Solo funciones cuya autorización por módulo y zona está verificada en Supabase.
-  const supported = new Set(['users', 'dashboard', 'trips', 'drivers', 'delivery', 'live_operations', 'safety_sos']);
+  // Registrar delegaciones del superadministrador. Las capacidades no listas
+  // permanecen inactivas en admin_access_context y admin_operator_assert_module.
+  const supported = new Set(["dashboard","live_operations","trips","manual_dispatch","drivers","users","safety_sos","delivery","delivery_orders","delivery_phase2","marketplace","driver_priority","payments","fares","subscriptions","dynamic_pricing","reports","notifications","zones","services","geo_safety"]);
   if (body.allowed_modules != null && !Array.isArray(body.allowed_modules)) {
     return respond({ error: 'Permisos de módulos inválidos.' }, 400);
   }
   const requested = (Array.isArray(body.allowed_modules) ? body.allowed_modules : [])
     .map((module) => String(module).trim());
   if (requested.some((module) => !supported.has(module))) {
-    return respond({ error: 'Hay módulos todavía no habilitados para operadores.' }, 400);
+    return respond({ error: 'El permiso elegido no pertenece al catálogo de operadores.' }, 400);
   }
   if ((requested.includes('live_operations') || requested.includes('safety_sos')) &&
       (!requested.includes('dashboard') || !requested.includes('drivers'))) {
