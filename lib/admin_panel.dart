@@ -1420,6 +1420,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           channel: adminChannel,
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
+          operatorOnly: adminAccess['role'] == 'operator',
         );
       case 16:
         return AdminServicesPage(
