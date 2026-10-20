@@ -10,12 +10,13 @@ void main() {
     expect(panel, contains("if (_zoneScoped)"));
     expect(panel, contains('section = available.first;'));
     expect(panel, contains("index == 23 && adminAccess['role'] == 'operator'"));
+    expect(panel, contains("trailing: (_readOnly || adminAccess['role'] == 'operator')"));
   });
 
   test('alta protegida y limpieza de cuentas ante error', () {
     final source = File('supabase/functions/admin-create-operator/index.ts').readAsStringSync();
     expect(source, contains('getUser(token)'));
-    expect(source, contains("supported = new Set(['users', 'dashboard', 'trips', 'drivers', 'delivery', 'live_operations'])"));
+    expect(source, contains("supported = new Set(['users', 'dashboard', 'trips', 'drivers', 'delivery', 'live_operations', 'safety_sos'])"));
     expect(source, contains("requested.includes('live_operations')"));
     expect(source, contains('deleteUser(userId)'));
     expect(source, contains("zone?.active !== true"));

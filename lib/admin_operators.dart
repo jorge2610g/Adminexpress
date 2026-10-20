@@ -31,7 +31,7 @@ const List<OperatorModule> operatorSelectorModules = [
   OperatorModule('manual_dispatch', 'Despacho manual', 'Operaciones'),
   OperatorModule('drivers', 'Conductores', 'Operaciones', ready: true),
   OperatorModule('users', 'Usuarios', 'Operaciones', ready: true),
-  OperatorModule('safety_sos', 'Seguridad / SOS', 'Operaciones'),
+  OperatorModule('safety_sos', 'Seguridad / SOS', 'Operaciones', ready: true),
   OperatorModule('delivery', 'Delivery', 'Módulos', ready: true),
   OperatorModule('delivery_orders', 'Pedidos Delivery', 'Módulos'),
   OperatorModule('delivery_phase2', 'Delivery Fase 2 / Express Plus', 'Módulos'),
@@ -52,7 +52,7 @@ const List<OperatorModule> operatorSelectorModules = [
 Set<String> operatorNormalizedModules(Iterable<String> source) {
   final ready = operatorSelectorModules.where((module) => module.ready).map((module) => module.key).toSet();
   final result = <String>{operatorBaseModule, ...source.where(ready.contains)};
-  if (result.contains('live_operations')) {
+  if (result.contains('live_operations') || result.contains('safety_sos')) {
     result.addAll(const ['dashboard', 'drivers']);
   }
   return result;
@@ -67,6 +67,7 @@ Set<String> operatorToggledModules(Iterable<String> current, String key, bool en
   result.remove(key);
   if (key == 'dashboard' || key == 'drivers') {
     result.remove('live_operations');
+    result.remove('safety_sos');
   }
   return operatorNormalizedModules(result);
 }
@@ -706,7 +707,10 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
           : module.key == 'live_operations'
               ? const Text('Incluye Dashboard y Conductores',
                   style: TextStyle(fontSize: 11, color: _muted))
-              : module.key == 'delivery'
+              : module.key == 'safety_sos'
+                  ? const Text('Solo lectura; incluye Dashboard y Conductores',
+                      style: TextStyle(fontSize: 11, color: _muted))
+                  : module.key == 'delivery'
                   ? const Text('Consulta de entregas por zona',
                       style: TextStyle(fontSize: 11, color: _muted))
                   : module.ready

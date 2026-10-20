@@ -2281,7 +2281,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     ' · ' +
                     _formatDate(row['created_at']),
               ),
-              trailing: _readOnly
+              // Operadores pueden revisar SOS de su zona, pero resolver es exclusivo del admin central.
+              trailing: (_readOnly || adminAccess['role'] == 'operator')
                   ? null
                   : FilledButton.icon(
                       onPressed: () =>

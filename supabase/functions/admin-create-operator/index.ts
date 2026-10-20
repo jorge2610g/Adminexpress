@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
   const fullName = String(body.full_name ?? '').trim();
   const zoneId = String(body.zone_id ?? '').trim();
   // Solo funciones cuya autorización por módulo y zona está verificada en Supabase.
-  const supported = new Set(['users', 'dashboard', 'trips', 'drivers', 'delivery', 'live_operations']);
+  const supported = new Set(['users', 'dashboard', 'trips', 'drivers', 'delivery', 'live_operations', 'safety_sos']);
   if (body.allowed_modules != null && !Array.isArray(body.allowed_modules)) {
     return respond({ error: 'Permisos de módulos inválidos.' }, 400);
   }
@@ -62,9 +62,9 @@ Deno.serve(async (req) => {
   if (requested.some((module) => !supported.has(module))) {
     return respond({ error: 'Hay módulos todavía no habilitados para operadores.' }, 400);
   }
-  if (requested.includes('live_operations') &&
+  if ((requested.includes('live_operations') || requested.includes('safety_sos')) &&
       (!requested.includes('dashboard') || !requested.includes('drivers'))) {
-    return respond({ error: 'Operación en vivo requiere Dashboard y Conductores.' }, 400);
+    return respond({ error: 'Operación en vivo y Seguridad / SOS requieren Dashboard y Conductores.' }, 400);
   }
   const modules = Array.from(new Set(['users', ...requested]));
 

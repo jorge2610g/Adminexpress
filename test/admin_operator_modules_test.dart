@@ -50,11 +50,16 @@ void main() {
 
   test('Delivery de lectura está disponible pero funciones sensibles no', () {
     expect(operatorNormalizedModules(
-      {'users', 'delivery', 'manual_dispatch', 'safety_sos', 'payments'}),
+      {'users', 'delivery', 'manual_dispatch', 'payments'}),
       {'users', 'delivery'},
     );
     expect(operatorSelectorModules.firstWhere((m) => m.key == 'delivery').ready, isTrue);
     expect(operatorSelectorModules.firstWhere((m) => m.key == 'manual_dispatch').ready, isFalse);
+    expect(operatorNormalizedModules({'safety_sos'}),
+      containsAll(['safety_sos','dashboard','drivers']));
+    final revoked = operatorToggledModules(
+      {'users','safety_sos','dashboard','drivers'}, 'dashboard', false);
+    expect(revoked, isNot(contains('safety_sos')));
   });
 
   test('solo los módulos ya permitidos por el servidor están marcados como listos', () {
@@ -69,6 +74,7 @@ void main() {
       'drivers',
       'users',
       'delivery',
+      'safety_sos',
     });
   });
 }
