@@ -359,7 +359,8 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
     if (row['allowed_modules'] is List) {
       return operatorNormalizedModules((row['allowed_modules'] as List).map((e) => e.toString()));
     }
-    return operatorNormalizedModules(operatorSelectorModules.where((m) => m.ready).map((m) => m.key));
+    // Una cuenta antigua sin lista explícita no recibe módulos adicionales.
+    return {operatorBaseModule};
   }
 
   // Crea la cuenta con correo y contraseña en el servidor y le da acceso de operador.
