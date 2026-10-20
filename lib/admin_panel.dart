@@ -338,7 +338,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     25: 'driver_priority',
     26: 'delivery_orders',
     28: 'dynamic_pricing',
-    29: 'fares',
+    29: 'driver_championship',
     30: 'marketplace',
     31: 'payments',
     32: 'operators',
@@ -1261,6 +1261,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                           selected: section,
                           channel: adminChannel,
                           readOnly: _readOnly,
+                          isOperator: adminAccess['role'] == 'operator',
                           allowedSections: _allowedSections,
                           onSelected: (value) {
                             Navigator.pop(context);
@@ -1280,6 +1281,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                         selected: section,
                         channel: adminChannel,
                         readOnly: _readOnly,
+                        isOperator: adminAccess['role'] == 'operator',
                         allowedSections: _allowedSections,
                         onSelected: _goTo,
                         onExit: widget.onExit,
@@ -2201,8 +2203,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               'Pasajeros, conductores y control del estado de las cuentas.',
           empty: 'Todavía no hay usuarios registrados.',
           rows: snapshot.data ?? const [],
-          serverFilters: _userGeoFilters(),
-          showQaFilter: true,
+          // The backend already locks each session to one runtime and zone.
+          // Do not suggest cross-environment or cross-zone access to operators.
+          serverFilters: _zoneScoped ? null : _userGeoFilters(),
+          showQaFilter: false,
           item: (row) => Container(
             margin: const EdgeInsets.only(bottom: 7),
             decoration: BoxDecoration(
@@ -2429,6 +2433,7 @@ class _Navigation extends StatelessWidget {
   final int selected;
   final String channel;
   final bool readOnly;
+  final bool isOperator;
   final Set<int> allowedSections;
   final ValueChanged<int> onSelected;
   final VoidCallback onExit;
@@ -2437,6 +2442,7 @@ class _Navigation extends StatelessWidget {
     required this.selected,
     required this.channel,
     this.readOnly = false,
+    this.isOperator = false,
     required this.allowedSections,
     required this.onSelected,
     required this.onExit,
@@ -2462,16 +2468,28 @@ class _Navigation extends StatelessWidget {
                 ('GENERAL', [0]),
                 ('OPERACIONES', [1, 2, 3, 26, 4, 5, 6]),
               ]
-            : const <(String, List<int>)>[
-                ('GENERAL', [0]),
-                ('OPERACIONES', [1, 2, 13, 4, 5, 6]),
-                ('MÓDULOS', [23, 25, 29]),
-                ('FINANZAS', [9, 8, 22]),
-                ('ANÁLISIS', [10, 14]),
-                ('COMUNICACIÓN', [15]),
-                ('CONFIGURACIÓN', [16, 7, 11, 19, 12, 28, 32]),
-                ('HERRAMIENTAS DE PRUEBA', [20, 21]),
-              ]);
+            : isOperator
+                ? const <(String, List<int>)>[
+                    // Operators see only effective, server-approved modules
+                    // from their own allowed_modules and assigned zone.
+                    ('GENERAL', [0]),
+                    ('OPERACIONES', [1, 2, 3, 13, 4, 5, 6, 26]),
+                    ('MÓDULOS', [23, 24, 25, 30]),
+                    ('FINANZAS', [9, 8, 22, 28]),
+                    ('ANÁLISIS', [10]),
+                    ('COMUNICACIÓN', [15]),
+                    ('CONFIGURACIÓN', [16, 7, 17]),
+                  ]
+                : const <(String, List<int>)>[
+                    ('GENERAL', [0]),
+                    ('OPERACIONES', [1, 2, 13, 4, 5, 6]),
+                    ('MÓDULOS', [23, 25, 29]),
+                    ('FINANZAS', [9, 8, 22]),
+                    ('ANÁLISIS', [10, 14]),
+                    ('COMUNICACIÓN', [15]),
+                    ('CONFIGURACIÓN', [16, 7, 11, 19, 12, 28, 32]),
+                    ('HERRAMIENTAS DE PRUEBA', [20, 21]),
+                  ]);
 
     return source
         .map(
