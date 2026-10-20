@@ -14,6 +14,7 @@ import 'core/supabase_client.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
 import 'admin_operators.dart';
+import 'admin_operator_fares.dart';
 import 'admin_single_app_release.dart';
 import 'admin_audit_sandbox.dart';
 import 'admin_load_lab.dart';
@@ -1366,6 +1367,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           ),
         );
       case 8:
+        if (adminAccess['role'] == 'operator') {
+          return AdminOperatorFaresPage(
+            zoneId: adminZoneId ?? '',
+            zoneName: (adminAccess['zone_name'] ?? 'Mi zona').toString(),
+          );
+        }
         return AdminFaresPage(
           channel: adminChannel,
           countryCode: adminCountryCode,
