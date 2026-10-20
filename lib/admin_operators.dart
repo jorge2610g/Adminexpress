@@ -703,12 +703,18 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
               'Siempre incluido',
               style: TextStyle(fontSize: 11, color: _muted),
             )
-          : module.ready
-              ? null
-              : const Text(
-                  'Pendiente de habilitar',
-                  style: TextStyle(fontSize: 11, color: Color(0xFFB54708)),
-                ),
+          : module.key == 'live_operations'
+              ? const Text('Incluye Dashboard y Conductores',
+                  style: TextStyle(fontSize: 11, color: _muted))
+              : module.key == 'delivery'
+                  ? const Text('Consulta de entregas por zona',
+                      style: TextStyle(fontSize: 11, color: _muted))
+                  : module.ready
+                      ? null
+                      : const Text(
+                          'Pendiente de habilitar',
+                          style: TextStyle(fontSize: 11, color: Color(0xFFB54708)),
+                        ),
       onChanged: busy || locked || !module.ready
           ? null
           : (value) => setState(() {
