@@ -1,5 +1,6 @@
 // Crea una cuenta de operador con correo y contraseña y le asigna zona y módulos.
 // Solo la puede llamar un administrador central: la sesión del llamador se comprueba con is_admin().
+// PENDIENTE DE DESPLIEGUE: esta función no está publicada en Supabase hasta que el propietario lo autorice.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const corsHeaders = {

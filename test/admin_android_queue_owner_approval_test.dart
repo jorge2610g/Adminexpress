@@ -7,7 +7,7 @@ void main() {
     expect(source, contains("data['version'] != currentVersion"));
     expect(source, contains('AUTORIZO APK QA'));
     expect(source, contains('no compila aún'));
-    expect(source, contains('SHA, 1.6.2 y build 140'));
+    expect(source, contains('versión 1.6.2 (build 140)'));
     expect(source, isNot(contains("?? '1.6.1'")));
   });
 }

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_friendly_labels.dart';
+import 'core/admin_hero.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
@@ -191,7 +194,7 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
             style: const TextStyle(fontSize: 14,
               fontWeight: FontWeight.w900)),
           const SizedBox(height: 3),
-          Text(merchant['category_key']?.toString() ?? 'Sin categoría',
+          Text(friendlyCategory(merchant['category_key']?.toString() ?? 'Sin categoría'),
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 11,
               color: Color(0xFF64748B))),
@@ -227,7 +230,11 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
               child: const Text('Reintentar')),
           ]));
       }
-      final all = _rows(snapshot.data?['merchants']);
+      // Los negocios de prueba viven solo en Prueba: Producción lista únicamente los publicados.
+      final all = _rows(snapshot.data?['merchants'])
+          .where((row) =>
+              widget.channel == 'preview' || row['production_visible'] == true)
+          .toList();
       final needle = search.text.trim().toLowerCase();
       final filtered = all.where((row) {
         final matchText = needle.isEmpty ||
@@ -251,8 +258,11 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w900)),
             const SizedBox(height: 4),
-            const Text('Todos los negocios registrados en la zona, incluso los demos ocultos. La lista inferior muestra solo demos vinculados al entorno actual.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+            Text(
+              widget.channel == 'preview'
+                  ? 'Negocios de prueba de la zona, incluidos los demos. Solo se ven en Prueba.'
+                  : 'Negocios publicados para clientes en esta zona.',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
             const SizedBox(height: 13),
             GridView.count(
               shrinkWrap: true,
@@ -316,7 +326,10 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
                     _merchantCard(filtered[index]),
               ),
             const SizedBox(height: 22),
-            if (!widget.readOnly && (widget.zoneId ?? '').isNotEmpty)
+            // Los negocios demo solo se crean y prueban en Prueba.
+            if (!widget.readOnly &&
+                widget.channel == 'preview' &&
+                (widget.zoneId ?? '').isNotEmpty)
               AdminMarketplaceDemoSection(
                 zoneId: widget.zoneId!,
                 channel: widget.channel,
@@ -374,39 +387,32 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
     };
 
     return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+        child: AdminHero(
+          icon: Icons.local_shipping_rounded,
+          title: 'Delivery',
+          subtitle: 'Gestión unificada de comercios y repartos',
+          badge: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(.14),
+              borderRadius: BorderRadius.circular(20)),
+            child: Text(
+              widget.channel == 'preview' ? 'PRUEBAS' : 'PRODUCCIÓN',
+              style: const TextStyle(
+                color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900)),
+          ),
+        ),
+      ),
       Material(color: Colors.white, child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Container(
-                height: 38, width: 38,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
-                  borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.local_shipping_rounded,
-                  color: Color(0xFF2563EB)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Delivery',
-                    style: Theme.of(context).textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w900)),
-                  const Text('Gestión unificada de comercios y repartos',
-                    maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11,
-                      color: Color(0xFF64748B))),
-                ],
-              )),
-              Chip(label: Text(widget.channel == 'preview'
-                ? 'PRUEBAS' : 'PRODUCCIÓN')),
-            ]),
-            const SizedBox(height: 12),
             LayoutBuilder(builder: (context, box) {
-              final cols = box.maxWidth >= 1120 ? 6
-                  : box.maxWidth >= 600 ? 3 : 2;
+              // Las 7 secciones caben en una sola fila en pantallas anchas.
+              final cols = box.maxWidth >= 1120 ? 7
+                  : box.maxWidth >= 600 ? 4 : 2;
               return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -593,7 +599,7 @@ class _UnifiedMerchantDialogState extends State<_UnifiedMerchantDialog> {
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return Center(child: snapshot.hasError ?
-            Text('Error al abrir negocio: ${snapshot.error}') :
+            Text('${friendlyError(snapshot.error)}') :
             const CircularProgressIndicator());
         }
         final raw = snapshot.data!;
@@ -612,7 +618,7 @@ class _UnifiedMerchantDialogState extends State<_UnifiedMerchantDialog> {
             IconButton(onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.close)),
           ]),
-          Text('Zona del comercio · ${widget.channel.toUpperCase()} · '
+          Text('Zona del comercio · ${widget.channel == 'preview' ? 'Prueba' : 'Producción'} · '
             '${row['active'] != true ? 'Inactivo' : visible ?
               'Activo' : 'Pendiente de publicar'}'),
           const Divider(),
@@ -623,7 +629,7 @@ class _UnifiedMerchantDialogState extends State<_UnifiedMerchantDialog> {
           ),
           const Text('Perfil y visibilidad',
             style: TextStyle(fontWeight: FontWeight.bold)),
-          Text('Categoría: ${row['category_key'] ?? '-'}'),
+          Text('Categoría: ${friendlyCategory((row['category_key'] ?? '-').toString())}'),
           Text('Dirección: ${row['address'] ?? 'Sin configurar'}'),
           Text('Tiempo de entrega: ${row['eta_min_minutes'] ?? '-'}-'
             '${row['eta_max_minutes'] ?? '-'} minutos'),
@@ -745,8 +751,8 @@ class _DeliveryMerchantPreviewState extends State<_DeliveryMerchantPreview> {
                       style: Theme.of(context).textTheme.headlineSmall
                         ?.copyWith(fontWeight: FontWeight.w900)),
                     const SizedBox(height: 5),
-                    Text((merchant['category_key']?.toString() ?? 'Comercio')
-                      + ' · ' + widget.channel.toUpperCase(),
+                    Text(friendlyCategory(merchant['category_key']?.toString() ?? 'Comercio')
+                      + ' · ' + (widget.channel == 'preview' ? 'Prueba' : 'Producción'),
                       style: const TextStyle(color: Color(0xFF64748B))),
                     const SizedBox(height: 7),
                     Text(merchant['address']?.toString() ??

@@ -27,8 +27,13 @@ void main() {
     }
   });
 
-  test('módulos financieros locales habilitados; análisis global pendiente', () {
-    expect(keys, containsAll(['payments', 'fares', 'subscriptions', 'reports']));
+  test('finanzas locales habilitadas y análisis global pendiente', () {
+    expect(
+        keys, containsAll(['payments', 'fares', 'subscriptions', 'reports']));
+    expect(
+      operatorSelectorModules.firstWhere((m) => m.key == 'payments').ready,
+      isTrue,
+    );
     expect(
       operatorSelectorModules.firstWhere((m) => m.key == 'reports').ready,
       isFalse,
@@ -41,7 +46,9 @@ void main() {
       containsAll(['users', 'live_operations', 'dashboard', 'drivers']),
     );
     final reduced = operatorToggledModules(
-      {'users', 'live_operations', 'dashboard', 'drivers'}, 'drivers', false,
+      {'users', 'live_operations', 'dashboard', 'drivers'},
+      'drivers',
+      false,
     );
     expect(reduced, isNot(contains('live_operations')));
     expect(reduced, contains('dashboard'));
@@ -49,24 +56,30 @@ void main() {
   });
 
   test('Delivery de lectura está disponible pero funciones sensibles no', () {
-    expect(operatorNormalizedModules(
-      {'users', 'delivery', 'manual_dispatch', 'payments'}),
+    expect(
+      operatorNormalizedModules(
+          {'users', 'delivery', 'manual_dispatch', 'payments'}),
       {'users', 'delivery', 'manual_dispatch', 'payments'},
     );
-    expect(operatorSelectorModules.firstWhere((m) => m.key == 'delivery').ready, isTrue);
-    expect(operatorSelectorModules.firstWhere((m) => m.key == 'manual_dispatch').ready, isFalse);
+    expect(operatorSelectorModules.firstWhere((m) => m.key == 'delivery').ready,
+        isTrue);
+    expect(
+        operatorSelectorModules
+            .firstWhere((m) => m.key == 'manual_dispatch')
+            .ready,
+        isFalse);
     expect(operatorNormalizedModules({'safety_sos'}),
-      containsAll(['safety_sos','dashboard','drivers']));
+        containsAll(['safety_sos', 'dashboard', 'drivers']));
     final revoked = operatorToggledModules(
-      {'users','safety_sos','dashboard','drivers'}, 'dashboard', false);
+        {'users', 'safety_sos', 'dashboard', 'drivers'}, 'dashboard', false);
     expect(revoked, isNot(contains('safety_sos')));
   });
 
-  test('solo los módulos ya permitidos por el servidor están marcados como listos', () {
-    final ready = operatorSelectorModules
-        .where((m) => m.ready)
-        .map((m) => m.key)
-        .toSet();
+  test(
+      'solo los módulos ya permitidos por el servidor están marcados como listos',
+      () {
+    final ready =
+        operatorSelectorModules.where((m) => m.ready).map((m) => m.key).toSet();
     expect(ready, {
       'dashboard',
       'live_operations',

@@ -12,7 +12,7 @@ void main() {
   test('Distribution is only for Google Play Production', () {
     expect(source, contains('Distribución de actualizaciones · Producción'));
     expect(source, contains('Distribución · Google Play Producción'));
-    expect(source, contains('Canal: Google Play · Producción'));
+    expect(source, contains('Destino: Google Play · Producción'));
     expect(source, contains('Versión actual'));
     expect(source, contains('Actualización crítica'));
     expect(source, contains('Notas de la versión'));

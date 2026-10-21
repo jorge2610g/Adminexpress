@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_dropdown_field.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_marketplace_demos.dart';
@@ -267,7 +269,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                     onChanged: widget.channel == 'preview'
                         ? (value) => setLocal(() => preview = value)
                         : null,
-                    title: const Text('Visible en Preview'),
+                    title: const Text('Visible en Prueba'),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
@@ -403,7 +405,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                     onChanged: widget.channel == 'preview'
                         ? (value) => setLocal(() => preview = value)
                         : null,
-                    title: const Text('Visible en Preview'),
+                    title: const Text('Visible en Prueba'),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
@@ -529,7 +531,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  DropdownButtonFormField<String?>(
+                  AdminDropdownField<String?>(
                     value: zoneId,
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Zona'),
@@ -548,7 +550,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                     onChanged: (value) => setLocal(() => zoneId = value),
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
+                  AdminDropdownField<String>(
                     value: categoryKey.isEmpty ? null : categoryKey,
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Categoría'),
@@ -644,7 +646,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                     onChanged: widget.channel == 'preview'
                         ? (value) => setLocal(() => preview = value)
                         : null,
-                    title: const Text('Visible en Preview'),
+                    title: const Text('Visible en Prueba'),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
@@ -913,7 +915,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          'Administra el módulo para Preview y Producción desde un solo lugar.',
+                          'Administra este módulo para Prueba y Producción desde un solo lugar.',
                           style: TextStyle(color: _muted),
                         ),
                       ],
@@ -937,7 +939,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _tag('Preview', settings['preview_enabled'] == true),
+                  _tag('Prueba', settings['preview_enabled'] == true),
                   _tag('Producción', settings['production_enabled'] == true),
                   _tag(categories.length.toString() + ' categorías', true),
                   _tag(banners.length.toString() + ' banners', true),
@@ -957,7 +959,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                         subtitle: row['category_key']?.toString() ?? '',
                         chips: [
                           _tag('Activa', row['active'] == true),
-                          _tag('Preview', row['preview_visible'] == true),
+                          _tag('Prueba', row['preview_visible'] == true),
                           _tag('Prod', row['production_visible'] == true),
                         ],
                         onTap: () => _editCategory(row),
@@ -978,7 +980,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                         subtitle: row['subtitle']?.toString() ?? '',
                         chips: [
                           _tag('Activo', row['active'] == true),
-                          _tag('Preview', row['preview_visible'] == true),
+                          _tag('Prueba', row['preview_visible'] == true),
                           _tag('Prod', row['production_visible'] == true),
                         ],
                         onTap: () => _editBanner(row),
@@ -988,6 +990,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
               ),
               const SizedBox(height: 26),
               if (widget.showMerchants &&
+                  widget.channel == 'preview' &&
                   widget.zoneId != null && widget.zoneId!.isNotEmpty)
                 AdminMarketplaceDemoSection(
                   key:ValueKey('${widget.channel}-${widget.zoneId}'),
@@ -1014,7 +1017,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                                 ' min',
                         chips: [
                           _tag('Activo', row['active'] == true),
-                          _tag('Preview', row['preview_visible'] == true),
+                          _tag('Prueba', row['preview_visible'] == true),
                           _tag('Prod', row['production_visible'] == true),
                         ],
                         onTap: () => _openProducts(row),
@@ -1237,7 +1240,7 @@ class _MerchantProductsPageState extends State<_MerchantProductsPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text(snapshot.error.toString()));
+            return Center(child: Text(friendlyError(snapshot.error)));
           }
           final products = _rows(snapshot.data?['products']);
           if (products.isEmpty) {

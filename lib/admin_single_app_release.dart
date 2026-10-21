@@ -1,6 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_friendly_labels.dart';
+import 'core/admin_dropdown_field.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -118,7 +121,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        error = e.toString();
+        error = friendlyError(e);
         loading = false;
       });
     }
@@ -185,10 +188,10 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               const Text(
                 'Se usará el código vigente de main, el paquete oficial '
                 'com.express.usuario1 y la firma Android existente. '
-                'No crea Express Preview ni publica en Google Play. '
+                'No crea una app de Prueba ni publica en Google Play. '
                 'El trabajo quedará en cola: la APK solo se compila después '
                 'de la autorización manual AUTORIZO APK QA en GitHub. '
-                'El SHA, 1.6.2 y build 140 deben corresponder al código fuente.',
+                'La versión 1.6.2 (build 140) debe corresponder al código fuente.',
               ),
               const SizedBox(height: 14),
               TextField(
@@ -252,7 +255,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
       'Accept': 'application/vnd.github+json',
     }).timeout(const Duration(seconds: 12));
     if (response.statusCode != 200) {
-      throw StateError('No se pudo consultar el SHA de la rama firmada.');
+      throw StateError('No se pudo verificar la versión firmada.');
     }
     final obj = jsonDecode(response.body);
     final raw = obj is Map && obj['commit'] is Map
@@ -260,7 +263,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
         : null;
     final sha = raw?.toString().toLowerCase() ?? '';
     if (!RegExp(r'^[0-9a-f]{40}$').hasMatch(sha)) {
-      throw StateError('Respuesta SHA inválida de GitHub.');
+      throw StateError('No se pudo verificar la versión en GitHub.');
     }
     return sha;
   }
@@ -303,7 +306,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                   autocorrect: false,
                   readOnly: true,
                   decoration: const InputDecoration(
-                    labelText: 'SHA firmado (verificado en GitHub)',
+                    labelText: 'Versión firmada (verificada)',
                     helperText: 'Se comprobará nuevamente antes de ponerlo en cola',
                   ),
                 ),
@@ -344,7 +347,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     if (result == null) return;
     sourceSha = result['sha'] ?? '';
     if (!RegExp(r'^[0-9a-f]{40}$').hasMatch(sourceSha)) {
-      _message('SHA firmado inválido. Reintenta.');
+      _message('La versión firmada no es válida. Intenta de nuevo.');
       return;
     }
     try {
@@ -416,26 +419,26 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     await _call('admin_certify_single_app_candidate', {
       'p_candidate_id': candidate['id'],
       'p_qa_notes': result,
-    }, 'Pruebas registradas para el SHA y los hashes de este APK/AAB.');
+    }, 'Pruebas registradas para esta versión.');
   }
 
   Future<void> _approve() async {
     final ok = await _confirm(
       'Aprobar candidato Android',
-      'Se fijarán SHA, árbol de código y SHA-256 del APK y AAB exactos '
+      'Se fijarán la versión y los archivos exactos del APK y AAB '
       'que ya probaste. No se recompilará para Producción.',
       'Aprobar candidato',
     );
     if (!ok) return;
     await _call('admin_approve_single_app_candidate', {
       'p_candidate_id': candidate['id'],
-    }, 'Candidato Android aprobado sin segunda aplicación Preview.');
+    }, 'Candidato Android aprobado sin una segunda aplicación de Prueba.');
   }
 
   Future<void> _promote() async {
     final ok = await _confirm(
       'Promover APK/AAB a Producción',
-      'Se utilizarán exactamente los mismos archivos firmados, SHA y '
+      'Se usarán exactamente los mismos archivos firmados y la misma versión '
       'hashes que fueron certificados. Esto reserva el versionCode '
       'de Google Play; NO publica automáticamente la actualización.',
       'Promover sin recompilar',
@@ -504,7 +507,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                 ),
                 const Text(
                   'Registrar la versión activa el aviso en la aplicación '
-                  'cuando detecte un build antiguo. No envía push masivos.',
+                  'cuando detecte una versión antigua. No envía avisos masivos.',
                   style: TextStyle(fontSize: 12),
                 ),
               ]),
@@ -598,7 +601,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'Canal: Google Play · Producción',
+                      'Destino: Google Play · Producción',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 10),
@@ -760,10 +763,10 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Text('Express $version · build '
                     '${publishedRelease['build_number']}. '
-                    'El aviso se enviará por push y bandeja de la aplicación. '
+                    'El aviso se enviará como notificación y en la bandeja de la aplicación. '
                     'No actualiza los teléfonos por sí solo.'),
                   const SizedBox(height: 14),
-                  DropdownButtonFormField<String>(
+                  AdminDropdownField<String>(
                     initialValue: audience,
                     decoration: const InputDecoration(labelText: 'Destinatarios'),
                     items: const [
@@ -814,7 +817,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                   const SizedBox(height: 8),
                   const Text(
                     'Solo cuentas de Producción. No se incluirán usuarios '
-                    'del grupo Preview ni se enviará nada antes de confirmar.',
+                    'del grupo de Prueba ni se enviará nada antes de confirmar.',
                     style: TextStyle(fontSize: 12),
                   ),
                 ]),
@@ -878,22 +881,26 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
 
   Widget _details(Map<String, dynamic> row) {
     final sha = row['commit_sha']?.toString() ?? '';
+    // Identificadores y huellas: útiles para revisión técnica, ocultos por defecto.
+    final technical = <Widget>[
+      if (row['id'] != null)
+        SelectableText('Trabajo GitHub: ${row['id']}',
+            style: const TextStyle(fontSize: 12)),
+      if (sha.isNotEmpty)
+        SelectableText('Versión del código: $sha',
+            style: const TextStyle(fontSize: 12)),
+      if (row['apk_sha256'] != null)
+        SelectableText('Huella del APK: ${row['apk_sha256']}',
+            style: const TextStyle(fontSize: 11)),
+      if (row['aab_sha256'] != null)
+        SelectableText('Huella del AAB: ${row['aab_sha256']}',
+            style: const TextStyle(fontSize: 11)),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Versión ${row['version_name']} · build ${row['build_number']} '
-            '· ${row['status']}'),
-        if (row['id'] != null)
-          SelectableText('Trabajo GitHub: ${row['id']}',
-              style: const TextStyle(fontSize: 12)),
-        if (sha.isNotEmpty)
-          SelectableText('Código SHA: $sha', style: const TextStyle(fontSize: 12)),
-        if (row['apk_sha256'] != null)
-          SelectableText('APK SHA-256: ${row['apk_sha256']}',
-              style: const TextStyle(fontSize: 11)),
-        if (row['aab_sha256'] != null)
-          SelectableText('AAB SHA-256: ${row['aab_sha256']}',
-              style: const TextStyle(fontSize: 11)),
+            '· ${friendlyStatus(row['status']?.toString() ?? '')}'),
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 8, children: [
           if (row['apk_url'] != null)
@@ -909,6 +916,18 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               label: const Text('Ver AAB'),
             ),
         ]),
+        if (technical.isNotEmpty)
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 8),
+              expandedCrossAxisAlignment: CrossAxisAlignment.start,
+              title: const Text('Detalles técnicos',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              children: technical,
+            ),
+          ),
       ],
     );
   }
@@ -1022,15 +1041,14 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
         const Text('Express · Una sola aplicación', style: TextStyle(
           fontSize: 23, fontWeight: FontWeight.w900)),
         const SizedBox(height: 8),
-        const Text('Desarrollo y pruebas compartidas: Web primero. '
-            'Android usa lib/mobile_main.dart. La generación de APK/AAB requiere '
-            'aprobación manual explícita, además de la cola de compilación.'),
+        const Text('Una sola aplicación para pasajeros y conductores: la web se revisa primero. '
+            'Generar un APK o AAB requiere aprobación manual, además de la cola de compilación.'),
         const SizedBox(height: 12),
         if (!canManage)
           _section('Solo lectura',
             const Text('Tu cuenta no tiene permiso para administrar '
               'publicaciones Android. Las compilaciones son globales '
-              'para Express, sin separación por país, zona ni APK Preview.')),
+              'para Express, sin separación por país, zona ni APK de Prueba.')),
         if (error != null)
           _section('Error al consultar builds', Text(error!,
               style: const TextStyle(color: Colors.red))),
@@ -1042,9 +1060,9 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             Text('Google Play: build vigente ${status['production_store_build'] ?? '—'} '
                 '· siguiente ${status['next_google_play_build'] ?? '—'}'),
             const SizedBox(height: 8),
-            const Text('Poner candidato en cola → autorizar APK QA en GitHub → '
-              'comprobar hashes y firma → probar esa misma APK → '
-              'certificar → aprobar → publicar solo con visto bueno.'),
+            const Text('1. Poner la versión en cola  →  2. Autorizar la prueba Android '
+              '(frase de confirmación: AUTORIZO APK QA)  →  3. Revisar la firma y probar '
+              'esa misma APK  →  4. Certificar y aprobar  →  5. Publicar solo con visto bueno.'),
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: canManage && !busy ? _queue : null,
@@ -1070,9 +1088,9 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               const SizedBox(height: 16),
               _details(row),
               const SizedBox(height: 12),
-              Text('QA: ${certified ? 'certificado' : 'pendiente'}  ·  '
-                   'Aprobación: ${approved ? 'aprobado' : 'pendiente'}  ·  '
-                   'Promovido: ${promoted ? 'sí' : 'no'}'),
+              Text('Pruebas: ${certified ? 'certificadas' : 'pendientes'}  ·  '
+                   'Aprobación: ${approved ? 'aprobada' : 'pendiente'}  ·  '
+                   'Publicada: ${promoted ? 'sí' : 'no'}'),
               if (verification['qa_notes'] != null)
                 Text('Evidencia: ${verification['qa_notes']}'),
               const SizedBox(height: 12),

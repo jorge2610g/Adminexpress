@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_dropdown_field.dart';
 
 import 'admin_control_sections.dart';
 import 'admin_environment_store.dart';
@@ -200,7 +202,7 @@ class _AdminDriverSubscriptionsPageState
         if (mounted) {
           setState(() {
             loading = false;
-            error = 'Preview: ' + e.toString();
+            error = 'No se pudo completar la acción. Intenta de nuevo.';
           });
         }
       }
@@ -225,7 +227,7 @@ class _AdminDriverSubscriptionsPageState
         });
       }
     } catch (e) {
-      loadError = 'Zonas: ' + e.toString();
+      loadError = 'Zonas: ' + friendlyError(e);
     }
 
     if (zoneKey != null && zoneKey.isNotEmpty) {
@@ -239,7 +241,7 @@ class _AdminDriverSubscriptionsPageState
           setState(() => plans = _maps(planRows));
         }
       } catch (e) {
-        loadError ??= 'Planes: ' + e.toString();
+        loadError ??= 'Planes: ' + friendlyError(e);
       }
 
       try {
@@ -253,7 +255,7 @@ class _AdminDriverSubscriptionsPageState
           });
         }
       } catch (e) {
-        loadError ??= 'Configuración: ' + e.toString();
+        loadError ??= 'Configuración: ' + friendlyError(e);
       }
 
       try {
@@ -268,7 +270,7 @@ class _AdminDriverSubscriptionsPageState
           setState(() => drivers = _maps(driverRows));
         }
       } catch (e) {
-        loadError ??= 'Conductores: ' + e.toString();
+        loadError ??= 'Conductores: ' + friendlyError(e);
       }
 
       try {
@@ -288,7 +290,7 @@ class _AdminDriverSubscriptionsPageState
           setState(() => payments = _maps(paymentRows));
         }
       } catch (e) {
-        loadError ??= 'Pagos: ' + e.toString();
+        loadError ??= 'Pagos: ' + friendlyError(e);
       }
     } else {
       if (mounted) {
@@ -312,7 +314,7 @@ class _AdminDriverSubscriptionsPageState
         });
       }
     } catch (e) {
-      loadError ??= 'VeriPagos: ' + e.toString();
+      loadError ??= 'VeriPagos: ' + friendlyError(e);
     }
 
     if (!mounted) return;
@@ -424,16 +426,6 @@ class _AdminDriverSubscriptionsPageState
       _snack('Selecciona una zona.');
       return;
     }
-
-    Map<String, dynamic>? selectedZone;
-    for (final zone in zones) {
-      if (zone['zone_key']?.toString() == zoneKey) {
-        selectedZone = zone;
-        break;
-      }
-    }
-    final isBolivia =
-        (selectedZone?['country']?.toString() ?? '').toLowerCase() == 'bolivia';
 
     final code = TextEditingController(text: plan?['code']?.toString() ?? '');
     final name = TextEditingController(text: plan?['name']?.toString() ?? '');
@@ -587,7 +579,7 @@ class _AdminDriverSubscriptionsPageState
       _snack(plan == null ? 'Plan creado.' : 'Plan actualizado.');
       await _load();
     } catch (e) {
-      _snack('No se pudo guardar: ' + e.toString());
+      _snack('No se pudo guardar: ' + friendlyError(e));
     } finally {
       code.dispose();
       name.dispose();
@@ -694,7 +686,7 @@ class _AdminDriverSubscriptionsPageState
       _snack('Configuración de la zona guardada.');
       await _load();
     } catch (e) {
-      _snack('No se pudo guardar: ' + e.toString());
+      _snack('No se pudo guardar: ' + friendlyError(e));
     } finally {
       if (mounted) setState(() => savingSettings = false);
     }
@@ -725,7 +717,7 @@ class _AdminDriverSubscriptionsPageState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<int>(
+                AdminDropdownField<int>(
                   initialValue: selected,
                   decoration: const InputDecoration(labelText: 'Plan'),
                   items: [
@@ -789,7 +781,7 @@ class _AdminDriverSubscriptionsPageState
             'driver_id': driverId,
             'plan_id': selected,
             'expires_at': expiry?.toIso8601String(),
-            'notes': 'Asignado desde Adminexpress Preview',
+            'notes': 'Asignado desde Adminexpress (Prueba)',
             'status': 'active',
           },
         );
@@ -807,7 +799,7 @@ class _AdminDriverSubscriptionsPageState
       _snack('Suscripción activada.');
       await _load();
     } catch (e) {
-      _snack('No se pudo asignar: ' + e.toString());
+      _snack('No se pudo asignar: ' + friendlyError(e));
     }
   }
 
@@ -942,7 +934,7 @@ class _AdminDriverSubscriptionsPageState
       );
       await _load();
     } catch (e) {
-      _snack('No se pudo conectar con VeriPagos: ' + e.toString());
+      _snack('No se pudo conectar con VeriPagos: ' + friendlyError(e));
     } finally {
       user.dispose();
       password.dispose();
@@ -988,7 +980,7 @@ class _AdminDriverSubscriptionsPageState
       _snack('Conexión VeriPagos verificada correctamente.');
       await _load();
     } catch (e) {
-      _snack('VeriPagos no responde correctamente: ' + e.toString());
+      _snack('VeriPagos no responde correctamente: ' + friendlyError(e));
     } finally {
       if (mounted) setState(() => providerVerifying = false);
     }
@@ -1083,7 +1075,7 @@ class _AdminDriverSubscriptionsPageState
                     ),
                     const SizedBox(width: 14),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
+                      child: AdminDropdownField<String>(
                         initialValue: selectedZoneKey,
                         decoration: const InputDecoration(
                           isDense: true,
@@ -1316,7 +1308,7 @@ class _AdminDriverSubscriptionsPageState
             qaDrivers.isEmpty
                 ? 'Los usuarios de prueba no se mezclan con los conductores reales.'
                 : qaDrivers.length.toString() +
-                    ' conductores QA están separados y no cuentan como reales.',
+                    ' conductores de prueba están separados y no cuentan como reales.',
             style: const TextStyle(color: Color(0xFF64748B)),
           ),
           const SizedBox(height: 10),
@@ -1362,7 +1354,7 @@ class _AdminDriverSubscriptionsPageState
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
                 subtitle: const Text(
-                  'Usuarios QA del laboratorio de carga. No cuentan como conductores reales.',
+                  'Usuarios de prueba para la prueba de carga. No cuentan como conductores reales.',
                 ),
                 children: [
                   for (final driver in qaDrivers)
@@ -1373,7 +1365,7 @@ class _AdminDriverSubscriptionsPageState
                       title: Text(
                         driver['full_name']?.toString().trim().isNotEmpty == true
                             ? driver['full_name'].toString()
-                            : driver['email']?.toString() ?? 'Conductor QA',
+                            : driver['email']?.toString() ?? 'Conductor de prueba',
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       subtitle: Text(
@@ -1579,7 +1571,7 @@ class _SettingsCardState extends State<_SettingsCard> {
               contentPadding: EdgeInsets.zero,
               title: const Text('Exigir suscripción para trabajar'),
               subtitle: const Text(
-                'Déjalo apagado durante QA. Al activarlo, solo conductores con plan vigente podrán ponerse online u ofertar.',
+                'Déjalo apagado mientras se prueba. Al activarlo, solo conductores con plan vigente podrán ponerse online u ofertar.',
               ),
               value: enforce,
               onChanged: (v) => setState(() => enforce = v),

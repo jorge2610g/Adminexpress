@@ -134,9 +134,21 @@ class _AdminDispatchPageState extends State<AdminDispatchPage> {
       return zoneId != null && scopedZoneIds.contains(zoneId);
     }
 
+    // Cada solicitud lleva la moneda de su zona para mostrar el importe correcto.
+    final currencyByZone = <String, String>{
+      for (final zone in zones)
+        if (zone['id'] != null && zone['currency_code'] != null)
+          zone['id'].toString(): zone['currency_code'].toString(),
+    };
+    Map<String, dynamic> withCurrency(Map<String, dynamic> row) => {
+          ...row,
+          'currency': currencyByZone[row['zone_id']?.toString()] ?? '',
+        };
+
     return (
-      rides: _list(requests['rides']).where(inScope).toList(),
-      deliveries: _list(requests['deliveries']).where(inScope).toList(),
+      rides: _list(requests['rides']).where(inScope).map(withCurrency).toList(),
+      deliveries:
+          _list(requests['deliveries']).where(inScope).map(withCurrency).toList(),
       drivers: _list(values[1]).where(inScope).toList(),
     );
   }
@@ -3328,136 +3340,6 @@ class _AdminGeoSafetyPageState extends State<AdminGeoSafetyPage> {
   List<Map<String, double>> _jsonPoints(List<LatLng> points) => points
       .map((point) => {'lat': point.latitude, 'lng': point.longitude})
       .toList();
-
-  Future<void> _editCoverage(
-    List<Map<String, dynamic>> zones, [
-    Map<String, dynamic>? row,
-  ]) async {
-    if (zones.isEmpty) {
-      _snack(context, 'Primero crea una zona de operación.');
-      return;
-    }
-    var zoneId = row?['zone_id']?.toString() ?? zones.first['id'].toString();
-    var active = row?['active'] != false;
-    final name = TextEditingController(
-      text: row?['name']?.toString() ?? 'Cobertura principal',
-    );
-    var points = _points(row?['polygon']);
-
-    final save = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Dibujar cobertura' : 'Editar cobertura'),
-          content: SizedBox(
-            width: 760,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: zoneId,
-                          decoration: const InputDecoration(labelText: 'Zona'),
-                          items: zones
-                              .map(
-                                (zone) => DropdownMenuItem(
-                                  value: zone['id'].toString(),
-                                  child: Text(zone['name']?.toString() ?? 'Zona'),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            if (value != null) setLocal(() => zoneId = value);
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: name,
-                          decoration: const InputDecoration(labelText: 'Nombre del polígono'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _PolygonEditor(
-                    points: points,
-                    tone: _blue,
-                    title: 'Toca el mapa para marcar la cobertura',
-                    onAdd: (point) => setLocal(() => points = [...points, point]),
-                    onUndo: () {
-                      if (points.isNotEmpty) {
-                        setLocal(() => points = points.sublist(0, points.length - 1));
-                      }
-                    },
-                    onClear: () => setLocal(() => points = <LatLng>[]),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: active,
-                    onChanged: (value) => setLocal(() => active = value),
-                    title: const Text('Polígono activo'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton.icon(
-              onPressed: points.length < 3
-                  ? null
-                  : () => Navigator.pop(dialogContext, true),
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('Guardar polígono'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (save == true) {
-      try {
-        if (_environment.isPreview) {
-          final key = row == null
-              ? _environment.createRecordKey('coverage')
-              : AdminEnvironmentStore.recordKey(row);
-          await _environment.previewUpsert(
-            'service_zone_polygons',
-            key,
-            <String, dynamic>{
-              ...?row,
-              'zone_id': zoneId,
-              'name': name.text.trim(),
-              'polygon': _jsonPoints(points),
-              'active': active,
-            },
-          );
-        } else {
-          await supabase.rpc(
-            'admin_upsert_zone_polygon',
-            params: {
-              'p_id': row?['id'],
-              'p_zone_id': zoneId,
-              'p_name': name.text.trim(),
-              'p_polygon': _jsonPoints(points),
-              'p_active': active,
-            },
-          );
-        }
-        if (mounted) setState(() => revision++);
-      } catch (e) {
-        if (mounted) _snack(context, e);
-      }
-    }
-    name.dispose();
-  }
 
   Future<void> _editSafety([Map<String, dynamic>? row]) async {
     var type = row?['zone_type']?.toString() ?? 'red';
@@ -7678,112 +7560,16 @@ class _AdminCommunicationsPageState
 }
 
 
-class AdminReportsPage extends StatefulWidget {
-  const AdminReportsPage({super.key});
-
-  @override
-  State<AdminReportsPage> createState() => _AdminReportsPageState();
-}
-
-class _AdminReportsPageState extends State<AdminReportsPage> {
-  DateTime from = DateTime.now().subtract(const Duration(days: 30));
-  DateTime to = DateTime.now().add(const Duration(days: 1));
-  int revision = 0;
-
-  Future<Map<String, dynamic>> _load() async {
-    final value = await supabase.rpc(
-      'admin_report_summary',
-      params: {
-        'p_from': from.toUtc().toIso8601String(),
-        'p_to': to.toUtc().toIso8601String(),
-      },
-    );
-    return _map(value);
-  }
-
-  Future<void> _pickFrom() async {
-    final selected = await showDatePicker(
-      context: context,
-      firstDate: DateTime(2024),
-      lastDate: DateTime.now(),
-      initialDate: from,
-    );
-    if (selected != null) {
-      setState(() {
-        from = selected;
-        revision++;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
-      key: ValueKey(revision),
-      future: _load(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading(title: 'Generando reporte');
-        }
-        if (snapshot.hasError) {
-          return _Error(error: snapshot.error, onRetry: () => setState(() => revision++));
-        }
-
-        final data = snapshot.data ?? const {};
-        return ListView(
-          padding: const EdgeInsets.all(22),
-          children: [
-            _Header(
-              title: 'Reportes',
-              subtitle:
-                  'Resumen operativo y financiero del período seleccionado.',
-              action: OutlinedButton.icon(
-                onPressed: _pickFrom,
-                icon: const Icon(Icons.date_range_outlined),
-                label: Text('Desde ' + _dateOnly(from)),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _Kpi('Viajes', (data['trips_total'] ?? 0).toString()),
-                _Kpi(
-                  'Viajes completados',
-                  (data['trips_completed'] ?? 0).toString(),
-                ),
-                _Kpi(
-                  'Viajes cancelados',
-                  (data['trips_cancelled'] ?? 0).toString(),
-                ),
-                _Kpi('Delivery', (data['delivery_total'] ?? 0).toString()),
-                _Kpi(
-                  'Delivery completados',
-                  (data['delivery_completed'] ?? 0).toString(),
-                ),
-                _Kpi(
-                  'Cobrado',
-                  'Bs ' + (data['paid_volume'] ?? 0).toString(),
-                ),
-                _Kpi('Usuarios nuevos', (data['new_users'] ?? 0).toString()),
-                _Kpi('Emergencias', (data['emergencies'] ?? 0).toString()),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
 class AdminSettingsPage extends StatefulWidget {
   final String channel;
+  final String? countryCode;
+  final String? zoneId;
 
   const AdminSettingsPage({
     super.key,
     this.channel = 'production',
+    this.countryCode,
+    this.zoneId,
   });
 
   @override
@@ -7791,8 +7577,8 @@ class AdminSettingsPage extends StatefulWidget {
 }
 
 class _AdminSettingsPageState extends State<AdminSettingsPage> {
-  AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
+  // Zona seleccionada: País y Moneda del resumen salen de aquí, igual en Prueba y Producción.
+  Map<String, dynamic> _scopeZone = const {};
   Map<String, dynamic>? settings;
   bool loading = true;
   bool saving = false;
@@ -7858,6 +7644,22 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
     _load(channel: channel, revision: revision);
   }
 
+  /// Zona del ámbito seleccionado. Es la misma en Prueba y Producción.
+  Future<Map<String, dynamic>> _zoneForScope() async {
+    final countryCode = widget.countryCode;
+    if (countryCode == null || countryCode.isEmpty) return const {};
+    final zones = _list(await supabase.rpc(
+      'admin_zone_list_for_country',
+      params: {'p_country_code': countryCode},
+    ));
+    for (final zone in zones) {
+      if (widget.zoneId != null && zone['id']?.toString() == widget.zoneId) {
+        return zone;
+      }
+    }
+    return zones.isEmpty ? const {} : zones.first;
+  }
+
   Future<void> _load({
     required String channel,
     required int revision,
@@ -7867,6 +7669,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       final row = environment.isPreview
           ? await environment.previewGet('app_settings')
           : _map(await supabase.rpc('admin_settings_get'));
+      final scopeZone = await _zoneForScope();
 
       if (!mounted ||
           revision != _settingsLoadRevision ||
@@ -7875,6 +7678,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       }
 
       settings = row;
+      _scopeZone = scopeZone;
       currency.text = (row['currency'] ?? 'BOB').toString();
       rideMin.text = (row['min_ride_fare'] ?? 5).toString();
       deliveryMin.text = (row['min_delivery_fare'] ?? 5).toString();
@@ -8250,9 +8054,15 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
               subtitle: 'Parámetros principales de la empresa.',
               children: [
                 _ReadOnlyRow(label: 'Empresa', value: 'Express Delivery'),
-                _ReadOnlyRow(label: 'País', value: country.text),
-                _ReadOnlyRow(label: 'Moneda', value: currency.text),
-                _ReadOnlyRow(label: 'Dispatch', value: dispatchMode),
+                _ReadOnlyRow(
+                  label: 'País',
+                  value: _scopeZone['country']?.toString() ?? '—',
+                ),
+                _ReadOnlyRow(
+                  label: 'Moneda',
+                  value: _scopeZone['currency_code']?.toString() ?? '—',
+                ),
+                _ReadOnlyRow(label: 'Despacho', value: friendlyDispatch(dispatchMode)),
               ],
             ),
           ],
@@ -9701,10 +9511,4 @@ String _formatDate(Object? raw) {
       hour +
       ':' +
       minute;
-}
-
-String _dateOnly(DateTime value) {
-  final day = value.day.toString().padLeft(2, '0');
-  final month = value.month.toString().padLeft(2, '0');
-  return day + '/' + month + '/' + value.year.toString();
 }

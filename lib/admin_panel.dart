@@ -41,7 +41,6 @@ const Color adminNavy = Color(0xFF0B1220);
 const Color adminNavySoft = Color(0xFF111C31);
 const Color adminCyan = Color(0xFF22D3EE);
 
-
 ThemeData _expressAdminTheme(BuildContext context) {
   final base = Theme.of(context);
   final scheme = ColorScheme.fromSeed(
@@ -59,9 +58,7 @@ ThemeData _expressAdminTheme(BuildContext context) {
     colorScheme: scheme,
     scaffoldBackgroundColor: adminBg,
     canvasColor: Colors.white,
-    textTheme: base.textTheme
-        .apply(fontFamily: 'Plus Jakarta Sans')
-        .copyWith(
+    textTheme: base.textTheme.apply(fontFamily: 'Plus Jakarta Sans').copyWith(
           // Texto base de 14 px: los desplegables y las listas heredan este tamaño.
           titleMedium: base.textTheme.titleMedium?.copyWith(
             fontFamily: 'Plus Jakarta Sans',
@@ -299,6 +296,27 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   bool get _zoneScoped =>
       (adminAccess['zone_id'] ?? '').toString().trim().isNotEmpty;
 
+  Widget _assignedZoneLabel() {
+    final zone = (adminAccess['zone_name'] ?? '').toString();
+    final country = (adminAccess['country'] ?? '').toString();
+    final text = [zone, country].where((value) => value.isNotEmpty).join(' · ');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF2FF),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        text.isEmpty ? 'Zona asignada' : text,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+          color: adminBlue,
+        ),
+      ),
+    );
+  }
+
   Set<String> get _allowedModules {
     final raw = adminAccess['allowed_modules'];
     if (raw is! List) return const <String>{};
@@ -346,6 +364,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     // Identity review is already part of the driver record. The old standalone
     // identity entries are deliberately unreachable.
     if (index == 18 || index == 27) return false;
+    // Builds (Android) solo se usa en Producción; en Prueba no aparece en el menú.
+    if (index == 12 && adminChannel == 'preview') return false;
     if (index == 32 && adminAccess['role'] != 'super_admin') return false;
     // El panel Delivery unificado requiere funciones centrales. Para operadores
     // se autoriza solo el listado de entregas (sección 3), restringido por zona.
@@ -362,7 +382,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // country, city or service zone. Operational sections still require scope.
   // These administration modules cover the entire Express system rather than
   // an operational country, zone, or a separate Preview/Production mode.
-  static const Set<int> _globalSections = {10, 12, 14, 32}; // Reports, Builds, Audit
+  static const Set<int> _globalSections = {
+    10,
+    12,
+    14,
+    32
+  }; // Reports, Builds, Audit, Operadores
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
 
@@ -494,29 +519,6 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     if (country == 'chile') return 'CL';
     if (country == 'bolivia') return 'BO';
     return country.toUpperCase();
-  }
-
-  Future<Set<String>> _geoScopeZoneIds() async {
-    if (adminZoneId != null && adminZoneId!.isNotEmpty) {
-      return {adminZoneId!};
-    }
-    final country = adminCountryCode;
-    if (country == null || country.isEmpty) return <String>{};
-    final zones = await _filterZones();
-    return zones
-        .where((row) => _zoneCountryCode(row) == country)
-        .map((row) => row['id']?.toString())
-        .whereType<String>()
-        .where((value) => value.isNotEmpty)
-        .toSet();
-  }
-
-  bool _matchesGeoScope(Map<String, dynamic> row, Set<String> zoneIds) {
-    if (zoneIds.isEmpty) {
-      return adminCountryCode == null && adminZoneId == null;
-    }
-    final zoneId = row['zone_id']?.toString();
-    return zoneId != null && zoneIds.contains(zoneId);
   }
 
   Future<List<Map<String, dynamic>>> _drivers() async {
@@ -878,16 +880,19 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                (_readOnly ? 'Monitor de zona · ' : 'Operador de zona · ') +
-                    (adminAccess['country'] ?? '').toString() +
-                    ' · ' +
-                    (adminAccess['zone_name'] ?? '').toString(),
-                style: const TextStyle(
-                  color: Color(0xFF166534),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                ),
+              child: Row(
+                children: [
+                  Text(
+                    _readOnly ? 'Monitor de zona' : 'Operador de zona',
+                    style: const TextStyle(
+                      color: Color(0xFF166534),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _assignedZoneLabel(),
+                ],
               ),
             ),
             if (_readOnly)
@@ -926,8 +931,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneField = FutureBuilder<List<Map<String, dynamic>>>(
             future: _filterZones(),
             builder: (context, zoneSnapshot) {
-              final zones =
-                  zoneSnapshot.data ?? const <Map<String, dynamic>>[];
+              final zones = zoneSnapshot.data ?? const <Map<String, dynamic>>[];
               return SizedBox(
                 width: 220,
                 child: AdminDropdownField<String?>(
@@ -956,8 +960,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                       adminZoneId = value;
                       liveZoneId = value;
                       revision++;
-                      _liveFuture =
-                          value == null ? null : _liveState();
+                      _liveFuture = value == null ? null : _liveState();
                     });
                   },
                 ),
@@ -1050,8 +1053,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   void _refresh() {
     setState(() {
       revision++;
-      _liveFuture =
-          _scopeReady && section == 1 ? _liveState() : null;
+      _liveFuture = _scopeReady && section == 1 ? _liveState() : null;
     });
   }
 
@@ -1155,6 +1157,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       SnackBar(content: Text(friendlyError(error))),
     );
   }
+
   Future<void> _resolveEmergency(String id) async {
     try {
       await supabase.rpc(
@@ -1175,7 +1178,6 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<bool>(
@@ -1194,115 +1196,116 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         return Theme(
           data: _expressAdminTheme(context),
           child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 1180;
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 1180;
 
-            return Scaffold(
-              backgroundColor: adminBg,
-              appBar: compact
-                  ? AppBar(
-                      title: const _Brand(compact: true),
-                      actions: [
-                        if (!_readOnly && _sectionAllowed(13))
-                          IconButton(
-                            tooltip: 'Nuevo viaje',
-                            onPressed: () => _goTo(13),
-                            icon: const Icon(Icons.add_circle_outline_rounded),
-                          ),
-                        IconButton(
-                          tooltip: 'Actualizar',
-                          onPressed: _refresh,
-                          icon: const Icon(Icons.refresh_rounded),
-                        ),
-                        PopupMenuButton<String>(
-                          tooltip: 'Cuenta',
-                          onSelected: (value) {
-                            if (value == 'logout') widget.onExit();
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(
-                              value: 'logout',
-                              child: Text('Cerrar sesión'),
+              return Scaffold(
+                backgroundColor: adminBg,
+                appBar: compact
+                    ? AppBar(
+                        title: const _Brand(compact: true),
+                        actions: [
+                          if (!_readOnly && _sectionAllowed(13))
+                            IconButton(
+                              tooltip: 'Nuevo viaje',
+                              onPressed: () => _goTo(13),
+                              icon:
+                                  const Icon(Icons.add_circle_outline_rounded),
                             ),
-                          ],
-                          icon: const Icon(Icons.more_vert_rounded),
+                          IconButton(
+                            tooltip: 'Actualizar',
+                            onPressed: _refresh,
+                            icon: const Icon(Icons.refresh_rounded),
+                          ),
+                          PopupMenuButton<String>(
+                            tooltip: 'Cuenta',
+                            onSelected: (value) {
+                              if (value == 'logout') widget.onExit();
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: 'logout',
+                                child: Text('Cerrar sesión'),
+                              ),
+                            ],
+                            icon: const Icon(Icons.more_vert_rounded),
+                          ),
+                        ],
+                      )
+                    : null,
+                drawer: compact
+                    ? Drawer(
+                        child: SafeArea(
+                          child: _Navigation(
+                            selected: section,
+                            channel: adminChannel,
+                            readOnly: _readOnly,
+                            allowedSections: _allowedSections,
+                            onSelected: (value) {
+                              Navigator.pop(context);
+                              _goTo(value);
+                            },
+                            onExit: widget.onExit,
+                          ),
                         ),
-                      ],
-                    )
-                  : null,
-              drawer: compact
-                  ? Drawer(
-                      child: SafeArea(
+                      )
+                    : null,
+                body: Row(
+                  children: [
+                    if (!compact)
+                      SizedBox(
+                        width: 248,
                         child: _Navigation(
                           selected: section,
                           channel: adminChannel,
                           readOnly: _readOnly,
                           allowedSections: _allowedSections,
-                          onSelected: (value) {
-                            Navigator.pop(context);
-                            _goTo(value);
-                          },
+                          onSelected: _goTo,
                           onExit: widget.onExit,
                         ),
                       ),
-                    )
-                  : null,
-              body: Row(
-                children: [
-                  if (!compact)
-                    SizedBox(
-                      width: 248,
-                      child: _Navigation(
-                        selected: section,
-                        channel: adminChannel,
-                        readOnly: _readOnly,
-                        allowedSections: _allowedSections,
-                        onSelected: _goTo,
-                        onExit: widget.onExit,
+                    Expanded(
+                      child: Column(
+                        children: [
+                          if (!compact)
+                            _TopBar(
+                              title: sections[section].$1,
+                              onRefresh: _refresh,
+                              onNewTrip: () => _goTo(13),
+                              onExit: widget.onExit,
+                              showNewTrip: !_readOnly && _sectionAllowed(13),
+                            ),
+                          if (!_globalSections.contains(section))
+                            _environmentSwitcher(),
+                          if (_globalSections.contains(section))
+                            _environmentSwitcher(),
+                          if (_requiresZoneScope(section))
+                            _globalGeoScopeSwitcher(),
+                          Expanded(
+                            child: KeyedSubtree(
+                              key: ValueKey(
+                                AdminRuntimeScope(
+                                  environment:
+                                      AdminEnvironment.parse(adminChannel),
+                                  countryCode: _requiresZoneScope(section)
+                                      ? adminCountryCode
+                                      : null,
+                                  zoneId: _requiresZoneScope(section)
+                                      ? adminZoneId
+                                      : null,
+                                ).cacheKey,
+                              ),
+                              child: _body(section),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        if (!compact)
-                          _TopBar(
-                            title: sections[section].$1,
-                            onRefresh: _refresh,
-                            onNewTrip: () => _goTo(13),
-                            onExit: widget.onExit,
-                            showNewTrip: !_readOnly && _sectionAllowed(13),
-                          ),
-                        if (!_globalSections.contains(section))
-                          _environmentSwitcher(),
-                        if (_globalSections.contains(section))
-                          _environmentSwitcher(),
-                        if (_requiresZoneScope(section))
-                          _globalGeoScopeSwitcher(),
-                        Expanded(
-                          child: KeyedSubtree(
-                            key: ValueKey(
-                              AdminRuntimeScope(
-                                environment:
-                                    AdminEnvironment.parse(adminChannel),
-                                countryCode: _requiresZoneScope(section)
-                                    ? adminCountryCode
-                                    : null,
-                                zoneId: _requiresZoneScope(section)
-                                    ? adminZoneId
-                                    : null,
-                              ).cacheKey,
-                            ),
-                            child: _body(section),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+                  ],
+                ),
+              );
+            },
+          ),
         );
       },
     );
@@ -1344,10 +1347,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                 color: Colors.white,
                 child: TabBar(
                   tabs: [
-                    Tab(icon: Icon(Icons.location_city_outlined),
+                    Tab(
+                        icon: Icon(Icons.location_city_outlined),
                         text: 'Zonas y cobertura'),
-                    Tab(icon: Icon(Icons.shield_outlined),
-                        text: 'Seguridad'),
+                    Tab(icon: Icon(Icons.shield_outlined), text: 'Seguridad'),
                   ],
                 ),
               ),
@@ -1443,13 +1446,16 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               const Material(
                 color: Colors.white,
                 child: TabBar(tabs: [
-                  Tab(icon: Icon(Icons.fact_check_outlined),
+                  Tab(
+                      icon: Icon(Icons.fact_check_outlined),
                       text: 'Revisión de documentos'),
-                  Tab(icon: Icon(Icons.settings_outlined),
+                  Tab(
+                      icon: Icon(Icons.settings_outlined),
                       text: 'Requisitos de identidad'),
                 ]),
               ),
-              Expanded(child: TabBarView(children: [
+              Expanded(
+                  child: TabBarView(children: [
                 AdminManualIdentityPage(
                   channel: adminChannel,
                   countryCode: adminCountryCode,
@@ -1624,8 +1630,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                           metrics['drivers_online'],
                           Icons.drive_eta_rounded,
                           tone: _MetricTone.orange,
-                          footnote:
-                              'de ' + (metrics['drivers_total'] ?? 0).toString() + ' conectados',
+                          footnote: 'de ' +
+                              (metrics['drivers_total'] ?? 0).toString() +
+                              ' conectados',
                         ),
                       ),
                       SizedBox(
@@ -1862,14 +1869,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           serverFilters: _periodFilter('trip'),
           item: (row) => _OperationCard(
             icon: Icons.local_taxi_rounded,
-            title:
-                friendlyAddress((row['pickup_address'] ?? 'Origen').toString()) +
+            title: friendlyAddress(
+                    (row['pickup_address'] ?? 'Origen').toString()) +
                 ' → ' +
                 friendlyAddress(
                   (row['destination_address'] ?? 'Destino').toString(),
                 ),
-            subtitle:
-                friendlyStatus((row['status'] ?? '—').toString()) +
+            subtitle: friendlyStatus((row['status'] ?? '—').toString()) +
                 ' · ' +
                 friendlyService((row['category'] ?? 'economy').toString()) +
                 ' · ' +
@@ -1919,14 +1925,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           serverFilters: _periodFilter('delivery'),
           item: (row) => _OperationCard(
             icon: Icons.local_shipping_rounded,
-            title:
-                friendlyAddress((row['pickup_address'] ?? 'Origen').toString()) +
+            title: friendlyAddress(
+                    (row['pickup_address'] ?? 'Origen').toString()) +
                 ' → ' +
                 friendlyAddress(
                   (row['dropoff_address'] ?? 'Destino').toString(),
                 ),
-            subtitle:
-                friendlyStatus((row['status'] ?? '—').toString()) +
+            subtitle: friendlyStatus((row['status'] ?? '—').toString()) +
                 ' · ' +
                 friendlyPackage((row['package_type'] ?? '').toString()) +
                 ' · ' +
@@ -2029,52 +2034,52 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                   final Widget actions = _readOnly
                       ? const SizedBox.shrink()
                       : PopupMenuButton<String>(
-                    tooltip: 'Acciones',
-                    onSelected: (value) async {
-                      if (value == 'edit') {
-                        final changed = await showAdminDriverEditor(
-                          context,
-                          row['user_id'].toString(),
-                          channel: adminChannel,
+                          tooltip: 'Acciones',
+                          onSelected: (value) async {
+                            if (value == 'edit') {
+                              final changed = await showAdminDriverEditor(
+                                context,
+                                row['user_id'].toString(),
+                                channel: adminChannel,
+                              );
+                              if (changed && mounted) _refresh();
+                              return;
+                            }
+                            await _driverStatus(
+                              row['user_id'].toString(),
+                              value,
+                            );
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(Icons.manage_accounts_outlined),
+                                title: Text('Ver / editar ficha'),
+                              ),
+                            ),
+                            PopupMenuDivider(),
+                            PopupMenuItem(
+                              value: 'approved',
+                              child: Text('Aprobar'),
+                            ),
+                            PopupMenuItem(
+                              value: 'pending',
+                              child: Text('Marcar pendiente'),
+                            ),
+                            PopupMenuItem(
+                              value: 'rejected',
+                              child: Text('Rechazar'),
+                            ),
+                            PopupMenuItem(
+                              value: 'suspended',
+                              child: Text('Suspender'),
+                            ),
+                          ],
+                          icon: const Icon(Icons.more_horiz_rounded),
                         );
-                        if (changed && mounted) _refresh();
-                        return;
-                      }
-                      await _driverStatus(
-                        row['user_id'].toString(),
-                        value,
-                      );
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: ListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.manage_accounts_outlined),
-                          title: Text('Ver / editar ficha'),
-                        ),
-                      ),
-                      PopupMenuDivider(),
-                      PopupMenuItem(
-                        value: 'approved',
-                        child: Text('Aprobar'),
-                      ),
-                      PopupMenuItem(
-                        value: 'pending',
-                        child: Text('Marcar pendiente'),
-                      ),
-                      PopupMenuItem(
-                        value: 'rejected',
-                        child: Text('Rechazar'),
-                      ),
-                      PopupMenuItem(
-                        value: 'suspended',
-                        child: Text('Suspender'),
-                      ),
-                    ],
-                    icon: const Icon(Icons.more_horiz_rounded),
-                  );
 
                   if (wide) {
                     return Padding(
@@ -2088,7 +2093,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              row['vehicle_summary']?.toString() ?? 'Sin vehículo',
+                              row['vehicle_summary']?.toString() ??
+                                  'Sin vehículo',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -2186,79 +2192,83 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               border: Border.all(color: const Color(0xFFE7ECF3)),
               borderRadius: BorderRadius.circular(11),
             ),
-            child: Material(type: MaterialType.transparency, child: ListTile(
-              dense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 4,
-              ),
-              leading: CircleAvatar(
-                radius: 18,
-                backgroundColor: const Color(0xFFEAF2FF),
-                child: Icon(
-                  row['active_mode'] == 'driver'
-                      ? Icons.drive_eta_rounded
-                      : Icons.person_rounded,
-                  size: 18,
-                  color: adminBlue,
-                ),
-              ),
-              title: Text(
-                row['full_name']?.toString().trim().isNotEmpty == true
-                    ? row['full_name'].toString()
-                    : row['email']?.toString() ?? 'Usuario',
-              ),
-              subtitle: Text(
-                (row['email'] ?? '').toString() +
-                    ' · ' +
-                    friendlyStatus((row['active_mode'] ?? 'passenger').toString()) +
-                    ' · ' +
-                    friendlyStatus((row['account_status'] ?? 'active').toString()),
-              ),
-              trailing: _readOnly
-                  ? null
-                  : PopupMenuButton<String>(
-                onSelected: (value) async {
-                  if (value == 'edit') {
-                    final changed = await showAdminUserEditor(
-                      context,
-                      row['user_id'].toString(),
-                      channel: adminChannel,
-                    );
-                    if (changed && mounted) _refresh();
-                    return;
-                  }
-                  await _accountStatus(
-                    row['user_id'].toString(),
-                    value,
-                  );
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.manage_accounts_outlined),
-                      title: Text('Ver / editar perfil'),
+            child: Material(
+                type: MaterialType.transparency,
+                child: ListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 4,
+                  ),
+                  leading: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: const Color(0xFFEAF2FF),
+                    child: Icon(
+                      row['active_mode'] == 'driver'
+                          ? Icons.drive_eta_rounded
+                          : Icons.person_rounded,
+                      size: 18,
+                      color: adminBlue,
                     ),
                   ),
-                  PopupMenuDivider(),
-                  PopupMenuItem(
-                    value: 'active',
-                    child: Text('Activar'),
+                  title: Text(
+                    row['full_name']?.toString().trim().isNotEmpty == true
+                        ? row['full_name'].toString()
+                        : row['email']?.toString() ?? 'Usuario',
                   ),
-                  PopupMenuItem(
-                    value: 'suspended',
-                    child: Text('Suspender'),
+                  subtitle: Text(
+                    (row['email'] ?? '').toString() +
+                        ' · ' +
+                        friendlyStatus(
+                            (row['active_mode'] ?? 'passenger').toString()) +
+                        ' · ' +
+                        friendlyStatus(
+                            (row['account_status'] ?? 'active').toString()),
                   ),
-                  PopupMenuItem(
-                    value: 'blocked',
-                    child: Text('Bloquear'),
-                  ),
-                ],
-              ),
-            )),
+                  trailing: _readOnly
+                      ? null
+                      : PopupMenuButton<String>(
+                          onSelected: (value) async {
+                            if (value == 'edit') {
+                              final changed = await showAdminUserEditor(
+                                context,
+                                row['user_id'].toString(),
+                                channel: adminChannel,
+                              );
+                              if (changed && mounted) _refresh();
+                              return;
+                            }
+                            await _accountStatus(
+                              row['user_id'].toString(),
+                              value,
+                            );
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(Icons.manage_accounts_outlined),
+                                title: Text('Ver / editar perfil'),
+                              ),
+                            ),
+                            PopupMenuDivider(),
+                            PopupMenuItem(
+                              value: 'active',
+                              child: Text('Activar'),
+                            ),
+                            PopupMenuItem(
+                              value: 'suspended',
+                              child: Text('Suspender'),
+                            ),
+                            PopupMenuItem(
+                              value: 'blocked',
+                              child: Text('Bloquear'),
+                            ),
+                          ],
+                        ),
+                )),
           ),
         );
       },
@@ -2281,8 +2291,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         final rows = _list(snapshot.data?['emergencies']);
         return _Records(
           title: 'Seguridad / SOS',
-          subtitle:
-              'Emergencias activas registradas desde Viajes y Delivery.',
+          subtitle: 'Emergencias activas registradas desde Viajes y Delivery.',
           empty: 'No hay emergencias abiertas.',
           rows: rows,
           item: (row) => Card(
@@ -2307,8 +2316,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               trailing: (_readOnly || adminAccess['role'] == 'operator')
                   ? null
                   : FilledButton.icon(
-                      onPressed: () =>
-                          _resolveEmergency(row['id'].toString()),
+                      onPressed: () => _resolveEmergency(row['id'].toString()),
                       icon: const Icon(Icons.check_circle_outline_rounded),
                       label: const Text('Resolver'),
                     ),
@@ -2319,7 +2327,6 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     );
   }
 }
-
 
 class _ScopeSelectionRequired extends StatelessWidget {
   const _ScopeSelectionRequired();
@@ -2509,7 +2516,8 @@ class _Navigation extends StatelessWidget {
                         ],
                       ),
                     ),
-                    Icon(Icons.unfold_more_rounded, size: 16, color: Color(0xFF8FA3BF)),
+                    Icon(Icons.unfold_more_rounded,
+                        size: 16, color: Color(0xFF8FA3BF)),
                   ],
                 ),
               ),
@@ -2645,7 +2653,8 @@ class _NavEntry extends StatelessWidget {
                 ),
                 if (alert)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: const Color(0xFF4B1D26),
                       borderRadius: BorderRadius.circular(9),
@@ -2739,10 +2748,7 @@ class _Brand extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        if (compact)
-          Flexible(child: text)
-        else
-          Expanded(child: text),
+        if (compact) Flexible(child: text) else Expanded(child: text),
       ],
     );
   }
@@ -2790,7 +2796,8 @@ class _TopBar extends StatelessWidget {
               color: const Color(0xFFEAF2FF),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.grid_view_rounded, color: adminBlue, size: 18),
+            child:
+                const Icon(Icons.grid_view_rounded, color: adminBlue, size: 18),
           ),
           const SizedBox(width: 10),
           Column(
@@ -2871,7 +2878,8 @@ class _TopBar extends StatelessWidget {
                   CircleAvatar(
                     radius: 15,
                     backgroundColor: Color(0xFFDBEAFE),
-                    child: Icon(Icons.person_rounded, color: adminBlue, size: 17),
+                    child:
+                        Icon(Icons.person_rounded, color: adminBlue, size: 17),
                   ),
                   SizedBox(width: 7),
                   Text(
@@ -2936,7 +2944,8 @@ class _Header extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.white.withOpacity(.18)),
             ),
-            child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 25),
+            child:
+                const Icon(Icons.bolt_rounded, color: Colors.white, size: 25),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -2959,7 +2968,8 @@ class _Header extends StatelessWidget {
                     ),
                     if (badge != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 4),
                         decoration: BoxDecoration(
                           color: const Color(0xFF16A34A),
                           borderRadius: BorderRadius.circular(20),
@@ -3031,10 +3041,9 @@ class _Metric extends StatelessWidget {
     this.title,
     this.value,
     this.icon, {
-    this.alert = false,
     this.tone = _MetricTone.blue,
     this.footnote,
-  });
+  }) : alert = false;
 
   Color get _soft {
     if (alert) return const Color(0xFFFFE7E7);
@@ -3111,7 +3120,8 @@ class _Metric extends StatelessWidget {
                   ),
                   const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(20),
@@ -3120,7 +3130,8 @@ class _Metric extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.trending_up_rounded, color: _accent, size: 13),
+                        Icon(Icons.trending_up_rounded,
+                            color: _accent, size: 13),
                         const SizedBox(width: 3),
                         const Text(
                           'HOY',
@@ -3554,38 +3565,38 @@ class _LiveZoneStrip extends StatelessWidget {
         side: const BorderSide(color: Color(0xFFE4EAF2)),
       ),
       child: Container(
-      height: 68,
-      padding: const EdgeInsets.all(10),
-      child: Row(
-        children: [
-          chip(
-            label: 'Todas las zonas',
-            selected: selectedZoneId == null,
-            icon: Icons.grid_view_rounded,
-            onTap: () => onSelected(null),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: zones.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final zone = zones[index];
-                final id = (zone['id'] ?? '').toString();
-                final name =
-                    (zone['name'] ?? zone['city'] ?? '').toString().trim();
-                return chip(
-                  label: name.isEmpty ? 'Zona ${index + 1}' : name,
-                  selected: id.isNotEmpty && id == selectedZoneId,
-                  dot: palette[index % palette.length],
-                  onTap: () => onSelected(id.isEmpty ? null : id),
-                );
-              },
+        height: 68,
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: [
+            chip(
+              label: 'Todas las zonas',
+              selected: selectedZoneId == null,
+              icon: Icons.grid_view_rounded,
+              onTap: () => onSelected(null),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: zones.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final zone = zones[index];
+                  final id = (zone['id'] ?? '').toString();
+                  final name =
+                      (zone['name'] ?? zone['city'] ?? '').toString().trim();
+                  return chip(
+                    label: name.isEmpty ? 'Zona ${index + 1}' : name,
+                    selected: id.isNotEmpty && id == selectedZoneId,
+                    dot: palette[index % palette.length],
+                    onTap: () => onSelected(id.isEmpty ? null : id),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -3677,8 +3688,9 @@ class _LiveSidePanelState extends State<_LiveSidePanel> {
                 ),
                 Expanded(
                   child: _LiveTab(
-                    label:
-                        'Conductores (' + widget.drivers.length.toString() + ')',
+                    label: 'Conductores (' +
+                        widget.drivers.length.toString() +
+                        ')',
                     selected: showDrivers,
                     onTap: () {
                       if (!showDrivers) {
@@ -3946,7 +3958,9 @@ class _LiveTripList extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                shortId.isEmpty ? 'Viaje activo' : '#' + shortId,
+                                shortId.isEmpty
+                                    ? 'Viaje activo'
+                                    : '#' + shortId,
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w900,
@@ -4021,7 +4035,8 @@ class _LiveTripList extends StatelessWidget {
                               ? 'Seleccionado · el mapa muestra solo este viaje'
                               : 'Toca para ver este recorrido en el mapa',
                           style: TextStyle(
-                            color: selected ? adminBlue : const Color(0xFF98A2B3),
+                            color:
+                                selected ? adminBlue : const Color(0xFF98A2B3),
                             fontSize: 8,
                             fontWeight:
                                 selected ? FontWeight.w800 : FontWeight.w600,
@@ -4246,8 +4261,7 @@ class _OperationsMapState extends State<_OperationsMap> {
             to.latitude.toString() +
             '?overview=full&geometries=geojson',
       );
-      final response =
-          await http.get(uri).timeout(const Duration(seconds: 5));
+      final response = await http.get(uri).timeout(const Duration(seconds: 5));
       if (response.statusCode != 200) return fallback;
 
       final decoded = jsonDecode(response.body);
@@ -4336,11 +4350,9 @@ class _OperationsMapState extends State<_OperationsMap> {
     }
 
     final id = _driverId(row);
-    final name = (row['full_name'] ??
-            row['name'] ??
-            row['driver_name'] ??
-            'Conductor')
-        .toString();
+    final name =
+        (row['full_name'] ?? row['name'] ?? row['driver_name'] ?? 'Conductor')
+            .toString();
     return Marker(
       point: point,
       width: 48,
@@ -4393,7 +4405,7 @@ class _OperationsMapState extends State<_OperationsMap> {
     LatLng? pickupPoint;
     LatLng? destinationPoint;
 
-    if (focused && focusedTrip != null) {
+    if (focused) {
       pickupPoint = _point(
         focusedTrip,
         'pickup_latitude',
@@ -4480,8 +4492,7 @@ class _OperationsMapState extends State<_OperationsMap> {
                   onTap: () {
                     if (id.isEmpty) return;
                     setState(() {
-                      _selectedDriverId =
-                          _selectedDriverId == id ? null : id;
+                      _selectedDriverId = _selectedDriverId == id ? null : id;
                     });
                   },
                   child: _TripPartyMarker(
@@ -4566,8 +4577,7 @@ class _OperationsMapState extends State<_OperationsMap> {
         markers.add(
           _entityMarker(
             point: point,
-            tooltip:
-                'SOS · ' + (row['user_name'] ?? 'Usuario').toString(),
+            tooltip: 'SOS · ' + (row['user_name'] ?? 'Usuario').toString(),
             child: const _MapDot(
               icon: Icons.sos_rounded,
               color: Color(0xFFD92D20),
@@ -4616,7 +4626,7 @@ class _OperationsMapState extends State<_OperationsMap> {
       key: ValueKey(
         focused
             ? 'focused-' +
-                (focusedTrip?['id'] ?? '').toString() +
+                (focusedTrip['id'] ?? '').toString() +
                 '-' +
                 routePoints.length.toString()
             : 'overview-' + (widget.selectedZone?['id'] ?? 'all').toString(),
@@ -4686,7 +4696,7 @@ class _OperationsMapState extends State<_OperationsMap> {
             child: Stack(
               children: [
                 Positioned.fill(child: map),
-                if (focused && focusedTrip != null)
+                if (focused)
                   Positioned(
                     top: 12,
                     left: 12,
@@ -4762,13 +4772,13 @@ class _OperationsMapState extends State<_OperationsMap> {
     if (trip == null) return _buildMap(const <LatLng>[]);
 
     final fallback = <LatLng>[
-      if (_point(trip, 'pickup_latitude', 'pickup_longitude') case final p?)
-        p,
+      if (_point(trip, 'pickup_latitude', 'pickup_longitude') case final p?) p,
       if (_point(
         trip,
         'destination_latitude',
         'destination_longitude',
-      ) case final p?)
+      )
+          case final p?)
         p,
     ];
 
@@ -5047,7 +5057,8 @@ class _DriverMapCard extends StatelessWidget {
           const Divider(height: 18),
           _DriverInfoLine(icon: Icons.phone_outlined, text: _value('phone')),
           const SizedBox(height: 6),
-          _DriverInfoLine(icon: Icons.mail_outline_rounded, text: _value('email')),
+          _DriverInfoLine(
+              icon: Icons.mail_outline_rounded, text: _value('email')),
           const SizedBox(height: 6),
           _DriverInfoLine(
             icon: Icons.directions_car_outlined,
@@ -5298,10 +5309,9 @@ String _driverLiveStatus(
   Map<String, dynamic> driver,
   List<Map<String, dynamic>> trips,
 ) {
-  final online =
-      (driver['online_status'] ?? driver['status'] ?? 'offline')
-          .toString()
-          .toLowerCase();
+  final online = (driver['online_status'] ?? driver['status'] ?? 'offline')
+      .toString()
+      .toLowerCase();
   final signal = (driver['signal_status'] ??
           driver['location_status'] ??
           driver['gps_status'] ??
@@ -5431,9 +5441,8 @@ class _Activity extends StatelessWidget {
                               ),
                               child: Icon(
                                 _activityIcon(row['kind']?.toString()),
-                                color: alert
-                                    ? const Color(0xFFD92D20)
-                                    : adminBlue,
+                                color:
+                                    alert ? const Color(0xFFD92D20) : adminBlue,
                                 size: 16,
                               ),
                             ),
@@ -5577,61 +5586,6 @@ class _DailySummary extends StatelessWidget {
               const Divider(height: 1, color: Color(0xFFEEF1F5)),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _Totals extends StatelessWidget {
-  final Map<String, dynamic> metrics;
-  const _Totals({required this.metrics});
-
-  @override
-  Widget build(BuildContext context) {
-    final items = <(String, Object?)>[
-      ('Usuarios', metrics['users_total']),
-      ('Conductores', metrics['drivers_total']),
-      ('Pendientes', metrics['drivers_pending']),
-      ('Viajes hoy', metrics['trips_today']),
-      ('Delivery hoy', metrics['deliveries_today']),
-      ('Delivery completados', metrics['completed_deliveries_today']),
-    ];
-
-    return Card(
-      elevation: 0,
-      surfaceTintColor: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Wrap(
-          spacing: 34,
-          runSpacing: 18,
-          children: items
-              .map(
-                (item) => SizedBox(
-                  width: 150,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        (item.$2 ?? 0).toString(),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      Text(
-                        item.$1,
-                        style: const TextStyle(
-                          color: adminMuted,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-              .toList(),
-        ),
       ),
     );
   }
@@ -5987,54 +5941,6 @@ class _Line extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _Coming extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String description;
-
-  const _Coming({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(22),
-      children: [
-        _Header(title: title, subtitle: description),
-        const SizedBox(height: 22),
-        Card(
-          elevation: 0,
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              children: [
-                Icon(icon, size: 52, color: adminBlue),
-                const SizedBox(height: 14),
-                const Text(
-                  'Módulo preparado',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Ya está incluido en la navegación. El siguiente bloque conectará sus datos y configuración en Supabase.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: adminMuted),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

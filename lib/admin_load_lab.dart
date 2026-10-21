@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'core/admin_friendly_error.dart';
+import 'core/admin_dropdown_field.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -100,16 +102,15 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
       // Algunas implementaciones web minificadas no exponen details.
     }
 
-    final text = value.toString();
-    const badStatePrefix = 'Bad state: ';
-    return text.startsWith(badStatePrefix)
-        ? text.substring(badStatePrefix.length)
-        : text;
+    // Sin mensaje claro del servidor no se muestra el texto técnico del error.
+    return friendlyError(value);
   }
 
   Future<void> _load() async {
     final requestedScope = targetScope;
     final requestedCity = selectedCity;
+    // En Producción esta herramienta no lee ni muestra estado de prueba.
+    if (requestedScope == 'production') return;
     try {
       final value = await supabase.rpc(
         'admin_audit_load_snapshot_v2',
@@ -148,13 +149,13 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Lanzar carga QA en producción'),
+        title: const Text('Confirmar prueba de carga en Producción'),
         content: Text(
-          'Ciudad QA: $selectedCityLabel. '
+          'Ciudad de prueba: $selectedCityLabel. '
           'Este escenario será visible dentro del alcance operativo real. '
           'Los $driversWanted conductores sintéticos aparecerán online y las '
           '$requestsWanted solicitudes podrán verse en la app de producción. '
-          'Los push LOADTEST seguirán desactivados. Las solicitudes expiran '
+          'Los avisos de la prueba seguirán desactivados. Las solicitudes expiran '
           'automáticamente y puedes usar “Limpiar prueba” en cualquier momento.',
         ),
         actions: [
@@ -289,11 +290,13 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
         ? Map<String, dynamic>.from(metricsRaw)
         : <String, dynamic>{};
 
+    if (targetScope == 'production') return _productionBlocked();
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 20, 22, 30),
       children: [
         const Text(
-          'Laboratorio de carga QA',
+          'Prueba de carga',
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w900,
@@ -302,7 +305,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Genera conductores y solicitudes sintéticas en la ciudad QA que elijas y permite simular demanda para Express Preview. La operación real sigue centrada en Trinidad; LOADTEST y la demanda QA no alteran la tarifa real de producción.',
+          'Genera conductores y solicitudes sintéticas en la ciudad de prueba que elijas y permite simular demanda para la app de Prueba. La operación real sigue centrada en Trinidad; La prueba de carga y la demanda de prueba no alteran la tarifa real de producción.',
           style: TextStyle(color: Color(0xFF64748B), height: 1.45),
         ),
         const SizedBox(height: 12),
@@ -345,9 +348,9 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                 ),
                 SizedBox(
                   width: 200,
-                  child: DropdownButtonFormField<String>(
+                  child: AdminDropdownField<String>(
                     initialValue: selectedCity,
-                    decoration: const InputDecoration(labelText: 'Ciudad QA'),
+                    decoration: const InputDecoration(labelText: 'Ciudad de prueba'),
                     items: const [
                       DropdownMenuItem(
                         value: 'trinidad',
@@ -375,10 +378,10 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                 ),
                 SizedBox(
                   width: 220,
-                  child: DropdownButtonFormField<String>(
+                  child: AdminDropdownField<String>(
                     initialValue: serviceMode,
                     decoration: const InputDecoration(
-                      labelText: 'Servicio QA',
+                      labelText: 'Servicio de prueba',
                     ),
                     items: const [
                       DropdownMenuItem(
@@ -403,10 +406,10 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                 ),
                 SizedBox(
                   width: 220,
-                  child: DropdownButtonFormField<String>(
+                  child: AdminDropdownField<String>(
                     initialValue: demandLevel,
                     decoration: const InputDecoration(
-                      labelText: 'Demanda Preview',
+                      labelText: 'Demanda de prueba',
                     ),
                     items: const [
                       DropdownMenuItem(
@@ -458,7 +461,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                 ),
                 SizedBox(
                   width: 180,
-                  child: DropdownButtonFormField<double>(
+                  child: AdminDropdownField<double>(
                     initialValue: radiusKm,
                     decoration:
                         const InputDecoration(labelText: 'Radio de prueba'),
@@ -540,7 +543,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                 ),
                 _metric(
                   w,
-                  'Demanda QA',
+                  'Demanda de prueba',
                   selectedDemandCityState['active'] == true
                       ? (selectedDemandCityState['multiplier']?.toString() ?? '1') + 'x'
                       : 'AUTO',
@@ -686,12 +689,61 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
                       drivers.length.toString() +
                       ' conductores · ' +
                       requests.length.toString() +
-                      ' solicitudes. El escenario mide renderizado, Realtime, filtrado por radio y lectura masiva usando el entorno seleccionado.',
+                      ' solicitudes. El escenario mide renderizado, tiempo real, filtrado por radio y lectura masiva usando el entorno seleccionado.',
               style: const TextStyle(
                 color: Color(0xFF475467),
                 height: 1.5,
                 fontWeight: FontWeight.w700,
               ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// En Producción la prueba de carga no crea ni muestra datos: solo lo explica.
+  Widget _productionBlocked() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 30),
+      children: [
+        const Text(
+          'Prueba de carga',
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: const [
+                Icon(
+                  Icons.science_outlined,
+                  size: 40,
+                  color: Color(0xFF64748B),
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'La prueba de carga no se usa en Producción',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Para crear conductores y solicitudes de prueba, entra con una '
+                  'cuenta de Prueba. Producción no carga ni modifica esos registros.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFF64748B), height: 1.45),
+                ),
+              ],
             ),
           ),
         ),
@@ -728,7 +780,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
             child: Text(
               production
                   ? 'Producción real: los usuarios sintéticos compartirán alcance con usuarios reales y podrán aparecer en la app hasta limpiar o expirar.'
-                  : 'Prueba aislada: los usuarios sintéticos solo interactúan dentro de qa-core y no aparecen a usuarios reales.',
+                  : 'Prueba aislada: los usuarios sintéticos solo interactúan dentro de la prueba y no aparecen a usuarios reales.',
               style: TextStyle(
                 color: production
                     ? const Color(0xFF7A2E0E)
@@ -746,7 +798,7 @@ class _AdminLoadLabPageState extends State<AdminLoadLabPage> {
   Widget _selector(String label, int value, ValueChanged<int> onChanged) {
     return SizedBox(
       width: 180,
-      child: DropdownButtonFormField<int>(
+      child: AdminDropdownField<int>(
         initialValue: value,
         decoration: InputDecoration(labelText: label),
         items: const [10, 50, 100, 250]
