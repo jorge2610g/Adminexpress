@@ -58,6 +58,7 @@ Roles implementados:
 
 - `super_admin`
 - `zone_monitor`
+- `operator` (zona fija, Producción y módulos preparados/asignados)
 
 Los operadores por ciudad usan el **mismo panel**. Se les asigna zona y módulos, no una nueva página.
 

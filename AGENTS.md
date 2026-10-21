@@ -125,6 +125,7 @@ No crear otra web para operadores de ciudad. Todos usan el mismo panel.
 
 - `super_admin`: administración general.
 - `zone_monitor`: acceso de zona, solo lectura y módulos operativos definidos.
+- `operator`: operador de una zona asignada, solo Producción y solo módulos que el servidor marque como preparados y le asigne. Los RPC de operador deben validar rol, zona, entorno y módulo en cada llamada.
 
 Se pueden añadir nuevos roles en el mismo modelo de permisos.
 
