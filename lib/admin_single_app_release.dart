@@ -1,10 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'core/admin_friendly_error.dart';
 import 'core/admin_friendly_labels.dart';
 import 'core/admin_dropdown_field.dart';
-import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
@@ -31,7 +28,6 @@ class AdminSingleAppReleasePage extends StatefulWidget {
 class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
   Map<String, dynamic> status = const {};
   List<Map<String, dynamic>> releases = const [];
-  List<Map<String, dynamic>> internalAabJobs = const [];
   List<Map<String, dynamic>> buildHistory = const [];
   List<Map<String, dynamic>> distributions = const [];
   int historyPage = 0;
@@ -111,10 +107,6 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             .where((row) => row['artifact_type'] == 'apk+aab')
             .take(15)
             .toList();
-        internalAabJobs = androidRows
-            .where((row) => row['artifact_type'] == 'aab')
-            .take(15)
-            .toList();
         error = null;
         loading = false;
       });
@@ -134,13 +126,15 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
   }
 
   Future<void> _call(String rpc, Map<String, dynamic> params,
-      String confirmationMessage) async {
+      String confirmationMessage, {bool showResult = false}) async {
     if (!canManage || busy) return;
     setState(() => busy = true);
     try {
-      await supabase.rpc(rpc, params: params);
+      final result = await supabase.rpc(rpc, params: params);
       await _refresh();
-      _message(confirmationMessage);
+      _message(showResult && result != null
+          ? '$confirmationMessage ID: $result'
+          : confirmationMessage);
     } catch (e) {
       _message('No se pudo realizar la operación: $e');
     } finally {
@@ -173,13 +167,13 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
   Future<void> _queue() async {
     if (!canManage || busy) return;
     // Explicit source target; do not default to the last (possibly stale) candidate.
-    const currentVersion = '1.6.2';
+    const currentVersion = '1.6.3';
     final version = TextEditingController(text: currentVersion);
     final changes = TextEditingController();
     final data = await showDialog<Map<String, String>>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Preparar APK y AAB reales de Express'),
+        title: const Text('Preparar candidata oficial APK + AAB'),
         content: SizedBox(
           width: 480,
           child: Column(
@@ -188,17 +182,17 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               const Text(
                 'Se usará el código vigente de main, el paquete oficial '
                 'com.express.usuario1 y la firma Android existente. '
-                'No crea una app de Prueba ni publica en Google Play. '
-                'El trabajo quedará en cola: la APK solo se compila después '
-                'de la autorización manual AUTORIZO APK QA en GitHub. '
-                'La versión 1.6.2 (build 140) debe corresponder al código fuente.',
+                'Se crea una candidata única de Express Principal '
+                '(com.express.usuario1), con APK y AAB firmados desde la misma '
+                'rama y el mismo commit. Al autorizarla en GitHub, el workflow '
+                'subirá el AAB a Pruebas internas. No publica en Producción.',
               ),
               const SizedBox(height: 14),
               TextField(
                 controller: version,
                 decoration: const InputDecoration(
                   labelText: 'Versión (igual a pubspec.yaml)',
-                  hintText: '1.6.2',
+                  hintText: '1.6.3',
                 ),
               ),
               const SizedBox(height: 10),
@@ -236,140 +230,17 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     changes.dispose();
     if (data == null || data['version']?.isEmpty != false) return;
     if (data['version'] != currentVersion) {
-      _message('Versión incorrecta: para este candidato usa 1.6.2.');
+      _message('Versión incorrecta: para esta candidata usa 1.6.3.');
+      return;
+    }
+    if (status['next_google_play_build']?.toString() != '142') {
+      _message('No se creó la candidata: Play debe indicar build siguiente 142.');
       return;
     }
     await _call('admin_queue_single_app_candidate', {
       'p_version_name': data['version'],
       'p_changelog': data['notes'],
-    }, 'Trabajo registrado en cola; NO se compilará hasta autorización manual en GitHub. No afecta Google Play.');
-  }
-
-  /// Consulta el SHA firmado actual. Nunca toma SHA de campos de usuario.
-  Future<String> _currentSignedQaSha() async {
-    final url = Uri.parse(
-      'https://api.github.com/repos/jorge2610g/Expressdelivery/'
-      'branches/work%2Fexpress-unified-android-build141',
-    );
-    final response = await http.get(url, headers: {
-      'Accept': 'application/vnd.github+json',
-    }).timeout(const Duration(seconds: 12));
-    if (response.statusCode != 200) {
-      throw StateError('No se pudo verificar la versión firmada.');
-    }
-    final obj = jsonDecode(response.body);
-    final raw = obj is Map && obj['commit'] is Map
-        ? (obj['commit'] as Map)['sha']
-        : null;
-    final sha = raw?.toString().toLowerCase() ?? '';
-    if (!RegExp(r'^[0-9a-f]{40}$').hasMatch(sha)) {
-      throw StateError('No se pudo verificar la versión en GitHub.');
-    }
-    return sha;
-  }
-
-  /// Solo el administrador autenticado puede registrar el trabajo oficial.
-  Future<void> _queueInternalAab() async {
-    if (!canManage || busy) return;
-    String sourceSha;
-    try {
-      sourceSha = await _currentSignedQaSha();
-    } catch (_) {
-      _message('No se pudo verificar GitHub. Ningún AAB se solicitó.');
-      return;
-    }
-    if (!mounted || !canManage || busy) return;
-    final sha = TextEditingController(text: sourceSha);
-    final notes = TextEditingController();
-    final result = await showDialog<Map<String, String>>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Generar solo AAB · Pruebas internas'),
-        content: SizedBox(
-          width: 500,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Se generará solo el AAB firmado de Express '
-                  '(com.express.usuario1), sin APK. '
-                  'No publica en Google Play ni afecta Producción. '
-                  'El servidor debe tener activado el modo AAB-only.',
-                ),
-                const SizedBox(height: 12),
-                const Text('Versión 1.6.3 · Build 141'),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: sha,
-                  autocorrect: false,
-                  readOnly: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Versión firmada (verificada)',
-                    helperText: 'Se comprobará nuevamente antes de ponerlo en cola',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: notes,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Notas (opcional)',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'El trabajo quedará en cola hasta autorizarlo en GitHub. '
-                  'Subir a Pruebas internas requerirá una segunda autorización.',
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, {
-              'sha': sha.text.trim().toLowerCase(),
-              'notes': notes.text.trim(),
-            }),
-            child: const Text('Solicitar AAB'),
-          ),
-        ],
-      ),
-    );
-    sha.dispose();
-    notes.dispose();
-    if (result == null) return;
-    sourceSha = result['sha'] ?? '';
-    if (!RegExp(r'^[0-9a-f]{40}$').hasMatch(sourceSha)) {
-      _message('La versión firmada no es válida. Intenta de nuevo.');
-      return;
-    }
-    try {
-      if (await _currentSignedQaSha() != sourceSha) {
-        _message('La rama firmada cambió. Vuelve a solicitar el AAB.');
-        return;
-      }
-    } catch (_) {
-      _message('No se pudo verificar GitHub. Ningún AAB se solicitó.');
-      return;
-    }
-    if (!mounted || !canManage || busy) return;
-    await _call('admin_create_build_job', {
-      'p_platform': 'android',
-      'p_artifact_type': 'aab',
-      'p_version_name': '1.6.3',
-      'p_build_number': 141,
-      'p_changelog': result['notes']?.isNotEmpty == true
-          ? result['notes']
-          : 'AAB solo para Google Play Pruebas internas.',
-      'p_commit_sha': sourceSha,
-    }, 'AAB en cola. Falta autorización de compilación en GitHub. No publicado en Play.');
+    }, 'Candidata APK + AAB creada. Autoriza el workflow de GitHub para compilar y subir a Internal.', showResult: true);
   }
 
   Future<void> _certify() async {
@@ -1060,14 +931,15 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             Text('Google Play: build vigente ${status['production_store_build'] ?? '—'} '
                 '· siguiente ${status['next_google_play_build'] ?? '—'}'),
             const SizedBox(height: 8),
-            const Text('1. Poner la versión en cola  →  2. Autorizar la prueba Android '
-              '(frase de confirmación: AUTORIZO APK QA)  →  3. Revisar la firma y probar '
-              'esa misma APK  →  4. Certificar y aprobar  →  5. Publicar solo con visto bueno.'),
+            const Text('1. Crear candidata única 1.6.3+142  →  '
+              '2. Autorizar en GitHub Actions con AUTORIZO APK+AAB PRUEBAS INTERNAS  →  '
+              '3. Probar la APK firmada; el mismo workflow carga su AAB a Internal  →  '
+              '4. Certificar y aprobar antes de promover ese mismo AAB a Producción.'),
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: canManage && !busy ? _queue : null,
               icon: const Icon(Icons.build_rounded),
-              label: const Text('Preparar candidato 1.6.2 (no compila aún)'),
+              label: const Text('Preparar candidata 1.6.3 + build 142'),
             ),
             const SizedBox(height: 14),
             const Divider(),
@@ -1075,18 +947,34 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                 style: TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             const Text(
-              'Prepara únicamente el AAB firmado. No genera APK '
-              'ni publica automáticamente en Google Play.',
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: canManage && !busy ? _queueInternalAab : null,
-              icon: const Icon(Icons.inventory_2_outlined),
-              label: const Text('Preparar solo AAB · Build 141'),
+              'El flujo unificado genera APK + AAB del mismo commit. '
+              'La autorización en GitHub ejecuta la compilación, deja la APK '
+              'descargable para QA y carga el mismo AAB a la pista Internal. '
+              'No publica en Producción.',
             ),
             if (hasCandidate) ...[
               const SizedBox(height: 16),
               _details(row),
+              if (row['status'] == 'queued') ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'La candidata está en cola. En GitHub Actions, selecciona '
+                  'la rama work/express-single-app-1.6.3-build142, pega el '
+                  'UUID mostrado en Detalles técnicos y escribe la frase de '
+                  'autorización indicada arriba.',
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: canManage && !busy
+                      ? () => _open(
+                            'https://github.com/jorge2610g/Expressdelivery/'
+                            'actions/workflows/build-android.yml',
+                          )
+                      : null,
+                  icon: const Icon(Icons.open_in_new),
+                  label: const Text('Abrir autorización de build en GitHub'),
+                ),
+              ],
               const SizedBox(height: 12),
               Text('Pruebas: ${certified ? 'certificadas' : 'pendientes'}  ·  '
                    'Aprobación: ${approved ? 'aprobada' : 'pendiente'}  ·  '
@@ -1143,25 +1031,6 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               'la publicación de Google Play.',
               style: TextStyle(fontSize: 12),
             ),
-          ],
-        )),
-        _section('Compilaciones AAB · Pruebas internas', Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Estos trabajos no son publicaciones de Producción. '
-              'Solo compilan el AAB y requieren aprobación del '
-              'propietario en GitHub. La subida a Play es independiente.',
-            ),
-            if (internalAabJobs.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text('Todavía no hay trabajos AAB internos solicitados.'),
-              ),
-            for (final job in internalAabJobs) ...[
-              const Divider(),
-              _details(job),
-            ],
           ],
         )),
         _section('Publicaciones de Producción', Column(
