@@ -205,7 +205,7 @@ class _AdminBoliviaKycPanelState extends State<AdminBoliviaKycPanel> {
         'p_channel':widget.channel,
       });
       if(!mounted) return;
-      Navigator.of(detailContext).pop();
+      if (detailContext.mounted) Navigator.of(detailContext).pop();
       _reload();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content:Text('Conductor activado en $zoneName.')));

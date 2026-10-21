@@ -1266,7 +1266,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                               }
                               setLocal(() => localRevision++);
                             } catch (e) {
-                              if (mounted) _snack(context, e);
+                              if (context.mounted) _snack(context, e);
                             }
                           },
                         ),
@@ -1879,6 +1879,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
       );
       if (!mounted) return;
       countries = await _loadCountries();
+      if (!mounted) return;
       if (countries.isEmpty) {
         _snack(context, 'Primero crea un país antes de crear una ciudad.');
         return;
@@ -2068,6 +2069,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
           selectedCountry()?['currency_code']?.toString().toUpperCase() ?? '';
     }
 
+    if (!mounted) return;
     final save = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -2345,6 +2347,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
       ),
     );
 
+    if (!mounted) return;
     if (save == true) {
       if (!showRides && !showParcels && !showMarket) {
         if (mounted) _snack(context, 'Selecciona al menos un servicio.');
@@ -5159,6 +5162,7 @@ Future<bool> showAdminZonePaymentMethodsEditor(
       };
     }
 
+    if (!context.mounted) return false;
     final save = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -6796,6 +6800,7 @@ class _AdminCommunicationsPageState
       estimate = await _estimateAnnouncementAudience();
     } catch (_) {}
 
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -8617,6 +8622,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
       });
     }
 
+    if (!mounted) return;
     String selectedVersion = currentMinimum;
     final latestVersion =
         versions.isEmpty ? null : versions.first['version']?.toString();
