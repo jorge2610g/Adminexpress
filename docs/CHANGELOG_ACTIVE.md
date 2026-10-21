@@ -1,3 +1,11 @@
+## 2026-10-21 · Builds Admin prepara la candidata Android unificada 1.6.3+142
+
+- Corrige la tarjeta de Builds que seguía fijada en 1.6.2/build 140 y ofrecía una solicitud separada AAB-only build 141. El panel ahora permite crear solo la candidata oficial APK+AAB 1.6.3+142 mediante `admin_queue_single_app_candidate`, valida que Google Play indique el siguiente código 142 y muestra el UUID devuelto.
+- Tras encolar, muestra la rama 142, la frase exacta `AUTORIZO APK+AAB PRUEBAS INTERNAS` y un acceso al workflow `Build Express Android`. La persona administradora autoriza ahí el workflow; la misma ejecución genera APK descargable y sube el AAB a Internal. Producción sigue separada y usa, tras QA/aprobación, el mismo AAB sin recompilar.
+- La función RPC ya existente mantiene `is_admin()` en el backend. No se crea una RPC nueva, no se cambia esquema ni permisos, no se despacha GitHub desde el navegador, y no se modifica Producción/Play desde este panel.
+- Se retiró de la interfaz el flujo que creaba directamente `artifact_type='aab'`; no se borran los trabajos AAB históricos. Prueba de contrato actualizada en `test/admin_android_queue_owner_approval_test.dart`.
+- Verificación: `flutter test --no-pub test/admin_android_queue_owner_approval_test.dart` pasó (1/1). `flutter analyze --no-pub` en los dos archivos no detecta errores; reporta dos infos preexistentes de concatenación de strings en `lib/admin_single_app_release.dart:888-889`. `git diff --check` pasó. No se hizo QA visual/E2E ni despliegue.
+
 ## 2026-10-14 · Auditoría documental de módulos Admin y división en cuatro apps
 
 - Documento `docs/EXPRESS_FOUR_APPS_CODE_AUDIT_20261014.md`: inventario de archivos Admin para comercios, demos, pedidos, logística, liquidaciones, permisos, Builder; quién conserva qué y contratos con Principal/Restaurante/Repartidor.
