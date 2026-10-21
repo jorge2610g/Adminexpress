@@ -9,7 +9,7 @@ import 'core/supabase_client.dart';
 
 /// Módulo que el administrador puede dar a un operador de zona.
 /// [ready]: las funciones del servidor ya lo permiten a un operador.
-/// Los que no están listos se pueden asignar, pero no funcionan hasta ampliar el servidor.
+/// Todos se pueden asignar. El servidor solo permite los que tienen controles por zona.
 class OperatorModule {
   const OperatorModule(this.key, this.label, this.group, {this.ready = false});
 
@@ -26,27 +26,54 @@ const String operatorBaseModule = 'users';
 /// Operadores no se pueden dar: quedan solo para el administrador central.
 const List<OperatorModule> operatorSelectorModules = [
   OperatorModule('dashboard', 'Dashboard', 'General', ready: true),
-  OperatorModule('live_operations', 'Operación en vivo', 'Operaciones', ready: true),
+  OperatorModule('live_operations', 'Operación en vivo', 'Operaciones',
+      ready: true),
   OperatorModule('trips', 'Viajes', 'Operaciones', ready: true),
   OperatorModule('manual_dispatch', 'Despacho manual', 'Operaciones'),
   OperatorModule('drivers', 'Conductores', 'Operaciones', ready: true),
   OperatorModule('users', 'Usuarios', 'Operaciones', ready: true),
   OperatorModule('safety_sos', 'Seguridad / SOS', 'Operaciones', ready: true),
-  OperatorModule('delivery', 'Delivery', 'Módulos'),
+  OperatorModule('delivery', 'Delivery', 'Módulos', ready: true),
   OperatorModule('delivery_orders', 'Pedidos Delivery', 'Módulos'),
-  OperatorModule('delivery_phase2', 'Delivery Fase 2 / Express Plus', 'Módulos'),
+  OperatorModule(
+      'delivery_phase2', 'Delivery Fase 2 / Express Plus', 'Módulos'),
   OperatorModule('marketplace', 'Restaurantes', 'Módulos'),
   OperatorModule('driver_priority', 'Prioridad conductores', 'Módulos'),
-  OperatorModule('payments', 'Pagos / Billetera', 'Finanzas'),
-  OperatorModule('fares', 'Tarifas', 'Finanzas'),
-  OperatorModule('subscriptions', 'Suscripciones', 'Finanzas'),
+  OperatorModule('payments', 'Pagos / Billetera', 'Finanzas', ready: true),
+  OperatorModule('fares', 'Tarifas', 'Finanzas', ready: true),
+  OperatorModule('subscriptions', 'Suscripciones', 'Finanzas', ready: true),
   OperatorModule('dynamic_pricing', 'Demanda y precios', 'Finanzas'),
   OperatorModule('reports', 'Reportes', 'Análisis'),
-  OperatorModule('notifications', 'Notificaciones / Avisos', 'Comunicación'),
+  OperatorModule('notifications', 'Notificaciones / Avisos', 'Comunicación',
+      ready: true),
   OperatorModule('zones', 'Zonas y cobertura', 'Configuración'),
   OperatorModule('services', 'Servicios', 'Configuración'),
   OperatorModule('geo_safety', 'Cobertura y seguridad', 'Configuración'),
 ];
+
+Set<String> operatorNormalizedModules(Iterable<String> source) {
+  final known = operatorSelectorModules.map((module) => module.key).toSet();
+  final result = <String>{operatorBaseModule, ...source.where(known.contains)};
+  if (result.contains('live_operations') || result.contains('safety_sos')) {
+    result.addAll(const ['dashboard', 'drivers']);
+  }
+  return result;
+}
+
+Set<String> operatorToggledModules(
+    Iterable<String> current, String key, bool enabled) {
+  final result = operatorNormalizedModules(current);
+  if (enabled) {
+    result.add(key);
+    return operatorNormalizedModules(result);
+  }
+  result.remove(key);
+  if (key == 'dashboard' || key == 'drivers') {
+    result.remove('live_operations');
+    result.remove('safety_sos');
+  }
+  return operatorNormalizedModules(result);
+}
 
 const List<String> _groupOrder = [
   'General',
@@ -216,7 +243,8 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
     }
   }
 
-  Future<bool> _confirm({required String title, required String message}) async {
+  Future<bool> _confirm(
+      {required String title, required String message}) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -253,7 +281,7 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
           'p_zone_id': zone,
           'p_active': active,
           'p_environment': 'production',
-          'p_allowed_modules': {operatorBaseModule, ...allowed}.toList(),
+          'p_allowed_modules': operatorNormalizedModules(allowed).toList(),
         },
       );
       if (!mounted) return;
@@ -278,13 +306,22 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
     final user = selectedUser;
     final zone = zoneId;
     if (user == null || zone == null) return;
+    // No convertir cuentas de superadmin o monitor al asignar un operador.
+    if (accesses.any((entry) =>
+        entry['user_id']?.toString() == user['user_id']?.toString() &&
+        entry['access_role']?.toString() != 'operator')) {
+      setState(() => notice =
+          'Esta cuenta ya tiene otro rol administrativo. No se puede convertir en operador.');
+      return;
+    }
     final zoneRow = zones.firstWhere(
       (row) => row['id']?.toString() == zone,
       orElse: () => <String, dynamic>{},
     );
     final ok = await _confirm(
       title: 'Dar acceso de operador',
-      message: 'Vas a dar acceso a ${_userLabel(user)} a ${_zoneLabel(zoneRow)}. '
+      message:
+          'Vas a dar acceso a ${_userLabel(user)} a ${_zoneLabel(zoneRow)}. '
           'Solo verá esa zona y los módulos marcados. ¿Continuar?',
     );
     if (!ok || !mounted) return;
@@ -325,9 +362,11 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
 
   Set<String> _modulesOf(Map<String, dynamic> row) {
     if (row['allowed_modules'] is List) {
-      return (row['allowed_modules'] as List).map((e) => e.toString()).toSet();
+      return operatorNormalizedModules(
+          (row['allowed_modules'] as List).map((e) => e.toString()));
     }
-    return operatorSelectorModules.where((m) => m.ready).map((m) => m.key).toSet();
+    // Una cuenta antigua sin lista explícita no recibe módulos adicionales.
+    return {operatorBaseModule};
   }
 
   // Crea la cuenta con correo y contraseña en el servidor y le da acceso de operador.
@@ -344,7 +383,8 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
       return;
     }
     if (password.length < 8) {
-      setState(() => notice = 'La contraseña inicial debe tener al menos 8 caracteres.');
+      setState(() =>
+          notice = 'La contraseña inicial debe tener al menos 8 caracteres.');
       return;
     }
     setState(() {
@@ -359,7 +399,7 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
           'password': password,
           'full_name': newName.text.trim(),
           'zone_id': zone,
-          'allowed_modules': {operatorBaseModule, ...modules}.toList(),
+          'allowed_modules': operatorNormalizedModules(modules).toList(),
         },
       );
       if (!mounted) return;
@@ -370,7 +410,8 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
         newName.clear();
         setState(() {
           busy = false;
-          notice = 'Operador creado. Ya puede entrar con su correo y su contraseña.';
+          notice =
+              'Operador creado. Ya puede entrar con su correo y su contraseña.';
         });
         await _loadAll();
         return;
@@ -392,7 +433,9 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
 
   String _friendlyCreate(Object error) {
     final text = error.toString();
-    if (text.contains('404') || text.contains('NOT_FOUND') || text.contains('not found')) {
+    if (text.contains('404') ||
+        text.contains('NOT_FOUND') ||
+        text.contains('not found')) {
       return 'La función para crear operadores todavía no está publicada en Supabase.';
     }
     return friendlyError(error);
@@ -456,7 +499,9 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  zone.isEmpty ? _roleLabel(role) : '${_roleLabel(role)} · $zone',
+                  zone.isEmpty
+                      ? _roleLabel(role)
+                      : '${_roleLabel(role)} · $zone',
                   style: const TextStyle(fontSize: 12, color: _muted),
                 ),
               ],
@@ -493,8 +538,10 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
           items: [
             for (final row in countries)
               DropdownMenuItem<String?>(
-                value: (row['country_code'] ?? '').toString().trim().toUpperCase(),
-                child: Text((row['country'] ?? row['country_code'] ?? '').toString()),
+                value:
+                    (row['country_code'] ?? '').toString().trim().toUpperCase(),
+                child: Text(
+                    (row['country'] ?? row['country_code'] ?? '').toString()),
               ),
           ],
           onChanged: busy
@@ -559,7 +606,8 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
               Expanded(
                 child: Text(
                   'Usuario: ${_userLabel(user)}',
-                  style: const TextStyle(fontWeight: FontWeight.w800, color: _dark),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, color: _dark),
                 ),
               ),
               TextButton(
@@ -652,7 +700,8 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
               ),
             ),
           ),
-          for (final module in operatorSelectorModules.where((m) => m.group == group))
+          for (final module
+              in operatorSelectorModules.where((m) => m.group == group))
             _moduleTile(module),
         ],
       ],
@@ -672,20 +721,30 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
               'Siempre incluido',
               style: TextStyle(fontSize: 11, color: _muted),
             )
-          : module.ready
-              ? null
-              : const Text(
-                  'Requiere ajuste en el servidor',
-                  style: TextStyle(fontSize: 11, color: Color(0xFFB54708)),
-                ),
+          : module.key == 'live_operations'
+              ? const Text('Incluye Dashboard y Conductores',
+                  style: TextStyle(fontSize: 11, color: _muted))
+              : module.key == 'safety_sos'
+                  ? const Text('Solo lectura; incluye Dashboard y Conductores',
+                      style: TextStyle(fontSize: 11, color: _muted))
+                  : module.key == 'delivery'
+                      ? const Text('Consulta de entregas por zona',
+                          style: TextStyle(fontSize: 11, color: _muted))
+                      : module.ready
+                          ? null
+                          : const Text(
+                              'Permiso guardable. Función en preparación para la zona.',
+                              style: TextStyle(
+                                  fontSize: 11, color: Color(0xFFB54708)),
+                            ),
       onChanged: busy || locked
           ? null
           : (value) => setState(() {
-                if (value == true) {
-                  modules.add(module.key);
-                } else {
-                  modules.remove(module.key);
-                }
+                final next =
+                    operatorToggledModules(modules, module.key, value == true);
+                modules
+                  ..clear()
+                  ..addAll(next);
               }),
     );
   }
@@ -769,7 +828,8 @@ class OperatorEditDialog extends StatefulWidget {
 
 class _OperatorEditDialogState extends State<OperatorEditDialog> {
   late bool active = widget.initialActive;
-  late final Set<String> modules = {operatorBaseModule, ...widget.initialModules};
+  late final Set<String> modules =
+      operatorNormalizedModules(widget.initialModules);
 
   @override
   Widget build(BuildContext context) {
@@ -784,7 +844,8 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
             children: [
               Text(
                 widget.userLabel,
-                style: const TextStyle(fontWeight: FontWeight.w800, color: _dark),
+                style:
+                    const TextStyle(fontWeight: FontWeight.w800, color: _dark),
               ),
               const SizedBox(height: 2),
               Text(
@@ -808,7 +869,7 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                 style: TextStyle(fontWeight: FontWeight.w900, color: _dark),
               ),
               const Text(
-                'Lo que no marques queda oculto. Usuarios siempre va incluido.',
+                'Los permisos pendientes quedarán guardados; se abrirán cuando la función de zona esté preparada. Usuarios siempre incluido.',
                 style: TextStyle(fontSize: 12, color: _muted),
               ),
               for (final group in _groupOrder) ...[
@@ -824,7 +885,8 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                     ),
                   ),
                 ),
-                for (final module in operatorSelectorModules.where((m) => m.group == group))
+                for (final module
+                    in operatorSelectorModules.where((m) => m.group == group))
                   CheckboxListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
@@ -840,11 +902,11 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                     onChanged: module.key == operatorBaseModule
                         ? null
                         : (value) => setState(() {
-                              if (value == true) {
-                                modules.add(module.key);
-                              } else {
-                                modules.remove(module.key);
-                              }
+                              final next = operatorToggledModules(
+                                  modules, module.key, value == true);
+                              modules
+                                ..clear()
+                                ..addAll(next);
                             }),
                   ),
               ],

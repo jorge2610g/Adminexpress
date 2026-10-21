@@ -32,6 +32,11 @@ Deno.serve(async (req) => {
     global: { headers: { Authorization: authHeader } },
     auth: { persistSession: false },
   });
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  const { data: signedIn, error: identityError } = await caller.auth.getUser(token);
+  if (identityError || !signedIn.user) {
+    return respond({ error: 'Sesión caducada. Inicia sesión otra vez.' }, 401);
+  }
   const { data: isAdmin, error: adminError } = await caller.rpc('is_admin');
   if (adminError || isAdmin !== true) {
     return respond({ error: 'Solo el administrador central puede crear operadores.' }, 403);
@@ -48,11 +53,22 @@ Deno.serve(async (req) => {
   const password = String(body.password ?? '');
   const fullName = String(body.full_name ?? '').trim();
   const zoneId = String(body.zone_id ?? '').trim();
-  const requested = Array.isArray(body.allowed_modules) ? body.allowed_modules.map(String) : [];
-  // Usuarios siempre va incluido como base del operador.
-  const modules = Array.from(
-    new Set(['users', ...requested.map((m) => m.trim()).filter((m) => m.length > 0)]),
-  );
+  // Registrar delegaciones del superadministrador. Las capacidades no listas
+  // permanecen inactivas en admin_access_context y admin_operator_assert_module.
+  const supported = new Set(["dashboard","live_operations","trips","manual_dispatch","drivers","users","safety_sos","delivery","delivery_orders","delivery_phase2","marketplace","driver_priority","payments","fares","subscriptions","dynamic_pricing","reports","notifications","zones","services","geo_safety"]);
+  if (body.allowed_modules != null && !Array.isArray(body.allowed_modules)) {
+    return respond({ error: 'Permisos de módulos inválidos.' }, 400);
+  }
+  const requested = (Array.isArray(body.allowed_modules) ? body.allowed_modules : [])
+    .map((module) => String(module).trim());
+  if (requested.some((module) => !supported.has(module))) {
+    return respond({ error: 'El permiso elegido no pertenece al catálogo de operadores.' }, 400);
+  }
+  if ((requested.includes('live_operations') || requested.includes('safety_sos')) &&
+      (!requested.includes('dashboard') || !requested.includes('drivers'))) {
+    return respond({ error: 'Operación en vivo y Seguridad / SOS requieren Dashboard y Conductores.' }, 400);
+  }
+  const modules = Array.from(new Set(['users', ...requested]));
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return respond({ error: 'Correo no válido.' }, 400);
@@ -60,14 +76,21 @@ Deno.serve(async (req) => {
   if (password.length < 8) {
     return respond({ error: 'La contraseña debe tener al menos 8 caracteres.' }, 400);
   }
-  if (!zoneId) {
-    return respond({ error: 'Elige la zona del operador.' }, 400);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(zoneId)) {
+    return respond({ error: 'Elige una zona válida para el operador.' }, 400);
   }
 
   // La clave de servicio solo se usa aquí, para crear la cuenta de acceso.
   const admin = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  // La zona debe existir y estar activa: no confiar en un UUID enviado por el navegador.
+  const { data: zone, error: zoneError } = await admin.from('service_zones')
+    .select('id,active').eq('id', zoneId).maybeSingle();
+  if (zoneError || zone?.active !== true) {
+    return respond({ error: 'La zona seleccionada no está disponible.' }, 400);
+  }
+
   const { data: created, error: createError } = await admin.auth.admin.createUser({
     email,
     password,
@@ -80,9 +103,15 @@ Deno.serve(async (req) => {
   const userId = created.user.id;
 
   // El disparador on_auth_user_created crea la fila de perfil; esto solo cubre el caso en que falte.
-  await admin
+  const { error: profileError } = await admin
     .from('users')
     .upsert({ id: userId, full_name: fullName || null }, { onConflict: 'id', ignoreDuplicates: true });
+  if (profileError) {
+    const { error: cleanupError } = await admin.auth.admin.deleteUser(userId);
+    return respond(cleanupError
+      ? { error: 'No se pudo completar el perfil. Revisar la cuenta creada antes de reintentar.', user_id: userId }
+      : { error: 'No se pudo crear el perfil. No se activó el operador.' }, 422);
+  }
 
   const { error: accessError } = await caller.rpc('admin_set_panel_access_v2', {
     p_user_id: userId,
@@ -93,13 +122,10 @@ Deno.serve(async (req) => {
     p_allowed_modules: modules,
   });
   if (accessError) {
-    return respond(
-      {
-        error: 'La cuenta se creó, pero no se pudo asignar el acceso: ' + accessError.message,
-        user_id: userId,
-      },
-      422,
-    );
+    const { error: cleanupError } = await admin.auth.admin.deleteUser(userId);
+    return respond(cleanupError
+      ? { error: 'No se pudo asignar el acceso y quedó una cuenta pendiente de revisión.', user_id: userId }
+      : { error: 'No se pudo asignar el acceso. Se canceló el alta de operador.' }, 422);
   }
 
   return respond({ ok: true, user_id: userId, email, allowed_modules: modules });
