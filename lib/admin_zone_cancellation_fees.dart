@@ -26,6 +26,7 @@ class _AdminZoneCancellationFeesEditorState
   bool _enabled = false;
   bool _loading = true;
   bool _saving = false;
+  bool _loadFailed = false;
   String? _error;
   String _currency = 'BOB';
   int _revision = 0;
@@ -59,6 +60,7 @@ class _AdminZoneCancellationFeesEditorState
     final revision = ++_revision;
     setState(() {
       _loading = true;
+      _loadFailed = false;
       _error = null;
       _enabled = false;
       _passenger.clear();
@@ -78,12 +80,14 @@ class _AdminZoneCancellationFeesEditorState
         _passenger.text = _format(value['passenger_fee']);
         _driver.text = _format(value['driver_fee']);
         _currency = value['currency']?.toString() ?? 'BOB';
+        _loadFailed = false;
         _loading = false;
       });
     } catch (error) {
       if (mounted && revision == _revision) {
         setState(() {
           _loading = false;
+          _loadFailed = true;
           _error = 'No se pudo cargar la configuración: $error';
         });
       }
@@ -155,9 +159,12 @@ class _AdminZoneCancellationFeesEditorState
   Widget _amountField(TextEditingController controller, String label) =>
       TextField(
         controller: controller,
-        enabled: !_loading && !_saving && _error == null,
+        enabled: !_loading && !_saving && !_loadFailed,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(labelText: label, suffixText: _currency),
+        onChanged: (_) {
+          if (_error != null) setState(() => _error = null);
+        },
       );
 
   @override
@@ -199,9 +206,12 @@ class _AdminZoneCancellationFeesEditorState
                 subtitle: const Text(
                   'Todas las zonas nuevas comienzan apagadas.',
                 ),
-                onChanged: _saving || _error != null
+                onChanged: _saving || _loadFailed
                     ? null
-                    : (value) => setState(() => _enabled = value),
+                    : (value) => setState(() {
+                          _enabled = value;
+                          _error = null;
+                        }),
               ),
               Row(
                 children: [
@@ -222,10 +232,16 @@ class _AdminZoneCancellationFeesEditorState
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ],
+              if (_loadFailed)
+                TextButton.icon(
+                  onPressed: _saving ? null : _load,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reintentar carga'),
+                ),
               Align(
                 alignment: Alignment.centerRight,
                 child: FilledButton.icon(
-                  onPressed: _saving || _loading || _error != null ? null : _save,
+                  onPressed: _saving || _loading || _loadFailed ? null : _save,
                   icon: _saving
                       ? const SizedBox.square(
                           dimension: 16,
