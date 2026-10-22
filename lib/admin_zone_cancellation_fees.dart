@@ -60,6 +60,9 @@ class _AdminZoneCancellationFeesEditorState
     setState(() {
       _loading = true;
       _error = null;
+      _enabled = false;
+      _passenger.clear();
+      _driver.clear();
     });
     try {
       final value = await supabase.rpc(
@@ -152,7 +155,7 @@ class _AdminZoneCancellationFeesEditorState
   Widget _amountField(TextEditingController controller, String label) =>
       TextField(
         controller: controller,
-        enabled: !_loading && !_saving,
+        enabled: !_loading && !_saving && _error == null,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(labelText: label, suffixText: _currency),
       );
@@ -196,7 +199,7 @@ class _AdminZoneCancellationFeesEditorState
                 subtitle: const Text(
                   'Todas las zonas nuevas comienzan apagadas.',
                 ),
-                onChanged: _saving
+                onChanged: _saving || _error != null
                     ? null
                     : (value) => setState(() => _enabled = value),
               ),
@@ -222,7 +225,7 @@ class _AdminZoneCancellationFeesEditorState
               Align(
                 alignment: Alignment.centerRight,
                 child: FilledButton.icon(
-                  onPressed: _saving ? null : _save,
+                  onPressed: _saving || _loading || _error != null ? null : _save,
                   icon: _saving
                       ? const SizedBox.square(
                           dimension: 16,
