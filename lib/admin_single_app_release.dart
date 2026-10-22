@@ -937,7 +937,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             Text('Google Play: build vigente ${status['production_store_build'] ?? '—'} '
                 '· siguiente ${status['next_google_play_build'] ?? '—'}'),
             const SizedBox(height: 8),
-            Text('1. Crear candidata única 1.6.3+'${status['next_google_play_build'] ?? '—'}  →  '
+            Text('1. Crear candidata única 1.6.3+${status['next_google_play_build'] ?? '—'}  →  '
               '2. Autorizar en GitHub Actions con AUTORIZO APK+AAB PRUEBAS INTERNAS  →  '
               '3. Probar la APK firmada; el mismo workflow carga su AAB a Internal  →  '
               '4. Certificar y aprobar antes de promover ese mismo AAB a Producción.'),
