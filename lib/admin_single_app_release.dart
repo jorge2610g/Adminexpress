@@ -166,8 +166,14 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
 
   Future<void> _queue() async {
     if (!canManage || busy) return;
-    // Explicit source target; do not default to the last (possibly stale) candidate.
+    // Build code is derived from the database release gate, not hard-coded here.
     const currentVersion = '1.6.3';
+    final nextBuild =
+        int.tryParse(status['next_google_play_build']?.toString() ?? '');
+    if (nextBuild == null) {
+      _message('No se creó la candidata: falta el siguiente versionCode de Google Play.');
+      return;
+    }
     final version = TextEditingController(text: currentVersion);
     final changes = TextEditingController();
     final data = await showDialog<Map<String, String>>(
@@ -205,8 +211,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               ),
               const SizedBox(height: 10),
               Text(
-                'Siguiente versionCode de Google Play: '
-                '${status['next_google_play_build'] ?? '—'}',
+                'Siguiente versionCode de Google Play: $nextBuild',
               ),
             ],
           ),
@@ -233,8 +238,9 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
       _message('Versión incorrecta: para esta candidata usa 1.6.3.');
       return;
     }
-    if (status['next_google_play_build']?.toString() != '142') {
-      _message('No se creó la candidata: Play debe indicar build siguiente 142.');
+    if (int.tryParse(status['next_google_play_build']?.toString() ?? '') !=
+        nextBuild) {
+      _message('No se creó la candidata: el contador cambió. Actualiza el estado e inténtalo de nuevo.');
       return;
     }
     await _call('admin_queue_single_app_candidate', {
@@ -931,7 +937,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             Text('Google Play: build vigente ${status['production_store_build'] ?? '—'} '
                 '· siguiente ${status['next_google_play_build'] ?? '—'}'),
             const SizedBox(height: 8),
-            const Text('1. Crear candidata única 1.6.3+142  →  '
+            Text('1. Crear candidata única 1.6.3+${status['next_google_play_build'] ?? '—'}  →  '
               '2. Autorizar en GitHub Actions con AUTORIZO APK+AAB PRUEBAS INTERNAS  →  '
               '3. Probar la APK firmada; el mismo workflow carga su AAB a Internal  →  '
               '4. Certificar y aprobar antes de promover ese mismo AAB a Producción.'),
@@ -939,7 +945,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             FilledButton.icon(
               onPressed: canManage && !busy ? _queue : null,
               icon: const Icon(Icons.build_rounded),
-              label: const Text('Preparar candidata 1.6.3 + build 142'),
+              label: Text('Preparar candidata 1.6.3 + build ${status['next_google_play_build'] ?? '—'}'),
             ),
             const SizedBox(height: 14),
             const Divider(),
@@ -959,7 +965,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                 const SizedBox(height: 12),
                 const Text(
                   'La candidata está en cola. En GitHub Actions, selecciona '
-                  'la rama work/express-single-app-1.6.3-build142, pega el '
+                  'la rama exacta que contiene el código candidato, pega el '
                   'UUID mostrado en Detalles técnicos y escribe la frase de '
                   'autorización indicada arriba.',
                 ),
