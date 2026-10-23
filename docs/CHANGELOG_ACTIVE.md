@@ -504,3 +504,9 @@ El panel de países dispone de **Preparar países QA** exclusivamente cuando `AD
 - El panel lista esas deudas junto con cancelaciones y permite liquidarlas manualmente con motivo; créditos del panel y recargas verificadas reducen primero el adeudo.
 - Requiere las migraciones compartidas `20261023192317_admin_adjustment_wallet_debt` y `20261023192321_enforce_admin_adjustment_debt` antes de desplegar la UI. La migración móvil/web activa los bloqueos del backend.
 - Validar en Preview con una cuenta de QA y datos sintéticos antes del despliegue canónico; no probar con billeteras reales.
+## 2026-10-23 · Topes zonales de deuda de billetera
+
+- En **Deudas y ajustes**, el operador configura límites independientes para pasajero y conductor usando la moneda de la zona y el entorno de su cuenta.
+- El bloqueo se aplica solo si la deuda acumulada por rol y zona supera el límite; 0 mantiene el comportamiento previo de bloquear cualquier deuda positiva. Los cambios quedan auditados y bajar el tope desconecta a conductores ociosos que queden sobre el nuevo valor.
+- Backend compartido: migraciones `20261023221937_wallet_debt_threshold_settings` (panel y auditoría) y `20261023221938_enforce_wallet_debt_thresholds` (guards de solicitudes y trabajo). Aplicarlas en ese orden antes de desplegar el panel o distribuir la nueva app.
+- Pruebas focalizadas: `test/admin_wallet_debt_limits_test.dart`, junto a `test/admin_zonal_debt_management_test.dart`. No editar deuda ni activar topes de Producción para una prueba QA.
