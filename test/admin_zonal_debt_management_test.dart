@@ -59,6 +59,7 @@ void main() {
   test('panel exposes debts only through the payments module', () {
     expect(panel, contains("33: 'payments'"));
     expect(panel, contains("('Deudas y ajustes'"));
+    expect(panel, contains("('FINANZAS', [9, 8, 22, 33])"));
     expect(panel, contains('AdminDebtManagementPage('));
   });
 

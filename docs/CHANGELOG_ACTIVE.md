@@ -109,11 +109,17 @@
 
 # CHANGELOG ACTIVO
 
-## 2026-10-23 — Deudas y ajustes financieros por zona (en desarrollo)
+## 2026-10-23 · Navegación del módulo Deudas y ajustes
+
+- Se corrige la lista del grupo Finanzas para mostrar «Deudas y ajustes», que ya estaba asociado al permiso `payments` pero faltaba en la navegación lateral.
+- Regresión añadida para confirmar que el módulo aparece bajo Finanzas. Corrección pendiente de CI y publicación en la web canónica.
+
+## 2026-10-23 — Deudas y ajustes financieros por zona (publicado)
 
 - Se añade al panel un apartado para consultar deudas de cancelación de pasajeros y conductores, liquidarlas manualmente y asignar/descontar saldo de billetera con motivo obligatorio.
 - Las operaciones usan RPCs protegidos, derivan canal y zona de la identidad autenticada, separan Preview/Producción y registran actor, zona, motivo y saldos cuando aplica.
-- El código y la migración están en `feat/admin-zone-debt-management`; aún requieren CI, QA Preview y publicación canónica. No se aplicó la migración ni se modificaron datos financieros.
+- Migración `20261023173108_admin_zonal_debt_management_20261023` aplicada; PR #119 integrado y desplegado en `admin.expressviajes.online`. La verificación de despliegue confirmó el commit `567e0731e76ac9cde1b2222cb60192221e4acb0` y el modo `account_scoped`.
+- La prueba de navegación en Preview detectó que faltaba listar el módulo en el grupo Finanzas; el arreglo está en curso. No se hicieron liquidaciones ni ajustes financieros reales.
 - Especificación: `docs/DEUDAS_ADMIN_ZONAL_2026-10-23.md`.
 
 > **Regla de lectura:** la entrada más reciente define la arquitectura vigente. Entradas anteriores se conservan como historial de decisiones y no deben usarse para restaurar comportamientos retirados.
