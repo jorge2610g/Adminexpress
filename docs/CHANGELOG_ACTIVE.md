@@ -112,7 +112,16 @@
 ## 2026-10-23 · Navegación del módulo Deudas y ajustes
 
 - Se corrige la lista del grupo Finanzas para mostrar «Deudas y ajustes», que ya estaba asociado al permiso `payments` pero faltaba en la navegación lateral.
-- Regresión añadida para confirmar que el módulo aparece bajo Finanzas. Corrección pendiente de CI y publicación en la web canónica.
+- Regresión añadida para confirmar que el módulo aparece bajo Finanzas. PR #120 fusionado y publicado en la web canónica.
+
+## 2026-10-23 · Débitos administrativos pueden crear deuda
+
+- El RPC `admin_finance_adjust_wallet_v1` ya no rechaza un débito porque el saldo final quede negativo ni porque el saldo del espejo histórico cruce cero. La diferencia queda como saldo deudor en los libros zonal e histórico.
+- Se mantiene sincronización del movimiento, actor, zona, canal, moneda, motivo e idempotency key en una sola transacción. El saldo negativo se ve en el listado y en la auditoría; los créditos posteriores lo reducen.
+- La interfaz avisa que un descuento puede crear deuda y confirma explícitamente cuando queda saldo deudor; la auditoría distingue deuda aumentada/reducida/saldada.
+- Migración `admin_finance_allow_debit_wallet` aplicada al Supabase oficial como versión `20261023183207`; publicación del panel pendiente de CI y deploy canónico.
+- El listado de pasajeros/conductores y los historiales muestran y permiten buscar por correo. La RPC obtiene `auth.users.email` solo después de validar rol, módulo, zona y entorno. Migración aplicada como `20261023183433`.
+- No se hicieron débitos de prueba sobre cuentas reales.
 
 ## 2026-10-23 — Deudas y ajustes financieros por zona (publicado)
 
