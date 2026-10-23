@@ -44,6 +44,7 @@ as $fn$
 declare
   v_channel text;
   v_zone uuid;
+  v_admin_role text;
   v_country text;
   v_currency text;
   v_status text := lower(trim(coalesce(p_status,'pending')));
@@ -51,7 +52,16 @@ declare
   v_search text := nullif(trim(coalesce(p_search,'')),'');
   v_result jsonb;
 begin
-  perform public.admin_operator_assert_module('payments');
+  select a.access_role into v_admin_role
+  from public.admin_users a
+  join public.users u on u.id=a.user_id
+  where a.user_id=auth.uid() and a.active=true and u.account_status='active';
+  if v_admin_role not in ('super_admin','operator') then
+    raise exception 'No autorizado para consultar finanzas';
+  end if;
+  if v_admin_role='operator' then
+    perform public.admin_operator_assert_module('payments');
+  end if;
   v_channel := public.admin_current_runtime_environment();
   perform public.admin_assert_environment(v_channel);
   v_zone := public.admin_effective_zone_id(p_zone_id);
@@ -151,13 +161,18 @@ declare
   v_debt public.cancellation_fee_debts%rowtype;
   v_operation public.admin_financial_operations%rowtype;
 begin
-  perform public.admin_operator_assert_module('payments');
+  select a.access_role into v_role from public.admin_users a
+    join public.users u on u.id=a.user_id
+    where a.user_id=auth.uid() and a.active=true and u.account_status='active';
+  if v_role not in ('super_admin','operator') then
+    raise exception 'No autorizado para liquidar deudas';
+  end if;
+  if v_role='operator' then
+    perform public.admin_operator_assert_module('payments');
+  end if;
   v_channel:=public.admin_current_runtime_environment();
   perform public.admin_assert_environment(v_channel);
   v_zone:=public.admin_effective_zone_id(p_zone_id);
-  select a.access_role into v_role from public.admin_users a
-    where a.user_id=auth.uid() and a.active=true;
-  if v_role not in ('super_admin','operator') then raise exception 'Acción disponible solo para administración financiera'; end if;
   if p_idempotency_key is null then raise exception 'Falta la clave de operación'; end if;
   if length(trim(coalesce(p_reason,''))) not between 3 and 500 then raise exception 'Indica un motivo de 3 a 500 caracteres'; end if;
 
@@ -218,13 +233,18 @@ declare
   v_tx uuid;
   v_operation public.admin_financial_operations%rowtype;
 begin
-  perform public.admin_operator_assert_module('payments');
+  select a.access_role into v_role from public.admin_users a
+    join public.users u on u.id=a.user_id
+    where a.user_id=auth.uid() and a.active=true and u.account_status='active';
+  if v_role not in ('super_admin','operator') then
+    raise exception 'No autorizado para ajustar billeteras';
+  end if;
+  if v_role='operator' then
+    perform public.admin_operator_assert_module('payments');
+  end if;
   v_channel:=public.admin_current_runtime_environment();
   perform public.admin_assert_environment(v_channel);
   v_zone:=public.admin_effective_zone_id(p_zone_id);
-  select a.access_role into v_role from public.admin_users a
-    where a.user_id=auth.uid() and a.active=true;
-  if v_role not in ('super_admin','operator') then raise exception 'Acción disponible solo para administración financiera'; end if;
   if p_idempotency_key is null then raise exception 'Falta la clave de operación'; end if;
   if p_direction not in ('credit','debit') then raise exception 'Tipo de ajuste inválido'; end if;
   if p_amount is null or p_amount<=0 or p_amount>10000000 then raise exception 'Importe inválido'; end if;

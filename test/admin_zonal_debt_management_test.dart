@@ -22,6 +22,14 @@ void main() {
     },
   );
 
+  test('central admins can use finance while operators keep module guards', () {
+    expect(migration, contains("v_admin_role not in ('super_admin','operator')"));
+    expect(migration, contains("if v_admin_role='operator' then"));
+    expect(migration, contains("if v_role='operator' then"));
+    expect(migration, contains('No autorizado para liquidar deudas'));
+    expect(migration, contains('No autorizado para ajustar billeteras'));
+  });
+
   test(
     'manual settlement and wallet changes are reasoned, atomic and auditable',
     () {
