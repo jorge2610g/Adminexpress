@@ -1,6 +1,6 @@
 # Deudas y ajustes financieros por zona
 
-**Estado:** implementación en el código; migraciones y publicación pendientes. La migración `20261023192317_admin_adjustment_wallet_debt.sql` agrega el registro de deuda administrativa que bloquea nuevos servicios hasta el pago; el panel expone esas deudas y permite liquidarlas con motivo. El flujo requiere aplicar también la migración compartida `20261023192321_enforce_admin_adjustment_debt.sql` de Expressdelivery antes de publicar el panel actualizado.
+**Estado:** migraciones aplicadas y panel/código web publicados en el entorno oficial. Admin PR #123 y Express PR #286 integran la gestión y el bloqueo compartidos. Las cuentas QA de la web siguen en el entorno interno `PRUEBA`.
 
 ## Flujo del panel
 
@@ -16,10 +16,10 @@ En el menú de Adminexpress aparece **Deudas y ajustes**, dentro del permiso `pa
 - Los ajustes de saldo generan un movimiento `adjustment` en el libro existente. La actualización del saldo regional ocurre por su trigger actual; en Producción también se sincroniza el saldo histórico compatible. Un descuento puede dejar el saldo negativo: ese negativo es una deuda administrativa y aparece en el saldo y en la auditoría con su motivo. Los créditos posteriores reducen primero ese saldo deudor. La moneda debe coincidir y CLP no admite decimales.
 - Solo la parte del descuento que deja la billetera en negativo genera deuda administrativa pendiente; un saldo negativo por comisiones se mantiene separado. La deuda conserva el motivo del operador. Créditos del panel, liquidación manual y recargas verificadas reducen la deuda en orden FIFO y en la misma transacción.
 - El backend bloquea al pasajero al solicitar Taxi y al conductor al conectarse, enviar/aceptar Taxi, Envíos o Delivery, mientras quede deuda administrativa. Envíos solicitados por pasajeros no se bloquean. Al registrar una deuda se desconecta al conductor si no tiene un servicio activo; los trabajos activos pueden terminar.
-- Los saldos negativos históricos no se clasifican automáticamente: pueden provenir de comisiones. Deben revisarse en la auditoría antes de crear una deuda administrativa nueva.
+- Saldos negativos históricos solo se clasifican cuando todos los movimientos de la billetera son ajustes administrativos completados y el negativo actual coincide exactamente con los débitos administrativos no cubiertos. Los saldos mixtos que incluyan comisiones, recargas u otros movimientos se excluyen para revisión manual.
 - La billetera móvil muestra el monto y motivo del ajuste. Pasajeros con deuda pueden hacer un abono desde la misma billetera; el saldo pendiente reduce primero la deuda, y un remanente queda disponible. Preview solo permite simular el pago en cuentas QA.
 - Los RPCs son transaccionales e idempotentes por actor, canal y clave de solicitud.
 
 ## Validación y publicación
 
-Las pruebas de contrato están en `test/admin_zonal_debt_management_test.dart`. Validar la RPC con revisión estática y pruebas automatizadas; no simular débitos en cuentas reales. Tras desplegar la migración y el panel canónico, un administrador puede probarlo desde la misma web con una cuenta de QA del entorno correspondiente. La función conserva idempotencia, restricción de rol/módulo/zona/canal, compatibilidad de moneda y auditoría; no se deben cruzar datos Preview/Producción.
+Las pruebas de contrato están en `test/admin_zonal_debt_management_test.dart`. No simular débitos en cuentas reales. Un administrador puede probarlo desde la misma web con una cuenta de QA del entorno `PRUEBA`. El flujo conserva idempotencia, restricción de rol/módulo/zona/canal, compatibilidad de moneda y auditoría; no se deben cruzar datos Preview/Producción.

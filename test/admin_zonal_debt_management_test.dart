@@ -15,6 +15,9 @@ void main() {
   final adjustmentDebtMigration = File(
     'supabase/migrations/20261023192317_admin_adjustment_wallet_debt.sql',
   ).readAsStringSync();
+  final debtBackfillMigration = File(
+    'supabase/migrations/20261023195930_backfill_unsettled_admin_adjustment_debts.sql',
+  ).readAsStringSync();
   final ui = File('lib/admin_debt_management.dart').readAsStringSync();
   final panel = File('lib/admin_panel.dart').readAsStringSync();
 
@@ -104,6 +107,15 @@ void main() {
       adjustmentDebtMigration,
       contains("if coalesce(v_role,'') not in ('super_admin','operator') then"),
     );
+  });
+
+  test('historical debt backfill excludes mixed or already-settled wallets', () {
+    expect(debtBackfillMigration, contains("o.channel='production'"));
+    expect(debtBackfillMigration, contains('o.admin_adjustment_debt_id is null'));
+    expect(debtBackfillMigration, contains('sum(d.debt_amount)=-w.balance'));
+    expect(debtBackfillMigration,
+        contains("t.reference not like 'Ajuste administrativo:%'"));
+    expect(debtBackfillMigration, contains('on conflict(operation_id) do nothing'));
   });
 
   test(
