@@ -119,7 +119,7 @@
 - El RPC `admin_finance_adjust_wallet_v1` ya no rechaza un débito porque el saldo final quede negativo ni porque el saldo del espejo histórico cruce cero. La diferencia queda como saldo deudor en los libros zonal e histórico.
 - Se mantiene sincronización del movimiento, actor, zona, canal, moneda, motivo e idempotency key en una sola transacción. El saldo negativo se ve en el listado y en la auditoría; los créditos posteriores lo reducen.
 - La interfaz avisa que un descuento puede crear deuda y confirma explícitamente cuando queda saldo deudor; la auditoría distingue deuda aumentada/reducida/saldada.
-- Migración `admin_finance_allow_debit_wallet` aplicada al Supabase oficial como versión `20261023183207`; publicación del panel pendiente de CI y deploy canónico.
+- Migración `admin_finance_allow_debit_wallet` aplicada al Supabase oficial como versión `20261023183207`; PR #121 integrado y despliegue canónico verificado con commit `09a38b1e89a910afa5dadbad172e5ef2a7865626`.
 - El listado de pasajeros/conductores y los historiales muestran y permiten buscar por correo. La RPC obtiene `auth.users.email` solo después de validar rol, módulo, zona y entorno. Migración aplicada como `20261023183433`.
 - No se hicieron débitos de prueba sobre cuentas reales.
 
