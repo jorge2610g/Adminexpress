@@ -258,8 +258,8 @@ begin
        or v_operation.zone_id is distinct from v_zone
        or v_operation.amount is distinct from p_amount
        or v_operation.reason is distinct from trim(p_reason)
-       or v_operation.balance_after-v_operation.balance_before is distinct from
-         case when p_direction='credit' then p_amount else -p_amount end then
+       or (v_operation.balance_after-v_operation.balance_before) is distinct from
+         (case when p_direction='credit' then p_amount else -p_amount end) then
       raise exception 'La clave de operación ya se usó con otros datos';
     end if;
     return jsonb_build_object('ok',true,'already_processed',true,'operation_id',v_operation.id,'balance_after',v_operation.balance_after);

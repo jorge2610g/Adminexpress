@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   final migration = File(
-    'supabase/migrations/20261023183000_admin_zonal_debt_management.sql',
+    'supabase/migrations/20261023173108_admin_zonal_debt_management_20261023.sql',
   ).readAsStringSync();
   final ui = File('lib/admin_debt_management.dart').readAsStringSync();
   final panel = File('lib/admin_panel.dart').readAsStringSync();
