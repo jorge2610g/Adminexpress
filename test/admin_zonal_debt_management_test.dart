@@ -12,6 +12,9 @@ void main() {
   final emailMigration = File(
     'supabase/migrations/20261023183433_admin_finance_target_email.sql',
   ).readAsStringSync();
+  final adjustmentDebtMigration = File(
+    'supabase/migrations/20261023192317_admin_adjustment_wallet_debt.sql',
+  ).readAsStringSync();
   final ui = File('lib/admin_debt_management.dart').readAsStringSync();
   final panel = File('lib/admin_panel.dart').readAsStringSync();
 
@@ -78,12 +81,39 @@ void main() {
     expect(panel, contains('AdminDebtManagementPage('));
   });
 
+  test('admin debit creates a scoped debt and credits reduce it FIFO', () {
+    expect(adjustmentDebtMigration, contains('admin_wallet_adjustment_debts'));
+    expect(
+        adjustmentDebtMigration,
+        contains(
+            'alter table public.admin_wallet_adjustment_debts enable row level security'));
+    expect(
+        adjustmentDebtMigration,
+        contains(
+            'revoke all on public.admin_wallet_adjustment_debts from public,anon,authenticated'));
+    expect(adjustmentDebtMigration,
+        contains("v_debt_amount:=greatest(0,-v_after)-greatest(0,-v_before)"));
+    expect(adjustmentDebtMigration,
+        contains('apply_admin_adjustment_debt_credit'));
+    expect(adjustmentDebtMigration, contains('order by d.created_at,d.id'));
+    expect(
+        adjustmentDebtMigration, contains('admin_finance_adjustment_debts_v1'));
+    expect(adjustmentDebtMigration,
+        contains('admin_finance_settle_adjustment_debt_v1'));
+    expect(
+      adjustmentDebtMigration,
+      contains("if coalesce(v_role,'') not in ('super_admin','operator') then"),
+    );
+  });
+
   test(
     'UI invokes only scoped RPCs for debt settlement and wallet adjustment',
     () {
       expect(ui, contains("'admin_finance_debts_v1'"));
       expect(ui, contains("'admin_finance_settle_debt_v1'"));
       expect(ui, contains("'admin_finance_adjust_wallet_v1'"));
+      expect(ui, contains("'admin_finance_adjustment_debts_v1'"));
+      expect(ui, contains("'admin_finance_settle_adjustment_debt_v1'"));
       expect(ui, contains("'p_reason': reason"));
       expect(ui, contains("'p_idempotency_key'"));
       expect(ui, isNot(contains(".from('wallet_accounts').update")));

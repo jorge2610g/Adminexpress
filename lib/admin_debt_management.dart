@@ -80,10 +80,28 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
         },
       );
       final data = result is Map ? Map<String, dynamic>.from(result) : {};
+      final adjustmentResult = await supabase.rpc(
+        'admin_finance_adjustment_debts_v1',
+        params: {
+          'p_zone_id': widget.zoneId,
+          'p_status': status,
+          'p_role': role,
+          'p_search': searchController.text.trim().isEmpty
+              ? null
+              : searchController.text.trim(),
+          'p_limit': 200,
+        },
+      );
+      final adjustmentData = adjustmentResult is Map
+          ? Map<String, dynamic>.from(adjustmentResult)
+          : <String, dynamic>{};
       if (!mounted) return;
       setState(() {
         currency = (data['currency_code'] ?? '').toString();
-        debts = _rows(data['debts']);
+        debts = [
+          ..._rows(data['debts']),
+          ..._rows(adjustmentData['debts']),
+        ];
         adjustments = _rows(data['adjustments']);
         targets = _rows(data['targets']);
         loading = false;
@@ -196,7 +214,9 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
     setState(() => busyIds.add(id));
     try {
       await supabase.rpc(
-        'admin_finance_settle_debt_v1',
+        debt['debt_type'] == 'admin_adjustment'
+            ? 'admin_finance_settle_adjustment_debt_v1'
+            : 'admin_finance_settle_debt_v1',
         params: {
           'p_zone_id': widget.zoneId,
           'p_debt_id': id,
@@ -445,7 +465,7 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              '${debt['reason'] ?? 'Deuda por cancelación'} · ${_date(debt['created_at'])}',
+              '${debt['debt_type'] == 'admin_adjustment' ? 'Ajuste: ' : ''}${debt['reason'] ?? 'Deuda por cancelación'} · ${_date(debt['created_at'])}',
             ),
             Text(
               'Viaje: ${debt['trip_id'] ?? '—'} · ${isOpen ? 'Pendiente' : 'Liquidada'}',
