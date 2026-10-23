@@ -109,6 +109,13 @@
 
 # CHANGELOG ACTIVO
 
+## 2026-10-23 — Deudas y ajustes financieros por zona (en desarrollo)
+
+- Se añade al panel un apartado para consultar deudas de cancelación de pasajeros y conductores, liquidarlas manualmente y asignar/descontar saldo de billetera con motivo obligatorio.
+- Las operaciones usan RPCs protegidos, derivan canal y zona de la identidad autenticada, separan Preview/Producción y registran actor, zona, motivo y saldos cuando aplica.
+- El código y la migración están en `feat/admin-zone-debt-management`; aún requieren CI, QA Preview y publicación canónica. No se aplicó la migración ni se modificaron datos financieros.
+- Especificación: `docs/DEUDAS_ADMIN_ZONAL_2026-10-23.md`.
+
 > **Regla de lectura:** la entrada más reciente define la arquitectura vigente. Entradas anteriores se conservan como historial de decisiones y no deben usarse para restaurar comportamientos retirados.
 
 ## 2026-10-11 — Operación en vivo interactiva

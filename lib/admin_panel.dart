@@ -13,6 +13,7 @@ import 'package:latlong2/latlong.dart';
 import 'core/supabase_client.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
+import 'admin_debt_management.dart';
 import 'admin_operators.dart';
 import 'admin_operator_fares.dart';
 import 'admin_operator_payments.dart';
@@ -358,6 +359,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     30: 'marketplace',
     31: 'payments',
     32: 'operators',
+    33: 'payments',
   };
 
   bool _sectionAllowed(int index) {
@@ -443,6 +445,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Restaurantes', Icons.restaurant_rounded),
     ('Liquidaciones de restaurantes', Icons.receipt_long_rounded),
     ('Operadores', Icons.admin_panel_settings_rounded),
+    ('Deudas y ajustes', Icons.account_balance_wallet_outlined),
   ];
 
   Future<bool> _authorized() async {
@@ -1529,6 +1532,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         );
       case 32:
         return const AdminOperatorsPage();
+      case 33:
+        return AdminDebtManagementPage(
+          zoneId: adminZoneId ?? '',
+          zoneName: (adminAccess['zone_name'] ?? 'Zona seleccionada').toString(),
+        );
       case 31:
         return AdminDeliverySettlementsPage(
           channel: adminChannel,
