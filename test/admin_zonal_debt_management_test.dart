@@ -6,6 +6,12 @@ void main() {
   final migration = File(
     'supabase/migrations/20261023173108_admin_zonal_debt_management_20261023.sql',
   ).readAsStringSync();
+  final debitMigration = File(
+    'supabase/migrations/20261023183207_admin_finance_allow_debit_wallet.sql',
+  ).readAsStringSync();
+  final emailMigration = File(
+    'supabase/migrations/20261023183433_admin_finance_target_email.sql',
+  ).readAsStringSync();
   final ui = File('lib/admin_debt_management.dart').readAsStringSync();
   final panel = File('lib/admin_panel.dart').readAsStringSync();
 
@@ -23,7 +29,8 @@ void main() {
   );
 
   test('central admins can use finance while operators keep module guards', () {
-    expect(migration, contains("v_admin_role not in ('super_admin','operator')"));
+    expect(
+        migration, contains("v_admin_role not in ('super_admin','operator')"));
     expect(migration, contains("if v_admin_role='operator' then"));
     expect(migration, contains("if v_role='operator' then"));
     expect(migration, contains('No autorizado para liquidar deudas'));
@@ -45,7 +52,15 @@ void main() {
       expect(migration, contains("set paid_at=now()"));
       expect(migration, contains("'adjustment','completed'"));
       expect(migration, contains('mirror_legacy_wallet_delta'));
-      expect(migration, contains('El ajuste no puede dejar saldo negativo'));
+      expect(debitMigration, contains('v_after:=v_before+v_delta'));
+      expect(debitMigration,
+          isNot(contains('El ajuste no puede dejar saldo negativo')));
+      expect(debitMigration,
+          isNot(contains('El ajuste dejaría negativa la billetera histórica')));
+      expect(debitMigration,
+          isNot(contains('No se puede debitar: la billetera no tiene saldo')));
+      expect(debitMigration,
+          contains('mirror_legacy_wallet_delta(p_user_id,v_currency,v_delta)'));
       expect(migration, contains('trim(p_reason)'));
       expect(
         migration,
@@ -73,6 +88,14 @@ void main() {
       expect(ui, contains("'p_idempotency_key'"));
       expect(ui, isNot(contains(".from('wallet_accounts').update")));
       expect(ui, isNot(contains(".from('cancellation_fee_debts').update")));
+      expect(
+          ui,
+          contains(
+              'la diferencia quedará como deuda administrativa en negativo'));
+      expect(ui, contains('Deuda registrada. Saldo deudor:'));
+      expect(emailMigration, contains('left join auth.users au on au.id=u.id'));
+      expect(emailMigration, contains('au.email'));
+      expect(ui, contains("target['email'] ?? 'Sin correo'"));
     },
   );
 }

@@ -271,6 +271,13 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
                     onChanged: (value) =>
                         updateDialog(() => direction = value ?? 'credit'),
                   ),
+                  if (direction == 'debit') ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Si el descuento supera el saldo, la diferencia quedará como deuda administrativa en negativo.',
+                      style: TextStyle(fontSize: 12, color: Colors.deepOrange),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: amountController,
@@ -365,11 +372,13 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
       );
       final response = result is Map ? Map<String, dynamic>.from(result) : {};
       if (!mounted) return;
+      final balanceAfter = (response['balance_after'] as num?)?.toDouble();
+      final balanceMessage = balanceAfter != null && balanceAfter < 0
+          ? 'Deuda registrada. Saldo deudor: ${_money(balanceAfter)}.'
+          : 'Ajuste aplicado. Saldo nuevo: ${_money(balanceAfter)}.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Ajuste aplicado. Saldo nuevo: ${_money(response['balance_after'])}.',
-          ),
+          content: Text(balanceMessage),
         ),
       );
       pendingOperationKeys.remove(userId);
@@ -414,7 +423,13 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       Text(
-                        '$roleLabel${(debt['phone'] ?? '').toString().isEmpty ? '' : ' · ${debt['phone']}'}',
+                        [
+                          roleLabel,
+                          if ((debt['email'] ?? '').toString().isNotEmpty)
+                            debt['email'].toString(),
+                          if ((debt['phone'] ?? '').toString().isNotEmpty)
+                            debt['phone'].toString(),
+                        ].join(' · '),
                       ),
                     ],
                   ),
@@ -481,7 +496,7 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
               : 'Usuario',
         ),
         subtitle: Text(
-          '${target['role'] == 'driver' ? 'Conductor' : 'Pasajero'} · ${(target['phone'] ?? 'Sin teléfono').toString()}\nSaldo: ${_money(target['balance'], target['currency_code']?.toString())}',
+          '${target['role'] == 'driver' ? 'Conductor' : 'Pasajero'} · ${(target['email'] ?? 'Sin correo').toString()} · ${(target['phone'] ?? 'Sin teléfono').toString()}\nSaldo: ${_money(target['balance'], target['currency_code']?.toString())}',
         ),
         isThreeLine: true,
         trailing: FilledButton.tonal(
@@ -493,8 +508,14 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
   }
 
   Widget _adjustmentCard(Map<String, dynamic> row) {
-    final added = (row['balance_after'] as num? ?? 0) >=
-        (row['balance_before'] as num? ?? 0);
+    final before = (row['balance_before'] as num? ?? 0).toDouble();
+    final after = (row['balance_after'] as num? ?? 0).toDouble();
+    final added = after >= before;
+    final label = after < 0
+        ? (added ? 'Deuda reducida' : 'Saldo deudor')
+        : (before < 0
+            ? 'Deuda saldada'
+            : (added ? 'Saldo asignado' : 'Saldo descontado'));
     return Card(
       child: ListTile(
         leading: Icon(
@@ -502,9 +523,16 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
           color: added ? Colors.green : Colors.deepOrange,
         ),
         title: Text(
-          '${row['full_name'] ?? 'Usuario'} · ${added ? 'Saldo asignado' : 'Saldo descontado'}',
+          '${row['full_name'] ?? 'Usuario'} · $label',
         ),
-        subtitle: Text('${_date(row['created_at'])}\n${row['reason'] ?? ''}'),
+        subtitle: Text(
+          [
+            if ((row['email'] ?? '').toString().isNotEmpty)
+              row['email'].toString(),
+            _date(row['created_at']),
+            (row['reason'] ?? '').toString(),
+          ].join('\n'),
+        ),
         isThreeLine: true,
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
