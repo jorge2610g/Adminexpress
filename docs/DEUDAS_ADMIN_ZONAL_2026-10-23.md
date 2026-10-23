@@ -1,6 +1,6 @@
 # Deudas y ajustes financieros por zona
 
-**Estado:** el módulo, navegación y corrección para permitir descuentos con saldo negativo están publicados en el panel canónico. Las migraciones `admin_finance_allow_debit_wallet` (`20261023183207`) y `admin_finance_target_email` (`20261023183433`) se aplicaron al Supabase oficial.
+**Estado:** implementación en el código; migraciones y publicación pendientes. La migración `20261023192317_admin_adjustment_wallet_debt.sql` agrega el registro de deuda administrativa que bloquea nuevos servicios hasta el pago; el panel expone esas deudas y permite liquidarlas con motivo. El flujo requiere aplicar también la migración compartida `20261023192321_enforce_admin_adjustment_debt.sql` de Expressdelivery antes de publicar el panel actualizado.
 
 ## Flujo del panel
 
@@ -14,6 +14,10 @@ En el menú de Adminexpress aparece **Deudas y ajustes**, dentro del permiso `pa
 - Preview y Producción se filtran por `channel`; las cuentas QA y reales se excluyen cruzadamente.
 - Liquidar una deuda actualiza `paid_at`, que es el estado usado por el backend para desbloquear viajes. La operación se guarda en una tabla de auditoría sin acceso directo para usuarios autenticados.
 - Los ajustes de saldo generan un movimiento `adjustment` en el libro existente. La actualización del saldo regional ocurre por su trigger actual; en Producción también se sincroniza el saldo histórico compatible. Un descuento puede dejar el saldo negativo: ese negativo es una deuda administrativa y aparece en el saldo y en la auditoría con su motivo. Los créditos posteriores reducen primero ese saldo deudor. La moneda debe coincidir y CLP no admite decimales.
+- Solo la parte del descuento que deja la billetera en negativo genera deuda administrativa pendiente; un saldo negativo por comisiones se mantiene separado. La deuda conserva el motivo del operador. Créditos del panel, liquidación manual y recargas verificadas reducen la deuda en orden FIFO y en la misma transacción.
+- El backend bloquea al pasajero al solicitar Taxi y al conductor al conectarse, enviar/aceptar Taxi, Envíos o Delivery, mientras quede deuda administrativa. Envíos solicitados por pasajeros no se bloquean. Al registrar una deuda se desconecta al conductor si no tiene un servicio activo; los trabajos activos pueden terminar.
+- Los saldos negativos históricos no se clasifican automáticamente: pueden provenir de comisiones. Deben revisarse en la auditoría antes de crear una deuda administrativa nueva.
+- La billetera móvil muestra el monto y motivo del ajuste. Pasajeros con deuda pueden hacer un abono desde la misma billetera; el saldo pendiente reduce primero la deuda, y un remanente queda disponible. Preview solo permite simular el pago en cuentas QA.
 - Los RPCs son transaccionales e idempotentes por actor, canal y clave de solicitud.
 
 ## Validación y publicación

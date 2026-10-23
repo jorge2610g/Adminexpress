@@ -498,3 +498,9 @@ El panel de países dispone de **Preparar países QA** exclusivamente cuando `AD
 
 - Express v1.5.20 · build 60;
 - incluye limpieza del repositorio Express y corrección reforzada de cancelación.
+## 2026-10-23 · Deudas por ajustes administrativos
+
+- Un descuento que lleva el saldo bajo cero crea una deuda pendiente independiente, conserva el motivo, operador, zona, entorno y movimiento contable.
+- El panel lista esas deudas junto con cancelaciones y permite liquidarlas manualmente con motivo; créditos del panel y recargas verificadas reducen primero el adeudo.
+- Requiere las migraciones compartidas `20261023192317_admin_adjustment_wallet_debt` y `20261023192321_enforce_admin_adjustment_debt` antes de desplegar la UI. La migración móvil/web activa los bloqueos del backend.
+- Validar en Preview con una cuenta de QA y datos sintéticos antes del despliegue canónico; no probar con billeteras reales.
