@@ -30,6 +30,10 @@ void main() {
     expect(migration, contains('No autorizado para ajustar billeteras'));
   });
 
+  test('all finance RPC bodies terminate as valid PL/pgSQL blocks', () {
+    expect('\nend;\n\$fn\$;'.allMatches(migration).length, 3);
+  });
+
   test(
     'manual settlement and wallet changes are reasoned, atomic and auditable',
     () {

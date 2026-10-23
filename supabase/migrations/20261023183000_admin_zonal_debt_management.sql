@@ -146,7 +146,7 @@ begin
     ),'[]'::jsonb)
   ) into v_result;
   return v_result;
-end
+end;
 $fn$;
 
 create or replace function public.admin_finance_settle_debt_v1(
@@ -208,7 +208,7 @@ begin
     where id=v_debt.id and paid_at is null;
   if not found then raise exception 'La deuda cambió durante la operación'; end if;
   return jsonb_build_object('ok',true,'already_processed',false,'operation_id',v_operation.id,'amount',v_debt.amount,'currency_code',v_debt.currency_code);
-end
+end;
 $fn$;
 
 create or replace function public.admin_finance_adjust_wallet_v1(
@@ -330,7 +330,7 @@ begin
     v_country,v_currency,p_amount,v_before,v_after,v_tx,trim(p_reason),p_idempotency_key
   ) returning * into v_operation;
   return jsonb_build_object('ok',true,'already_processed',false,'operation_id',v_operation.id,'wallet_transaction_id',v_tx,'balance_before',v_before,'balance_after',v_after,'currency_code',v_currency);
-end
+end;
 $fn$;
 
 revoke all on function public.admin_finance_debts_v1(uuid,text,text,text,integer) from public,anon;
