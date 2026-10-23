@@ -1,3 +1,9 @@
+## 2026-10-23 · Deudas y ajustes financieros por zona · en preparación
+
+- Preparada en `docs/DEBTS_WALLET_ADMIN.md` una vista para deudas y saldo de pasajeros/conductores, registro de pago manual recibido y ajustes de billetera con motivo obligatorio.
+- Las liquidaciones y ajustes quedan auditados en base de datos y limitados por RPC a rol, módulo Pagos, zona y contexto Preview/Producción. La operación manual se define como pago recibido fuera de la app, no condonación.
+- La interfaz y migración están en rama de trabajo; aún no se aplican a Supabase ni se despliegan. No se modificaron permisos asignados ni saldos reales.
+
 ## 2026-10-21 · Builds Admin prepara la candidata Android unificada 1.6.3+142
 
 - Corrige la tarjeta de Builds que seguía fijada en 1.6.2/build 140 y ofrecía una solicitud separada AAB-only build 141. El panel ahora permite crear solo la candidata oficial APK+AAB 1.6.3+142 mediante `admin_queue_single_app_candidate`, valida que Google Play indique el siguiente código 142 y muestra el UUID devuelto.

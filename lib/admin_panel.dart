@@ -16,6 +16,7 @@ import 'admin_control_sections.dart';
 import 'admin_operators.dart';
 import 'admin_operator_fares.dart';
 import 'admin_operator_payments.dart';
+import 'admin_debts_wallet.dart';
 import 'admin_operator_subscriptions.dart';
 import 'admin_single_app_release.dart';
 import 'admin_audit_sandbox.dart';
@@ -358,6 +359,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     30: 'marketplace',
     31: 'payments',
     32: 'operators',
+    33: 'payments',
   };
 
   bool _sectionAllowed(int index) {
@@ -370,6 +372,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     // El panel Delivery unificado requiere funciones centrales. Para operadores
     // se autoriza solo el listado de entregas (sección 3), restringido por zona.
     if (index == 23 && adminAccess['role'] == 'operator') return false;
+    // Payments readiness also backs the new zone-scoped debt/wallet controls;
+    // do not expose restaurant settlements to operators through that same key.
+    if (index == 31 &&
+        (adminAccess['role'] == 'operator' ||
+            adminAccess['role'] == 'zone_monitor')) return false;
     final module = _sectionModuleKeys[index];
     if (module == null) return false;
     final allowed = _allowedModules;
@@ -443,6 +450,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Restaurantes', Icons.restaurant_rounded),
     ('Liquidaciones de restaurantes', Icons.receipt_long_rounded),
     ('Operadores', Icons.admin_panel_settings_rounded),
+    ('Deudas y ajustes', Icons.receipt_long_rounded),
   ];
 
   Future<bool> _authorized() async {
@@ -1394,6 +1402,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           channel: adminChannel,
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
+        );
+      case 33:
+        return AdminDebtWalletPage(
+          channel: adminChannel,
+          zoneId: adminZoneId ?? '',
+          zoneName: (adminAccess['zone_name'] ?? 'Zona').toString(),
+          readOnly: adminAccess['read_only'] == true,
         );
       case 10:
         return AdminEnvironmentReportsPage(
