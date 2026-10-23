@@ -26,6 +26,9 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
   String status = 'pending';
   String role = 'all';
   String currency = '';
+  final passengerDebtLimitController = TextEditingController();
+  final driverDebtLimitController = TextEditingController();
+  bool savingDebtLimits = false;
   final searchController = TextEditingController();
   List<Map<String, dynamic>> debts = [];
   List<Map<String, dynamic>> adjustments = [];
@@ -42,16 +45,24 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
   }
 
   @override
+  void didUpdateWidget(covariant AdminDebtManagementPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.zoneId != widget.zoneId) _load();
+  }
+
+  @override
   void dispose() {
     searchController.dispose();
+    passengerDebtLimitController.dispose();
+    driverDebtLimitController.dispose();
     super.dispose();
   }
 
   List<Map<String, dynamic>> _rows(dynamic value) => value is List
       ? value
-          .whereType<Map>()
-          .map((row) => Map<String, dynamic>.from(row))
-          .toList()
+            .whereType<Map>()
+            .map((row) => Map<String, dynamic>.from(row))
+            .toList()
       : <Map<String, dynamic>>[];
 
   Future<void> _load() async {
@@ -95,13 +106,23 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
       final adjustmentData = adjustmentResult is Map
           ? Map<String, dynamic>.from(adjustmentResult)
           : <String, dynamic>{};
+      final limitsResult = await supabase.rpc(
+        'admin_wallet_debt_limits_get_v1',
+        params: {'p_zone_id': widget.zoneId},
+      );
+      final limits = limitsResult is Map
+          ? Map<String, dynamic>.from(limitsResult)
+          : <String, dynamic>{};
+      if (limits.isEmpty) {
+        throw StateError('No se pudo leer el tope de deuda de la zona.');
+      }
       if (!mounted) return;
       setState(() {
-        currency = (data['currency_code'] ?? '').toString();
-        debts = [
-          ..._rows(data['debts']),
-          ..._rows(adjustmentData['debts']),
-        ];
+        currency = (limits['currency_code'] ?? data['currency_code'] ?? '')
+            .toString();
+        passengerDebtLimitController.text = _format(limits['passenger_limit']);
+        driverDebtLimitController.text = _format(limits['driver_limit']);
+        debts = [..._rows(data['debts']), ..._rows(adjustmentData['debts'])];
         adjustments = _rows(data['adjustments']);
         targets = _rows(data['targets']);
         loading = false;
@@ -112,6 +133,63 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
         error = _friendlyError(e);
         loading = false;
       });
+    }
+  }
+
+  Future<void> _saveDebtLimits() async {
+    if (savingDebtLimits || loading || error != null) return;
+    final passenger = double.tryParse(
+      passengerDebtLimitController.text.trim().replaceAll(',', '.'),
+    );
+    final driver = double.tryParse(
+      driverDebtLimitController.text.trim().replaceAll(',', '.'),
+    );
+    if (passenger == null ||
+        driver == null ||
+        !passenger.isFinite ||
+        !driver.isFinite ||
+        passenger < 0 ||
+        driver < 0 ||
+        passenger > 10000000 ||
+        driver > 10000000 ||
+        (currency.toUpperCase() == 'CLP' &&
+            (passenger != passenger.roundToDouble() ||
+                driver != driver.roundToDouble()))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Revisa los topes: deben ser válidos y no negativos.'),
+        ),
+      );
+      return;
+    }
+    setState(() => savingDebtLimits = true);
+    try {
+      final result = await supabase.rpc(
+        'admin_wallet_debt_limits_set_v1',
+        params: {
+          'p_zone_id': widget.zoneId,
+          'p_passenger_limit': passenger,
+          'p_driver_limit': driver,
+        },
+      );
+      if (!mounted) return;
+      if (result is Map) {
+        final saved = Map<String, dynamic>.from(result);
+        passengerDebtLimitController.text = _format(saved['passenger_limit']);
+        driverDebtLimitController.text = _format(saved['driver_limit']);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Topes de deuda guardados para esta zona.'),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_friendlyError(e))));
+      }
+    } finally {
+      if (mounted) setState(() => savingDebtLimits = false);
     }
   }
 
@@ -130,9 +208,9 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
   String _idempotencyKey() {
     final random = Random.secure();
     String part(int length) => List.generate(
-          length,
-          (_) => random.nextInt(16).toRadixString(16),
-        ).join();
+      length,
+      (_) => random.nextInt(16).toRadixString(16),
+    ).join();
     return '${part(8)}-${part(4)}-4${part(3)}-${(8 + random.nextInt(4)).toRadixString(16)}${part(3)}-${part(12)}';
   }
 
@@ -140,6 +218,13 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
     final number = amount is num ? amount : num.tryParse('$amount') ?? 0;
     final decimals = (code ?? currency) == 'CLP' ? 0 : 2;
     return '${code ?? currency} ${number.toStringAsFixed(decimals)}';
+  }
+
+  String _format(Object? value) {
+    final number = value is num ? value : num.tryParse('$value') ?? 0;
+    return number == number.roundToDouble()
+        ? number.toStringAsFixed(0)
+        : number.toStringAsFixed(2);
   }
 
   String _date(dynamic value) {
@@ -396,11 +481,8 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
       final balanceMessage = balanceAfter != null && balanceAfter < 0
           ? 'Deuda registrada. Saldo deudor: ${_money(balanceAfter)}.'
           : 'Ajuste aplicado. Saldo nuevo: ${_money(balanceAfter)}.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(balanceMessage),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(balanceMessage)));
       pendingOperationKeys.remove(userId);
       pendingAdjustments.remove(userId);
       await _load();
@@ -411,8 +493,9 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
     }
   }
 
-  void _showError(String message) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(message)));
+  void _showError(String message) =>
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
 
   Widget _debtCard(Map<String, dynamic> debt) {
     final isOpen = debt['status'] == 'pending';
@@ -534,17 +617,15 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
     final label = after < 0
         ? (added ? 'Deuda reducida' : 'Saldo deudor')
         : (before < 0
-            ? 'Deuda saldada'
-            : (added ? 'Saldo asignado' : 'Saldo descontado'));
+              ? 'Deuda saldada'
+              : (added ? 'Saldo asignado' : 'Saldo descontado'));
     return Card(
       child: ListTile(
         leading: Icon(
           added ? Icons.add_circle_outline : Icons.remove_circle_outline,
           color: added ? Colors.green : Colors.deepOrange,
         ),
-        title: Text(
-          '${row['full_name'] ?? 'Usuario'} · $label',
-        ),
+        title: Text('${row['full_name'] ?? 'Usuario'} · $label'),
         subtitle: Text(
           [
             if ((row['email'] ?? '').toString().isNotEmpty)
@@ -610,6 +691,77 @@ class _AdminDebtManagementPageState extends State<AdminDebtManagementPage> {
             'Las liquidaciones y ajustes requieren motivo y quedan registrados con el operador, zona y saldo anterior y nuevo.',
           ),
           const SizedBox(height: 14),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tope de deuda de billetera',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'El pasajero o conductor puede continuar mientras su deuda total esté dentro del tope. Se bloquea al superarlo. Un tope de 0 bloquea desde cualquier deuda pendiente.',
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: passengerDebtLimitController,
+                          enabled:
+                              !loading && !savingDebtLimits && error == null,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: 'Tope pasajero',
+                            suffixText: currency,
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: driverDebtLimitController,
+                          enabled:
+                              !loading && !savingDebtLimits && error == null,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: 'Tope conductor',
+                            suffixText: currency,
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton.icon(
+                      onPressed: loading || savingDebtLimits || error != null
+                          ? null
+                          : _saveDebtLimits,
+                      icon: savingDebtLimits
+                          ? const SizedBox.square(
+                              dimension: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_outlined),
+                      label: const Text('Guardar topes'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
           TextField(
             controller: searchController,
             textInputAction: TextInputAction.search,
