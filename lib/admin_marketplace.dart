@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import 'core/admin_friendly_error.dart';
 import 'core/admin_dropdown_field.dart';
 
@@ -30,11 +33,21 @@ class AdminMarketplacePage extends StatefulWidget {
 
 class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
   late Future<Map<String, dynamic>> future;
+  late Future<List<Map<String, dynamic>>> applicationsFuture;
 
   @override
   void initState() {
     super.initState();
     future = _load();
+    applicationsFuture = _loadApplications();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadApplications() async {
+    final value = await supabase.rpc(
+      'admin_marketplace_merchant_applications',
+      params: {'p_channel': widget.channel, 'p_zone_id': widget.zoneId},
+    );
+    return _rows(value);
   }
 
   Future<Map<String, dynamic>> _load() async {
@@ -53,21 +66,15 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     }
     final value = await supabase.rpc(
       'admin_marketplace_state_scoped',
-      params: {
-        'p_country_code': countryCode,
-        'p_zone_id': zoneId,
-      },
+      params: {'p_country_code': countryCode, 'p_zone_id': zoneId},
     );
-    final state = value is Map
-        ? Map<String, dynamic>.from(value)
-        : <String, dynamic>{};
-    final visibilityKey = widget.channel == 'preview'
-        ? 'preview_visible'
-        : 'production_visible';
+    final state =
+        value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
+    final visibilityKey =
+        widget.channel == 'preview' ? 'preview_visible' : 'production_visible';
     for (final key in const ['categories', 'banners', 'merchants']) {
-      state[key] = _rows(state[key])
-          .where((row) => row[visibilityKey] == true)
-          .toList();
+      state[key] =
+          _rows(state[key]).where((row) => row[visibilityKey] == true).toList();
     }
     return state;
   }
@@ -80,13 +87,255 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
         .toList();
   }
 
-  void _refresh() => setState(() => future = _load());
+  void _refresh() => setState(() {
+        future = _load();
+        applicationsFuture = _loadApplications();
+      });
+
+  Future<void> _reviewApplication(
+    Map<String, dynamic> row, {
+    required bool approve,
+  }) async {
+    if (approve && (widget.zoneId == null || widget.zoneId!.isEmpty)) {
+      _snack('Selecciona una zona activa antes de aprobar el restaurante.');
+      return;
+    }
+    if (approve) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Aprobar restaurante'),
+          content: Text(
+            'Se creará “${row['restaurant_name'] ?? 'Restaurante'}” '
+            'en ${widget.channel == 'preview' ? 'Preview' : 'Producción'} '
+            'y se asignará esta cuenta como propietaria.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Aprobar'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+      try {
+        await supabase.rpc(
+          'admin_marketplace_approve_merchant_application',
+          params: {'p_application_id': row['id'], 'p_zone_id': widget.zoneId},
+        );
+        _snack('Restaurante aprobado y cuenta asignada.');
+        _refresh();
+      } catch (error) {
+        _snack('No se pudo aprobar la solicitud: $error');
+      }
+      return;
+    }
+
+    final reason = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Rechazar solicitud'),
+        content: TextField(
+          controller: reason,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Motivo'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Rechazar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      try {
+        await supabase.rpc(
+          'admin_marketplace_reject_merchant_application',
+          params: {
+            'p_application_id': row['id'],
+            'p_reason': reason.text.trim(),
+          },
+        );
+        _snack('Solicitud rechazada.');
+        _refresh();
+      } catch (error) {
+        _snack('No se pudo rechazar la solicitud: $error');
+      }
+    }
+    reason.dispose();
+  }
+
+  Widget _applicationsSection() => FutureBuilder<List<Map<String, dynamic>>>(
+        future: applicationsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Card(
+              child: ListTile(
+                leading: const Icon(Icons.error_outline, color: Colors.red),
+                title: const Text('Solicitudes de restaurantes'),
+                subtitle: const Text('No se pudieron cargar.'),
+                trailing: IconButton(
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ),
+            );
+          }
+          final rows = snapshot.data ?? const [];
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Solicitudes de restaurantes',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      Chip(label: Text('${rows.length} pendientes')),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Revisa los datos antes de aprobar en ${widget.channel}. '
+                    'Zona activa: ${widget.zoneId == null ? 'selecciona una zona' : 'lista'}.',
+                  ),
+                  const SizedBox(height: 12),
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      !snapshot.hasData)
+                    const LinearProgressIndicator(),
+                  if (rows.isEmpty &&
+                      snapshot.connectionState == ConnectionState.done)
+                    const Text('No hay solicitudes pendientes.'),
+                  for (final row in rows) ...[
+                    const Divider(),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if ((row['logo_url'] ?? '').toString().isNotEmpty)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              row['logo_url'].toString(),
+                              width: 64,
+                              height: 64,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const SizedBox(
+                                width: 64,
+                                height: 64,
+                                child: Icon(Icons.storefront),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                row['restaurant_name']?.toString() ??
+                                    'Restaurante',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800),
+                              ),
+                              Text(row['email']?.toString() ?? ''),
+                              Text(row['address']?.toString() ?? ''),
+                              Text(
+                                  'Mapa: ${row['latitude']}, ${row['longitude']}'),
+                            ],
+                          ),
+                        ),
+                        if ((row['cover_image_url'] ?? '')
+                            .toString()
+                            .isNotEmpty)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              row['cover_image_url'].toString(),
+                              width: 112,
+                              height: 64,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const SizedBox.shrink(),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              _reviewApplication(row, approve: false),
+                          icon: const Icon(Icons.close),
+                          label: const Text('Rechazar'),
+                        ),
+                        FilledButton.icon(
+                          onPressed: widget.zoneId == null
+                              ? null
+                              : () => _reviewApplication(row, approve: true),
+                          icon: const Icon(Icons.check),
+                          label: const Text('Aprobar restaurante'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+  Future<void> _openSupport(Map<String, dynamic> merchant) async {
+    try {
+      final raw = await supabase.rpc(
+        'admin_marketplace_support_open',
+        params: {'p_merchant_id': merchant['id']},
+      );
+      if (raw is! Map || raw['session_id'] == null) {
+        throw StateError('Admin no devolvió una sesión temporal.');
+      }
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => AdminMarketplaceSupportPage(
+            sessionId: raw['session_id'].toString(),
+            merchantName: raw['merchant_name']?.toString() ?? 'Restaurante',
+            expiresAt: DateTime.tryParse(raw['expires_at']?.toString() ?? '') ??
+                DateTime.now().add(const Duration(minutes: 20)),
+          ),
+        ),
+      );
+      _refresh();
+    } catch (error) {
+      _snack('No se pudo abrir el panel temporal: $error');
+    }
+  }
 
   void _snack(Object message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message.toString())),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message.toString())));
   }
 
   Future<void> _editSettings(Map<String, dynamic> settings) async {
@@ -130,26 +379,30 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: module,
-                    decoration:
-                        const InputDecoration(labelText: 'Nombre del módulo'),
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre del módulo',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: search,
-                    decoration:
-                        const InputDecoration(labelText: 'Texto del buscador'),
+                    decoration: const InputDecoration(
+                      labelText: 'Texto del buscador',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: hero,
-                    decoration:
-                        const InputDecoration(labelText: 'Título principal'),
+                    decoration: const InputDecoration(
+                      labelText: 'Título principal',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: subtitle,
-                    decoration:
-                        const InputDecoration(labelText: 'Subtítulo principal'),
+                    decoration: const InputDecoration(
+                      labelText: 'Subtítulo principal',
+                    ),
                   ),
                 ],
               ),
@@ -196,8 +449,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
   }
 
   Future<void> _editCategory(Map<String, dynamic>? row) async {
-    final key =
-        TextEditingController(text: row?['category_key']?.toString() ?? '');
+    final key = TextEditingController(
+      text: row?['category_key']?.toString() ?? '',
+    );
     final name = TextEditingController(text: row?['name']?.toString() ?? '');
     final icon = TextEditingController(
       text: row?['icon_key']?.toString() ?? 'storefront',
@@ -248,8 +502,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   const SizedBox(height: 10),
                   TextField(
                     controller: icon,
-                    decoration:
-                        const InputDecoration(labelText: 'Icono interno'),
+                    decoration: const InputDecoration(
+                      labelText: 'Icono interno',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -327,10 +582,12 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
 
   Future<void> _editBanner(Map<String, dynamic>? row) async {
     final title = TextEditingController(text: row?['title']?.toString() ?? '');
-    final subtitle =
-        TextEditingController(text: row?['subtitle']?.toString() ?? '');
-    final cta =
-        TextEditingController(text: row?['cta_label']?.toString() ?? '');
+    final subtitle = TextEditingController(
+      text: row?['subtitle']?.toString() ?? '',
+    );
+    final cta = TextEditingController(
+      text: row?['cta_label']?.toString() ?? '',
+    );
     final style = TextEditingController(
       text: row?['style_key']?.toString() ?? 'blue',
     );
@@ -376,8 +633,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   const SizedBox(height: 10),
                   TextField(
                     controller: cta,
-                    decoration:
-                        const InputDecoration(labelText: 'Botón / CTA'),
+                    decoration: const InputDecoration(labelText: 'Botón / CTA'),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -486,12 +742,15 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
             ? ''
             : categories.first['category_key']?.toString() ?? '');
     final name = TextEditingController(text: row?['name']?.toString() ?? '');
-    final description =
-        TextEditingController(text: row?['description']?.toString() ?? '');
-    final image =
-        TextEditingController(text: row?['image_url']?.toString() ?? '');
-    final rating =
-        TextEditingController(text: row?['rating']?.toString() ?? '5');
+    final description = TextEditingController(
+      text: row?['description']?.toString() ?? '',
+    );
+    final image = TextEditingController(
+      text: row?['image_url']?.toString() ?? '',
+    );
+    final rating = TextEditingController(
+      text: row?['rating']?.toString() ?? '5',
+    );
     final etaMin = TextEditingController(
       text: row?['eta_min_minutes']?.toString() ?? '15',
     );
@@ -578,8 +837,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   const SizedBox(height: 10),
                   TextField(
                     controller: image,
-                    decoration:
-                        const InputDecoration(labelText: 'URL de imagen'),
+                    decoration: const InputDecoration(
+                      labelText: 'URL de imagen',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -588,8 +848,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                         child: TextField(
                           controller: rating,
                           keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'Rating'),
+                          decoration: const InputDecoration(
+                            labelText: 'Rating',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -597,8 +858,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                         child: TextField(
                           controller: fee,
                           keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'Costo envío'),
+                          decoration: const InputDecoration(
+                            labelText: 'Costo envío',
+                          ),
                         ),
                       ),
                     ],
@@ -610,8 +872,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                         child: TextField(
                           controller: etaMin,
                           keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'ETA mínimo'),
+                          decoration: const InputDecoration(
+                            labelText: 'ETA mínimo',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -619,8 +882,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                         child: TextField(
                           controller: etaMax,
                           keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'ETA máximo'),
+                          decoration: const InputDecoration(
+                            labelText: 'ETA máximo',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -628,8 +892,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                         child: TextField(
                           controller: order,
                           keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'Orden'),
+                          decoration: const InputDecoration(labelText: 'Orden'),
                         ),
                       ),
                     ],
@@ -808,8 +1071,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
             : constraints.maxWidth >= 700
                 ? 2
                 : 1;
-        final width =
-            (constraints.maxWidth - (columns - 1) * 10) / columns;
+        final width = (constraints.maxWidth - (columns - 1) * 10) / columns;
         return Wrap(
           spacing: 10,
           runSpacing: 10,
@@ -947,6 +1209,8 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                 ],
               ),
               const SizedBox(height: 24),
+              if (widget.showMerchants) _applicationsSection(),
+              if (widget.showMerchants) const SizedBox(height: 22),
               _section(
                 'Categorías',
                 'Orden, icono y visibilidad por entorno.',
@@ -991,65 +1255,259 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
               const SizedBox(height: 26),
               if (widget.showMerchants &&
                   widget.channel == 'preview' &&
-                  widget.zoneId != null && widget.zoneId!.isNotEmpty)
+                  widget.zoneId != null &&
+                  widget.zoneId!.isNotEmpty)
                 AdminMarketplaceDemoSection(
-                  key:ValueKey('${widget.channel}-${widget.zoneId}'),
-                  zoneId:widget.zoneId!,
-                  channel:widget.channel,
-                  onOpenProducts:_openProducts,
+                  key: ValueKey('${widget.channel}-${widget.zoneId}'),
+                  zoneId: widget.zoneId!,
+                  channel: widget.channel,
+                  onOpenProducts: _openProducts,
                 ),
               const SizedBox(height: 26),
-              if (widget.showMerchants) _section(
-                'Comercios y productos',
-                'Locales, tiempos, costo de envío y catálogo.',
-                'Nuevo comercio',
-                () => _editMerchant(null, categories),
-                merchants
-                    .map(
-                      (row) => _card(
-                        title: row['name']?.toString() ?? 'Comercio',
-                        subtitle:
-                            (row['category_key'] ?? '').toString() +
-                                ' · ' +
-                                (row['eta_min_minutes'] ?? 15).toString() +
-                                '-' +
-                                (row['eta_max_minutes'] ?? 40).toString() +
-                                ' min',
-                        chips: [
-                          _tag('Activo', row['active'] == true),
-                          _tag('Prueba', row['preview_visible'] == true),
-                          _tag('Prod', row['production_visible'] == true),
-                        ],
-                        onTap: () => _openProducts(row),
-                        trailing: PopupMenuButton<String>(
-                          onSelected: (value) {
-                            if (value == 'edit') {
-                              _editMerchant(row, categories);
-                            } else {
-                              _openProducts(row);
-                            }
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(
-                              value: 'edit',
-                              child: Text('Editar comercio'),
-                            ),
-                            PopupMenuItem(
-                              value: 'products',
-                              child: Text('Productos'),
-                            ),
+              if (widget.showMerchants)
+                _section(
+                  'Comercios y productos',
+                  'Locales, tiempos, costo de envío y catálogo.',
+                  'Nuevo comercio',
+                  () => _editMerchant(null, categories),
+                  merchants
+                      .map(
+                        (row) => _card(
+                          title: row['name']?.toString() ?? 'Comercio',
+                          subtitle: (row['category_key'] ?? '').toString() +
+                              ' · ' +
+                              (row['eta_min_minutes'] ?? 15).toString() +
+                              '-' +
+                              (row['eta_max_minutes'] ?? 40).toString() +
+                              ' min',
+                          chips: [
+                            _tag('Activo', row['active'] == true),
+                            _tag('Prueba', row['preview_visible'] == true),
+                            _tag('Prod', row['production_visible'] == true),
                           ],
+                          onTap: () => _openProducts(row),
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (value) {
+                              if (value == 'edit') {
+                                _editMerchant(row, categories);
+                              } else if (value == 'support') {
+                                _openSupport(row);
+                              } else {
+                                _openProducts(row);
+                              }
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: 'edit',
+                                child: Text('Editar comercio'),
+                              ),
+                              PopupMenuItem(
+                                value: 'products',
+                                child: Text('Productos'),
+                              ),
+                              PopupMenuItem(
+                                value: 'support',
+                                child: Text('Abrir panel temporal'),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    )
-                    .toList(),
-              ),
+                      )
+                      .toList(),
+                ),
             ],
           );
         },
       ),
     );
   }
+}
+
+class AdminMarketplaceSupportPage extends StatefulWidget {
+  const AdminMarketplaceSupportPage({
+    super.key,
+    required this.sessionId,
+    required this.merchantName,
+    required this.expiresAt,
+  });
+
+  final String sessionId;
+  final String merchantName;
+  final DateTime expiresAt;
+
+  @override
+  State<AdminMarketplaceSupportPage> createState() =>
+      _AdminMarketplaceSupportPageState();
+}
+
+class _AdminMarketplaceSupportPageState
+    extends State<AdminMarketplaceSupportPage> {
+  late Future<Map<String, dynamic>> _future;
+  Timer? _timer;
+  Duration _remaining = Duration.zero;
+  bool _closed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+    _tick();
+    _timer = Timer.periodic(const Duration(seconds: 15), (_) => _tick());
+  }
+
+  Future<Map<String, dynamic>> _load() async {
+    final value = await supabase.rpc(
+      'admin_marketplace_support_state',
+      params: {'p_session_id': widget.sessionId},
+    );
+    if (value is! Map)
+      throw StateError('El panel temporal no está disponible.');
+    return Map<String, dynamic>.from(value);
+  }
+
+  void _tick() {
+    if (!mounted) return;
+    final left = widget.expiresAt.difference(DateTime.now());
+    setState(() => _remaining = left.isNegative ? Duration.zero : left);
+  }
+
+  Future<void> _close() async {
+    if (_closed) return;
+    _closed = true;
+    try {
+      await supabase.rpc(
+        'admin_marketplace_support_close',
+        params: {'p_session_id': widget.sessionId},
+      );
+    } catch (_) {}
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    if (!_closed) {
+      unawaited(
+        supabase.rpc(
+          'admin_marketplace_support_close',
+          params: {'p_session_id': widget.sessionId},
+        ).catchError((_) {}),
+      );
+    }
+    super.dispose();
+  }
+
+  List<Map<String, dynamic>> _rows(Object? value) => value is List
+      ? value.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+      : const [];
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          title: Text(widget.merchantName),
+          actions: [
+            TextButton.icon(
+              onPressed: _close,
+              icon: const Icon(Icons.close),
+              label: const Text('Cerrar sesión temporal'),
+            ),
+          ],
+        ),
+        body: FutureBuilder<Map<String, dynamic>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError || _remaining == Duration.zero) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                        'La sesión temporal terminó o no está disponible.'),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: _close,
+                      child: const Text('Volver a Admin'),
+                    ),
+                  ],
+                ),
+              );
+            }
+            final data = snapshot.data ?? const <String, dynamic>{};
+            final merchant = data['merchant'] is Map
+                ? Map<String, dynamic>.from(data['merchant'] as Map)
+                : <String, dynamic>{};
+            final products = _rows(data['products']);
+            final categories = _rows(data['categories']);
+            final orders = _rows(data['orders']);
+            final minutes = _remaining.inMinutes;
+            final seconds = _remaining.inSeconds % 60;
+            return ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                Card(
+                  color: const Color(0xFFEAF2FF),
+                  child: ListTile(
+                    leading: const Icon(Icons.support_agent, color: _blue),
+                    title:
+                        const Text('Vista temporal de soporte · solo lectura'),
+                    subtitle: Text(
+                      'Expira en $minutes:${seconds.toString().padLeft(2, '0')}. '
+                      'No has iniciado sesión como el restaurante.',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  merchant['name']?.toString() ?? widget.merchantName,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                Text(merchant['address']?.toString() ??
+                    'Dirección sin registrar'),
+                const SizedBox(height: 18),
+                Text(
+                  'Categorías (${categories.length})',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                for (final category in categories)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.category_outlined),
+                    title: Text(category['name']?.toString() ?? 'Categoría'),
+                  ),
+                Text(
+                  'Productos (${products.length})',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                for (final product in products)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.fastfood_outlined),
+                    title: Text(product['name']?.toString() ?? 'Producto'),
+                    subtitle: Text(
+                      product['active'] == true ? 'Disponible' : 'Oculto',
+                    ),
+                  ),
+                Text(
+                  'Pedidos recientes (${orders.length})',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                for (final order in orders)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.receipt_long_outlined),
+                    title: Text(
+                      'Pedido ${order['id']?.toString().substring(0, 8) ?? ''}',
+                    ),
+                    subtitle: Text(order['status']?.toString() ?? 'Sin estado'),
+                  ),
+              ],
+            );
+          },
+        ),
+      );
 }
 
 class _MerchantProductsPage extends StatefulWidget {
@@ -1092,15 +1550,16 @@ class _MerchantProductsPageState extends State<_MerchantProductsPage> {
 
   Future<void> _editProduct(Map<String, dynamic>? row) async {
     final name = TextEditingController(text: row?['name']?.toString() ?? '');
-    final description =
-        TextEditingController(text: row?['description']?.toString() ?? '');
-    final price =
-        TextEditingController(text: row?['price']?.toString() ?? '0');
+    final description = TextEditingController(
+      text: row?['description']?.toString() ?? '',
+    );
+    final price = TextEditingController(text: row?['price']?.toString() ?? '0');
     final currency = TextEditingController(
       text: row?['currency_code']?.toString() ?? 'CLP',
     );
-    final image =
-        TextEditingController(text: row?['image_url']?.toString() ?? '');
+    final image = TextEditingController(
+      text: row?['image_url']?.toString() ?? '',
+    );
     final order = TextEditingController(
       text: row?['sort_order']?.toString() ?? '100',
     );
@@ -1132,16 +1591,18 @@ class _MerchantProductsPageState extends State<_MerchantProductsPage> {
                         child: TextField(
                           controller: price,
                           keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'Precio'),
+                          decoration: const InputDecoration(
+                            labelText: 'Precio',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
                           controller: currency,
-                          decoration:
-                              const InputDecoration(labelText: 'Moneda'),
+                          decoration: const InputDecoration(
+                            labelText: 'Moneda',
+                          ),
                         ),
                       ),
                     ],
@@ -1149,8 +1610,9 @@ class _MerchantProductsPageState extends State<_MerchantProductsPage> {
                   const SizedBox(height: 10),
                   TextField(
                     controller: image,
-                    decoration:
-                        const InputDecoration(labelText: 'URL de imagen'),
+                    decoration: const InputDecoration(
+                      labelText: 'URL de imagen',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -1291,5 +1753,6 @@ class AdminMerchantCatalogPage extends StatelessWidget {
   const AdminMerchantCatalogPage({super.key, required this.merchant});
 
   @override
-  Widget build(BuildContext context) => _MerchantProductsPage(merchant: merchant);
+  Widget build(BuildContext context) =>
+      _MerchantProductsPage(merchant: merchant);
 }

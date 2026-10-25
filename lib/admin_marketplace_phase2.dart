@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
 import 'core/admin_friendly_error.dart';
 import 'core/admin_dropdown_field.dart';
 
@@ -79,22 +81,14 @@ class _AdminMarketplacePhase2PageState
           'p_limit': 100,
         },
       );
-      return <String, dynamic>{
-        'recent_orders': _rows(orders),
-      };
+      return <String, dynamic>{'recent_orders': _rows(orders)};
     }
 
     final value = await supabase.rpc('admin_marketplace_phase2_state');
-    final state = value is Map
-        ? Map<String, dynamic>.from(value)
-        : <String, dynamic>{};
+    final state =
+        value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
 
-    for (final key in const [
-      'zones',
-      'plus_plans',
-      'benefits',
-      'merchants',
-    ]) {
+    for (final key in const ['zones', 'plus_plans', 'benefits', 'merchants']) {
       state[key] = _rows(state[key]).where(_inScope).toList();
     }
 
@@ -137,20 +131,25 @@ class _AdminMarketplacePhase2PageState
   }
 
   Future<void> _editZone(Map<String, dynamic> row) async {
-    final customerBase =
-        TextEditingController(text: row['customer_base_fee']?.toString() ?? '0');
-    final customerKm =
-        TextEditingController(text: row['customer_per_km']?.toString() ?? '0');
-    final customerMin =
-        TextEditingController(text: row['customer_min_fee']?.toString() ?? '0');
+    final customerBase = TextEditingController(
+      text: row['customer_base_fee']?.toString() ?? '0',
+    );
+    final customerKm = TextEditingController(
+      text: row['customer_per_km']?.toString() ?? '0',
+    );
+    final customerMin = TextEditingController(
+      text: row['customer_min_fee']?.toString() ?? '0',
+    );
     final driverBase = TextEditingController(
       text: row['driver_base_payout']?.toString() ?? '0',
     );
-    final driverKm =
-        TextEditingController(text: row['driver_per_km']?.toString() ?? '0');
+    final driverKm = TextEditingController(
+      text: row['driver_per_km']?.toString() ?? '0',
+    );
     final pickupFee = TextEditingController(
       text: row['driver_pickup_fee']?.toString() ??
-          row['driver_base_payout']?.toString() ?? '0',
+          row['driver_base_payout']?.toString() ??
+          '0',
     );
     final dropoffFee = TextEditingController(
       text: row['driver_dropoff_fee']?.toString() ?? '0',
@@ -181,9 +180,7 @@ class _AdminMarketplacePhase2PageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            'Delivery · ' + (row['zone_name']?.toString() ?? 'Zona'),
-          ),
+          title: Text('Delivery · ' + (row['zone_name']?.toString() ?? 'Zona')),
           content: SizedBox(
             width: 680,
             child: SingleChildScrollView(
@@ -239,23 +236,42 @@ class _AdminMarketplacePhase2PageState
                     'No depende de cuánto cobramos al cliente.',
                   ),
                   const SizedBox(height: 10),
-                  Wrap(spacing: 10, runSpacing: 10, children: [
-                    SizedBox(width: 145, child: TextField(
-                      controller: pickupFee,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Recogida'),
-                    )),
-                    SizedBox(width: 145, child: TextField(
-                      controller: dropoffFee,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Entrega'),
-                    )),
-                    SizedBox(width: 145, child: TextField(
-                      controller: serviceFee,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Servicio Express cliente'),
-                    )),
-                  ]),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      SizedBox(
+                        width: 145,
+                        child: TextField(
+                          controller: pickupFee,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Recogida',
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 145,
+                        child: TextField(
+                          controller: dropoffFee,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Entrega',
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 145,
+                        child: TextField(
+                          controller: serviceFee,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Servicio Express cliente',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   const SizedBox(height: 8),
                   Row(
@@ -398,18 +414,12 @@ class _AdminMarketplacePhase2PageState
           'p_zone_id': row['zone_id'],
           'p_preview_enabled': preview,
           'p_production_enabled': production,
-          'p_customer_base_fee':
-              double.tryParse(customerBase.text.trim()) ?? 0,
-          'p_customer_per_km':
-              double.tryParse(customerKm.text.trim()) ?? 0,
-          'p_customer_min_fee':
-              double.tryParse(customerMin.text.trim()) ?? 0,
-          'p_driver_base_payout':
-              double.tryParse(driverBase.text.trim()) ?? 0,
-          'p_driver_per_km':
-              double.tryParse(driverKm.text.trim()) ?? 0,
-          'p_driver_min_payout':
-              double.tryParse(driverMin.text.trim()) ?? 0,
+          'p_customer_base_fee': double.tryParse(customerBase.text.trim()) ?? 0,
+          'p_customer_per_km': double.tryParse(customerKm.text.trim()) ?? 0,
+          'p_customer_min_fee': double.tryParse(customerMin.text.trim()) ?? 0,
+          'p_driver_base_payout': double.tryParse(driverBase.text.trim()) ?? 0,
+          'p_driver_per_km': double.tryParse(driverKm.text.trim()) ?? 0,
+          'p_driver_min_payout': double.tryParse(driverMin.text.trim()) ?? 0,
           'p_priority_enabled': priority,
           'p_priority_customer_fee':
               double.tryParse(priorityFee.text.trim()) ?? 0,
@@ -423,17 +433,21 @@ class _AdminMarketplacePhase2PageState
         },
       );
       try {
-        await supabase.rpc('admin_marketplace_delivery_rate_components',params:{
-          'p_zone_id':row['zone_id'],
-          'p_pickup':double.tryParse(pickupFee.text.trim()) ?? 0,
-          'p_km':double.tryParse(driverKm.text.trim()) ?? 0,
-          'p_dropoff':double.tryParse(dropoffFee.text.trim()) ?? 0,
-          'p_service_fee':double.tryParse(serviceFee.text.trim()) ?? 0,
-        });
+        await supabase.rpc(
+          'admin_marketplace_delivery_rate_components',
+          params: {
+            'p_zone_id': row['zone_id'],
+            'p_pickup': double.tryParse(pickupFee.text.trim()) ?? 0,
+            'p_km': double.tryParse(driverKm.text.trim()) ?? 0,
+            'p_dropoff': double.tryParse(dropoffFee.text.trim()) ?? 0,
+            'p_service_fee': double.tryParse(serviceFee.text.trim()) ?? 0,
+          },
+        );
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Tarifas adicionales no guardadas: $e'),
-        ));
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Tarifas adicionales no guardadas: $e')),
+          );
       }
       if (mounted) _refresh();
     }
@@ -477,9 +491,7 @@ class _AdminMarketplacePhase2PageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            'Express Plus · ' + (row['zone_name']?.toString() ?? ''),
-          ),
+          title: Text('Express Plus · ' + (row['zone_name']?.toString() ?? '')),
           content: SizedBox(
             width: 560,
             child: SingleChildScrollView(
@@ -517,9 +529,7 @@ class _AdminMarketplacePhase2PageState
                   TextField(
                     controller: description,
                     maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Descripción',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Descripción'),
                   ),
                   SwitchListTile.adaptive(
                     value: freeDelivery,
@@ -627,9 +637,7 @@ class _AdminMarketplacePhase2PageState
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
-          title: Text(
-            'Plus · ' + (merchant['name']?.toString() ?? 'Comercio'),
-          ),
+          title: Text('Plus · ' + (merchant['name']?.toString() ?? 'Comercio')),
           content: SizedBox(
             width: 480,
             child: Column(
@@ -658,10 +666,7 @@ class _AdminMarketplacePhase2PageState
                     labelText: 'Quién financia el descuento',
                   ),
                   items: const [
-                    DropdownMenuItem(
-                      value: 'express',
-                      child: Text('Express'),
-                    ),
+                    DropdownMenuItem(value: 'express', child: Text('Express')),
                     DropdownMenuItem(
                       value: 'merchant',
                       child: Text('Comercio'),
@@ -699,8 +704,7 @@ class _AdminMarketplacePhase2PageState
         params: {
           'p_merchant_id': merchant['id'],
           'p_enabled': enabled,
-          'p_discount_percent':
-              double.tryParse(discount.text.trim()) ?? 0,
+          'p_discount_percent': double.tryParse(discount.text.trim()) ?? 0,
           'p_free_delivery': freeDelivery,
           'p_exclusive_promo': exclusive,
           'p_funded_by': fundedBy,
@@ -712,16 +716,13 @@ class _AdminMarketplacePhase2PageState
     discount.dispose();
   }
 
-  Future<void> _editMerchantLogistics(
-    Map<String, dynamic> merchant,
-  ) async {
+  Future<void> _editMerchantLogistics(Map<String, dynamic> merchant) async {
     final detail = await supabase.rpc(
       'admin_marketplace_merchant_detail',
       params: {'p_merchant_id': merchant['id']},
     );
-    final map = detail is Map
-        ? Map<String, dynamic>.from(detail)
-        : <String, dynamic>{};
+    final map =
+        detail is Map ? Map<String, dynamic>.from(detail) : <String, dynamic>{};
     final row = map['merchant'] is Map
         ? Map<String, dynamic>.from(map['merchant'] as Map)
         : merchant;
@@ -744,9 +745,7 @@ class _AdminMarketplacePhase2PageState
     final save = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(
-          'Logística · ' + (merchant['name']?.toString() ?? ''),
-        ),
+        title: Text('Logística · ' + (merchant['name']?.toString() ?? '')),
         content: SizedBox(
           width: 560,
           child: SingleChildScrollView(
@@ -765,9 +764,7 @@ class _AdminMarketplacePhase2PageState
                       child: TextField(
                         controller: latitude,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Latitud',
-                        ),
+                        decoration: const InputDecoration(labelText: 'Latitud'),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -829,9 +826,7 @@ class _AdminMarketplacePhase2PageState
     transfer.dispose();
   }
 
-  Future<void> _manageMerchantUsers(
-    Map<String, dynamic> merchant,
-  ) async {
+  Future<void> _manageMerchantUsers(Map<String, dynamic> merchant) async {
     final email = TextEditingController();
 
     Future<List<Map<String, dynamic>>> loadUsers() async {
@@ -868,10 +863,7 @@ class _AdminMarketplacePhase2PageState
             setLocal(() {});
           }
 
-          Future<void> toggle(
-            Map<String, dynamic> row,
-            bool active,
-          ) async {
+          Future<void> toggle(Map<String, dynamic> row, bool active) async {
             await supabase.rpc(
               'admin_marketplace_set_merchant_user_active',
               params: {
@@ -886,8 +878,7 @@ class _AdminMarketplacePhase2PageState
 
           return AlertDialog(
             title: Text(
-              'Accesos · ' +
-                  (merchant['name']?.toString() ?? 'Comercio'),
+              'Accesos · ' + (merchant['name']?.toString() ?? 'Comercio'),
             ),
             content: SizedBox(
               width: 620,
@@ -898,8 +889,7 @@ class _AdminMarketplacePhase2PageState
                       controller: email,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
-                        labelText:
-                            'Correo de la cuenta Express del comercio',
+                        labelText: 'Correo de la cuenta Express del comercio',
                         suffixIcon: IconButton(
                           tooltip: 'Vincular',
                           onPressed: assign,
@@ -911,9 +901,7 @@ class _AdminMarketplacePhase2PageState
                     if (users.isEmpty)
                       const ListTile(
                         leading: Icon(Icons.info_outline_rounded),
-                        title: Text(
-                          'Todavía no hay cuentas vinculadas.',
-                        ),
+                        title: Text('Todavía no hay cuentas vinculadas.'),
                         subtitle: Text(
                           'La persona debe tener una cuenta Express con ese correo.',
                         ),
@@ -923,6 +911,14 @@ class _AdminMarketplacePhase2PageState
                         (row) => SwitchListTile.adaptive(
                           value: row['active'] == true,
                           onChanged: (value) => toggle(row, value),
+                          secondary: IconButton(
+                            tooltip:
+                                'Cambiar correo o generar contraseña temporal',
+                            onPressed: row['role'] == 'owner'
+                                ? () => _changeMerchantAccess(merchant, row)
+                                : null,
+                            icon: const Icon(Icons.key_outlined),
+                          ),
                           title: Text(
                             row['full_name']?.toString().trim().isNotEmpty ==
                                     true
@@ -954,6 +950,117 @@ class _AdminMarketplacePhase2PageState
     email.dispose();
   }
 
+  Future<void> _changeMerchantAccess(
+    Map<String, dynamic> merchant,
+    Map<String, dynamic> user,
+  ) async {
+    final email = TextEditingController(text: user['email']?.toString() ?? '');
+    var generatePassword = true;
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: const Text('Cambiar acceso del restaurante'),
+          content: SizedBox(
+            width: 460,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Correo de acceso',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: generatePassword,
+                  onChanged: (value) =>
+                      setLocal(() => generatePassword = value),
+                  title: const Text('Generar contraseña temporal'),
+                  subtitle: const Text('Se mostrará una sola vez al guardar.'),
+                ),
+                const Text(
+                  'La contraseña anterior no se recupera. Entrega la temporal por un canal seguro.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Guardar acceso'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (save == true) {
+      try {
+        final result = await supabase.functions.invoke(
+          'admin-restaurant-access',
+          body: {
+            'merchant_id': merchant['id'],
+            'user_id': user['user_id'],
+            'new_email': email.text.trim(),
+            'generate_password': generatePassword,
+          },
+        );
+        if (result.status < 200 ||
+            result.status >= 300 ||
+            result.data is! Map) {
+          final detail =
+              result.data is Map ? (result.data as Map)['error'] : null;
+          throw StateError(
+            detail?.toString() ?? 'No se pudo cambiar el acceso.',
+          );
+        }
+        final data = Map<String, dynamic>.from(result.data as Map);
+        final password = data['temporary_password']?.toString();
+        if (mounted) {
+          await showDialog<void>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Acceso actualizado'),
+              content: SelectableText(
+                'Correo: ${data['email'] ?? user['email']}\n' +
+                    (password == null
+                        ? 'El cambio de correo quedó guardado.'
+                        : 'Contraseña temporal (solo se muestra ahora):\n$password\n\nEntrégala por un canal seguro.'),
+              ),
+              actions: [
+                if (password != null)
+                  TextButton.icon(
+                    onPressed: () =>
+                        Clipboard.setData(ClipboardData(text: password)),
+                    icon: const Icon(Icons.copy),
+                    label: const Text('Copiar contraseña'),
+                  ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Listo'),
+                ),
+              ],
+            ),
+          );
+        }
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No se pudo cambiar el acceso: $error')),
+          );
+        }
+      }
+    }
+    email.dispose();
+  }
+
   Future<void> _openOrder(Map<String, dynamic> order) async {
     var detail = await supabase.rpc(
       'marketplace_order_detail',
@@ -976,8 +1083,7 @@ class _AdminMarketplacePhase2PageState
               ? Map<String, dynamic>.from(map['financials'] as Map)
               : <String, dynamic>{};
           final messages = _rows(map['messages']);
-          final currency =
-              orderRow['currency_code']?.toString() ?? 'CLP';
+          final currency = orderRow['currency_code']?.toString() ?? 'CLP';
           final canReview = orderRow['payment_method'] == 'transfer' &&
               orderRow['payment_status'] == 'under_review';
 
@@ -999,10 +1105,7 @@ class _AdminMarketplacePhase2PageState
           Future<void> setOrderStatus(String status) async {
             detail = await supabase.rpc(
               'marketplace_order_set_status',
-              params: {
-                'p_order_id': orderRow['id'],
-                'p_status': status,
-              },
+              params: {'p_order_id': orderRow['id'], 'p_status': status},
             );
             setLocal(() {});
             _refresh();
@@ -1021,10 +1124,7 @@ class _AdminMarketplacePhase2PageState
             _refresh();
           }
 
-          Future<void> settle(
-            String balanceKey,
-            String label,
-          ) async {
+          Future<void> settle(String balanceKey, String label) async {
             detail = await supabase.rpc(
               'marketplace_settle_balance',
               params: {
@@ -1039,8 +1139,7 @@ class _AdminMarketplacePhase2PageState
 
           return AlertDialog(
             title: Text(
-              'Pedido · ' +
-                  (orderRow['id']?.toString().substring(0, 8) ?? ''),
+              'Pedido · ' + (orderRow['id']?.toString().substring(0, 8) ?? ''),
             ),
             content: SizedBox(
               width: 720,
@@ -1121,7 +1220,8 @@ class _AdminMarketplacePhase2PageState
                             alignment: Alignment.centerLeft,
                             child: Text(
                               'Liquidación: ' +
-                                  (financials['settlement_status']?.toString() ??
+                                  (financials['settlement_status']
+                                          ?.toString() ??
                                       'pending'),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w900,
@@ -1141,9 +1241,7 @@ class _AdminMarketplacePhase2PageState
                           'Comercio → Express',
                         ),
                         icon: const Icon(Icons.account_balance_rounded),
-                        label: const Text(
-                          'Cerrar saldo Comercio → Express',
-                        ),
+                        label: const Text('Cerrar saldo Comercio → Express'),
                       ),
                     ),
                   if (_number(financials['driver_owes_merchant']) > 0)
@@ -1155,9 +1253,7 @@ class _AdminMarketplacePhase2PageState
                           'Repartidor → comercio',
                         ),
                         icon: const Icon(Icons.storefront_rounded),
-                        label: const Text(
-                          'Cerrar saldo Repartidor → comercio',
-                        ),
+                        label: const Text('Cerrar saldo Repartidor → comercio'),
                       ),
                     ),
                   if (_number(financials['driver_owes_express']) > 0)
@@ -1169,9 +1265,7 @@ class _AdminMarketplacePhase2PageState
                           'Repartidor → Express',
                         ),
                         icon: const Icon(Icons.account_balance_wallet_rounded),
-                        label: const Text(
-                          'Cerrar saldo Repartidor → Express',
-                        ),
+                        label: const Text('Cerrar saldo Repartidor → Express'),
                       ),
                     ),
                   if (_number(financials['express_owes_merchant']) > 0)
@@ -1183,9 +1277,7 @@ class _AdminMarketplacePhase2PageState
                           'Express → comercio',
                         ),
                         icon: const Icon(Icons.store_mall_directory_rounded),
-                        label: const Text(
-                          'Cerrar saldo Express → comercio',
-                        ),
+                        label: const Text('Cerrar saldo Express → comercio'),
                       ),
                     ),
                   if (_number(financials['express_owes_driver']) > 0)
@@ -1197,9 +1289,7 @@ class _AdminMarketplacePhase2PageState
                           'Express → repartidor',
                         ),
                         icon: const Icon(Icons.delivery_dining_rounded),
-                        label: const Text(
-                          'Cerrar saldo Express → repartidor',
-                        ),
+                        label: const Text('Cerrar saldo Express → repartidor'),
                       ),
                     ),
                   const SizedBox(height: 12),
@@ -1275,9 +1365,7 @@ class _AdminMarketplacePhase2PageState
                       child: FilledButton.icon(
                         onPressed: () => setOrderStatus('ready'),
                         icon: const Icon(Icons.delivery_dining_rounded),
-                        label: const Text(
-                          'Listo · buscar repartidor',
-                        ),
+                        label: const Text('Listo · buscar repartidor'),
                       ),
                     ),
                   ],
@@ -1289,9 +1377,7 @@ class _AdminMarketplacePhase2PageState
                       child: OutlinedButton.icon(
                         onPressed: markDriverPaid,
                         icon: const Icon(Icons.payments_outlined),
-                        label: const Text(
-                          'Confirmar pago al repartidor',
-                        ),
+                        label: const Text('Confirmar pago al repartidor'),
                       ),
                     ),
                   ],
@@ -1310,11 +1396,7 @@ class _AdminMarketplacePhase2PageState
     );
   }
 
-  Widget _financialRow(
-    String label,
-    Object? value,
-    String currency,
-  ) {
+  Widget _financialRow(String label, Object? value, String currency) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
@@ -1333,9 +1415,7 @@ class _AdminMarketplacePhase2PageState
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: active
-            ? const Color(0xFFE8F8EF)
-            : const Color(0xFFF2F4F7),
+        color: active ? const Color(0xFFE8F8EF) : const Color(0xFFF2F4F7),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(
@@ -1406,7 +1486,11 @@ class _AdminMarketplacePhase2PageState
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Icon(Icons.open_in_new_rounded, size: 18, color: _muted),
+                  const Icon(
+                    Icons.open_in_new_rounded,
+                    size: 18,
+                    color: _muted,
+                  ),
                 ],
               ),
             ],
@@ -1416,9 +1500,7 @@ class _AdminMarketplacePhase2PageState
     );
   }
 
-  Future<void> _showZonesModule(
-    List<Map<String, dynamic>> zones,
-  ) async {
+  Future<void> _showZonesModule(List<Map<String, dynamic>> zones) async {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1472,9 +1554,7 @@ class _AdminMarketplacePhase2PageState
     );
   }
 
-  Future<void> _showPlansModule(
-    List<Map<String, dynamic>> plans,
-  ) async {
+  Future<void> _showPlansModule(List<Map<String, dynamic>> plans) async {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1536,7 +1616,9 @@ class _AdminMarketplacePhase2PageState
           width: 840,
           height: 560,
           child: merchants.isEmpty
-              ? const Center(child: Text('Todavía no hay locales configurados.'))
+              ? const Center(
+                  child: Text('Todavía no hay locales configurados.'),
+                )
               : ListView.separated(
                   itemCount: merchants.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
@@ -1553,9 +1635,7 @@ class _AdminMarketplacePhase2PageState
                           merchant['name']?.toString() ?? 'Comercio',
                           style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
-                        subtitle: Text(
-                          merchant['zone_key']?.toString() ?? '',
-                        ),
+                        subtitle: Text(merchant['zone_key']?.toString() ?? ''),
                         trailing: PopupMenuButton<String>(
                           tooltip: 'Administrar local',
                           onSelected: (value) {
@@ -1709,15 +1789,11 @@ class _AdminMarketplacePhase2PageState
           final benefits = _rows(data['benefits']);
           final merchants = _rows(data['merchants']);
           final orders = _rows(data['recent_orders'])
-              .where(
-                (row) =>
-                    row['channel']?.toString() == widget.channel,
-              )
+              .where((row) => row['channel']?.toString() == widget.channel)
               .toList();
 
           final benefitsByMerchant = <String, Map<String, dynamic>>{
-            for (final row in benefits)
-              row['merchant_id'].toString(): row,
+            for (final row in benefits) row['merchant_id'].toString(): row,
           };
 
           if (widget.ordersOnly) {
@@ -1805,11 +1881,7 @@ class _AdminMarketplacePhase2PageState
                     ),
                   ];
 
-                  return Wrap(
-                    spacing: gap,
-                    runSpacing: gap,
-                    children: cards,
-                  );
+                  return Wrap(spacing: gap, runSpacing: gap, children: cards);
                 },
               ),
               const SizedBox(height: 18),

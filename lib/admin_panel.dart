@@ -1,11 +1,14 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
 import 'core/admin_friendly_error.dart';
 import 'core/admin_dropdown_field.dart';
 import 'core/admin_friendly_labels.dart';
 import 'core/admin_money.dart';
 import 'core/admin_ui.dart';
+
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
@@ -101,18 +104,9 @@ ThemeData _expressAdminTheme(BuildContext context) {
       isDense: true,
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 12,
-      ),
-      labelStyle: const TextStyle(
-        color: adminMuted,
-        fontSize: 11,
-      ),
-      hintStyle: const TextStyle(
-        color: Color(0xFF98A2B3),
-        fontSize: 11,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      labelStyle: const TextStyle(color: adminMuted, fontSize: 11),
+      hintStyle: const TextStyle(color: Color(0xFF98A2B3), fontSize: 11),
       border: inputBorder(const Color(0xFFD0D5DD)),
       enabledBorder: inputBorder(const Color(0xFFD0D5DD)),
       focusedBorder: inputBorder(adminBlue),
@@ -122,13 +116,8 @@ ThemeData _expressAdminTheme(BuildContext context) {
       style: FilledButton.styleFrom(
         minimumSize: const Size(0, 40),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        textStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w800,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -136,27 +125,17 @@ ThemeData _expressAdminTheme(BuildContext context) {
         minimumSize: const Size(0, 40),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         side: const BorderSide(color: Color(0xFFD0D5DD)),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         foregroundColor: adminDark,
-        textStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w800,
-        ),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         minimumSize: const Size(0, 40),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        textStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w800,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
       ),
     ),
     iconButtonTheme: IconButtonThemeData(
@@ -164,9 +143,7 @@ ThemeData _expressAdminTheme(BuildContext context) {
         minimumSize: const Size(38, 38),
         maximumSize: const Size(42, 42),
         padding: const EdgeInsets.all(8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(9),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
       ),
     ),
     chipTheme: base.chipTheme.copyWith(
@@ -185,17 +162,13 @@ ThemeData _expressAdminTheme(BuildContext context) {
         fontSize: 10,
         fontWeight: FontWeight.w900,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
       elevation: 12,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       titleTextStyle: const TextStyle(
         inherit: false,
         color: adminDark,
@@ -250,9 +223,7 @@ ThemeData _expressAdminTheme(BuildContext context) {
         fontSize: 11,
         fontWeight: FontWeight.w600,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ),
   );
 }
@@ -388,7 +359,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     10,
     12,
     14,
-    32
+    32,
   }; // Reports, Builds, Audit, Operadores
   static bool _requiresZoneScope(int selectedSection) =>
       !_globalSections.contains(selectedSection);
@@ -492,10 +463,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     if (!_scopeReady) return <String, dynamic>{};
     final value = await supabase.rpc(
       'admin_dashboard_state_v2',
-      params: {
-        'p_channel': adminChannel,
-        'p_zone_id': adminZoneId,
-      },
+      params: {'p_channel': adminChannel, 'p_zone_id': adminZoneId},
     );
     return value is Map
         ? Map<String, dynamic>.from(value)
@@ -505,10 +473,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<({Map<String, dynamic> state, List<Map<String, dynamic>> zones})>
       _liveState() async {
     if (!_scopeReady) {
-      return (
-        state: <String, dynamic>{},
-        zones: <Map<String, dynamic>>[],
-      );
+      return (state: <String, dynamic>{}, zones: <Map<String, dynamic>>[]);
     }
     final state = await _dashboardState();
     final zones = await _filterZones();
@@ -528,10 +493,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     if (!_scopeReady) return const [];
     final value = await supabase.rpc(
       'admin_driver_list_v3',
-      params: {
-        'p_channel': adminChannel,
-        'p_zone_id': adminZoneId,
-      },
+      params: {'p_channel': adminChannel, 'p_zone_id': adminZoneId},
     );
     return _list(value);
   }
@@ -870,9 +832,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: const BoxDecoration(
           color: Color(0xFFF0FDF4),
-          border: Border(
-            bottom: BorderSide(color: Color(0xFFBBF7D0)),
-          ),
+          border: Border(bottom: BorderSide(color: Color(0xFFBBF7D0))),
         ),
         child: Row(
           children: [
@@ -977,9 +937,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           padding: const EdgeInsets.fromLTRB(18, 9, 18, 9),
           decoration: const BoxDecoration(
             color: Color(0xFFF8FAFC),
-            border: Border(
-              bottom: BorderSide(color: Color(0xFFE2E8F0)),
-            ),
+            border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
           ),
           child: Wrap(
             spacing: 10,
@@ -1125,9 +1083,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       );
       if (!mounted) return;
       _refresh();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Conductor: ' + status)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Conductor: ' + status)));
     } catch (e) {
       if (!mounted) return;
       _errorSnack(e);
@@ -1146,9 +1103,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       );
       if (!mounted) return;
       _refresh();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cuenta: ' + status)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Cuenta: ' + status)));
     } catch (e) {
       if (!mounted) return;
       _errorSnack(e);
@@ -1156,19 +1112,15 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   void _errorSnack(Object error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(friendlyError(error))),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(friendlyError(error))));
   }
 
   Future<void> _resolveEmergency(String id) async {
     try {
       await supabase.rpc(
         'admin_resolve_emergency_v2',
-        params: {
-          'p_emergency_id': id,
-          'p_channel': adminChannel,
-        },
+        params: {'p_emergency_id': id, 'p_channel': adminChannel},
       );
       if (!mounted) return;
       _refresh();
@@ -1212,8 +1164,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                             IconButton(
                               tooltip: 'Nuevo viaje',
                               onPressed: () => _goTo(13),
-                              icon:
-                                  const Icon(Icons.add_circle_outline_rounded),
+                              icon: const Icon(
+                                Icons.add_circle_outline_rounded,
+                              ),
                             ),
                           IconButton(
                             tooltip: 'Actualizar',
@@ -1288,8 +1241,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                             child: KeyedSubtree(
                               key: ValueKey(
                                 AdminRuntimeScope(
-                                  environment:
-                                      AdminEnvironment.parse(adminChannel),
+                                  environment: AdminEnvironment.parse(
+                                    adminChannel,
+                                  ),
                                   countryCode: _requiresZoneScope(section)
                                       ? adminCountryCode
                                       : null,
@@ -1351,25 +1305,28 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                 child: TabBar(
                   tabs: [
                     Tab(
-                        icon: Icon(Icons.location_city_outlined),
-                        text: 'Zonas y cobertura'),
+                      icon: Icon(Icons.location_city_outlined),
+                      text: 'Zonas y cobertura',
+                    ),
                     Tab(icon: Icon(Icons.shield_outlined), text: 'Seguridad'),
                   ],
                 ),
               ),
               Expanded(
-                child: TabBarView(children: [
-                  AdminZonesPage(
-                    channel: adminChannel,
-                    countryCode: adminCountryCode,
-                    zoneId: adminZoneId,
-                  ),
-                  AdminGeoSafetyPage(
-                    channel: adminChannel,
-                    countryCode: adminCountryCode,
-                    zoneId: adminZoneId,
-                  ),
-                ]),
+                child: TabBarView(
+                  children: [
+                    AdminZonesPage(
+                      channel: adminChannel,
+                      countryCode: adminCountryCode,
+                      zoneId: adminZoneId,
+                    ),
+                    AdminGeoSafetyPage(
+                      channel: adminChannel,
+                      countryCode: adminCountryCode,
+                      zoneId: adminZoneId,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -1448,28 +1405,35 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
             children: [
               const Material(
                 color: Colors.white,
-                child: TabBar(tabs: [
-                  Tab(
+                child: TabBar(
+                  tabs: [
+                    Tab(
                       icon: Icon(Icons.fact_check_outlined),
-                      text: 'Revisión de documentos'),
-                  Tab(
+                      text: 'Revisión de documentos',
+                    ),
+                    Tab(
                       icon: Icon(Icons.settings_outlined),
-                      text: 'Requisitos de identidad'),
-                ]),
+                      text: 'Requisitos de identidad',
+                    ),
+                  ],
+                ),
               ),
               Expanded(
-                  child: TabBarView(children: [
-                AdminManualIdentityPage(
-                  channel: adminChannel,
-                  countryCode: adminCountryCode,
-                  zoneId: adminZoneId,
+                child: TabBarView(
+                  children: [
+                    AdminManualIdentityPage(
+                      channel: adminChannel,
+                      countryCode: adminCountryCode,
+                      zoneId: adminZoneId,
+                    ),
+                    AdminIdentitySecurityPage(
+                      channel: adminChannel,
+                      countryCode: adminCountryCode,
+                      zoneId: adminZoneId,
+                    ),
+                  ],
                 ),
-                AdminIdentitySecurityPage(
-                  channel: adminChannel,
-                  countryCode: adminCountryCode,
-                  zoneId: adminZoneId,
-                ),
-              ])),
+              ),
             ],
           ),
         );
@@ -1535,7 +1499,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       case 33:
         return AdminDebtManagementPage(
           zoneId: adminZoneId ?? '',
-          zoneName: (adminAccess['zone_name'] ?? 'Zona seleccionada').toString(),
+          zoneName:
+              (adminAccess['zone_name'] ?? 'Zona seleccionada').toString(),
         );
       case 31:
         return AdminDeliverySettlementsPage(
@@ -1669,11 +1634,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
 
                   if (constraints.maxWidth < 900) {
                     return Column(
-                      children: [
-                        quick,
-                        const SizedBox(height: 14),
-                        system,
-                      ],
+                      children: [quick, const SizedBox(height: 14), system],
                     );
                   }
 
@@ -1878,7 +1839,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           item: (row) => _OperationCard(
             icon: Icons.local_taxi_rounded,
             title: friendlyAddress(
-                    (row['pickup_address'] ?? 'Origen').toString()) +
+                  (row['pickup_address'] ?? 'Origen').toString(),
+                ) +
                 ' → ' +
                 friendlyAddress(
                   (row['destination_address'] ?? 'Destino').toString(),
@@ -1934,7 +1896,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           item: (row) => _OperationCard(
             icon: Icons.local_shipping_rounded,
             title: friendlyAddress(
-                    (row['pickup_address'] ?? 'Origen').toString()) +
+                  (row['pickup_address'] ?? 'Origen').toString(),
+                ) +
                 ' → ' +
                 friendlyAddress(
                   (row['dropoff_address'] ?? 'Destino').toString(),
@@ -2141,10 +2104,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
-                          children: [
-                            _Chip(status),
-                            _Chip(online),
-                          ],
+                          children: [_Chip(status), _Chip(online)],
                         ),
                         const SizedBox(height: 9),
                         _Line(
@@ -2156,10 +2116,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                           row['phone']?.toString() ?? 'Sin teléfono',
                         ),
                         const SizedBox(height: 4),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: actions,
-                        ),
+                        Align(alignment: Alignment.centerRight, child: actions),
                       ],
                     ),
                   );
@@ -2185,102 +2142,265 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           return _ErrorView(error: snapshot.error, onRetry: _refresh);
         }
 
-        return _Records(
-          title: 'Usuarios',
-          subtitle:
-              'Pasajeros, conductores y control del estado de las cuentas.',
-          empty: 'Todavía no hay usuarios registrados.',
-          rows: snapshot.data ?? const [],
-          serverFilters: _userGeoFilters(),
-          showQaFilter: true,
-          item: (row) => Container(
-            margin: const EdgeInsets.only(bottom: 7),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: const Color(0xFFE7ECF3)),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Material(
-                type: MaterialType.transparency,
-                child: ListTile(
-                  dense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 4,
+        return Column(
+          children: [
+            if (!_readOnly && adminAccess['role'] == 'super_admin')
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  child: FilledButton.icon(
+                    onPressed: _createAppUser,
+                    icon: const Icon(Icons.person_add_alt_1),
+                    label: const Text('Crear cuenta'),
                   ),
-                  leading: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: const Color(0xFFEAF2FF),
-                    child: Icon(
-                      row['active_mode'] == 'driver'
-                          ? Icons.drive_eta_rounded
-                          : Icons.person_rounded,
-                      size: 18,
-                      color: adminBlue,
+                ),
+              ),
+            Expanded(
+              child: _Records(
+                title: 'Usuarios',
+                subtitle:
+                    'Pasajeros, conductores y control del estado de las cuentas.',
+                empty: 'Todavía no hay usuarios registrados.',
+                rows: snapshot.data ?? const [],
+                serverFilters: _userGeoFilters(),
+                showQaFilter: true,
+                item: (row) => Container(
+                  margin: const EdgeInsets.only(bottom: 7),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: const Color(0xFFE7ECF3)),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 4,
+                      ),
+                      leading: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: const Color(0xFFEAF2FF),
+                        child: Icon(
+                          row['active_mode'] == 'driver'
+                              ? Icons.drive_eta_rounded
+                              : Icons.person_rounded,
+                          size: 18,
+                          color: adminBlue,
+                        ),
+                      ),
+                      title: Text(
+                        row['full_name']?.toString().trim().isNotEmpty == true
+                            ? row['full_name'].toString()
+                            : row['email']?.toString() ?? 'Usuario',
+                      ),
+                      subtitle: Text(
+                        (row['email'] ?? '').toString() +
+                            ' · ' +
+                            friendlyStatus(
+                              (row['active_mode'] ?? 'passenger').toString(),
+                            ) +
+                            ' · ' +
+                            friendlyStatus(
+                              (row['account_status'] ?? 'active').toString(),
+                            ),
+                      ),
+                      trailing: _readOnly
+                          ? null
+                          : PopupMenuButton<String>(
+                              onSelected: (value) async {
+                                if (value == 'edit') {
+                                  final changed = await showAdminUserEditor(
+                                    context,
+                                    row['user_id'].toString(),
+                                    channel: adminChannel,
+                                  );
+                                  if (changed && mounted) _refresh();
+                                  return;
+                                }
+                                await _accountStatus(
+                                  row['user_id'].toString(),
+                                  value,
+                                );
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: ListTile(
+                                    dense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: Icon(
+                                      Icons.manage_accounts_outlined,
+                                    ),
+                                    title: Text('Ver / editar perfil'),
+                                  ),
+                                ),
+                                PopupMenuDivider(),
+                                PopupMenuItem(
+                                  value: 'active',
+                                  child: Text('Activar'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'suspended',
+                                  child: Text('Suspender'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'blocked',
+                                  child: Text('Bloquear'),
+                                ),
+                              ],
+                            ),
                     ),
                   ),
-                  title: Text(
-                    row['full_name']?.toString().trim().isNotEmpty == true
-                        ? row['full_name'].toString()
-                        : row['email']?.toString() ?? 'Usuario',
-                  ),
-                  subtitle: Text(
-                    (row['email'] ?? '').toString() +
-                        ' · ' +
-                        friendlyStatus(
-                            (row['active_mode'] ?? 'passenger').toString()) +
-                        ' · ' +
-                        friendlyStatus(
-                            (row['account_status'] ?? 'active').toString()),
-                  ),
-                  trailing: _readOnly
-                      ? null
-                      : PopupMenuButton<String>(
-                          onSelected: (value) async {
-                            if (value == 'edit') {
-                              final changed = await showAdminUserEditor(
-                                context,
-                                row['user_id'].toString(),
-                                channel: adminChannel,
-                              );
-                              if (changed && mounted) _refresh();
-                              return;
-                            }
-                            await _accountStatus(
-                              row['user_id'].toString(),
-                              value,
-                            );
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(
-                              value: 'edit',
-                              child: ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(Icons.manage_accounts_outlined),
-                                title: Text('Ver / editar perfil'),
-                              ),
-                            ),
-                            PopupMenuDivider(),
-                            PopupMenuItem(
-                              value: 'active',
-                              child: Text('Activar'),
-                            ),
-                            PopupMenuItem(
-                              value: 'suspended',
-                              child: Text('Suspender'),
-                            ),
-                            PopupMenuItem(
-                              value: 'blocked',
-                              child: Text('Bloquear'),
-                            ),
-                          ],
-                        ),
-                )),
-          ),
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
+  }
+
+  Future<void> _createAppUser() async {
+    if (!_scopeReady || adminZoneId == null || adminZoneId!.isEmpty) {
+      _showSnack('Elige una zona activa antes de crear la cuenta.');
+      return;
+    }
+    final email = TextEditingController();
+    final fullName = TextEditingController();
+    var accountType = 'passenger';
+    final create = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: const Text('Crear cuenta Express'),
+          content: SizedBox(
+            width: 460,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: accountType,
+                  decoration: const InputDecoration(
+                    labelText: 'Tipo de cuenta',
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'passenger',
+                      child: Text('Pasajero'),
+                    ),
+                    DropdownMenuItem(value: 'driver', child: Text('Conductor')),
+                    DropdownMenuItem(
+                      value: 'restaurant',
+                      child: Text('Restaurante'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setLocal(() => accountType = value ?? 'passenger'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: fullName,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre completo',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Correo electrónico',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Se creará en ${adminChannel == 'preview' ? 'Preview' : 'Producción'} · '
+                  '${adminAccess['zone_name'] ?? 'zona seleccionada'}. '
+                  'El sistema generará una contraseña temporal.',
+                ),
+                if (accountType == 'restaurant')
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Después, el restaurante inicia sesión y completa la solicitud de alta.',
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Crear cuenta'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (create == true) {
+      try {
+        final response = await supabase.functions.invoke(
+          'admin-create-app-user',
+          body: {
+            'email': email.text.trim(),
+            'full_name': fullName.text.trim(),
+            'account_type': accountType,
+            'channel': adminChannel,
+            'zone_id': adminZoneId,
+          },
+        );
+        if (response.status < 200 ||
+            response.status >= 300 ||
+            response.data is! Map) {
+          final detail =
+              response.data is Map ? (response.data as Map)['error'] : null;
+          throw StateError(detail?.toString() ?? 'No se pudo crear la cuenta.');
+        }
+        final result = Map<String, dynamic>.from(response.data as Map);
+        final password = result['temporary_password']?.toString() ?? '';
+        if (mounted) {
+          await showDialog<void>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Cuenta creada'),
+              content: SelectableText(
+                'Correo: ${result['email']}\n\nContraseña temporal (se muestra una sola vez):\n$password\n\nEntrégala al usuario por un canal seguro.',
+              ),
+              actions: [
+                TextButton.icon(
+                  onPressed: () =>
+                      Clipboard.setData(ClipboardData(text: password)),
+                  icon: const Icon(Icons.copy),
+                  label: const Text('Copiar contraseña'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Listo'),
+                ),
+              ],
+            ),
+          );
+          _refresh();
+        }
+      } catch (error) {
+        _showSnack('No se pudo crear la cuenta: $error');
+      }
+    }
+    email.dispose();
+    fullName.dispose();
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _security() {
@@ -2347,11 +2467,7 @@ class _ScopeSelectionRequired extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.filter_alt_outlined,
-              size: 46,
-              color: adminBlue,
-            ),
+            Icon(Icons.filter_alt_outlined, size: 46, color: adminBlue),
             SizedBox(height: 14),
             Text(
               'Selecciona país y zona',
@@ -2452,10 +2568,8 @@ class _Navigation extends StatelessWidget {
 
     return source
         .map(
-          (group) => (
-            group.$1,
-            group.$2.where(allowedSections.contains).toList(),
-          ),
+          (group) =>
+              (group.$1, group.$2.where(allowedSections.contains).toList()),
         )
         .where((group) => group.$2.isNotEmpty)
         .toList();
@@ -2524,8 +2638,11 @@ class _Navigation extends StatelessWidget {
                         ],
                       ),
                     ),
-                    Icon(Icons.unfold_more_rounded,
-                        size: 16, color: Color(0xFF8FA3BF)),
+                    Icon(
+                      Icons.unfold_more_rounded,
+                      size: 16,
+                      color: Color(0xFF8FA3BF),
+                    ),
                   ],
                 ),
               ),
@@ -2661,8 +2778,10 @@ class _NavEntry extends StatelessWidget {
                 ),
                 if (alert)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF4B1D26),
                       borderRadius: BorderRadius.circular(9),
@@ -2749,11 +2868,7 @@ class _Brand extends StatelessWidget {
               ),
             ],
           ),
-          child: const Icon(
-            Icons.bolt_rounded,
-            color: Colors.white,
-            size: 21,
-          ),
+          child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 21),
         ),
         const SizedBox(width: 10),
         if (compact) Flexible(child: text) else Expanded(child: text),
@@ -2804,8 +2919,11 @@ class _TopBar extends StatelessWidget {
               color: const Color(0xFFEAF2FF),
               borderRadius: BorderRadius.circular(10),
             ),
-            child:
-                const Icon(Icons.grid_view_rounded, color: adminBlue, size: 18),
+            child: const Icon(
+              Icons.grid_view_rounded,
+              color: adminBlue,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 10),
           Column(
@@ -2886,16 +3004,16 @@ class _TopBar extends StatelessWidget {
                   CircleAvatar(
                     radius: 15,
                     backgroundColor: Color(0xFFDBEAFE),
-                    child:
-                        Icon(Icons.person_rounded, color: adminBlue, size: 17),
+                    child: Icon(
+                      Icons.person_rounded,
+                      color: adminBlue,
+                      size: 17,
+                    ),
                   ),
                   SizedBox(width: 7),
                   Text(
                     'Administrador',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                    ),
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
                   ),
                   SizedBox(width: 2),
                   Icon(Icons.keyboard_arrow_down_rounded, size: 17),
@@ -2952,8 +3070,11 @@ class _Header extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.white.withOpacity(.18)),
             ),
-            child:
-                const Icon(Icons.bolt_rounded, color: Colors.white, size: 25),
+            child: const Icon(
+              Icons.bolt_rounded,
+              color: Colors.white,
+              size: 25,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -2977,15 +3098,14 @@ class _Header extends StatelessWidget {
                     if (badge != null)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 9, vertical: 4),
+                          horizontal: 9,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFF16A34A),
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x3316A34A),
-                              blurRadius: 10,
-                            ),
+                            BoxShadow(color: Color(0x3316A34A), blurRadius: 10),
                           ],
                         ),
                         child: Row(
@@ -3128,8 +3248,10 @@ class _Metric extends StatelessWidget {
                   ),
                   const Spacer(),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(20),
@@ -3138,8 +3260,11 @@ class _Metric extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.trending_up_rounded,
-                            color: _accent, size: 13),
+                        Icon(
+                          Icons.trending_up_rounded,
+                          color: _accent,
+                          size: 13,
+                        ),
                         const SizedBox(width: 3),
                         const Text(
                           'HOY',
@@ -3181,10 +3306,7 @@ class _Metric extends StatelessWidget {
                   footnote!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: adminMuted,
-                    fontSize: 9,
-                  ),
+                  style: const TextStyle(color: adminMuted, fontSize: 9),
                 ),
               ],
             ],
@@ -3246,9 +3368,7 @@ class _QuickActions extends StatelessWidget {
           decoration: BoxDecoration(
             color: action.$4,
             borderRadius: BorderRadius.circular(13),
-            border: Border.all(
-              color: action.$5.withOpacity(.18),
-            ),
+            border: Border.all(color: action.$5.withOpacity(.18)),
             boxShadow: [
               BoxShadow(
                 color: action.$5.withOpacity(.08),
@@ -3377,12 +3497,7 @@ class _SystemStatus extends StatelessWidget {
         'Pendientes',
         Icons.radar_rounded,
       ),
-      (
-        'SOS',
-        metrics['open_emergencies'],
-        'Sin alertas',
-        Icons.sos_rounded,
-      ),
+      ('SOS', metrics['open_emergencies'], 'Sin alertas', Icons.sos_rounded),
     ];
 
     return _Surface(
@@ -3751,10 +3866,7 @@ class _LiveSidePanelState extends State<_LiveSidePanel> {
             ),
           Expanded(
             child: showDrivers
-                ? _LiveDriverList(
-                    drivers: widget.drivers,
-                    trips: widget.trips,
-                  )
+                ? _LiveDriverList(drivers: widget.drivers, trips: widget.trips)
                 : _LiveTripList(
                     trips: widget.trips,
                     selectedTripId: widget.selectedTripId,
@@ -4067,10 +4179,7 @@ class _LiveDriverList extends StatelessWidget {
   final List<Map<String, dynamic>> drivers;
   final List<Map<String, dynamic>> trips;
 
-  const _LiveDriverList({
-    required this.drivers,
-    required this.trips,
-  });
+  const _LiveDriverList({required this.drivers, required this.trips});
 
   @override
   Widget build(BuildContext context) {
@@ -4249,11 +4358,7 @@ class _OperationsMapState extends State<_OperationsMap> {
 
   Future<List<LatLng>> _fetchTripRoute(Map<String, dynamic> trip) async {
     final from = _point(trip, 'pickup_latitude', 'pickup_longitude');
-    final to = _point(
-      trip,
-      'destination_latitude',
-      'destination_longitude',
-    );
+    final to = _point(trip, 'destination_latitude', 'destination_longitude');
     if (from == null || to == null) return const <LatLng>[];
 
     final fallback = <LatLng>[from, to];
@@ -4414,11 +4519,7 @@ class _OperationsMapState extends State<_OperationsMap> {
     LatLng? destinationPoint;
 
     if (focused) {
-      pickupPoint = _point(
-        focusedTrip,
-        'pickup_latitude',
-        'pickup_longitude',
-      );
+      pickupPoint = _point(focusedTrip, 'pickup_latitude', 'pickup_longitude');
       destinationPoint = _point(
         focusedTrip,
         'destination_latitude',
@@ -4429,11 +4530,7 @@ class _OperationsMapState extends State<_OperationsMap> {
 
       if (routePoints.length >= 2) {
         polylines.add(
-          Polyline(
-            points: routePoints,
-            strokeWidth: 5,
-            color: adminBlue,
-          ),
+          Polyline(points: routePoints, strokeWidth: 5, color: adminBlue),
         );
         cameraPoints.addAll(routePoints);
       } else {
@@ -4447,10 +4544,7 @@ class _OperationsMapState extends State<_OperationsMap> {
             point: pickupPoint,
             tooltip: 'Punto A · ' +
                 (focusedTrip['pickup_address'] ?? 'Origen').toString(),
-            child: const _TripPointMarker(
-              label: 'A',
-              color: Color(0xFF12B76A),
-            ),
+            child: const _TripPointMarker(label: 'A', color: Color(0xFF12B76A)),
           ),
         );
       }
@@ -4461,10 +4555,7 @@ class _OperationsMapState extends State<_OperationsMap> {
             point: destinationPoint,
             tooltip: 'Punto B · ' +
                 (focusedTrip['destination_address'] ?? 'Destino').toString(),
-            child: const _TripPointMarker(
-              label: 'B',
-              color: Color(0xFFE5484D),
-            ),
+            child: const _TripPointMarker(label: 'B', color: Color(0xFFE5484D)),
           ),
         );
       }
@@ -4667,9 +4758,7 @@ class _OperationsMapState extends State<_OperationsMap> {
         if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
         if (markers.isNotEmpty) MarkerLayer(markers: markers),
         const RichAttributionWidget(
-          attributions: [
-            TextSourceAttribution('OpenStreetMap contributors'),
-          ],
+          attributions: [TextSourceAttribution('OpenStreetMap contributors')],
         ),
       ],
     );
@@ -4690,10 +4779,7 @@ class _OperationsMapState extends State<_OperationsMap> {
                   SizedBox(width: 8),
                   Text(
                     'Mapa operativo',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                    ),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
                   ),
                 ],
               ),
@@ -4747,10 +4833,7 @@ class _OperationsMapState extends State<_OperationsMap> {
                     right: 12,
                     child: _DriverMapCard(
                       driver: selectedDriver,
-                      status: _driverLiveStatus(
-                        selectedDriver,
-                        widget.trips,
-                      ),
+                      status: _driverLiveStatus(selectedDriver, widget.trips),
                       onClose: () => setState(() => _selectedDriverId = null),
                     ),
                   ),
@@ -4781,11 +4864,7 @@ class _OperationsMapState extends State<_OperationsMap> {
 
     final fallback = <LatLng>[
       if (_point(trip, 'pickup_latitude', 'pickup_longitude') case final p?) p,
-      if (_point(
-        trip,
-        'destination_latitude',
-        'destination_longitude',
-      )
+      if (_point(trip, 'destination_latitude', 'destination_longitude')
           case final p?)
         p,
     ];
@@ -4804,10 +4883,7 @@ class _TripPointMarker extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _TripPointMarker({
-    required this.label,
-    required this.color,
-  });
+  const _TripPointMarker({required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -4881,10 +4957,7 @@ class _TripPartyMarker extends StatelessWidget {
             child: SizedBox(
               width: 42,
               height: 42,
-              child: _MapDot(
-                icon: Icons.drive_eta_rounded,
-                color: driverColor,
-              ),
+              child: _MapDot(icon: Icons.drive_eta_rounded, color: driverColor),
             ),
           ),
           const Align(
@@ -5066,7 +5139,9 @@ class _DriverMapCard extends StatelessWidget {
           _DriverInfoLine(icon: Icons.phone_outlined, text: _value('phone')),
           const SizedBox(height: 6),
           _DriverInfoLine(
-              icon: Icons.mail_outline_rounded, text: _value('email')),
+            icon: Icons.mail_outline_rounded,
+            text: _value('email'),
+          ),
           const SizedBox(height: 6),
           _DriverInfoLine(
             icon: Icons.directions_car_outlined,
@@ -5082,10 +5157,7 @@ class _DriverMapCard extends StatelessWidget {
                 ' viajes',
           ),
           const SizedBox(height: 6),
-          _DriverInfoLine(
-            icon: Icons.my_location_rounded,
-            text: updatedLabel,
-          ),
+          _DriverInfoLine(icon: Icons.my_location_rounded, text: updatedLabel),
         ],
       ),
     );
@@ -5096,10 +5168,7 @@ class _DriverInfoLine extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _DriverInfoLine({
-    required this.icon,
-    required this.text,
-  });
+  const _DriverInfoLine({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -5261,10 +5330,7 @@ class _MapStatusLegend extends StatelessWidget {
                   Expanded(
                     child: Text(
                       row.$1,
-                      style: const TextStyle(
-                        color: adminMuted,
-                        fontSize: 8,
-                      ),
+                      style: const TextStyle(color: adminMuted, fontSize: 8),
                     ),
                   ),
                   Text(
@@ -5288,10 +5354,7 @@ class _MapDot extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  const _MapDot({
-    required this.icon,
-    required this.color,
-  });
+  const _MapDot({required this.icon, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -5353,8 +5416,9 @@ String _driverLiveStatus(
       online == 'online' || online == 'available' || online == 'connected';
   if (!connected) return 'offline';
 
-  final locationUpdatedAt =
-      DateTime.tryParse(driver['location_updated_at']?.toString() ?? '');
+  final locationUpdatedAt = DateTime.tryParse(
+    driver['location_updated_at']?.toString() ?? '',
+  );
   final latitude = _toDouble(driver['latitude']);
   final longitude = _toDouble(driver['longitude']);
   final locationStale = locationUpdatedAt == null
@@ -5915,11 +5979,7 @@ class _Chip extends StatelessWidget {
       ),
       child: Text(
         friendlyStatus(text),
-        style: TextStyle(
-          color: fg,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-        ),
+        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w800),
       ),
     );
   }
@@ -5941,10 +6001,7 @@ class _Line extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
-                color: adminMuted,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: adminMuted, fontSize: 12),
             ),
           ),
         ],
@@ -5976,10 +6033,7 @@ class _ErrorView extends StatelessWidget {
   final Object? error;
   final VoidCallback onRetry;
 
-  const _ErrorView({
-    required this.error,
-    required this.onRetry,
-  });
+  const _ErrorView({required this.error, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -5996,10 +6050,7 @@ class _ErrorView extends StatelessWidget {
                 const SizedBox(height: 12),
                 const Text(
                   'No se pudo cargar esta sección',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -6047,10 +6098,7 @@ class _Unauthorized extends StatelessWidget {
                   const SizedBox(height: 12),
                   const Text(
                     'Acceso de administrador',
-                    style: TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w900,
-                    ),
+                    style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 10),
                   const Text(
