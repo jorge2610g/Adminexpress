@@ -26,6 +26,7 @@ import 'admin_audit_sandbox.dart';
 import 'admin_load_lab.dart';
 import 'admin_driver_subscriptions.dart';
 import 'admin_marketplace.dart';
+import 'admin_marketplace_requirements.dart';
 import 'admin_marketplace_phase2.dart';
 import 'admin_delivery_unified.dart';
 import 'admin_delivery_settlements.dart';
@@ -331,6 +332,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     31: 'payments',
     32: 'operators',
     33: 'payments',
+    34: 'marketplace',
   };
 
   bool _sectionAllowed(int index) {
@@ -417,6 +419,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Liquidaciones de restaurantes', Icons.receipt_long_rounded),
     ('Operadores', Icons.admin_panel_settings_rounded),
     ('Deudas y ajustes', Icons.account_balance_wallet_outlined),
+    ('Requisitos de restaurantes', Icons.fact_check_outlined),
   ];
 
   Future<bool> _authorized() async {
@@ -1494,6 +1497,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
         );
+      case 34:
+        return AdminMarketplaceRequirementsPage(
+          channel: adminChannel,
+          countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
       case 32:
         return const AdminOperatorsPage();
       case 33:
@@ -2558,7 +2567,7 @@ class _Navigation extends StatelessWidget {
         : const <(String, List<int>)>[
             ('GENERAL', [0]),
             ('OPERACIONES', [1, 2, 13, 4, 5, 6]),
-            ('MÓDULOS', [23, 25, 29]),
+            ('MÓDULOS', [23, 25, 29, 30, 34]),
             ('FINANZAS', [9, 8, 22, 33]),
             ('ANÁLISIS', [10, 14]),
             ('COMUNICACIÓN', [15]),
