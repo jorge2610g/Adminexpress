@@ -245,144 +245,379 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     );
   }
 
-  Widget _applicationsSection() => FutureBuilder<List<Map<String, dynamic>>>(
-        future: applicationsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Card(
-              child: ListTile(
-                leading: const Icon(Icons.error_outline, color: Colors.red),
-                title: const Text('Solicitudes de restaurantes'),
-                subtitle: const Text('No se pudieron cargar.'),
-                trailing: IconButton(
-                  onPressed: _refresh,
-                  icon: const Icon(Icons.refresh),
+  Widget _applicationInfo(
+    IconData icon,
+    String label,
+    String value, {
+    int maxLines = 2,
+  }) {
+    if (value.trim().isEmpty) return const SizedBox.shrink();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 17, color: _muted),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _muted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            );
-          }
-          final rows = snapshot.data ?? const [];
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: maxLines,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _ink,
+                  fontSize: 12,
+                  height: 1.25,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _applicationCard(Map<String, dynamic> row) {
+    final name = row['restaurant_name']?.toString().trim();
+    final email = row['email']?.toString().trim() ?? '';
+    final city = row['city']?.toString().trim() ?? '';
+    final address = row['address']?.toString().trim() ?? '';
+    final lat = double.tryParse(row['latitude']?.toString() ?? '');
+    final lng = double.tryParse(row['longitude']?.toString() ?? '');
+    final coordinates = lat == null || lng == null
+        ? ''
+        : '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+    final logo = row['logo_url']?.toString() ?? '';
+    final cover = row['cover_image_url']?.toString() ?? '';
+    final requirements = row['requirements'] is List
+        ? (row['requirements'] as List).length
+        : 0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE7ECF3)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final infoWidth = constraints.maxWidth >= 760
+              ? 230.0
+              : constraints.maxWidth >= 500
+              ? 210.0
+              : constraints.maxWidth;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Solicitudes de restaurantes',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: logo.isEmpty
+                        ? Container(
+                            width: 50,
+                            height: 50,
+                            color: const Color(0xFFEAF2FF),
+                            child: const Icon(
+                              Icons.storefront_rounded,
+                              color: _blue,
+                              size: 24,
+                            ),
+                          )
+                        : Image.network(
+                            logo,
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 50,
+                              height: 50,
+                              color: const Color(0xFFEAF2FF),
+                              child: const Icon(
+                                Icons.storefront_rounded,
+                                color: _blue,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name?.isNotEmpty == true ? name! : 'Restaurante',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: _ink,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          email,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: _muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (cover.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        cover,
+                        width: 78,
+                        height: 50,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 78,
+                          height: 50,
+                          color: const Color(0xFFF1F5F9),
+                          child: const Icon(
+                            Icons.photo_outlined,
+                            size: 20,
+                            color: _muted,
                           ),
                         ),
                       ),
-                      Chip(label: Text('${rows.length} pendientes')),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Revisa los datos antes de aprobar en ${widget.channel}. '
-                    'Zona activa: ${widget.zoneId == null ? 'selecciona una zona' : 'lista'}.',
-                  ),
-                  const SizedBox(height: 12),
-                  if (snapshot.connectionState == ConnectionState.waiting &&
-                      !snapshot.hasData)
-                    const LinearProgressIndicator(),
-                  if (rows.isEmpty &&
-                      snapshot.connectionState == ConnectionState.done)
-                    const Text('No hay solicitudes pendientes.'),
-                  for (final row in rows) ...[
-                    const Divider(),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if ((row['logo_url'] ?? '').toString().isNotEmpty)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.network(
-                              row['logo_url'].toString(),
-                              width: 64,
-                              height: 64,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const SizedBox(
-                                width: 64,
-                                height: 64,
-                                child: Icon(Icons.storefront),
-                              ),
-                            ),
-                          ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                row['restaurant_name']?.toString() ??
-                                    'Restaurante',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w800),
-                              ),
-                              Text(row['email']?.toString() ?? ''),
-                              if ((row['city'] ?? '').toString().isNotEmpty)
-                                Text('Ciudad: ${row['city']}'),
-                              Text(row['address']?.toString() ?? ''),
-                              Text(
-                                  'Mapa: ${row['latitude']}, ${row['longitude']}'),
-                            ],
-                          ),
-                        ),
-                        if ((row['cover_image_url'] ?? '')
-                            .toString()
-                            .isNotEmpty)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.network(
-                              row['cover_image_url'].toString(),
-                              width: 112,
-                              height: 64,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  const SizedBox.shrink(),
-                            ),
-                          ),
-                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        if (row['requirements'] is List &&
-                            (row['requirements'] as List).isNotEmpty)
-                          OutlinedButton.icon(
-                            onPressed: () => _showApplicationDocuments(row),
-                            icon: const Icon(Icons.description_outlined),
-                            label: Text('Ver documentos (${(row['requirements'] as List).length})'),
-                          ),
-                        OutlinedButton.icon(
-                          onPressed: () =>
-                              _reviewApplication(row, approve: false),
-                          icon: const Icon(Icons.close),
-                          label: const Text('Rechazar'),
-                        ),
-                        FilledButton.icon(
-                          onPressed: widget.zoneId == null
-                              ? null
-                              : () => _reviewApplication(row, approve: true),
-                          icon: const Icon(Icons.check),
-                          label: const Text('Aprobar restaurante'),
-                        ),
-                      ],
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 5,
                     ),
-                  ],
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3E7),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'Pendiente',
+                      style: TextStyle(
+                        color: Color(0xFFC76B16),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 18,
+                runSpacing: 12,
+                children: [
+                  SizedBox(
+                    width: infoWidth,
+                    child: _applicationInfo(
+                      Icons.location_city_outlined,
+                      'Ciudad',
+                      city.isEmpty ? 'Sin ciudad seleccionada' : city,
+                      maxLines: 1,
+                    ),
+                  ),
+                  SizedBox(
+                    width: infoWidth,
+                    child: _applicationInfo(
+                      Icons.location_on_outlined,
+                      'Dirección del local',
+                      address.isEmpty ? 'Sin dirección' : address,
+                      maxLines: 2,
+                    ),
+                  ),
+                  if (coordinates.isNotEmpty)
+                    SizedBox(
+                      width: infoWidth,
+                      child: _applicationInfo(
+                        Icons.map_outlined,
+                        'Ubicación en el mapa',
+                        coordinates,
+                        maxLines: 1,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (requirements > 0)
+                    OutlinedButton.icon(
+                      onPressed: () => _showApplicationDocuments(row),
+                      icon: const Icon(Icons.description_outlined, size: 17),
+                      label: Text('Documentos · $requirements'),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed: () => _reviewApplication(row, approve: false),
+                    icon: const Icon(Icons.close_rounded, size: 17),
+                    label: const Text('Rechazar'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFB42318),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: widget.zoneId == null
+                        ? null
+                        : () => _reviewApplication(row, approve: true),
+                    icon: const Icon(Icons.check_rounded, size: 17),
+                    label: const Text('Aprobar restaurante'),
+                  ),
+                  if (widget.zoneId == null)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Text(
+                        'Selecciona primero la zona activa.',
+                        style: TextStyle(color: _muted, fontSize: 11),
+                      ),
+                    ),
+                ],
+              ),
+            ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _applicationsSection() => FutureBuilder<List<Map<String, dynamic>>>(
+    future: applicationsFuture,
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return Card(
+          child: ListTile(
+            leading: const Icon(Icons.error_outline, color: Colors.red),
+            title: const Text('Solicitudes de restaurantes'),
+            subtitle: const Text('No se pudieron cargar las solicitudes.'),
+            trailing: IconButton(
+              onPressed: _refresh,
+              icon: const Icon(Icons.refresh),
+            ),
+          ),
+        );
+      }
+      final rows = snapshot.data ?? const <Map<String, dynamic>>[];
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.storefront_rounded, color: _blue, size: 22),
+                  const SizedBox(width: 9),
+                  const Expanded(
+                    child: Text(
+                      'Solicitudes de restaurantes',
+                      style: TextStyle(
+                        color: _ink,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF2FF),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${rows.length} pendientes',
+                      style: const TextStyle(
+                        color: _blue,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    tooltip: 'Actualizar solicitudes',
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh_rounded, size: 19),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Revisa cada solicitud antes de aprobarla en ${widget.channel == 'preview' ? 'Preview' : 'Producción'}. '
+                '${widget.zoneId == null ? 'Selecciona una zona activa para aprobar.' : 'Zona activa lista para revisar.'}',
+                style: const TextStyle(
+                  color: _muted,
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  !snapshot.hasData) ...[
+                const SizedBox(height: 12),
+                const LinearProgressIndicator(),
+              ],
+              const SizedBox(height: 14),
+              if (rows.isEmpty &&
+                  snapshot.connectionState == ConnectionState.done)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE7ECF3)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.inbox_outlined, color: _muted),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'No hay solicitudes pendientes.',
+                          style: TextStyle(
+                            color: _muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              for (final row in rows) _applicationCard(row),
+            ],
+          ),
+        ),
       );
+    },
+  );
 
   Future<void> _openSupport(Map<String, dynamic> merchant) async {
     try {
