@@ -7,6 +7,7 @@ import 'core/admin_dropdown_field.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_marketplace_demos.dart';
+import 'admin_marketplace_requirements.dart';
 
 const _blue = Color(0xFF2563EB);
 const _ink = Color(0xFF0F172A);
@@ -108,7 +109,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
           content: Text(
             'Se creará “${row['restaurant_name'] ?? 'Restaurante'}” '
             'en ${widget.channel == 'preview' ? 'Preview' : 'Producción'} '
-            'y se asignará esta cuenta como propietaria.',
+            'y la cuenta registrada quedará como propietaria.',
           ),
           actions: [
             TextButton(
@@ -128,7 +129,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
           'admin_marketplace_approve_merchant_application',
           params: {'p_application_id': row['id'], 'p_zone_id': widget.zoneId},
         );
-        _snack('Restaurante aprobado y cuenta asignada.');
+        _snack('Restaurante aprobado.');
         _refresh();
       } catch (error) {
         _snack('No se pudo aprobar la solicitud: $error');
@@ -174,6 +175,74 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       }
     }
     reason.dispose();
+  }
+
+  Future<void> _showApplicationDocuments(Map<String, dynamic> row) async {
+    final raw = row['requirements'];
+    final documents = raw is List
+        ? raw
+            .whereType<Map>()
+            .map((value) => Map<String, dynamic>.from(value))
+            .toList()
+        : <Map<String, dynamic>>[];
+    final prepared = <Map<String, dynamic>>[];
+    for (final document in documents) {
+      final path = document['object_path']?.toString() ?? '';
+      if (path.isEmpty) continue;
+      try {
+        final url = await supabase.storage
+            .from('marketplace-merchant-requirements')
+            .createSignedUrl(path, 600);
+        prepared.add({...document, 'signed_url': url});
+      } catch (_) {
+        prepared.add({...document, 'signed_url': null});
+      }
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Documentos · ${row['restaurant_name'] ?? 'Restaurante'}'),
+        content: SizedBox(
+          width: 560,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (prepared.isEmpty)
+                  const Text('No se cargaron documentos adicionales.'),
+                for (final document in prepared) ...[
+                  Text(document['label']?.toString() ?? 'Documento',
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 8),
+                  if (document['signed_url'] is String)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        document['signed_url'].toString(),
+                        height: 260,
+                        width: double.infinity,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            const Text('No se pudo mostrar la imagen.'),
+                      ),
+                    )
+                  else
+                    const Text('No se pudo abrir este documento.'),
+                  const SizedBox(height: 18),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cerrar'))
+        ],
+      ),
+    );
   }
 
   Widget _applicationsSection() => FutureBuilder<List<Map<String, dynamic>>>(
@@ -257,6 +326,8 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                                     fontWeight: FontWeight.w800),
                               ),
                               Text(row['email']?.toString() ?? ''),
+                              if ((row['city'] ?? '').toString().isNotEmpty)
+                                Text('Ciudad: ${row['city']}'),
                               Text(row['address']?.toString() ?? ''),
                               Text(
                                   'Mapa: ${row['latitude']}, ${row['longitude']}'),
@@ -283,6 +354,13 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                     Wrap(
                       spacing: 8,
                       children: [
+                        if (row['requirements'] is List &&
+                            (row['requirements'] as List).isNotEmpty)
+                          OutlinedButton.icon(
+                            onPressed: () => _showApplicationDocuments(row),
+                            icon: const Icon(Icons.description_outlined),
+                            label: Text('Ver documentos (${(row['requirements'] as List).length})'),
+                          ),
                         OutlinedButton.icon(
                           onPressed: () =>
                               _reviewApplication(row, approve: false),
@@ -330,6 +408,17 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     } catch (error) {
       _snack('No se pudo abrir el panel temporal: $error');
     }
+  }
+
+  Future<void> _openRestaurantRequirements() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => AdminMarketplaceRequirementsPage(
+        channel: widget.channel,
+        countryCode: widget.countryCode,
+        zoneId: widget.zoneId,
+      ),
+    ));
+    _refresh();
   }
 
   void _snack(Object message) {
@@ -1210,6 +1299,17 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
               ),
               const SizedBox(height: 24),
               if (widget.showMerchants) _applicationsSection(),
+              if (widget.showMerchants) const SizedBox(height: 22),
+              if (widget.showMerchants)
+                Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(child: Icon(Icons.fact_check_outlined)),
+                    title: const Text('Requisitos de restaurantes', style: TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: const Text('Añade, edita o desactiva documentos por ciudad.'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _openRestaurantRequirements,
+                  ),
+                ),
               if (widget.showMerchants) const SizedBox(height: 22),
               _section(
                 'Categorías',
