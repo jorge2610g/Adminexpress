@@ -2,6 +2,13 @@
 
 # AGENTS.md — Adminexpress
 
+## ACTUALIZACIÓN PRIORITARIA DEL PROPIETARIO (2026-10-26): UN SOLO ADMIN CON CONFIGURACIÓN COMPARTIDA
+- Un solo Admin Express y una sola configuración canónica para ciudades, zonas, cobertura, tarifas y servicios. Prueba y Producción reutilizan esa misma configuración.
+- El backend asigna el contexto por cuenta. Las secciones operativas pueden filtrar Prueba/Producción para administradores autorizados, manteniendo cada viaje, pedido, pago y cuenta dentro de su contexto. El filtro de interfaz no sustituye RLS/RPC ni altera la configuración compartida.
+- No volver a separar el panel, crear Admin Preview, duplicar ciudades/servicios ni hacer un cambio global de sesión para ver operaciones de otro contexto.
+- Esta directiva reemplaza la afirmación anterior “No existe selector manual Preview/Producción dentro de la misma cuenta” únicamente respecto del filtro interno por sección. La sesión y sus autorizaciones siguen siendo obligatorias; no se amplían permisos por mostrar el filtro.
+- Leer `docs/UNIFIED_ACCOUNT_ENVIRONMENT_HANDOFF_20261026.md` antes de editar separación de entornos o configuración común.
+
 ## ACLARACIÓN PRIORITARIA DEL PROPIETARIO (2026-10-13): MISMO CÓDIGO EN PRUEBA Y PRODUCCIÓN
 
 - Cada implementación de Express Web o Adminexpress se integra **una sola vez**, en el mismo código y la misma web canónica. Al desplegarla, su código y pantallas deben estar presentes tanto para cuentas Preview como para cuentas Producción: **no existe un despliegue exclusivamente Preview**, otro bundle ni retraso de implementación de Producción.
