@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'core/admin_friendly_error.dart';
 import 'core/admin_friendly_labels.dart';
@@ -35,6 +37,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
   String? error;
   bool loading = true;
   bool busy = false;
+  Timer? _playSyncRefresh;
 
   bool get canManage => widget.productionAccess;
   Map<String, dynamic> get candidate {
@@ -51,6 +54,15 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
   void initState() {
     super.initState();
     _refresh();
+    _playSyncRefresh = Timer.periodic(const Duration(minutes: 3), (_) {
+      if (mounted && !busy) _refresh(silent: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _playSyncRefresh?.cancel();
+    super.dispose();
   }
 
   @override
@@ -59,9 +71,9 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     if (oldWidget.productionAccess != widget.productionAccess) _refresh();
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refresh({bool silent = false}) async {
     if (!mounted) return;
-    setState(() => loading = true);
+    if (!silent) setState(() => loading = true);
     try {
       final results = await Future.wait([
         supabase.rpc('admin_single_app_release_status'),
@@ -166,8 +178,13 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
 
   Future<void> _queue() async {
     if (!canManage || busy) return;
-    // Build code is derived from the database release gate, not hard-coded here.
-    const currentVersion = '1.6.3';
+    // Keep the semantic version aligned with the latest signed candidate; only
+    // the next Play versionCode advances after Play confirms a release.
+    final playSync = status['play_sync'] is Map
+        ? Map<String, dynamic>.from(status['play_sync'] as Map)
+        : <String, dynamic>{};
+    final currentVersion = candidate['version_name']?.toString() ??
+        playSync['version_name']?.toString() ?? '1.6.4';
     final nextBuild =
         int.tryParse(status['next_google_play_build']?.toString() ?? '');
     if (nextBuild == null) {
@@ -196,9 +213,9 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               const SizedBox(height: 14),
               TextField(
                 controller: version,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Versión (igual a pubspec.yaml)',
-                  hintText: '1.6.3',
+                  hintText: currentVersion,
                 ),
               ),
               const SizedBox(height: 10),
@@ -235,7 +252,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     changes.dispose();
     if (data == null || data['version']?.isEmpty != false) return;
     if (data['version'] != currentVersion) {
-      _message('Versión incorrecta: para esta candidata usa 1.6.3.');
+      _message('Versión incorrecta: para esta candidata usa $currentVersion.');
       return;
     }
     if (int.tryParse(status['next_google_play_build']?.toString() ?? '') !=
@@ -252,47 +269,66 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
   Future<void> _certify() async {
     if (!canManage || busy || candidate['id'] == null) return;
     final notes = TextEditingController();
+    var notesTooShort = false;
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Registrar pruebas Android del APK real'),
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Instala el APK del candidato firmado y comprueba inicio, '
-                'login, GPS/permisos, mapas, llamadas, notificaciones y '
-                'funciones de conductor/pasajero necesarias. '
-                'Registra únicamente pruebas realizadas.',
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: notes,
-                minLines: 3,
-                maxLines: 6,
-                decoration: const InputDecoration(
-                  labelText: 'Evidencia de las pruebas (mínimo 30 caracteres)',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Registrar pruebas Android del APK real'),
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Instala el APK del candidato firmado y comprueba inicio, '
+                  'login, GPS/permisos, mapas, llamadas, notificaciones y '
+                  'funciones de conductor/pasajero necesarias. '
+                  'Registra únicamente pruebas realizadas.',
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: notes,
+                  minLines: 3,
+                  maxLines: 6,
+                  onChanged: (_) {
+                    if (notesTooShort) {
+                      setDialogState(() => notesTooShort = false);
+                    }
+                  },
+                  decoration: InputDecoration(
+                    labelText:
+                        'Evidencia de las pruebas (mínimo 30 caracteres)',
+                    errorText: notesTooShort
+                        ? 'Describe las pruebas con al menos 30 caracteres.'
+                        : null,
+                  ),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final evidence = notes.text.trim();
+                if (evidence.length < 30) {
+                  setDialogState(() => notesTooShort = true);
+                  return;
+                }
+                Navigator.pop(context, evidence);
+              },
+              child: const Text('Certificar pruebas'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, notes.text.trim()),
-            child: const Text('Certificar pruebas'),
-          ),
-        ],
       ),
     );
     notes.dispose();
-    if (result == null || result.length < 30) return;
+    if (result == null) return;
     await _call('admin_certify_single_app_candidate', {
       'p_candidate_id': candidate['id'],
       'p_qa_notes': result,
@@ -868,6 +904,14 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
       ? 1 : (buildHistory.length + pageSize - 1) ~/ pageSize;
     final safePage = historyPage < maxPages ? historyPage : 0;
     final rows = buildHistory.skip(safePage * pageSize).take(pageSize);
+    final playSync = status['play_sync'] is Map
+        ? Map<String, dynamic>.from(status['play_sync'] as Map)
+        : <String, dynamic>{};
+    final syncBuild = playSync['build_number']?.toString();
+    final syncVersion = playSync['version_name']?.toString();
+    final syncStatus = playSync['status']?.toString();
+    final syncTime = playSync['observed_at']?.toString();
+    final syncAvailable = playSync['available_to_all'] == true;
     return _section('Distribución de actualizaciones · Producción', Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -876,6 +920,19 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
           'verificada en Google Play Producción. '
           'No modifica Google Play ni envía notificaciones push.',
         ),
+        if (syncBuild != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Play detectó Express $syncVersion · build $syncBuild · '
+            '${syncAvailable ? 'disponible para todos' : 'rollout $syncStatus; aún no disponible para todos'}'
+            '${syncTime == null ? '' : ' · sincronizado ${DateTime.tryParse(syncTime)?.toLocal().toString().substring(0, 16) ?? syncTime}'}',
+            style: TextStyle(
+              fontSize: 12,
+              color: syncAvailable ? Colors.green.shade700 : Colors.orange.shade800,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         if (buildHistory.isEmpty)
           const Text('No se encontró una versión firmada y verificada en Google Play Producción.'),
@@ -912,6 +969,27 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     final certified = status['qa_certified'] == true;
     final approved = status['approved'] == true;
     final promoted = status['promoted'] == true;
+    final candidateBuildNumber =
+        int.tryParse(row['build_number']?.toString() ?? '');
+    final storeBuildNumber =
+        int.tryParse(status['production_store_build']?.toString() ?? '');
+    final nextBuildNumber =
+        int.tryParse(status['next_google_play_build']?.toString() ?? '');
+    final buildNumberMatchesGate = candidateBuildNumber != null &&
+        storeBuildNumber != null &&
+        nextBuildNumber != null &&
+        candidateBuildNumber == nextBuildNumber &&
+        candidateBuildNumber == storeBuildNumber + 1;
+    final playSync = status['play_sync'] is Map
+        ? Map<String, dynamic>.from(status['play_sync'] as Map)
+        : <String, dynamic>{};
+    final candidateAlreadyInPlay =
+        candidateBuildNumber != null &&
+        int.tryParse(playSync['build_number']?.toString() ?? '') ==
+            candidateBuildNumber &&
+        playSync['available_to_all'] == true;
+    final nextCandidateVersion = row['version_name']?.toString() ??
+        playSync['version_name']?.toString() ?? '1.6.4';
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -937,7 +1015,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             Text('Google Play: build vigente ${status['production_store_build'] ?? '—'} '
                 '· siguiente ${status['next_google_play_build'] ?? '—'}'),
             const SizedBox(height: 8),
-            Text('1. Crear candidata única 1.6.3+${status['next_google_play_build'] ?? '—'}  →  '
+            Text('1. Crear candidata única $nextCandidateVersion+${status['next_google_play_build'] ?? '—'}  →  '
               '2. Autorizar en GitHub Actions con AUTORIZO APK+AAB PRUEBAS INTERNAS  →  '
               '3. Probar la APK firmada; el mismo workflow carga su AAB a Internal  →  '
               '4. Certificar y aprobar antes de promover ese mismo AAB a Producción.'),
@@ -945,7 +1023,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             FilledButton.icon(
               onPressed: canManage && !busy ? _queue : null,
               icon: const Icon(Icons.build_rounded),
-              label: Text('Preparar candidata 1.6.3 + build ${status['next_google_play_build'] ?? '—'}'),
+              label: Text('Preparar candidata $nextCandidateVersion + build ${status['next_google_play_build'] ?? '—'}'),
             ),
             const SizedBox(height: 14),
             const Divider(),
@@ -997,17 +1075,40 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                 ),
                 OutlinedButton.icon(
                   onPressed: canManage && !busy && certified &&
-                          !approved && !promoted ? _approve : null,
+                          !approved && !promoted && buildNumberMatchesGate
+                      ? _approve
+                      : null,
                   icon: const Icon(Icons.verified_outlined),
                   label: const Text('Aprobar'),
                 ),
                 FilledButton.icon(
                   onPressed: canManage && !busy && approved &&
-                          !promoted ? _promote : null,
+                          !promoted && buildNumberMatchesGate
+                      ? _promote
+                      : null,
                   icon: const Icon(Icons.publish_outlined),
                   label: const Text('Promover APK/AAB'),
                 ),
               ]),
+              const SizedBox(height: 8),
+              Text(
+                !canManage
+                    ? 'Tu cuenta no tiene permiso para cambiar el estado de esta candidata.'
+                    : !ready
+                        ? 'Registra pruebas cuando la compilación esté lista.'
+                        : !certified
+                            ? 'Registra las pruebas realizadas para habilitar “Aprobar”.'
+                            : candidateAlreadyInPlay
+                                ? 'Google Play ya confirmó esta versión en Producción. No vuelvas a aprobarla ni promoverla; configura el aviso desde Distribución de actualizaciones · Producción.'
+                                : !buildNumberMatchesGate
+                                    ? 'Aprobación detenida: esta candidata es build ${candidateBuildNumber ?? '—'}, Play figura en ${storeBuildNumber ?? '—'} y el panel espera ${nextBuildNumber ?? '—'}. Sincroniza el estado real de Play antes de aprobar o promover.'
+                                    : !approved
+                                        ? 'Aprueba la candidata después de certificar las pruebas para habilitar “Promover APK/AAB”.'
+                                        : promoted
+                                            ? 'La candidata ya fue promovida en el flujo del Admin; eso no publica automáticamente en Google Play.'
+                                            : 'La aprobación y promoción son pasos separados. Promover no publica automáticamente en Google Play.',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
             ],
           ],
         )),
