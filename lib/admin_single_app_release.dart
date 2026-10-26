@@ -167,7 +167,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
   Future<void> _queue() async {
     if (!canManage || busy) return;
     // Build code is derived from the database release gate, not hard-coded here.
-    const currentVersion = '1.6.3';
+    final currentVersion = candidate['version_name']?.toString() ?? '1.6.3';
     final nextBuild =
         int.tryParse(status['next_google_play_build']?.toString() ?? '');
     if (nextBuild == null) {
@@ -193,12 +193,16 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                 'manuales del dispositivo seguirán pendientes. No se publica '
                 'en Producción.',
               ),
+              const Text(
+                'La versión que elijas quedará en la app. El código de build '
+                'se asigna automáticamente para no repetirlo.',
+              ),
               const SizedBox(height: 14),
               TextField(
                 controller: version,
                 decoration: const InputDecoration(
-                  labelText: 'Versión (igual a pubspec.yaml)',
-                  hintText: '1.6.3',
+                  labelText: 'Versión de la app',
+                  hintText: 'Ejemplo: 1.6.4',
                 ),
               ),
               const SizedBox(height: 10),
@@ -234,8 +238,838 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     version.dispose();
     changes.dispose();
     if (data == null || data['version']?.isEmpty != false) return;
-    if (data['version'] != currentVersion) {
-      _message('Versión incorrecta: para esta candidata usa 1.6.3.');
+    if (!RegExp(r'^\d+\.\d+\.\d+
+    if (int.tryParse(status['next_google_play_build']?.toString() ?? '') !=
+        nextBuild) {
+      _message('No se creó la candidata: el contador cambió. Actualiza el estado e inténtalo de nuevo.');
+      return;
+    }
+    await _call('admin_queue_single_app_candidate', {
+      'p_version_name': data['version'],
+      'p_changelog': data['notes'],
+    }, 'Candidata ${data['version']} + build $nextBuild creada. La compilación iniciará automáticamente y subirá el AAB a Pruebas internas; QA del dispositivo seguirá pendiente. No se publica en Producción.', showResult: true);
+  }
+
+  Future<void> _certify() async {
+    if (!canManage || busy || candidate['id'] == null) return;
+    final notes = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Registrar pruebas Android del APK real'),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Instala el APK del candidato firmado y comprueba inicio, '
+                'login, GPS/permisos, mapas, llamadas, notificaciones y '
+                'funciones de conductor/pasajero necesarias. '
+                'Registra únicamente pruebas realizadas.',
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notes,
+                minLines: 3,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                  labelText: 'Evidencia de las pruebas (mínimo 30 caracteres)',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, notes.text.trim()),
+            child: const Text('Certificar pruebas'),
+          ),
+        ],
+      ),
+    );
+    notes.dispose();
+    if (result == null || result.length < 30) return;
+    await _call('admin_certify_single_app_candidate', {
+      'p_candidate_id': candidate['id'],
+      'p_qa_notes': result,
+    }, 'Pruebas registradas para esta versión.');
+  }
+
+  Future<void> _approve() async {
+    final ok = await _confirm(
+      'Aprobar candidato Android',
+      'Se fijarán la versión y los archivos exactos del APK y AAB '
+      'que ya probaste. No se recompilará para Producción.',
+      'Aprobar candidato',
+    );
+    if (!ok) return;
+    await _call('admin_approve_single_app_candidate', {
+      'p_candidate_id': candidate['id'],
+    }, 'Candidato Android aprobado sin una segunda aplicación de Prueba.');
+  }
+
+  Future<void> _promote() async {
+    final ok = await _confirm(
+      'Promover APK/AAB a Producción',
+      'Se usarán exactamente los mismos archivos firmados y la misma versión '
+      'hashes que fueron certificados. Esto reserva el versionCode '
+      'de Google Play; NO publica automáticamente la actualización.',
+      'Promover sin recompilar',
+    );
+    if (!ok) return;
+    await _call('admin_promote_single_app_candidate', {
+      'p_candidate_id': candidate['id'],
+    }, 'APK/AAB promovidos sin recompilar. Queda por decidir su publicación.');
+  }
+
+  bool _isCertifiedPromotion(Map<String, dynamic> row) =>
+      canManage &&
+      row['status'] == 'ready' &&
+      row['signing_mode'] == 'production' &&
+      row['artifact_type'] == 'apk+aab' &&
+      verification['promoted_build_id']?.toString() == row['id']?.toString() &&
+      status['qa_certified'] == true &&
+      status['approved'] == true &&
+      status['promoted'] == true;
+
+  Future<void> _publish(Map<String, dynamic> row) async {
+    if (!_isCertifiedPromotion(row) || busy) return;
+    var playConfirmed = false;
+    var mandatory = false;
+    final selection = await showDialog<Map<String, bool>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialog) => AlertDialog(
+          title: const Text('Registrar actualización en Google Play'),
+          content: SizedBox(
+            width: 475,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(
+                  'Versión ${row['version_name']} · build ${row['build_number']}. '
+                  'Esta operación NO sube el APK/AAB a Google Play. '
+                  'Primero debes publicarlo en Play Console y confirmar '
+                  'que el mismo versionCode ya está disponible para los usuarios.',
+                ),
+                const SizedBox(height: 12),
+                const SelectableText(
+                  'https://play.google.com/store/apps/details?id=com.express.usuario1',
+                ),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Confirmo que esta compilación ya está disponible en Google Play'),
+                  subtitle: const Text(
+                    'No continuar mientras esté en revisión ni durante un '
+                    'despliegue escalonado que aún excluya a usuarios.',
+                  ),
+                  value: playConfirmed,
+                  onChanged: (value) =>
+                      setDialog(() => playConfirmed = value == true),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Actualización obligatoria'),
+                  subtitle: const Text(
+                    'Desactivada por defecto. Solo usar si la nueva versión '
+                    'ya está disponible para todos los usuarios previstos.',
+                  ),
+                  value: mandatory,
+                  onChanged: (value) =>
+                      setDialog(() => mandatory = value == true),
+                ),
+                const Text(
+                  'Registrar la versión activa el aviso en la aplicación '
+                  'cuando detecte una versión antigua. No envía avisos masivos.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: !playConfirmed ? null :
+                  () => Navigator.pop(dialogContext, {'mandatory': mandatory}),
+              child: const Text('Registrar versión verificada'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selection == null) return;
+    // Existing production-guarded release RPC. The Android client
+    // always supplies the canonical Play Store link.
+    await _call('admin_publish_build', {
+      'p_build_id': row['id'],
+      'p_mandatory': selection['mandatory'] == true,
+    }, 'Versión registrada. Google Play debe estar disponible antes de este paso.');
+  }
+
+
+  Map<String, dynamic>? _savedDistribution(String jobId, String channel) {
+    for (final item in distributions) {
+      if (item['build_job_id']?.toString() == jobId &&
+          item['channel']?.toString() == channel) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  /// Configuración visual semejante a Historial de Builds → Distribución.
+  /// Solo el canal production confirmado alimenta latest_app_release.
+  /// Configuración de avisos EXCLUSIVA de Google Play Producción.
+  /// No modifica ninguna pista Play; la app consume latest_app_release.
+  Future<void> _configureDistribution(Map<String, dynamic> job) async {
+    if (!canManage || busy || job['status'] != 'ready') return;
+    final jobId = job['id']?.toString() ?? '';
+    final verifiedId = status['production_verified_build_job_id']?.toString();
+    final storeBuild =
+        int.tryParse(status['production_store_build']?.toString() ?? '') ?? 0;
+    final build =
+        int.tryParse(job['build_number']?.toString() ?? '') ?? 0;
+    if (jobId.isEmpty || verifiedId == null || jobId != verifiedId ||
+        build == 0 || build != storeBuild || job['signing_mode'] != 'production') {
+      _message('Solo puedes configurar la versión firmada y verificada en Play Producción.');
+      return;
+    }
+
+    final saved = _savedDistribution(jobId, 'production');
+    bool isCurrent = saved?['is_current'] == true;
+    bool isCritical = saved?['is_critical'] == true;
+    bool confirmedPlay = false;
+    bool confirmedCritical = false;
+    final notes = TextEditingController(
+      text: saved?['notes']?.toString() ?? '',
+    );
+    final playUrl = TextEditingController(
+      text: saved?['play_store_url']?.toString() ??
+        'https://play.google.com/store/apps/details?id=com.express.usuario1',
+    );
+
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialog) {
+          final mustConfirm = isCurrent && !confirmedPlay;
+          final mustConfirmCritical = isCritical && !confirmedCritical;
+          return AlertDialog(
+            title: const Text('Distribución · Google Play Producción'),
+            content: SizedBox(
+              width: 510,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Configura el aviso para usuarios de Producción:'),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Express ${job['version_name']} · Build $build',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Destino: Google Play · Producción',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 10),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Versión actual'),
+                      subtitle: const Text(
+                        'Mostrar a quienes tengan una versión anterior un aviso '
+                        'con botón de Play Store y opción Más tarde.',
+                      ),
+                      value: isCurrent,
+                      onChanged: (value) => setDialog(() {
+                        isCurrent = value;
+                        if (!value) isCritical = false;
+                        confirmedPlay = false;
+                        confirmedCritical = false;
+                      }),
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Actualización crítica'),
+                      subtitle: const Text(
+                        'Exigir actualizar antes de continuar usando la aplicación. '
+                        'Actívala únicamente cuando sea imprescindible.',
+                      ),
+                      value: isCritical,
+                      onChanged: (value) => setDialog(() {
+                        isCritical = value;
+                        if (value) isCurrent = true;
+                        confirmedPlay = false;
+                        confirmedCritical = false;
+                      }),
+                    ),
+                    if (isCritical) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF1F0),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          '¡Importante! Una actualización crítica puede '
+                          'interrumpir a pasajeros y conductores que todavía '
+                          'estén trabajando. Actívala fuera de horas críticas.',
+                          style: TextStyle(
+                            color: Color(0xFFB42318), fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: notes,
+                      minLines: 2,
+                      maxLines: 4,
+                      maxLength: 800,
+                      decoration: const InputDecoration(
+                        labelText: 'Notas de la versión',
+                        hintText: 'Correcciones de estabilidad y mejoras...',
+                        helperText: 'Aparecerán en el aviso de actualización.',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: playUrl,
+                      autocorrect: false,
+                      decoration: const InputDecoration(
+                        labelText: 'Enlace oficial de Play Store',
+                      ),
+                    ),
+                    if (isCurrent) ...[
+                      const SizedBox(height: 10),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: confirmedPlay,
+                        onChanged: (value) =>
+                          setDialog(() => confirmedPlay = value == true),
+                        title: const Text(
+                          'Confirmo que este Build está disponible en '
+                          'Google Play Producción',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      if (isCritical)
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: confirmedCritical,
+                          onChanged: (value) =>
+                            setDialog(() => confirmedCritical = value == true),
+                          title: const Text(
+                            'Confirmo que deseo bloquear versiones antiguas',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: mustConfirm || mustConfirmCritical ? null : () {
+                  Navigator.pop(dialogContext, {
+                    'is_current': isCurrent,
+                    'is_critical': isCritical,
+                    'notes': notes.text.trim(),
+                    'play_store_url': playUrl.text.trim(),
+                    'confirmed_play': confirmedPlay,
+                    'confirmed_critical': confirmedCritical,
+                  });
+                },
+                child: const Text('Guardar distribución'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    notes.dispose();
+    playUrl.dispose();
+    if (values == null) return;
+    await _call('admin_save_android_update_distribution', {
+      'p_build_id': jobId,
+      'p_channel': 'production',
+      'p_is_current': values['is_current'],
+      'p_is_critical': values['is_critical'],
+      'p_notes': values['notes'],
+      'p_play_store_url': values['play_store_url'],
+      'p_confirmed_in_play': values['confirmed_play'],
+      'p_confirmed_critical': values['confirmed_critical'],
+    }, values['is_current'] == true
+      ? 'Aviso de Producción actualizado para Express Build $build.'
+      : 'Distribución guardada sin aviso activo.');
+  }
+
+  Future<void> _announcePublishedRelease() async {
+    final version = publishedRelease['version_name']?.toString();
+    if (!canManage || busy || version == null ||
+        publishedRelease['build_number'] == null) {
+      return;
+    }
+    var audience = 'all';
+    var globalScope = true;
+    final selected = await showDialog<Map<String, String?>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialog) {
+          final scopedZone = globalScope ? null : widget.zoneId;
+          return AlertDialog(
+            title: const Text('Avisar actualización a usuarios'),
+            content: SizedBox(
+              width: 485,
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text('Express $version · build '
+                    '${publishedRelease['build_number']}. '
+                    'El aviso se enviará como notificación y en la bandeja de la aplicación. '
+                    'No actualiza los teléfonos por sí solo.'),
+                  const SizedBox(height: 14),
+                  AdminDropdownField<String>(
+                    initialValue: audience,
+                    decoration: const InputDecoration(labelText: 'Destinatarios'),
+                    items: const [
+                      DropdownMenuItem(value: 'all',
+                        child: Text('Todos (pasajeros y conductores)')),
+                      DropdownMenuItem(value: 'drivers',
+                        child: Text('Solo conductores')),
+                      DropdownMenuItem(value: 'passengers',
+                        child: Text('Solo pasajeros')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setDialog(() => audience = value);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: globalScope,
+                    title: const Text('Todas las zonas de Producción'),
+                    subtitle: Text(widget.zoneId == null
+                        ? 'Selecciona una zona en la barra del administrador '
+                          'si quieres limitar los destinatarios.'
+                        : 'Desactivar para usar solamente la zona seleccionada.'),
+                    onChanged: widget.zoneId == null ? null :
+                        (value) => setDialog(() => globalScope = value),
+                  ),
+                  FutureBuilder<dynamic>(
+                    key: ValueKey('estimate-$audience-${scopedZone ?? 'global'}'),
+                    future: supabase.rpc('admin_push_audience_estimate_v2',
+                      params: {
+                        'p_channel': 'production',
+                        'p_audience': audience,
+                        'p_zone_id': scopedZone,
+                        'p_partner_id': null,
+                      }),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const LinearProgressIndicator();
+                      final raw = snapshot.data;
+                      final estimate = raw is Map ? Map<String, dynamic>.from(raw)
+                          : <String, dynamic>{};
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text('Destinatarios: ${estimate['recipients'] ?? '—'}'
+                          ' · Push activo: ${estimate['push_enabled'] ?? '—'}'),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Solo cuentas de Producción. No se incluirán usuarios '
+                    'del grupo de Prueba ni se enviará nada antes de confirmar.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ]),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancelar')),
+              FilledButton(onPressed: () => Navigator.pop(dialogContext, {
+                'audience': audience, 'zone_id': scopedZone,
+              }), child: const Text('Enviar aviso ahora')),
+            ],
+          );
+        },
+      ),
+    );
+    if (selected == null) return;
+    final title = 'Actualización disponible: Express $version';
+    final body = 'Ya está disponible la nueva versión de Express '
+        '(build ${publishedRelease['build_number']}). '
+        'Actualiza desde Google Play: '
+        'https://play.google.com/store/apps/details?id=com.express.usuario1';
+    // Reuse the audited channel-aware campaign RPC. Nothing is sent until
+    // the operator confirms this dialog.
+    await _call('admin_send_announcement_v4', {
+      'p_channel': 'production',
+      'p_title': title,
+      'p_body': body,
+      'p_audience': selected['audience'],
+      'p_zone_id': selected['zone_id'],
+      'p_partner_id': null,
+    }, 'Campaña de actualización creada para la audiencia seleccionada. '
+       'Verifica las entregas FCM en Notificaciones / Avisos.');
+  }
+
+  Future<void> _open(String? value) async {
+    if (value == null || value.isEmpty) return;
+    final url = Uri.tryParse(value);
+    if (url == null || (url.scheme != 'https')) return;
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      _message('No se pudo abrir el archivo.');
+    }
+  }
+
+  Widget _section(String title, Widget child) => Card(
+        color: Colors.white,
+        margin: const EdgeInsets.only(bottom: 12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(
+                fontWeight: FontWeight.bold, fontSize: 17)),
+              const SizedBox(height: 12),
+              child,
+            ],
+          ),
+        ),
+      );
+
+  Widget _details(Map<String, dynamic> row) {
+    final sha = row['commit_sha']?.toString() ?? '';
+    // Identificadores y huellas: útiles para revisión técnica, ocultos por defecto.
+    final technical = <Widget>[
+      if (row['id'] != null)
+        SelectableText('Trabajo GitHub: ${row['id']}',
+            style: const TextStyle(fontSize: 12)),
+      if (sha.isNotEmpty)
+        SelectableText('Versión del código: $sha',
+            style: const TextStyle(fontSize: 12)),
+      if (row['apk_sha256'] != null)
+        SelectableText('Huella del APK: ${row['apk_sha256']}',
+            style: const TextStyle(fontSize: 11)),
+      if (row['aab_sha256'] != null)
+        SelectableText('Huella del AAB: ${row['aab_sha256']}',
+            style: const TextStyle(fontSize: 11)),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Versión ${row['version_name']} · build ${row['build_number']} '
+            '· ${friendlyStatus(row['status']?.toString() ?? '')}'),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          if (row['apk_url'] != null)
+            OutlinedButton.icon(
+              onPressed: () => _open(row['apk_url']?.toString()),
+              icon: const Icon(Icons.android),
+              label: const Text('Probar APK real'),
+            ),
+          if (row['aab_url'] != null)
+            OutlinedButton.icon(
+              onPressed: () => _open(row['aab_url']?.toString()),
+              icon: const Icon(Icons.file_download_outlined),
+              label: const Text('Ver AAB'),
+            ),
+        ]),
+        if (technical.isNotEmpty)
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 8),
+              expandedCrossAxisAlignment: CrossAxisAlignment.start,
+              title: const Text('Detalles técnicos',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              children: technical,
+            ),
+          ),
+      ],
+    );
+  }
+
+
+  Widget _historyDistributionRow(Map<String, dynamic> build) {
+    final id = build['id']?.toString() ?? '';
+    final saved = _savedDistribution(id, 'production');
+    final current = saved?['is_current'] == true;
+    final critical = saved?['is_critical'] == true;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          SizedBox(
+            width: 240,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Express ${build['version_name']} · Build ${build['build_number']}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const Text(
+                  'Google Play · Producción · AAB firmado',
+                  style: TextStyle(fontSize: 12),
+                ),
+                Text(
+                  current
+                    ? (critical ? 'Aviso crítico activo' : 'Aviso normal activo')
+                    : 'Aviso desactivado',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: canManage && !busy
+              ? () => _configureDistribution(build)
+              : null,
+            icon: const Icon(Icons.rocket_launch_outlined),
+            label: const Text('Distribución'),
+          ),
+          if (build['aab_url'] != null)
+            TextButton.icon(
+              onPressed: () => _open(build['aab_url']?.toString()),
+              icon: const Icon(Icons.file_download_outlined),
+              label: const Text('Ver AAB'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDistributionHistory() {
+    const pageSize = 8;
+    final maxPages = buildHistory.isEmpty
+      ? 1 : (buildHistory.length + pageSize - 1) ~/ pageSize;
+    final safePage = historyPage < maxPages ? historyPage : 0;
+    final rows = buildHistory.skip(safePage * pageSize).take(pageSize);
+    return _section('Distribución de actualizaciones · Producción', Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Controla el aviso de actualización para la versión '
+          'verificada en Google Play Producción. '
+          'No modifica Google Play ni envía notificaciones push.',
+        ),
+        const SizedBox(height: 12),
+        if (buildHistory.isEmpty)
+          const Text('No se encontró una versión firmada y verificada en Google Play Producción.'),
+        for (final build in rows) ...[
+          const Divider(height: 12),
+          _historyDistributionRow(build),
+        ],
+        const SizedBox(height: 8),
+        Row(children: [
+          OutlinedButton(
+            onPressed: safePage > 0
+              ? () => setState(() => historyPage = safePage - 1) : null,
+            child: const Text('Anterior'),
+          ),
+          const SizedBox(width: 10),
+          Text('Página ' + (safePage + 1).toString() +
+              ' de ' + maxPages.toString()),
+          const SizedBox(width: 10),
+          OutlinedButton(
+            onPressed: safePage + 1 < maxPages
+              ? () => setState(() => historyPage = safePage + 1) : null,
+            child: const Text('Siguiente'),
+          ),
+        ]),
+      ],
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final row = candidate;
+    final hasCandidate = row['id'] != null;
+    final ready = row['status'] == 'ready';
+    final certified = status['qa_certified'] == true;
+    final approved = status['approved'] == true;
+    final promoted = status['promoted'] == true;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text('Express · Una sola aplicación', style: TextStyle(
+          fontSize: 23, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 8),
+        const Text('Una sola aplicación para pasajeros y conductores: la web se revisa primero. '
+            'Generar un APK o AAB requiere aprobación manual, además de la cola de compilación.'),
+        const SizedBox(height: 12),
+        if (!canManage)
+          _section('Solo lectura',
+            const Text('Tu cuenta no tiene permiso para administrar '
+              'publicaciones Android. Las compilaciones son globales '
+              'para Express, sin separación por país, zona ni APK de Prueba.')),
+        if (error != null)
+          _section('Error al consultar builds', Text(error!,
+              style: const TextStyle(color: Colors.red))),
+        if (loading)
+          const LinearProgressIndicator(),
+        _section('Flujo único Android', Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Google Play: build vigente ${status['production_store_build'] ?? '—'} '
+                '· siguiente ${status['next_google_play_build'] ?? '—'}'),
+            const SizedBox(height: 8),
+            Text('1. Crear candidata con la versión elegida · build ${status['next_google_play_build'] ?? '—'}  →  '
+              '2. Autorizar en GitHub Actions con AUTORIZO APK+AAB PRUEBAS INTERNAS  →  '
+              '3. Probar la APK firmada; el mismo workflow carga su AAB a Internal  →  '
+              '4. Certificar y aprobar antes de promover ese mismo AAB a Producción.'),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: canManage && !busy ? _queue : null,
+              icon: const Icon(Icons.build_rounded),
+              label: Text('Preparar candidata · build ${status['next_google_play_build'] ?? '—'}'),
+            ),
+            const SizedBox(height: 14),
+            const Divider(),
+            const Text('Google Play · Pruebas internas',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            const Text(
+              'El flujo unificado genera APK + AAB del mismo commit. '
+              'La autorización en GitHub ejecuta la compilación, deja la APK '
+              'descargable para QA y carga el mismo AAB a la pista Internal. '
+              'No publica en Producción.',
+            ),
+            if (hasCandidate) ...[
+              const SizedBox(height: 16),
+              _details(row),
+              if (row['status'] == 'queued') ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'La candidata está en cola. En GitHub Actions, selecciona '
+                  'la rama exacta que contiene el código candidato, pega el '
+                  'UUID mostrado en Detalles técnicos y escribe la frase de '
+                  'autorización indicada arriba.',
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: canManage && !busy
+                      ? () => _open(
+                            'https://github.com/jorge2610g/Expressdelivery/'
+                            'actions/workflows/build-android.yml',
+                          )
+                      : null,
+                  icon: const Icon(Icons.open_in_new),
+                  label: const Text('Abrir autorización de build en GitHub'),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Text('Pruebas: ${certified ? 'certificadas' : 'pendientes'}  ·  '
+                   'Aprobación: ${approved ? 'aprobada' : 'pendiente'}  ·  '
+                   'Publicada: ${promoted ? 'sí' : 'no'}'),
+              if (verification['qa_notes'] != null)
+                Text('Evidencia: ${verification['qa_notes']}'),
+              const SizedBox(height: 12),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                OutlinedButton.icon(
+                  onPressed: canManage && !busy && ready && !promoted
+                      ? _certify : null,
+                  icon: const Icon(Icons.fact_check_outlined),
+                  label: const Text('Registrar pruebas Android'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: canManage && !busy && certified &&
+                          !approved && !promoted ? _approve : null,
+                  icon: const Icon(Icons.verified_outlined),
+                  label: const Text('Aprobar'),
+                ),
+                FilledButton.icon(
+                  onPressed: canManage && !busy && approved &&
+                          !promoted ? _promote : null,
+                  icon: const Icon(Icons.publish_outlined),
+                  label: const Text('Promover APK/AAB'),
+                ),
+              ]),
+            ],
+          ],
+        )),
+        _buildDistributionHistory(),
+        _section('Avisar actualización a pasajeros y conductores', Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              publishedRelease['build_number'] == null
+                  ? 'Todavía no hay una versión Android publicada en el '
+                    'registro oficial. No se pueden enviar avisos de actualización.'
+                  : 'Versión publicada: ${publishedRelease['version_name']} '
+                    '· build ${publishedRelease['build_number']}',
+            ),
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              onPressed: canManage && !busy &&
+                      publishedRelease['build_number'] != null
+                  ? _announcePublishedRelease : null,
+              icon: const Icon(Icons.campaign_rounded),
+              label: const Text('Avisar actualización'),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Puedes elegir todos, pasajeros o conductores; todas las zonas '
+              'o la zona seleccionada. El aviso no es automático ni modifica '
+              'la publicación de Google Play.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        )),
+        _section('Publicaciones de Producción', Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (releases.isEmpty)
+              const Text('Aún no hay APK/AAB promovidos y listos.'),
+            for (final release in releases) ...[
+              const Divider(),
+              _details(release),
+              const SizedBox(height: 6),
+              OutlinedButton.icon(
+                onPressed: !busy && _isCertifiedPromotion(release)
+                    ? () => _publish(release) : null,
+                icon: const Icon(Icons.cloud_upload_outlined),
+                label: const Text('Registrar versión disponible en Play Store'),
+              ),
+            ],
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: busy ? null : _refresh,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Actualizar estado'),
+            ),
+          ],
+        )),
+      ],
+    );
+  }
+}
+).hasMatch(data['version']!)) {
+      _message('Escribe la versión con tres números, por ejemplo 1.6.4.');
       return;
     }
     if (int.tryParse(status['next_google_play_build']?.toString() ?? '') !=
