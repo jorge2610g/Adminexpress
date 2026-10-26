@@ -188,10 +188,10 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               const Text(
                 'Se usará el código vigente de main, el paquete oficial '
                 'com.express.usuario1 y la firma Android existente. '
-                'Se crea una candidata única de Express Principal '
-                '(com.express.usuario1), con APK y AAB firmados desde la misma '
-                'rama y el mismo commit. Al autorizarla en GitHub, el workflow '
-                'subirá el AAB a Pruebas internas. No publica en Producción.',
+                'Al confirmar, la candidata se compilará automáticamente y el '
+                'AAB se subirá a Pruebas internas en unos minutos. Las pruebas '
+                'manuales del dispositivo seguirán pendientes. No se publica '
+                'en Producción.',
               ),
               const SizedBox(height: 14),
               TextField(
@@ -226,7 +226,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
               'version': version.text.trim(),
               'notes': changes.text.trim(),
             }),
-            child: const Text('Poner en cola'),
+            child: const Text('Iniciar compilación'),
           ),
         ],
       ),
@@ -246,7 +246,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     await _call('admin_queue_single_app_candidate', {
       'p_version_name': data['version'],
       'p_changelog': data['notes'],
-    }, 'Candidata APK + AAB creada. Autoriza el workflow de GitHub para compilar y subir a Internal.', showResult: true);
+    }, 'Candidata creada. La compilación iniciará automáticamente y subirá el AAB a Pruebas internas; QA del dispositivo seguirá pendiente. No se publica en Producción.', showResult: true);
   }
 
   Future<void> _certify() async {
