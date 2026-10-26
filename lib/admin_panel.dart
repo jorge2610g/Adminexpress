@@ -1078,7 +1078,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               const Text(
                 'Mostrar datos:',
                 style: TextStyle(
-                  color: adminInk,
+                  color: adminDark,
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
