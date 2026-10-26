@@ -12,12 +12,14 @@ const _bg = Color(0xFFF1F5F9);
 
 class AdminDriverPriorityPage extends StatefulWidget {
   final String channel;
+  final String configChannel;
   final String? countryCode;
   final String? zoneId;
 
   const AdminDriverPriorityPage({
     super.key,
     this.channel = 'preview',
+    this.configChannel = 'production',
     this.countryCode,
     this.zoneId,
   });
@@ -106,10 +108,7 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
   }
 
   Future<void> _editSettings(Map<String, dynamic> settings) async {
-    bool previewEnabled = settings['preview_enabled'] == true;
     bool productionEnabled = settings['production_enabled'] == true;
-    bool previewEnforcement =
-        settings['preview_enforcement_enabled'] == true;
     bool productionEnforcement =
         settings['production_enforcement_enabled'] == true;
 
@@ -153,45 +152,25 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
                 children: [
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
-                    value: previewEnabled,
-                    onChanged: widget.channel == 'preview'
-                        ? (value) => setLocal(() => previewEnabled = value)
-                        : null,
-                    title: const Text('Mostrar prioridad en Prueba'),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: previewEnforcement,
-                    onChanged: widget.channel == 'preview' && previewEnabled
-                        ? (value) =>
-                            setLocal(() => previewEnforcement = value)
-                        : null,
-                    title: const Text('Aplicar orden de prioridad al despacho de Prueba'),
-                    subtitle: const Text(
-                      'Ordena solicitudes, pero no bloquea conductores.',
-                    ),
-                  ),
-                  const Divider(),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
                     value: productionEnabled,
-                    onChanged: widget.channel == 'production'
-                        ? (value) => setLocal(() => productionEnabled = value)
-                        : null,
-                    title: const Text('Mostrar prioridad en Producción'),
+                    onChanged: (value) =>
+                        setLocal(() => productionEnabled = value),
+                    title: const Text('Mostrar prioridad a los conductores'),
                     subtitle: const Text(
-                      'Puedes administrarlo por separado; Producción está preparada para aplicar el ranking seguro.',
+                      'Una sola configuración para todas las cuentas.',
                     ),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: productionEnforcement,
-                    onChanged:
-                        widget.channel == 'production' && productionEnabled
-                            ? (value) =>
-                                setLocal(() => productionEnforcement = value)
-                            : null,
-                    title: const Text('Aplicar ranking al despacho Producción'),
+                    onChanged: productionEnabled
+                        ? (value) =>
+                            setLocal(() => productionEnforcement = value)
+                        : null,
+                    title: const Text('Aplicar ranking al despacho'),
+                    subtitle: const Text(
+                      'Ordena las solicitudes sin bloquear conductores.',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   const Align(
@@ -339,13 +318,9 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
         await supabase.rpc(
           'admin_update_driver_priority_settings_v2',
           params: {
-            'p_channel': widget.channel,
-            'p_enabled': widget.channel == 'preview'
-                ? previewEnabled
-                : productionEnabled,
-            'p_enforcement_enabled': widget.channel == 'preview'
-                ? previewEnforcement
-                : productionEnforcement,
+            'p_channel': widget.configChannel,
+            'p_enabled': productionEnabled,
+            'p_enforcement_enabled': productionEnforcement,
             'p_high_min_score': double.tryParse(high.text.trim()) ?? 80,
             'p_medium_min_score':
                 double.tryParse(medium.text.trim()) ?? 55,
@@ -518,29 +493,15 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
                 runSpacing: 8,
                 children: [
                   _pill(
-                    settings['preview_enabled'] == true
-                        ? 'Visible en pruebas'
-                        : 'Oculto en pruebas',
-                    settings['preview_enabled'] == true ? _green : _muted,
-                  ),
-                  _pill(
-                    settings['preview_enforcement_enabled'] == true
-                        ? 'Prioridad activa en pruebas'
-                        : 'Prioridad apagada en pruebas',
-                    settings['preview_enforcement_enabled'] == true
-                        ? _green
-                        : _muted,
-                  ),
-                  _pill(
                     settings['production_enabled'] == true
-                        ? 'Visible en Producción'
-                        : 'Oculto en Producción',
+                        ? 'Prioridad visible'
+                        : 'Prioridad oculta',
                     settings['production_enabled'] == true ? _orange : _muted,
                   ),
                   _pill(
                     settings['production_enforcement_enabled'] == true
-                        ? 'Prioridad activa en Producción'
-                        : 'Prioridad apagada en Producción',
+                        ? 'Ranking activo'
+                        : 'Ranking apagado',
                     settings['production_enforcement_enabled'] == true
                         ? _red
                         : _muted,

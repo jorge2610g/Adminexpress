@@ -17,12 +17,7 @@ List<Map<String, dynamic>> _auditMaps(Object? value) {
 }
 
 class AdminAuditSandboxPage extends StatefulWidget {
-  final String channel;
-
-  const AdminAuditSandboxPage({
-    super.key,
-    required this.channel,
-  });
+  const AdminAuditSandboxPage({super.key});
 
   @override
   State<AdminAuditSandboxPage> createState() => _AdminAuditSandboxPageState();
@@ -57,7 +52,7 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
     final create = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Nuevo entorno de prueba'),
+        title: const Text('Nuevo grupo de cuentas de prueba'),
         content: SizedBox(
           width: 460,
           child: Column(
@@ -123,10 +118,10 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
           'p_active': true,
         },
       );
-      _snack('Entorno de prueba creado.');
+      _snack('Grupo de prueba creado.');
       _refresh();
     } catch (error) {
-      _snack('No se pudo crear el entorno: ${friendlyError(error)}', error: true);
+      _snack('No se pudo crear el grupo: ${friendlyError(error)}', error: true);
     } finally {
       nameController.dispose();
       slugController.dispose();
@@ -281,46 +276,6 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.channel != 'preview') {
-      return Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.science_outlined,
-                    size: 42,
-                    color: _auditMuted,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Entornos de prueba no muestran datos en Producción',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      color: _auditDark,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Para administrar cuentas de prueba, entra con una cuenta de prueba. '
-                    'Producción no carga ni muestra esos registros.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: _auditMuted, height: 1.4),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     return FutureBuilder<Map<String, dynamic>>(
       key: ValueKey(revision),
       future: _load(),
@@ -347,7 +302,7 @@ class _AdminAuditSandboxPageState extends State<AdminAuditSandboxPage> {
                       ),
                       const SizedBox(height: 10),
                       const Text(
-                        'No se pudo cargar Entornos de prueba',
+                        'No se pudieron cargar las cuentas de prueba',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
@@ -460,7 +415,7 @@ class _AuditHero extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Entornos de prueba',
+                'Cuentas de prueba',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 23,
@@ -470,7 +425,7 @@ class _AuditHero extends StatelessWidget {
               ),
               SizedBox(height: 5),
               Text(
-                'Prueba la aplicación real sin enviar solicitudes, ofertas ni notificaciones a usuarios de producción.',
+                'Asigna pasajeros y conductores de QA. Usan los mismos servicios, zonas y reglas; sus operaciones quedan aisladas de Producción.',
                 style: TextStyle(
                   color: Color(0xFFD7E7FA),
                   fontSize: 11,
@@ -498,7 +453,7 @@ class _AuditHero extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: onCreate,
                   icon: const Icon(Icons.add_rounded),
-                  label: const Text('Nuevo entorno'),
+                  label: const Text('Nuevo grupo'),
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: _auditBlue,
@@ -518,7 +473,7 @@ class _AuditHero extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onCreate,
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('Nuevo entorno'),
+                label: const Text('Nuevo grupo'),
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: _auditBlue,
@@ -1008,7 +963,7 @@ class _EmptyAuditState extends StatelessWidget {
           const Icon(Icons.science_outlined, size: 42, color: _auditMuted),
           const SizedBox(height: 10),
           const Text(
-            'No hay entornos de prueba',
+            'No hay grupos de cuentas de prueba',
             style: TextStyle(
               color: _auditDark,
               fontSize: 16,
@@ -1024,7 +979,7 @@ class _EmptyAuditState extends StatelessWidget {
           FilledButton.icon(
             onPressed: onCreate,
             icon: const Icon(Icons.add_rounded),
-            label: const Text('Crear entorno'),
+            label: const Text('Crear grupo'),
           ),
         ],
       ),

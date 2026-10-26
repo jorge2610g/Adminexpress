@@ -5,7 +5,6 @@ import 'core/admin_friendly_error.dart';
 import 'core/admin_dropdown_field.dart';
 
 import 'admin_control_sections.dart';
-import 'admin_environment_store.dart';
 import 'core/supabase_client.dart';
 
 int _adminSubscriptionInt(Object? raw) {
@@ -32,8 +31,6 @@ class AdminDriverSubscriptionsPage extends StatefulWidget {
 
 class _AdminDriverSubscriptionsPageState
     extends State<AdminDriverSubscriptionsPage> {
-  AdminEnvironmentStore get _environment =>
-      AdminEnvironmentStore(widget.channel);
   bool loading = true;
   bool savingSettings = false;
   bool providerSaving = false;
@@ -75,20 +72,6 @@ class _AdminDriverSubscriptionsPageState
         .toList();
   }
 
-  bool _isQaDriver(Map<String, dynamic> driver) {
-    final email = (driver['email']?.toString() ?? '').trim().toLowerCase();
-    final name = (driver['full_name']?.toString() ?? '').trim().toLowerCase();
-
-    // Los usuarios QA usan el prefijo "qa-" en correo o "QA " en nombre.
-    // Esto cubre tanto qa-driver@... como qa-load-driver-###@...
-    // sin afectar perfiles reales como "conductor prueba".
-    final qaEmail =
-        email.startsWith('qa-') && email.endsWith('@expressdelivery.pro');
-    final qaName = name == 'qa' || name.startsWith('qa ');
-
-    return qaEmail || qaName;
-  }
-
   Future<void> _load() async {
     if (mounted) {
       setState(() {
@@ -100,114 +83,6 @@ class _AdminDriverSubscriptionsPageState
     String? loadError;
     List<Map<String, dynamic>> zoneRows = zones;
     String? zoneKey = selectedZoneKey;
-
-    if (_environment.isPreview) {
-      try {
-        zoneRows = (await _environment.previewList('service_zones'))
-            .where((row) => row['id']?.toString() == widget.zoneId)
-            .toList();
-        zoneKey = zoneRows.isEmpty
-            ? null
-            : zoneRows.first['zone_key']?.toString();
-
-        final allPlans =
-            await _environment.previewList('driver_subscription_plans');
-        final zonePlans = allPlans
-            .where((row) => row['zone_key']?.toString() == zoneKey)
-            .toList()
-          ..sort((a, b) =>
-              ((a['sort_order'] as num?)?.toInt() ?? 100)
-                  .compareTo((b['sort_order'] as num?)?.toInt() ?? 100));
-
-        Map<String, dynamic> zoneSettings = {};
-        if (zoneKey != null && zoneKey.isNotEmpty) {
-          zoneSettings = await _environment.previewGet(
-            'driver_subscription_settings',
-            recordKey: zoneKey,
-          );
-          if (zoneSettings.isEmpty) {
-            zoneSettings = await _environment.previewGet(
-              'driver_subscription_settings',
-            );
-          }
-        }
-
-        final rawDrivers = await supabase.rpc(
-          'admin_driver_subscriptions',
-          params: {
-            'p_search': search.text.trim(),
-            'p_zone_key': zoneKey,
-          },
-        );
-        final qaDrivers = _maps(rawDrivers)
-            .where(
-              (row) => row['is_qa'] == true || _isQaDriver(row),
-            )
-            .toList();
-        final assignments =
-            await _environment.previewList('driver_subscriptions');
-        final mergedDrivers = qaDrivers.map((driver) {
-          final driverId =
-              (driver['driver_id'] ?? driver['user_id'])?.toString();
-          Map<String, dynamic>? assignment;
-          for (final row in assignments) {
-            if (row['driver_id']?.toString() == driverId) {
-              assignment = row;
-              break;
-            }
-          }
-          return <String, dynamic>{
-            ...driver,
-            if (assignment != null) ...assignment,
-          };
-        }).toList();
-
-        final range = _paymentBounds();
-        final allPayments =
-            await _environment.previewList('subscription_payments');
-        final zonePayments = allPayments.where((row) {
-          if (zoneKey != null &&
-              row['zone_key']?.toString() != zoneKey) {
-            return false;
-          }
-          final created =
-              DateTime.tryParse(row['created_at']?.toString() ?? '');
-          if (created == null) return true;
-          final local = created.toLocal();
-          return !local.isBefore(range.from) && local.isBefore(range.to);
-        }).toList();
-
-        final providerSettings =
-            await _environment.previewGet('driver_subscription_provider');
-
-        if (mounted) {
-          setState(() {
-            zones = zoneRows;
-            selectedZoneKey = zoneKey;
-            plans = zonePlans;
-            settings = zoneSettings;
-            drivers = mergedDrivers;
-            payments = zonePayments;
-            provider = providerSettings.isEmpty
-                ? <String, dynamic>{
-                    'connected': false,
-                    'settings': <String, dynamic>{},
-                  }
-                : providerSettings;
-            loading = false;
-            error = null;
-          });
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            loading = false;
-            error = 'No se pudo completar la acción. Intenta de nuevo.';
-          });
-        }
-      }
-      return;
-    }
 
     try {
       final rawZones = await supabase.rpc(
@@ -260,10 +135,11 @@ class _AdminDriverSubscriptionsPageState
 
       try {
         final driverRows = await supabase.rpc(
-          'admin_driver_subscriptions',
+          'admin_driver_subscriptions_channel_v1',
           params: {
             'p_search': search.text.trim(),
             'p_zone_key': zoneKey,
+            'p_channel': widget.channel,
           },
         );
         if (mounted) {
@@ -276,7 +152,7 @@ class _AdminDriverSubscriptionsPageState
       try {
         final range = _paymentBounds();
         final paymentRows = await supabase.rpc(
-          'admin_subscription_payment_list_v2',
+          'admin_subscription_payment_list_channel_v1',
           params: {
             'p_zone_key': zoneKey,
             'p_from': range.from.toUtc().toIso8601String(),
@@ -284,6 +160,7 @@ class _AdminDriverSubscriptionsPageState
             'p_status': null,
             'p_limit': 100,
             'p_offset': 0,
+            'p_channel': widget.channel,
           },
         );
         if (mounted) {
@@ -540,42 +417,20 @@ class _AdminDriverSubscriptionsPageState
     }
 
     try {
-      if (_environment.isPreview) {
-        final planId = plan?['id'] is num
-            ? (plan!['id'] as num).toInt()
-            : DateTime.now().millisecondsSinceEpoch;
-        await _environment.previewUpsert(
-          'driver_subscription_plans',
-          planId.toString(),
-          <String, dynamic>{
-            ...?plan,
-            'id': planId,
-            'zone_key': zoneKey,
-            'code': code.text.trim(),
-            'name': name.text.trim(),
-            'amount': parsedAmount,
-            'days': parsedDays,
-            'benefits': benefitList,
-            'active': active,
-            'sort_order': plan?['sort_order'] ?? (plans.length + 1) * 10,
-          },
-        );
-      } else {
-        await supabase.rpc(
-          'admin_upsert_driver_subscription_plan',
-          params: {
-            'p_id': plan?['id'],
-            'p_zone_key': zoneKey,
-            'p_code': code.text.trim(),
-            'p_name': name.text.trim(),
-            'p_amount': parsedAmount,
-            'p_days': parsedDays,
-            'p_benefits': benefitList,
-            'p_active': active,
-            'p_sort_order': plan?['sort_order'] ?? (plans.length + 1) * 10,
-          },
-        );
-      }
+      await supabase.rpc(
+        'admin_upsert_driver_subscription_plan',
+        params: {
+          'p_id': plan?['id'],
+          'p_zone_key': zoneKey,
+          'p_code': code.text.trim(),
+          'p_name': name.text.trim(),
+          'p_amount': parsedAmount,
+          'p_days': parsedDays,
+          'p_benefits': benefitList,
+          'p_active': active,
+          'p_sort_order': plan?['sort_order'] ?? (plans.length + 1) * 10,
+        },
+      );
       _snack(plan == null ? 'Plan creado.' : 'Plan actualizado.');
       await _load();
     } catch (e) {
@@ -651,37 +506,22 @@ class _AdminDriverSubscriptionsPageState
 
     setState(() => savingSettings = true);
     try {
-      if (_environment.isPreview) {
-        await _environment.previewUpsert(
-          'driver_subscription_settings',
-          zoneKey,
-          <String, dynamic>{
-            ...settings,
-            'zone_key': zoneKey,
-            'enabled': enabled,
-            'enforce_access': enforce,
-            if (isBolivia) 'provider_enabled': providerEnabled,
-            if (isBolivia) 'qr_validity': qrValidity,
-          },
-        );
-      } else {
+      await supabase.rpc(
+        'admin_set_driver_subscription_zone_settings',
+        params: {
+          'p_zone_key': zoneKey,
+          'p_enabled': enabled,
+          'p_enforce_access': enforce,
+        },
+      );
+      if (isBolivia) {
         await supabase.rpc(
-          'admin_set_driver_subscription_zone_settings',
+          'admin_set_driver_subscription_provider_settings',
           params: {
-            'p_zone_key': zoneKey,
-            'p_enabled': enabled,
-            'p_enforce_access': enforce,
+            'p_provider_enabled': providerEnabled,
+            'p_qr_validity': qrValidity,
           },
         );
-        if (isBolivia) {
-          await supabase.rpc(
-            'admin_set_driver_subscription_provider_settings',
-            params: {
-              'p_provider_enabled': providerEnabled,
-              'p_qr_validity': qrValidity,
-            },
-          );
-        }
       }
       _snack('Configuración de la zona guardada.');
       await _load();
@@ -771,31 +611,16 @@ class _AdminDriverSubscriptionsPageState
       expiry = DateTime.now().toUtc().add(Duration(days: customDays));
     }
     try {
-      if (_environment.isPreview) {
-        final driverId =
-            (driver['driver_id'] ?? driver['user_id']).toString();
-        await _environment.previewUpsert(
-          'driver_subscriptions',
-          driverId,
-          <String, dynamic>{
-            'driver_id': driverId,
-            'plan_id': selected,
-            'expires_at': expiry?.toIso8601String(),
-            'notes': 'Asignado desde Adminexpress (Prueba)',
-            'status': 'active',
-          },
-        );
-      } else {
-        await supabase.rpc(
-          'admin_set_driver_subscription',
-          params: {
-            'p_driver_id': driver['driver_id'],
-            'p_plan_id': selected,
-            'p_expires_at': expiry?.toIso8601String(),
-            'p_notes': 'Asignado desde Adminexpress',
-          },
-        );
-      }
+      await supabase.rpc(
+        'admin_set_driver_subscription_channel_v1',
+        params: {
+          'p_driver_id': driver['driver_id'],
+          'p_plan_id': selected,
+          'p_expires_at': expiry?.toIso8601String(),
+          'p_notes': 'Asignado desde Adminexpress',
+          'p_channel': widget.channel,
+        },
+      );
       _snack('Suscripción activada.');
       await _load();
     } catch (e) {
@@ -888,45 +713,25 @@ class _AdminDriverSubscriptionsPageState
 
     setState(() => providerSaving = true);
     try {
-      if (_environment.isPreview) {
-        await _environment.previewUpsert(
-          'driver_subscription_provider',
-          'default',
-          <String, dynamic>{
-            'ok': true,
-            'connected': true,
-            'settings': <String, dynamic>{
-              'username': user.text.trim(),
-              'has_password': password.text.isNotEmpty ||
-                  provider['settings'] is Map &&
-                      (provider['settings'] as Map)['has_password'] == true,
-              'has_secret_key': secret.text.isNotEmpty ||
-                  provider['settings'] is Map &&
-                      (provider['settings'] as Map)['has_secret_key'] == true,
-            },
-          },
-        );
-      } else {
-        final response = await supabase.functions.invoke(
-          'driver-subscription-admin',
-          body: {
-            'action': 'save_and_verify',
-            'username': user.text.trim(),
-            'password': password.text,
-            'secret_key': secret.text,
-          },
-        );
-        final responseData = response.data is Map
-            ? Map<String, dynamic>.from(response.data as Map)
-            : <String, dynamic>{};
+      final response = await supabase.functions.invoke(
+        'driver-subscription-admin',
+        body: {
+          'action': 'save_and_verify',
+          'username': user.text.trim(),
+          'password': password.text,
+          'secret_key': secret.text,
+        },
+      );
+      final responseData = response.data is Map
+          ? Map<String, dynamic>.from(response.data as Map)
+          : <String, dynamic>{};
 
-        if (responseData['ok'] != true ||
-            responseData['connected'] != true) {
-          throw StateError(
-            responseData['error']?.toString() ??
-                'No se pudo verificar la conexión',
-          );
-        }
+      if (responseData['ok'] != true ||
+          responseData['connected'] != true) {
+        throw StateError(
+          responseData['error']?.toString() ??
+              'No se pudo verificar la conexión',
+        );
       }
 
       _snack(
@@ -946,35 +751,20 @@ class _AdminDriverSubscriptionsPageState
   Future<void> _verifyProvider() async {
     setState(() => providerVerifying = true);
     try {
-      if (_environment.isPreview) {
-        final current =
-            await _environment.previewGet('driver_subscription_provider');
-        await _environment.previewUpsert(
-          'driver_subscription_provider',
-          'default',
-          <String, dynamic>{
-            ...current,
-            'ok': true,
-            'connected': true,
-            'verified_at': DateTime.now().toUtc().toIso8601String(),
-          },
-        );
-      } else {
-        final response = await supabase.functions.invoke(
-          'driver-subscription-admin',
-          body: const {'action': 'verify'},
-        );
-        final responseData = response.data is Map
-            ? Map<String, dynamic>.from(response.data as Map)
-            : <String, dynamic>{};
+      final response = await supabase.functions.invoke(
+        'driver-subscription-admin',
+        body: const {'action': 'verify'},
+      );
+      final responseData = response.data is Map
+          ? Map<String, dynamic>.from(response.data as Map)
+          : <String, dynamic>{};
 
-        if (responseData['ok'] != true ||
-            responseData['connected'] != true) {
-          throw StateError(
-            responseData['error']?.toString() ??
-                'No se pudo verificar la conexión',
-          );
-        }
+      if (responseData['ok'] != true ||
+          responseData['connected'] != true) {
+        throw StateError(
+          responseData['error']?.toString() ??
+              'No se pudo verificar la conexión',
+        );
       }
 
       _snack('Conexión VeriPagos verificada correctamente.');
@@ -1022,8 +812,8 @@ class _AdminDriverSubscriptionsPageState
     final hasMercadoPagoSubscription = subscriptionMethods.any(
       (method) => method['provider_key']?.toString() == 'mercado_pago',
     );
-    final realDrivers = drivers.where((driver) => !_isQaDriver(driver)).toList();
-    final qaDrivers = drivers.where(_isQaDriver).toList();
+    final channelLabel = widget.channel == 'preview' ? 'Prueba' : 'Producción';
+    final visibleDrivers = drivers;
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -1278,7 +1068,7 @@ class _AdminDriverSubscriptionsPageState
             children: [
               Expanded(
                 child: Text(
-                  'Conductores reales (' + realDrivers.length.toString() + ')',
+                  'Conductores · $channelLabel (' + visibleDrivers.length.toString() + ')',
                   style: const TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.w900,
@@ -1305,17 +1095,14 @@ class _AdminDriverSubscriptionsPageState
           ),
           const SizedBox(height: 6),
           Text(
-            qaDrivers.isEmpty
-                ? 'Los usuarios de prueba no se mezclan con los conductores reales.'
-                : qaDrivers.length.toString() +
-                    ' conductores de prueba están separados y no cuentan como reales.',
+            'La lista solo contiene cuentas de $channelLabel. Los planes y reglas son compartidos.',
             style: const TextStyle(color: Color(0xFF64748B)),
           ),
           const SizedBox(height: 10),
-          if (realDrivers.isEmpty)
-            const _AdminSubNotice(text: 'No hay conductores reales para mostrar.')
+          if (visibleDrivers.isEmpty)
+            _AdminSubNotice(text: 'No hay conductores de $channelLabel para mostrar.')
           else
-            for (final driver in realDrivers)
+            for (final driver in visibleDrivers)
               Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
@@ -1344,43 +1131,6 @@ class _AdminDriverSubscriptionsPageState
                   ),
                 ),
               ),
-          if (qaDrivers.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Card(
-              child: ExpansionTile(
-                leading: const Icon(Icons.science_outlined),
-                title: Text(
-                  'Conductores de prueba (' + qaDrivers.length.toString() + ')',
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-                subtitle: const Text(
-                  'Usuarios de prueba para la prueba de carga. No cuentan como conductores reales.',
-                ),
-                children: [
-                  for (final driver in qaDrivers)
-                    ListTile(
-                      leading: const CircleAvatar(
-                        child: Icon(Icons.science_outlined),
-                      ),
-                      title: Text(
-                        driver['full_name']?.toString().trim().isNotEmpty == true
-                            ? driver['full_name'].toString()
-                            : driver['email']?.toString() ?? 'Conductor de prueba',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text(
-                        (driver['plan_name']?.toString() ?? 'Sin plan') +
-                            ' · ' +
-                            _remaining(driver['expires_at']) +
-                            '\n' +
-                            (driver['email']?.toString() ?? ''),
-                      ),
-                      isThreeLine: true,
-                    ),
-                ],
-              ),
-            ),
-          ],
           const SizedBox(height: 24),
           Row(
             children: [

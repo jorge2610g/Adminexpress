@@ -109,6 +109,13 @@
 
 # CHANGELOG ACTIVO
 
+## 2026-10-26 · Una configuración y filtros por cuenta
+
+- Adminexpress mantiene un solo panel y una configuración compartida de zonas, servicios, cobertura, tarifas y disponibilidad de Marketplace.
+- Dashboard y secciones operativas consultan los registros de Prueba o Producción con un filtro propio; cuentas QA y conductores aparecen por su entorno asignado por el backend, no por patrones de nombre/correo.
+- Los ajustes compartidos se leen de las tablas canónicas; las operaciones financieras conservan su canal y las credenciales de proveedores no se mezclan.
+- La migración coordinada está en `Expressdelivery/supabase/migrations/20261026032432_unified_user_environment_admin_filters.sql`.
+
 ## 2026-10-23 · Navegación del módulo Deudas y ajustes
 
 - Se corrige la lista del grupo Finanzas para mostrar «Deudas y ajustes», que ya estaba asociado al permiso `payments` pero faltaba en la navegación lateral.

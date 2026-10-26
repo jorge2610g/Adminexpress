@@ -143,7 +143,6 @@ class _AdminAuthGateState extends State<_AdminAuthGate> {
           case _ExpressPanelAccess.admin:
             return ExpressAdminPanel(
               onExit: _logout,
-              initialChannel: resolved.channel!,
             );
           case _ExpressPanelAccess.partner:
             return PartnerExpressPanel(onExit: _logout);

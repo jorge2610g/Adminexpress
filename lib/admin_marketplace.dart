@@ -71,12 +71,8 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     );
     final state =
         value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
-    final visibilityKey =
-        widget.channel == 'preview' ? 'preview_visible' : 'production_visible';
-    for (final key in const ['categories', 'banners', 'merchants']) {
-      state[key] =
-          _rows(state[key]).where((row) => row[visibilityKey] == true).toList();
-    }
+    // Marketplace configuration is shared across account environments. Keep
+    // environment filtering only for operational records such as applications.
     return state;
   }
 
@@ -663,8 +659,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
   }
 
   Future<void> _editSettings(Map<String, dynamic> settings) async {
-    bool preview = settings['preview_enabled'] == true;
-    bool production = settings['production_enabled'] == true;
+    final sharedAvailability = settings['production_enabled'] == true;
     final module = TextEditingController(
       text: settings['module_name']?.toString() ?? 'Express Market',
     );
@@ -751,8 +746,8 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
         await supabase.rpc(
           'admin_marketplace_update_settings',
           params: {
-            'p_preview_enabled': preview,
-            'p_production_enabled': production,
+            'p_preview_enabled': sharedAvailability,
+            'p_production_enabled': sharedAvailability,
             'p_module_name': module.text.trim(),
             'p_search_placeholder': search.text.trim(),
             'p_hero_title': hero.text.trim(),
@@ -784,21 +779,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       text: row?['sort_order']?.toString() ?? '100',
     );
     bool active = row?['active'] != false;
-    if (row != null &&
-        row['preview_visible'] == true &&
-        row['production_visible'] == true) {
-      _snack(
-        'Este registro está compartido entre Prueba y Producción. '
-        'Debe separarse antes de editarlo.',
-      );
-      return;
-    }
-    bool preview = row == null
-        ? widget.channel == 'preview'
-        : row['preview_visible'] == true;
-    bool production = row == null
-        ? widget.channel == 'production'
-        : row['production_visible'] == true;
+    bool visible = row == null ? true : row['production_visible'] == true;
 
     final save = await showDialog<bool>(
       context: context,
@@ -844,19 +825,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
-                    value: preview,
-                    onChanged: widget.channel == 'preview'
-                        ? (value) => setLocal(() => preview = value)
-                        : null,
-                    title: const Text('Visible en Prueba'),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: production,
-                    onChanged: widget.channel == 'production'
-                        ? (value) => setLocal(() => production = value)
-                        : null,
-                    title: const Text('Visible en Producción'),
+                    value: visible,
+                    onChanged: (value) => setLocal(() => visible = value),
+                    title: const Text('Disponible para los usuarios'),
                   ),
                 ],
               ),
@@ -886,8 +857,8 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
             'p_name': name.text.trim(),
             'p_icon_key': icon.text.trim(),
             'p_active': active,
-            'p_preview_visible': preview,
-            'p_production_visible': production,
+            'p_preview_visible': visible,
+            'p_production_visible': visible,
             'p_sort_order': int.tryParse(order.text.trim()) ?? 100,
           },
         );
@@ -919,21 +890,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       text: row?['sort_order']?.toString() ?? '100',
     );
     bool active = row?['active'] != false;
-    if (row != null &&
-        row['preview_visible'] == true &&
-        row['production_visible'] == true) {
-      _snack(
-        'Este registro está compartido entre Prueba y Producción. '
-        'Debe separarse antes de editarlo.',
-      );
-      return;
-    }
-    bool preview = row == null
-        ? widget.channel == 'preview'
-        : row['preview_visible'] == true;
-    bool production = row == null
-        ? widget.channel == 'production'
-        : row['production_visible'] == true;
+    bool visible = row == null ? true : row['production_visible'] == true;
 
     final save = await showDialog<bool>(
       context: context,
@@ -981,19 +938,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
-                    value: preview,
-                    onChanged: widget.channel == 'preview'
-                        ? (value) => setLocal(() => preview = value)
-                        : null,
-                    title: const Text('Visible en Prueba'),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: production,
-                    onChanged: widget.channel == 'production'
-                        ? (value) => setLocal(() => production = value)
-                        : null,
-                    title: const Text('Visible en Producción'),
+                    value: visible,
+                    onChanged: (value) => setLocal(() => visible = value),
+                    title: const Text('Disponible para los usuarios'),
                   ),
                 ],
               ),
@@ -1024,8 +971,8 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
             'p_cta_label': cta.text.trim(),
             'p_style_key': style.text.trim(),
             'p_active': active,
-            'p_preview_visible': preview,
-            'p_production_visible': production,
+            'p_preview_visible': visible,
+            'p_production_visible': visible,
             'p_sort_order': int.tryParse(order.text.trim()) ?? 100,
           },
         );
@@ -1088,21 +1035,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       text: row?['sort_order']?.toString() ?? '100',
     );
     bool active = row?['active'] != false;
-    if (row != null &&
-        row['preview_visible'] == true &&
-        row['production_visible'] == true) {
-      _snack(
-        'Este registro está compartido entre Prueba y Producción. '
-        'Debe separarse antes de editarlo.',
-      );
-      return;
-    }
-    bool preview = row == null
-        ? widget.channel == 'preview'
-        : row['preview_visible'] == true;
-    bool production = row == null
-        ? widget.channel == 'production'
-        : row['production_visible'] == true;
+    bool visible = row == null ? true : row['production_visible'] == true;
 
     final save = await showDialog<bool>(
       context: context,
@@ -1229,19 +1162,9 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
-                    value: preview,
-                    onChanged: widget.channel == 'preview'
-                        ? (value) => setLocal(() => preview = value)
-                        : null,
-                    title: const Text('Visible en Prueba'),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: production,
-                    onChanged: widget.channel == 'production'
-                        ? (value) => setLocal(() => production = value)
-                        : null,
-                    title: const Text('Visible en Producción'),
+                    value: visible,
+                    onChanged: (value) => setLocal(() => visible = value),
+                    title: const Text('Disponible para los usuarios'),
                   ),
                 ],
               ),
@@ -1273,8 +1196,8 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
             'p_description': description.text.trim(),
             'p_image_url': image.text.trim(),
             'p_active': active,
-            'p_preview_visible': preview,
-            'p_production_visible': production,
+            'p_preview_visible': visible,
+            'p_production_visible': visible,
             'p_rating': double.tryParse(rating.text.trim()) ?? 5,
             'p_eta_min_minutes': int.tryParse(etaMin.text.trim()) ?? 15,
             'p_eta_max_minutes': int.tryParse(etaMax.text.trim()) ?? 40,
@@ -1501,7 +1424,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          'Administra este módulo para Prueba y Producción desde un solo lugar.',
+                          'Una sola configuración compartida para todas las cuentas.',
                           style: TextStyle(color: _muted),
                         ),
                       ],
@@ -1525,8 +1448,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _tag('Prueba', settings['preview_enabled'] == true),
-                  _tag('Producción', settings['production_enabled'] == true),
+                  _tag('Disponible', settings['production_enabled'] == true),
                   _tag(categories.length.toString() + ' categorías', true),
                   _tag(banners.length.toString() + ' banners', true),
                   _tag(merchants.length.toString() + ' comercios', true),
@@ -1548,7 +1470,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
               if (widget.showMerchants) const SizedBox(height: 22),
               _section(
                 'Categorías',
-                'Orden, icono y visibilidad por entorno.',
+                'Orden, icono y disponibilidad compartidos.',
                 'Nueva categoría',
                 () => _editCategory(null),
                 categories
@@ -1558,8 +1480,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                         subtitle: row['category_key']?.toString() ?? '',
                         chips: [
                           _tag('Activa', row['active'] == true),
-                          _tag('Prueba', row['preview_visible'] == true),
-                          _tag('Prod', row['production_visible'] == true),
+                          _tag('Disponible', row['production_visible'] == true),
                         ],
                         onTap: () => _editCategory(row),
                       ),
@@ -1579,8 +1500,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                         subtitle: row['subtitle']?.toString() ?? '',
                         chips: [
                           _tag('Activo', row['active'] == true),
-                          _tag('Prueba', row['preview_visible'] == true),
-                          _tag('Prod', row['production_visible'] == true),
+                          _tag('Disponible', row['production_visible'] == true),
                         ],
                         onTap: () => _editBanner(row),
                       ),
@@ -1617,8 +1537,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                               ' min',
                           chips: [
                             _tag('Activo', row['active'] == true),
-                            _tag('Prueba', row['preview_visible'] == true),
-                            _tag('Prod', row['production_visible'] == true),
+                            _tag('Disponible', row['production_visible'] == true),
                           ],
                           onTap: () => _openProducts(row),
                           trailing: PopupMenuButton<String>(

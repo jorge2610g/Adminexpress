@@ -87,8 +87,7 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
   }
 
   bool _visible(Map<String, dynamic> row) =>
-      row[widget.channel == 'preview'
-          ? 'preview_visible' : 'production_visible'] == true;
+      row['production_visible'] == true;
 
   String _merchantStatus(Map<String, dynamic> row) {
     if (row['active'] != true) return 'inactive';
@@ -230,10 +229,7 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
               child: const Text('Reintentar')),
           ]));
       }
-      // Los negocios de prueba viven solo en Prueba: Producción lista únicamente los publicados.
       final all = _rows(snapshot.data?['merchants'])
-          .where((row) =>
-              widget.channel == 'preview' || row['production_visible'] == true)
           .toList();
       final needle = search.text.trim().toLowerCase();
       final filtered = all.where((row) {
@@ -578,8 +574,8 @@ class _UnifiedMerchantDialogState extends State<_UnifiedMerchantDialog> {
         'p_title': name, 'p_subtitle': description,
         'p_cta_label': row['name']?.toString() ?? '',
         'p_style_key': 'blue', 'p_active': true,
-        'p_preview_visible': widget.channel == 'preview',
-        'p_production_visible': false,
+        'p_preview_visible': true,
+        'p_production_visible': true,
         'p_sort_order': 100,
       });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -607,8 +603,7 @@ class _UnifiedMerchantDialogState extends State<_UnifiedMerchantDialog> {
             ? Map<String, dynamic>.from(raw['merchant'] as Map)
             : widget.merchant;
         final products = _products(raw['products']);
-        final visible = row[widget.channel == 'preview'
-            ? 'preview_visible' : 'production_visible'] == true;
+        final visible = row['production_visible'] == true;
         return ListView(padding: const EdgeInsets.all(21), children: [
           Row(children: [
             const Icon(Icons.storefront, color: Color(0xFF2563EB)),
@@ -618,7 +613,7 @@ class _UnifiedMerchantDialogState extends State<_UnifiedMerchantDialog> {
             IconButton(onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.close)),
           ]),
-          Text('Zona del comercio · ${widget.channel == 'preview' ? 'Prueba' : 'Producción'} · '
+          Text('Catálogo compartido · '
             '${row['active'] != true ? 'Inactivo' : visible ?
               'Activo' : 'Pendiente de publicar'}'),
           const Divider(),
