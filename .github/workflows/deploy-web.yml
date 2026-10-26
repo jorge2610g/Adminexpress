@@ -53,8 +53,10 @@ jobs:
           grep -Fq "const supabaseUrl = _productionUrl;" lib/core/supabase_client.dart
           grep -Fq "https://admin.expressviajes.online/" lib/core/supabase_client.dart
           grep -Fq "allowed_modules" lib/admin_panel.dart
-          grep -Fq "Entorno asignado por usuario" lib/admin_panel.dart
           grep -Fq "_sectionAllowed" lib/admin_panel.dart
+          grep -Fq "_sectionEnvironmentFilter" lib/admin_panel.dart
+          grep -Fq "_environmentFilteredSections" lib/admin_panel.dart
+          grep -Fq "Mostrar datos:" lib/admin_panel.dart
           if grep -Fq "_previewScopedModules" lib/admin_panel.dart; then
             echo "ERROR: obsolete Preview module blocker returned."
             exit 1
@@ -69,6 +71,8 @@ jobs:
           main = Path('lib/main.dart').read_text()
           assert "if (index == 18 || index == 27) return false;" in panel
           assert "allowedSections: _allowedSections" in panel
+          assert "_sectionEnvironmentFilter" in panel
+          assert "_environmentFilteredSections" in panel
           assert "admin_access_context" in main
           assert "supabase.rpc('is_admin')" not in main
           print("PASS: central admin is account-scoped and legacy identity navigation is blocked.")

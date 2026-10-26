@@ -2,14 +2,11 @@ import 'core/supabase_client.dart';
 
 /// Environment-aware storage used by Adminexpress.
 ///
-/// The two websites currently share the primary Supabase project.
-/// Operational Production settings use existing RPCs; Preview configuration
-/// edits for zones, polygons, fares, services, and app settings MUST remain
-/// inside the `admin_environment_config` QA shadow.
-///
-/// Runtime-sensitive records (trips, identity reviews, wallets, payments)
-/// additionally require server-side channel/identity assertions. This client
-/// switch is not a substitute for authorization checks on privileged RPCs.
+/// Shared service configuration uses the production configuration tables as
+/// the single source of truth. Channel-scoped data such as trips, identity
+/// reviews, wallets and payments remains separated by the account's assigned
+/// environment. Legacy Preview shadow records must not be used for shared
+/// zones, services, fares or coverage.
 class AdminEnvironmentStore {
   final String channel;
 

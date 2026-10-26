@@ -167,8 +167,7 @@ class _AdminMarketplacePhase2PageState
       text: row['priority_driver_bonus']?.toString() ?? '0',
     );
 
-    var preview = row['preview_enabled'] == true;
-    var production = row['production_enabled'] == true;
+    var available = row['production_enabled'] == true;
     var priority = row['priority_enabled'] == true;
     var tips = row['tips_enabled'] == true;
     var cash = row['cash_enabled'] == true;
@@ -373,20 +372,11 @@ class _AdminMarketplacePhase2PageState
                   ),
                   const Divider(),
                   SwitchListTile.adaptive(
-                    value: preview,
-                    onChanged: widget.channel == 'preview'
-                        ? (v) => setLocal(() => preview = v)
-                        : null,
-                    title: const Text('Delivery Fase 2 en Prueba'),
-                  ),
-                  SwitchListTile.adaptive(
-                    value: production,
-                    onChanged: widget.channel == 'production'
-                        ? (v) => setLocal(() => production = v)
-                        : null,
-                    title: const Text('Delivery Fase 2 en Producción'),
+                    value: available,
+                    onChanged: (v) => setLocal(() => available = v),
+                    title: const Text('Delivery Fase 2 disponible'),
                     subtitle: const Text(
-                      'Mantener apagado hasta aprobación final.',
+                      'La disponibilidad se comparte entre cuentas de prueba y producción.',
                     ),
                   ),
                 ],
@@ -412,8 +402,8 @@ class _AdminMarketplacePhase2PageState
         'admin_marketplace_update_zone_phase2',
         params: {
           'p_zone_id': row['zone_id'],
-          'p_preview_enabled': preview,
-          'p_production_enabled': production,
+          'p_preview_enabled': available,
+          'p_production_enabled': available,
           'p_customer_base_fee': double.tryParse(customerBase.text.trim()) ?? 0,
           'p_customer_per_km': double.tryParse(customerKm.text.trim()) ?? 0,
           'p_customer_min_fee': double.tryParse(customerMin.text.trim()) ?? 0,
@@ -483,8 +473,7 @@ class _AdminMarketplacePhase2PageState
     );
 
     var active = row['active'] == true;
-    var preview = row['preview_visible'] != false;
-    var production = row['production_visible'] == true;
+    var visible = row['production_visible'] == true;
     var freeDelivery = row['free_delivery'] == true;
 
     final save = await showDialog<bool>(
@@ -542,18 +531,9 @@ class _AdminMarketplacePhase2PageState
                     title: const Text('Plan activo'),
                   ),
                   SwitchListTile.adaptive(
-                    value: preview,
-                    onChanged: widget.channel == 'preview'
-                        ? (v) => setLocal(() => preview = v)
-                        : null,
-                    title: const Text('Visible en Prueba'),
-                  ),
-                  SwitchListTile.adaptive(
-                    value: production,
-                    onChanged: widget.channel == 'production'
-                        ? (v) => setLocal(() => production = v)
-                        : null,
-                    title: const Text('Visible Producción'),
+                    value: visible,
+                    onChanged: (v) => setLocal(() => visible = v),
+                    title: const Text('Disponible para todos los usuarios'),
                   ),
                 ],
               ),
@@ -601,8 +581,8 @@ class _AdminMarketplacePhase2PageState
           'p_name': name.text.trim(),
           'p_monthly_price': monthlyPrice,
           'p_active': active,
-          'p_preview_visible': preview,
-          'p_production_visible': production,
+          'p_preview_visible': visible,
+          'p_production_visible': visible,
           'p_free_delivery': freeDelivery,
           'p_included_priority_deliveries':
               int.tryParse(priority.text.trim()) ?? 0,
