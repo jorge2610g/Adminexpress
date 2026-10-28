@@ -68,6 +68,8 @@ El cambio actualiza `admin_users` y `account_runtime_bindings`.
 
 La UI usa `_sectionModuleKeys` y `_sectionAllowed`.
 
+Para el rol `operator`, `admin_users.module_permissions jsonb` conserva acciones por módulo (`view`, `edit`, `delete`). Editar o borrar exige también ver. `admin_access_context()` entrega la matriz al panel y los RPC zonales deben comprobar la acción en Supabase.
+
 El backend debe mantener su propia autorización para acciones sensibles.
 
 ## Operadores por ciudad

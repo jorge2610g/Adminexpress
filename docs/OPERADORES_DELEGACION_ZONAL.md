@@ -15,6 +15,12 @@ Un superadministrador decide qué permisos concede a cada operador. Cada operado
 7. **Creación y desactivación.** El superadministrador puede marcar cualquier subconjunto y desactivar el acceso. No se conceden todos los módulos automáticamente. Revocar un módulo corta su acceso inmediatamente, sin depender del menú.
 8. **Auditoría y recuperación.** Cambios locales registran administrador, recurso, zona y fecha. Cada módulo nuevo exige pruebas de zona propia, zona ajena, ID ajeno, otro módulo, usuario sin sesión y compatibilidad con el superadministrador.
 
+## Acceso por acción en cada módulo
+
+Al seleccionar un módulo, el administrador puede asignar por separado `view`, `edit` y `delete`. Editar o borrar requiere también ver. Los permisos se guardan en `admin_users.module_permissions` y se consultan desde `admin_access_context`; el menú filtra por `view` y los RPC de escritura validan `edit` o `delete` en el servidor.
+
+Las cuentas antiguas con `module_permissions IS NULL` conservan sus permisos existentes hasta que un administrador guarde una matriz explícita. Las altas nuevas usan lectura por defecto. Ningún permiso de acción sustituye la preparación del módulo, el rol, el entorno Producción o la zona del servidor.
+
 ## Estado de implementación
 
 El catálogo tiene 21 claves asignables. La primera fase dispone de 7 módulos existentes, y las migraciones zonales de Tarifas, Suscripciones, Pagos de consulta y Notificaciones permiten activar otros 4 tras la revisión y QA (11 operativos). Los 10 restantes continúan con `runtime_ready=false`. Esta migración por sí sola **no completa** la delegación operativa ni debe fusionarse sin actualizar el alta de operadores, pruebas y las rutas frontend.

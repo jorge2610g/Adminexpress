@@ -264,7 +264,16 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   String? adminZoneId;
   Map<String, dynamic> adminAccess = const {};
 
-  bool get _readOnly => adminAccess['read_only'] == true;
+  bool get _readOnly {
+    if (adminAccess['read_only'] == true) return true;
+    if (adminAccess['role'] != 'operator') return false;
+    final module = _sectionModuleKeys[section];
+    final rawPermissions = adminAccess['module_permissions'];
+    if (module == null || rawPermissions is! Map) return false;
+    final modulePermissions = rawPermissions[module];
+    if (modulePermissions is! Map) return false;
+    return modulePermissions['edit'] != true;
+  }
   static const Set<int> _environmentFilteredSections = <int>{
     0, 1, 2, 3, 4, 5, 6, 9, 13, 15, 18, 21, 22, 23, 24, 25, 26, 29, 30,
     31, 33,
@@ -883,7 +892,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               child: Row(
                 children: [
                   Text(
-                    _readOnly ? 'Monitor de zona' : 'Operador de zona',
+                    adminAccess['role'] == 'zone_monitor'
+                        ? 'Monitor de zona'
+                        : 'Operador de zona',
                     style: const TextStyle(
                       color: Color(0xFF166534),
                       fontSize: 11,
@@ -1406,6 +1417,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           return AdminOperatorFaresPage(
             zoneId: adminZoneId ?? '',
             zoneName: (adminAccess['zone_name'] ?? 'Mi zona').toString(),
+            readOnly: _readOnly,
           );
         }
         return AdminFaresPage(
@@ -1454,6 +1466,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
           operatorOnly: adminAccess['role'] == 'operator',
+          readOnly: _readOnly,
         );
       case 16:
         return AdminServicesPage(
@@ -1518,6 +1531,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           return AdminOperatorSubscriptionsPage(
             zoneId: adminZoneId ?? '',
             zoneName: (adminAccess['zone_name'] ?? 'Mi zona').toString(),
+            readOnly: _readOnly,
           );
         }
         return AdminDriverSubscriptionsPage(

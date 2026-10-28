@@ -60,6 +60,57 @@ Set<String> operatorNormalizedModules(Iterable<String> source) {
   return result;
 }
 
+const List<String> operatorModuleActions = ['view', 'edit', 'delete'];
+
+Map<String, Map<String, bool>> operatorDefaultModulePermissions(
+  Iterable<String> modules, {
+  bool legacyEdit = false,
+}) {
+  return {
+    for (final key in operatorNormalizedModules(modules))
+      key: {
+        'view': true,
+        'edit': legacyEdit,
+        'delete': false,
+      },
+  };
+}
+
+Map<String, Map<String, bool>> operatorNormalizedModulePermissions(
+  Iterable<String> modules,
+  Object? source, {
+  bool legacyEdit = false,
+}) {
+  final normalizedModules = operatorNormalizedModules(modules);
+  final raw = source is Map ? source : const <Object?, Object?>{};
+  final result = <String, Map<String, bool>>{};
+  for (final module in normalizedModules) {
+    final value = raw[module];
+    final permissions = value is Map ? value : const <Object?, Object?>{};
+    final hasEntry = raw.containsKey(module);
+    final hasExplicit = permissions.containsKey('view') ||
+        permissions.containsKey('edit') ||
+        permissions.containsKey('delete');
+    final view = hasExplicit
+        ? permissions['view'] == true
+        : source is Map
+            ? false
+            : true;
+    final edit = hasExplicit
+        ? permissions['edit'] == true
+        : hasEntry
+            ? false
+            : legacyEdit;
+    final delete = hasExplicit ? permissions['delete'] == true : false;
+    result[module] = {
+      'view': view || edit || delete,
+      'edit': edit,
+      'delete': delete,
+    };
+  }
+  return result;
+}
+
 Set<String> operatorToggledModules(
     Iterable<String> current, String key, bool enabled) {
   final result = operatorNormalizedModules(current);
@@ -270,18 +321,21 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
     required String zone,
     required bool active,
     required Iterable<String> allowed,
+    required Map<String, Map<String, bool>> modulePermissions,
   }) async {
     setState(() => busy = true);
     try {
       await supabase.rpc(
-        'admin_set_panel_access_v2',
+        'admin_set_operator_module_access',
         params: {
           'p_user_id': userId,
-          'p_access_role': 'operator',
           'p_zone_id': zone,
           'p_active': active,
-          'p_environment': 'production',
           'p_allowed_modules': operatorNormalizedModules(allowed).toList(),
+          'p_module_permissions': operatorNormalizedModulePermissions(
+            allowed,
+            modulePermissions,
+          ),
         },
       );
       if (!mounted) return;
@@ -330,6 +384,7 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
       zone: zone,
       active: true,
       allowed: modules,
+      modulePermissions: operatorDefaultModulePermissions(modules),
     );
   }
 
@@ -342,6 +397,7 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
         zoneLabel: _zoneLabel(row),
         initialActive: row['active'] == true,
         initialModules: _modulesOf(row),
+        initialModulePermissions: _modulePermissionsOf(row),
       ),
     );
     if (result == null || !mounted) return;
@@ -357,6 +413,7 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
       zone: (row['zone_id'] ?? '').toString(),
       active: result.active,
       allowed: result.modules,
+      modulePermissions: result.modulePermissions,
     );
   }
 
@@ -367,6 +424,17 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
     }
     // Una cuenta antigua sin lista explícita no recibe módulos adicionales.
     return {operatorBaseModule};
+  }
+
+  Map<String, Map<String, bool>> _modulePermissionsOf(
+      Map<String, dynamic> row) {
+    return operatorNormalizedModulePermissions(
+      _modulesOf(row),
+      row['module_permissions'],
+      // Legacy module grants already allowed the module's existing operations.
+      // Preserve editing when first opening the new action selector.
+      legacyEdit: row['module_permissions'] is! Map,
+    );
   }
 
   // Crea la cuenta con correo y contraseña en el servidor y le da acceso de operador.
@@ -400,6 +468,7 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
           'full_name': newName.text.trim(),
           'zone_id': zone,
           'allowed_modules': operatorNormalizedModules(modules).toList(),
+          'module_permissions': operatorDefaultModulePermissions(modules),
         },
       );
       if (!mounted) return;
@@ -800,10 +869,15 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
 
 /// Resultado de la ventana «Editar operador».
 class OperatorEditResult {
-  const OperatorEditResult({required this.active, required this.modules});
+  const OperatorEditResult({
+    required this.active,
+    required this.modules,
+    required this.modulePermissions,
+  });
 
   final bool active;
   final Set<String> modules;
+  final Map<String, Map<String, bool>> modulePermissions;
 }
 
 /// Ventana «Editar operador»: activar o desactivar el acceso y elegir los módulos.
@@ -815,12 +889,14 @@ class OperatorEditDialog extends StatefulWidget {
     required this.zoneLabel,
     required this.initialActive,
     required this.initialModules,
+    this.initialModulePermissions = const {},
   });
 
   final String userLabel;
   final String zoneLabel;
   final bool initialActive;
   final Set<String> initialModules;
+  final Map<String, Map<String, bool>> initialModulePermissions;
 
   @override
   State<OperatorEditDialog> createState() => _OperatorEditDialogState();
@@ -830,6 +906,25 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
   late bool active = widget.initialActive;
   late final Set<String> modules =
       operatorNormalizedModules(widget.initialModules);
+  late final Map<String, Map<String, bool>> modulePermissions =
+      operatorNormalizedModulePermissions(
+    modules,
+    widget.initialModulePermissions,
+  );
+
+  void _setPermission(String module, String action, bool enabled) {
+    final current = modulePermissions.putIfAbsent(
+      module,
+      () => {'view': true, 'edit': false, 'delete': false},
+    );
+    current[action] = enabled;
+    if (action == 'view' && !enabled) {
+      current['edit'] = false;
+      current['delete'] = false;
+    } else if ((action == 'edit' || action == 'delete') && enabled) {
+      current['view'] = true;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -869,7 +964,7 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                 style: TextStyle(fontWeight: FontWeight.w900, color: _dark),
               ),
               const Text(
-                'Los permisos pendientes quedarán guardados; se abrirán cuando la función de zona esté preparada. Usuarios siempre incluido.',
+                'Al marcar un módulo, elige si tendrá solo lectura, podrá editar o borrar. Editar y borrar también incluyen lectura. Los módulos pendientes quedarán guardados y se abrirán cuando estén preparados. Usuarios siempre incluido.',
                 style: TextStyle(fontSize: 12, color: _muted),
               ),
               for (final group in _groupOrder) ...[
@@ -907,8 +1002,64 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                               modules
                                 ..clear()
                                 ..addAll(next);
+                              modulePermissions.removeWhere(
+                                  (key, _) => !next.contains(key));
+                              for (final key in next) {
+                                modulePermissions.putIfAbsent(
+                                  key,
+                                  () => {
+                                    'view': true,
+                                    'edit': false,
+                                    'delete': false,
+                                  },
+                                );
+                              }
+                              if (value == true) {
+                                modulePermissions.putIfAbsent(
+                                  module.key,
+                                  () => {
+                                    'view': true,
+                                    'edit': false,
+                                    'delete': false,
+                                  },
+                                );
+                              } else {
+                                modulePermissions.remove(module.key);
+                              }
                             }),
                   ),
+                for (final module
+                    in operatorSelectorModules.where((m) => m.group == group))
+                  if (modules.contains(module.key))
+                    Padding(
+                      padding: const EdgeInsets.only(left: 42, bottom: 5),
+                      child: Wrap(
+                        spacing: 12,
+                        runSpacing: 0,
+                        children: [
+                          for (final action in operatorModuleActions)
+                            SizedBox(
+                              width: 105,
+                              child: CheckboxListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                                title: Text(switch (action) {
+                                  'view' => 'Solo lectura',
+                                  'edit' => 'Editar',
+                                  _ => 'Borrar',
+                                }),
+                                value: modulePermissions[module.key]?[action] ==
+                                    true,
+                                onChanged: (value) => setState(() =>
+                                    _setPermission(
+                                        module.key, action, value == true)),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
               ],
             ],
           ),
@@ -922,7 +1073,14 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
         FilledButton(
           onPressed: () => Navigator.pop(
             context,
-            OperatorEditResult(active: active, modules: modules),
+            OperatorEditResult(
+              active: active,
+              modules: modules,
+              modulePermissions: operatorNormalizedModulePermissions(
+                modules,
+                modulePermissions,
+              ),
+            ),
           ),
           child: const Text('Guardar cambios'),
         ),

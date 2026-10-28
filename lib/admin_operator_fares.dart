@@ -3,9 +3,10 @@ import 'core/supabase_client.dart';
 
 /// Tarifas editables solo dentro de la zona asignada al operador.
 class AdminOperatorFaresPage extends StatefulWidget {
-  const AdminOperatorFaresPage({super.key, required this.zoneId, required this.zoneName});
+  const AdminOperatorFaresPage({super.key, required this.zoneId, required this.zoneName, this.readOnly = false});
   final String zoneId;
   final String zoneName;
+  final bool readOnly;
   @override
   State<AdminOperatorFaresPage> createState() => _AdminOperatorFaresPageState();
 }
@@ -54,7 +55,7 @@ class _AdminOperatorFaresPageState extends State<AdminOperatorFaresPage> {
   }
 
   Future<void> _edit([Map<String, dynamic>? fare]) async {
-    if (services.isEmpty) return;
+    if (widget.readOnly || services.isEmpty) return;
     String selected = fare?['service_key']?.toString() ??
         services.first['service_key'].toString();
     bool enabled = fare?['active'] != false;
@@ -172,7 +173,7 @@ class _AdminOperatorFaresPageState extends State<AdminOperatorFaresPage> {
       if (error != null) Text('No se pudieron cargar las tarifas: $error'),
       if (!loading && error == null) ...[
         FilledButton.icon(
-          onPressed: services.isEmpty ? null : () => _edit(),
+          onPressed: widget.readOnly || services.isEmpty ? null : () => _edit(),
           icon: const Icon(Icons.add), label: const Text('Crear tarifa de zona')),
         const SizedBox(height: 12),
         if (fares.isEmpty) const Text('Todavía no hay tarifas específicas para esta zona.'),
@@ -181,7 +182,7 @@ class _AdminOperatorFaresPageState extends State<AdminOperatorFaresPage> {
             title: Text(_name(fare['service_key']?.toString())),
             subtitle: Text('Base: ${fare['base_fare']} · Km: ${fare['per_km']} · Mínima: ${fare['minimum_fare']}'),
             trailing: IconButton(
-              onPressed: () => _edit(fare),
+              onPressed: widget.readOnly ? null : () => _edit(fare),
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Editar tarifa local'),
           ),
