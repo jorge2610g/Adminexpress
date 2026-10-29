@@ -964,7 +964,7 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                 style: TextStyle(fontWeight: FontWeight.w900, color: _dark),
               ),
               const Text(
-                'Al marcar un módulo, elige si tendrá solo lectura, podrá editar o borrar. Editar y borrar también incluyen lectura. Los módulos pendientes quedarán guardados y se abrirán cuando estén preparados. Usuarios siempre incluido.',
+                'Al marcar un módulo, elige si tendrá solo lectura, podrá editar o borrar. Editar y borrar también incluyen lectura. Borrar queda guardado y solo habilitará acciones de borrado disponibles para operadores; hoy esos borrados zonales aún no están implementados. Los módulos pendientes quedarán guardados y se abrirán cuando estén preparados. Usuarios siempre incluido.',
                 style: TextStyle(fontSize: 12, color: _muted),
               ),
               for (final group in _groupOrder) ...[
