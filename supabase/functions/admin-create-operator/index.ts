@@ -69,6 +69,13 @@ Deno.serve(async (req) => {
     return respond({ error: 'Operación en vivo y Seguridad / SOS requieren Dashboard y Conductores.' }, 400);
   }
   const modules = Array.from(new Set(['users', ...requested]));
+  const rawPermissions = body.module_permissions;
+  const modulePermissions: Record<string, { view: boolean; edit: boolean; delete: boolean }> =
+    rawPermissions != null && typeof rawPermissions === 'object' && !Array.isArray(rawPermissions)
+      ? rawPermissions as Record<string, { view: boolean; edit: boolean; delete: boolean }>
+      : Object.fromEntries(
+          modules.map((module) => [module, { view: true, edit: false, delete: false }]),
+        );
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return respond({ error: 'Correo no válido.' }, 400);
@@ -113,13 +120,12 @@ Deno.serve(async (req) => {
       : { error: 'No se pudo crear el perfil. No se activó el operador.' }, 422);
   }
 
-  const { error: accessError } = await caller.rpc('admin_set_panel_access_v2', {
+  const { error: accessError } = await caller.rpc('admin_set_operator_module_access', {
     p_user_id: userId,
-    p_access_role: 'operator',
     p_zone_id: zoneId,
     p_active: true,
-    p_environment: 'production',
     p_allowed_modules: modules,
+    p_module_permissions: modulePermissions,
   });
   if (accessError) {
     const { error: cleanupError } = await admin.auth.admin.deleteUser(userId);
@@ -128,5 +134,11 @@ Deno.serve(async (req) => {
       : { error: 'No se pudo asignar el acceso. Se canceló el alta de operador.' }, 422);
   }
 
-  return respond({ ok: true, user_id: userId, email, allowed_modules: modules });
+  return respond({
+    ok: true,
+    user_id: userId,
+    email,
+    allowed_modules: modules,
+    module_permissions: modulePermissions,
+  });
 });

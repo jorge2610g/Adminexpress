@@ -6603,6 +6603,7 @@ class AdminCommunicationsPage extends StatefulWidget {
   final String? countryCode;
   final String? zoneId;
   final bool operatorOnly;
+  final bool readOnly;
 
   const AdminCommunicationsPage({
     super.key,
@@ -6610,6 +6611,7 @@ class AdminCommunicationsPage extends StatefulWidget {
     this.countryCode,
     this.zoneId,
     this.operatorOnly = false,
+    this.readOnly = false,
   });
 
   @override
@@ -6777,6 +6779,7 @@ class _AdminCommunicationsPageState
   }
 
   Future<void> _sendAnnouncement() async {
+    if (widget.readOnly) return;
     final title = announcementTitle.text.trim();
     final body = announcementBody.text.trim();
     if (title.isEmpty || body.isEmpty || sendingAnnouncement) return;
@@ -6840,7 +6843,9 @@ class _AdminCommunicationsPageState
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
+            onPressed: widget.readOnly
+                ? null
+                : () => Navigator.pop(dialogContext, true),
             child: const Text('Enviar'),
           ),
         ],
@@ -7369,8 +7374,9 @@ class _AdminCommunicationsPageState
               ),
               const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed:
-                    sendingAnnouncement ? null : _sendAnnouncement,
+                onPressed: sendingAnnouncement || widget.readOnly
+                    ? null
+                    : _sendAnnouncement,
                 icon: sendingAnnouncement
                     ? const SizedBox.square(
                         dimension: 17,

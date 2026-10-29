@@ -3,9 +3,10 @@ import 'core/supabase_client.dart';
 
 /// Planes, montos y recibos de suscripción de una sola zona.
 class AdminOperatorSubscriptionsPage extends StatefulWidget {
-  const AdminOperatorSubscriptionsPage({super.key, required this.zoneId, required this.zoneName});
+  const AdminOperatorSubscriptionsPage({super.key, required this.zoneId, required this.zoneName, this.readOnly = false});
   final String zoneId;
   final String zoneName;
+  final bool readOnly;
   @override
   State<AdminOperatorSubscriptionsPage> createState() => _AdminOperatorSubscriptionsPageState();
 }
@@ -43,6 +44,7 @@ class _AdminOperatorSubscriptionsPageState extends State<AdminOperatorSubscripti
   }
 
   Future<void> _edit([Map<String, dynamic>? plan]) async {
+    if (widget.readOnly) return;
     final code = TextEditingController(text: plan?['code']?.toString() ?? '');
     final name = TextEditingController(text: plan?['name']?.toString() ?? '');
     final price = TextEditingController(text: plan?['amount']?.toString() ?? '0');
@@ -148,7 +150,7 @@ class _AdminOperatorSubscriptionsPageState extends State<AdminOperatorSubscripti
       if (loading) const Center(child: CircularProgressIndicator()),
       if (error != null) Text('No se pudieron cargar las suscripciones: $error'),
       if (!loading && error == null) ...[
-        FilledButton.icon(onPressed: () => _edit(),
+        FilledButton.icon(onPressed: widget.readOnly ? null : () => _edit(),
           icon: const Icon(Icons.add), label: const Text('Crear plan de mi zona')),
         const SizedBox(height: 12),
         Text('Planes y montos', style: Theme.of(context).textTheme.titleMedium),
@@ -158,7 +160,7 @@ class _AdminOperatorSubscriptionsPageState extends State<AdminOperatorSubscripti
             title: Text(plan['name']?.toString() ?? 'Plan'),
             subtitle: Text('${plan['amount']} $currency · ${plan['days']} días · ${plan['active'] == false ? 'Inactivo' : 'Activo'}'),
             trailing: IconButton(icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Editar plan de zona', onPressed: () => _edit(plan)),
+              tooltip: 'Editar plan de zona', onPressed: widget.readOnly ? null : () => _edit(plan)),
           ),
         ),
         const SizedBox(height: 20),
