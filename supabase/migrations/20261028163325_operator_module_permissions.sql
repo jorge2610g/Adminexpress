@@ -295,6 +295,7 @@ begin
       'admin_operator_upsert_fare_rule',
       'admin_operator_upsert_subscription_plan',
       'admin_send_announcement_v4',
+      'admin_landing_banner_save_v1',
       'admin_finance_settle_adjustment_debt_v1',
       'admin_finance_adjust_wallet_v1',
       'admin_wallet_debt_limits_set_v1',

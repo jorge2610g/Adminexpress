@@ -23,7 +23,9 @@ Las cuentas antiguas con `module_permissions IS NULL` conservan sus permisos exi
 
 ## Estado de implementación
 
-El catálogo tiene 21 claves asignables. La primera fase dispone de 7 módulos existentes, y las migraciones zonales de Tarifas, Suscripciones, Pagos de consulta y Notificaciones permiten activar otros 4 tras la revisión y QA (11 operativos). Los 10 restantes continúan con `runtime_ready=false`. Esta migración por sí sola **no completa** la delegación operativa ni debe fusionarse sin actualizar el alta de operadores, pruebas y las rutas frontend.
+El catálogo de la propuesta tiene 21 claves asignables. En el Supabase consultado, 11 módulos figuran con `runtime_ready=true` y 10 con `runtime_ready=false`. La matriz `view/edit/delete` está preparada en el PR #137, pero su migración aún no está aplicada: la columna `admin_users.module_permissions` y el guard por acción todavía no existen en la base compartida. Por tanto, la selección por acción aún no está disponible en el panel publicado.
+
+La casilla `Borrar` solo guarda la intención y el guard puede validarla; no existen operaciones de borrado zonal implementadas en esta entrega. No se deben presentar esas casillas como borrados funcionales. El PR sigue en borrador hasta completar validación en Preview con la misma versión de código y comprobar las acciones de cada módulo.
 
 ## Orden de implementación
 

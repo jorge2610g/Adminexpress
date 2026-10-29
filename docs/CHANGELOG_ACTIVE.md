@@ -1,3 +1,11 @@
+## 2026-10-29 · Permisos granulares de operadores — en validación
+
+- El PR #137 agrega selección de Solo lectura, Editar y Borrar por módulo, guarda la matriz en `admin_users.module_permissions` y valida acciones en Supabase.
+- La auditoría del proyecto confirmó que la migración aún no está aplicada: la columna y el guard por acción no existen en el Supabase compartido. El panel publicado aún no ofrece la matriz.
+- Se amplió la migración para cubrir también el guard de edición del guardado de banners si el módulo Marketplace llega a habilitarse para operadores.
+- `runtime_ready=true` está activo para 11 módulos y permanece falso para 10. La casilla Borrar se guarda, pero esta entrega no implementa borrados zonales.
+- Estado: PR #137 sigue en borrador; falta validar el mismo cambio con cuenta Preview antes de fusionar o desplegar. No se modificó Supabase ni Producción.
+
 ## 2026-10-21 · Builds Admin prepara la candidata Android unificada 1.6.3+142
 
 - Corrige la tarjeta de Builds que seguía fijada en 1.6.2/build 140 y ofrecía una solicitud separada AAB-only build 141. El panel ahora permite crear solo la candidata oficial APK+AAB 1.6.3+142 mediante `admin_queue_single_app_candidate`, valida que Google Play indique el siguiente código 142 y muestra el UUID devuelto.
