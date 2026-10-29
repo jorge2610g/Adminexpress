@@ -36,6 +36,10 @@ begin
   if not public.is_admin() then
     raise exception 'No autorizado';
   end if;
+  if public.admin_current_runtime_environment() <> 'production'
+     or not coalesce(public.admin_environment_allowed('production'), false) then
+    raise exception 'La asignación de operadores solo puede administrarse desde Producción';
+  end if;
   if p_user_id is null or p_zone_id is null then
     raise exception 'El operador requiere una cuenta y una zona';
   end if;

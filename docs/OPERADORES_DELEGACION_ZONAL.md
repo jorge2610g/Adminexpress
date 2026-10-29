@@ -25,7 +25,9 @@ Las cuentas antiguas con `module_permissions IS NULL` conservan sus permisos exi
 
 El catálogo de la propuesta tiene 21 claves asignables. En el Supabase consultado, 11 módulos figuran con `runtime_ready=true` y 10 con `runtime_ready=false`. La matriz `view/edit/delete` está preparada en el PR #137, pero su migración aún no está aplicada: la columna `admin_users.module_permissions` y el guard por acción todavía no existen en la base compartida. Por tanto, la selección por acción aún no está disponible en el panel publicado.
 
-La casilla `Borrar` solo guarda la intención y el guard puede validarla; no existen operaciones de borrado zonal implementadas en esta entrega. No se deben presentar esas casillas como borrados funcionales. El PR sigue en borrador hasta completar validación en Preview con la misma versión de código y comprobar las acciones de cada módulo.
+La asignación de operadores es exclusiva de Producción. El RPC rechaza cambios llamados desde una sesión Preview para evitar que un administrador de prueba cambie permisos reales. Esto impide validar el flujo E2E del operador en Preview bajo el modelo actual; antes de fusionar hay que acordar una prueba controlada en Producción o un modelo de operador Preview aislado.
+
+La casilla `Borrar` solo guarda la intención y el guard puede validarla; no existen operaciones de borrado zonal implementadas en esta entrega. No se deben presentar esas casillas como borrados funcionales. El PR sigue en borrador mientras no haya un plan seguro para validar permisos por acción y zona.
 
 ## Orden de implementación
 
