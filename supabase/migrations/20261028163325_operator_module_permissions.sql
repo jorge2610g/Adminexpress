@@ -12,6 +12,29 @@ alter table public.admin_users
 comment on column public.admin_users.module_permissions is
   'Per-module operator capabilities: view, edit and delete booleans. NULL preserves legacy module behavior.';
 
+-- Existing active operators keep their current module visibility but move to
+-- read-only until the owner explicitly grants edit/delete per module.
+update public.admin_users a
+set module_permissions = coalesce((
+  select jsonb_object_agg(
+    selected.module_key,
+    jsonb_build_object('view', true, 'edit', false, 'delete', false)
+  )
+  from (
+    select distinct requested.module_key
+    from unnest(
+      case
+        when 'users' = any(coalesce(a.allowed_modules, array[]::text[]))
+          then coalesce(a.allowed_modules, array[]::text[])
+        else array_append(coalesce(a.allowed_modules, array[]::text[]), 'users')
+      end
+    ) as requested(module_key)
+  ) selected
+  join public.admin_operator_module_capabilities c
+    on c.module_key = selected.module_key
+), '{}'::jsonb)
+where a.access_role = 'operator' and a.active = true;
+
 create or replace function public.admin_set_operator_module_access(
   p_user_id uuid,
   p_zone_id uuid,
@@ -313,6 +336,8 @@ begin
       'perform public.admin_operator_assert_module_action(''subscriptions'', ''edit'');');
     v_def := replace(v_def, 'perform public.admin_operator_assert_module(''notifications'');',
       'perform public.admin_operator_assert_module_action(''notifications'', ''edit'');');
+    v_def := replace(v_def, 'perform public.admin_operator_assert_module(''marketplace'');',
+      'perform public.admin_operator_assert_module_action(''marketplace'', ''edit'');');
     v_def := replace(v_def, 'perform public.admin_operator_assert_module(''payments'');',
       'perform public.admin_operator_assert_module_action(''payments'', ''edit'');');
     if v_def = r.definition then

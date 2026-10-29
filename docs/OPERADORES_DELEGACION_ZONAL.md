@@ -19,15 +19,15 @@ Un superadministrador decide qué permisos concede a cada operador. Cada operado
 
 Al seleccionar un módulo, el administrador puede asignar por separado `view`, `edit` y `delete`. Editar o borrar requiere también ver. Los permisos se guardan en `admin_users.module_permissions` y se consultan desde `admin_access_context`; el menú filtra por `view` y los RPC de escritura validan `edit` o `delete` en el servidor.
 
-Las cuentas antiguas con `module_permissions IS NULL` conservan sus permisos existentes hasta que un administrador guarde una matriz explícita. Las altas nuevas usan lectura por defecto. Ningún permiso de acción sustituye la preparación del módulo, el rol, el entorno Producción o la zona del servidor.
+Las cuentas antiguas con `module_permissions IS NULL` conservan sus permisos existentes hasta aplicar la migración. La migración deja los operadores activos actuales en solo lectura; las altas nuevas también usan lectura por defecto. Ningún permiso de acción sustituye la preparación del módulo, el rol, el entorno Producción o la zona del servidor.
 
 ## Estado de implementación
 
-El catálogo de la propuesta tiene 21 claves asignables. En el Supabase consultado, 11 módulos figuran con `runtime_ready=true` y 10 con `runtime_ready=false`. La matriz `view/edit/delete` está preparada en el PR #137, pero su migración aún no está aplicada: la columna `admin_users.module_permissions` y el guard por acción todavía no existen en la base compartida. Por tanto, la selección por acción aún no está disponible en el panel publicado.
+El catálogo de la propuesta tiene 21 claves asignables. En el Supabase consultado, 11 módulos figuran con `runtime_ready=true` y 10 con `runtime_ready=false`. La matriz `view/edit/delete` está preparada en el PR #137. Al aplicarla, se conservará la lectura de los operadores activos actuales y se apagarán edición y borrado hasta que el propietario los habilite módulo por módulo.
 
-La asignación de operadores es exclusiva de Producción. El RPC rechaza cambios llamados desde una sesión Preview para evitar que un administrador de prueba cambie permisos reales. Esto impide validar el flujo E2E del operador en Preview bajo el modelo actual; antes de fusionar hay que acordar una prueba controlada en Producción o un modelo de operador Preview aislado.
+La asignación de operadores es exclusiva de Producción. El RPC rechaza cambios llamados desde una sesión Preview para evitar que un administrador de prueba cambie permisos reales. El propietario autorizó lanzar esta actualización directamente a Producción sin crear ni probar operadores; esta entrega sigue esa excepción a la validación Preview.
 
-La casilla `Borrar` solo guarda la intención y el guard puede validarla; no existen operaciones de borrado zonal implementadas en esta entrega. No se deben presentar esas casillas como borrados funcionales. El PR sigue en borrador mientras no haya un plan seguro para validar permisos por acción y zona.
+La casilla `Borrar` solo guarda la intención y el guard puede validarla; no existen operaciones de borrado zonal implementadas en esta entrega. No se deben presentar esas casillas como borrados funcionales.
 
 ## Orden de implementación
 

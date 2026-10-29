@@ -1,10 +1,11 @@
-## 2026-10-29 · Permisos granulares de operadores — en validación
+## 2026-10-29 · Permisos granulares de operadores — lanzamiento Producción autorizado
 
 - El PR #137 agrega selección de Solo lectura, Editar y Borrar por módulo, guarda la matriz en `admin_users.module_permissions` y valida acciones en Supabase.
 - La auditoría del proyecto confirmó que la migración aún no está aplicada: la columna y el guard por acción no existen en el Supabase compartido. El panel publicado aún no ofrece la matriz.
 - Se amplió la migración para cubrir también el guard de edición del guardado de banners si el módulo Marketplace llega a habilitarse para operadores. El RPC ahora rechaza asignaciones invocadas desde Preview para evitar escrituras cruzadas hacia Producción.
+- Al aplicar la migración, los operadores activos existentes conservan sus módulos visibles, pero quedan solo en lectura; `edit` y `delete` quedan desactivados hasta que el propietario los habilite explícitamente.
 - `runtime_ready=true` está activo para 11 módulos y permanece falso para 10. La casilla Borrar se guarda, pero esta entrega no implementa borrados zonales.
-- La regla vigente obliga validar en Preview, pero los operadores son exclusivos de Producción; falta acordar una prueba segura antes de fusionar. El PR #137 sigue en borrador. No se modificó Supabase ni Producción.
+- El propietario autorizó el lanzamiento directo a Producción sin crear ni probar operadores. CI pasó Flutter Web, control de acceso y operador; se está aplicando la migración y publicando el panel.
 
 ## 2026-10-21 · Builds Admin prepara la candidata Android unificada 1.6.3+142
 
