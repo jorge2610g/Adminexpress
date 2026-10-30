@@ -268,7 +268,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   bool get _readOnly => adminAccess['read_only'] == true;
   static const Set<int> _environmentFilteredSections = <int>{
     0, 1, 2, 3, 4, 5, 6, 9, 13, 15, 18, 21, 22, 23, 24, 25, 26, 29, 30,
-    31, 33,
+    31, 33, 35,
   };
 
   String _sectionChannel(int sectionIndex) {
