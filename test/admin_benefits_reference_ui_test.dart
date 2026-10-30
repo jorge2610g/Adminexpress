@@ -34,4 +34,13 @@ void main() {
     expect(source, contains("'lifetime': _lifetime"));
     expect(source, contains('cada pago de plan confirmado'));
   });
+
+  test('referrals screen loads real dashboard metrics and plan commission history', () {
+    expect(source, contains("'admin_driver_referral_dashboard'"));
+    expect(source, contains("'p_status': _referralFilter"));
+    expect(source, contains("_referralsPanel() => FutureBuilder"));
+    expect(source, contains("'Comisión acreditada'"));
+    expect(source, contains("'Pagos de plan'"));
+    expect(source, contains("onChanged: (value) {\n                        if (value == null) return;"));
+  });
 }

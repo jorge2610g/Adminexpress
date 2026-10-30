@@ -39,11 +39,14 @@ class AdminBenefitsPage extends StatefulWidget {
 
 class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   late Future<List<Map<String, dynamic>>> _future;
+  late Future<Map<String, dynamic>> _referralDashboardFuture;
   String _category = 'coupon';
   String _couponTab = 'coupons';
   String _referralTab = 'program';
   String _discount = 'fixed';
   String _filter = 'all';
+  String _referralFilter = 'all';
+  String _referralTypeFilter = 'all';
   String _serviceMode = 'transport';
   String _serviceType = 'all';
   String _audience = 'passengers';
@@ -130,6 +133,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   @override
   void initState() {
     super.initState();
+    _referralDashboardFuture = Future.value(const <String, dynamic>{});
     _reload();
   }
 
@@ -192,6 +196,23 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
               .toList()
           : <Map<String, dynamic>>[];
     }();
+    if (_category == 'referral' && _referralTab == 'referrals') {
+      _referralDashboardFuture = _loadReferralDashboard();
+    }
+  }
+
+  Future<Map<String, dynamic>> _loadReferralDashboard() async {
+    if (widget.zoneId == null) return const <String, dynamic>{};
+    final raw = await supabase.rpc(
+      'admin_driver_referral_dashboard',
+      params: {
+        'p_zone_id': widget.zoneId,
+        'p_channel': widget.channel,
+        'p_status': _referralFilter,
+      },
+    );
+    if (raw is! Map) return const <String, dynamic>{};
+    return Map<String, dynamic>.from(raw);
   }
 
   void _clear() {
@@ -849,12 +870,13 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             if (inlineReferralSettings)
               _referralTab == 'mlm' ? _mlmSettings() : _referralSettings()
             else ...[
+            if (_category == 'referral' && _referralTab == 'referrals')
+              _referralsPanel()
+            else ...[
               _metrics(rows),
               const SizedBox(height: 18),
-            if (_category == 'referral' && _referralTab == 'referrals')
-              _emptyReferrals()
-            else
               _programTable(visibleRows),
+            ],
             ],
           ],
         );
@@ -1168,35 +1190,166 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         ),
       );
 
-  Widget _emptyReferrals() => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(side: const BorderSide(color: _line), borderRadius: BorderRadius.circular(14)),
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: _twoColumns([
-                _dropdown('Estado', 'all', const {'all': 'Todos', 'pending': 'Pendientes', 'qualified': 'Activados'}, (_) {}),
-                _dropdown('Tipo de referido', 'all', const {'all': 'Todos', 'driver': 'Conductor'}, (_) {}),
-              ]),
+  Widget _referralsPanel() => FutureBuilder<Map<String, dynamic>>(
+        future: _referralDashboardFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Padding(
+              padding: EdgeInsets.all(36),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.hasError) {
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Text('No se pudo cargar el historial de referidos: ${friendlyError(snapshot.error)}'),
+              ),
+            );
+          }
+          final dashboard = snapshot.data ?? const <String, dynamic>{};
+          final stats = dashboard['stats'] is Map
+              ? Map<String, dynamic>.from(dashboard['stats'] as Map)
+              : const <String, dynamic>{};
+          final referrals = dashboard['referrals'] is List
+              ? (dashboard['referrals'] as List)
+                  .whereType<Map>()
+                  .map((row) => Map<String, dynamic>.from(row))
+                  .toList()
+              : <Map<String, dynamic>>[];
+          final total = _intValue(stats['total']);
+          final pending = _intValue(stats['pending']);
+          final activated = _intValue(stats['activated']);
+          final conversion = _numberValue(stats['conversion_percent']);
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Wrap(spacing: 12, runSpacing: 12, children: [
+              _referralMetric('Total Referidos', '$total', Icons.people_alt_outlined, _adminBlue),
+              _referralMetric('Pendientes', '$pending', Icons.schedule_outlined, const Color(0xFFB54708)),
+              _referralMetric('Activados', '$activated', Icons.check_circle_outline, const Color(0xFF027A48)),
+              _referralMetric('Tasa Conversión', '${conversion.toStringAsFixed(conversion % 1 == 0 ? 0 : 1)}%', Icons.trending_up_rounded, _adminBlue),
+            ]),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(side: const BorderSide(color: _line), borderRadius: BorderRadius.circular(14)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Wrap(spacing: 16, runSpacing: 12, children: [
+                  SizedBox(
+                    width: 220,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _referralFilter,
+                      decoration: const InputDecoration(labelText: 'Estado', isDense: true, border: OutlineInputBorder()),
+                      items: const [
+                        DropdownMenuItem(value: 'all', child: Text('Todos')),
+                        DropdownMenuItem(value: 'pending', child: Text('Pendientes')),
+                        DropdownMenuItem(value: 'qualified', child: Text('Activados')),
+                        DropdownMenuItem(value: 'reward_review', child: Text('En revisión')),
+                        DropdownMenuItem(value: 'closed', child: Text('Cerrados')),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() {
+                          _referralFilter = value;
+                          _referralDashboardFuture = _loadReferralDashboard();
+                        });
+                      },
+                    ),
+                  ),
+                  SizedBox(
+                    width: 220,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _referralTypeFilter,
+                      decoration: const InputDecoration(labelText: 'Tipo de referidor', isDense: true, border: OutlineInputBorder()),
+                      items: const [DropdownMenuItem(value: 'all', child: Text('Todos')), DropdownMenuItem(value: 'driver', child: Text('Conductor'))],
+                      onChanged: (value) => setState(() => _referralTypeFilter = value ?? 'all'),
+                    ),
+                  ),
+                ]),
+              ),
             ),
+            const SizedBox(height: 16),
+            _referralHistory(referrals),
+          ]);
+        },
+      );
+
+  int _intValue(dynamic value) => value is num ? value.toInt() : int.tryParse('$value') ?? 0;
+
+  double _numberValue(dynamic value) => value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
+
+  Widget _referralMetric(String title, String value, IconData icon, Color color) => SizedBox(
+        width: 218,
+        child: Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(side: const BorderSide(color: _line), borderRadius: BorderRadius.circular(14)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [Expanded(child: Text(title, style: const TextStyle(color: _muted, fontSize: 12))), Icon(icon, size: 19, color: color)]),
+              const SizedBox(height: 12),
+              Text(value, style: TextStyle(fontSize: 27, fontWeight: FontWeight.w900, color: color)),
+            ]),
           ),
-          Card(
+        ),
+      );
+
+  Widget _referralHistory(List<Map<String, dynamic>> referrals) => Card(
         elevation: 0,
         shape: RoundedRectangleBorder(side: const BorderSide(color: _line), borderRadius: BorderRadius.circular(14)),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 44),
-          child: Column(children: const [
-            Icon(Icons.card_giftcard_outlined, size: 38, color: _muted),
-            SizedBox(height: 10),
-            Text('No hay referidos aún', style: TextStyle(fontWeight: FontWeight.w800)),
-            SizedBox(height: 5),
-            Text('El historial aparecerá cuando el sistema registre conductores referidos.', style: TextStyle(color: _muted)),
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Lista de Referidos', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: _ink)),
+            const Text('Historial de conductores y comisiones acreditadas por pagos de plan.', style: TextStyle(color: _muted, fontSize: 12)),
+            const SizedBox(height: 14),
+            if (referrals.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 36),
+                child: Center(child: Column(children: [
+                  Icon(Icons.card_giftcard_outlined, size: 38, color: _muted),
+                  SizedBox(height: 10),
+                  Text('No hay referidos registrados', style: TextStyle(fontWeight: FontWeight.w800)),
+                  SizedBox(height: 5),
+                  Text('Los vínculos aparecerán cuando un conductor use un código de referido.', style: TextStyle(color: _muted), textAlign: TextAlign.center),
+                ])),
+              )
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: const [
+                    DataColumn(label: Text('Referidor')),
+                    DataColumn(label: Text('Código')),
+                    DataColumn(label: Text('Conductor referido')),
+                    DataColumn(label: Text('Estado')),
+                    DataColumn(label: Text('Pagos de plan')),
+                    DataColumn(label: Text('Comisión acreditada')),
+                    DataColumn(label: Text('Último pago')),
+                  ],
+                  rows: referrals.where((row) => _referralTypeFilter == 'all' || _referralTypeFilter == 'driver').map((row) {
+                    final state = row['state']?.toString() ?? 'pending';
+                    final status = switch (state) {
+                      'qualified' => 'Activado',
+                      'reward_review' => 'En revisión',
+                      'closed' => 'Cerrado',
+                      _ => 'Pendiente',
+                    };
+                    final lastPayment = DateTime.tryParse(row['last_payment_at']?.toString() ?? '');
+                    return DataRow(cells: [
+                      DataCell(Text(row['referrer_name']?.toString() ?? '—')),
+                      DataCell(Text(row['referral_code']?.toString() ?? '—')),
+                      DataCell(Text(row['referred_name']?.toString() ?? '—')),
+                      DataCell(Text(status)),
+                      DataCell(Text('${_intValue(row['plan_payment_count'])}')),
+                      DataCell(Text('Bs ${_numberValue(row['commission_total']).toStringAsFixed(2)}')),
+                      DataCell(Text(lastPayment == null ? '—' : _formatDate(lastPayment))),
+                    ]);
+                  }).toList(),
+                ),
+              ),
           ]),
         ),
-          ),
-        ],
       );
 
   bool _matchesFilter(Map<String, dynamic> row) {
