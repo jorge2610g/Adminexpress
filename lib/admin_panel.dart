@@ -2737,30 +2737,33 @@ class _Navigation extends StatelessWidget {
             ),
             const Divider(height: 1, color: Color(0xFF1E2B41)),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(8, 10, 8, 12),
-                children: [
-                  for (final group in groups) ...[
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(11, 12, 10, 6),
-                      child: Text(
-                        group.$1,
-                        style: const TextStyle(
-                          color: Color(0xFF71839D),
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.05,
+              child: ColoredBox(
+                color: adminNavy,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(8, 10, 8, 12),
+                  children: [
+                    for (final group in groups) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(11, 12, 10, 6),
+                        child: Text(
+                          group.$1,
+                          style: const TextStyle(
+                            color: Color(0xFF71839D),
+                            fontSize: 8,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.05,
+                          ),
                         ),
                       ),
-                    ),
-                    for (final index in group.$2)
-                      _NavEntry(
-                        index: index,
-                        selected: selected == index,
-                        onSelected: onSelected,
-                      ),
+                      for (final index in group.$2)
+                        _NavEntry(
+                          index: index,
+                          selected: selected == index,
+                          onSelected: onSelected,
+                        ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
             const Divider(height: 1, color: Color(0xFF1E2B41)),
