@@ -8,7 +8,7 @@ const _benefitTypes = <String, String>{
   'activation': 'Recompensas automáticas',
   'loyalty': 'Fidelidad',
   'referral': 'Referidos directos',
-  'referral_commission': 'Comisión recurrente de referidos',
+  'referral_commission': 'Referidos de conductores',
   'driver_challenge': 'Retos para conductores',
 };
 
@@ -41,7 +41,9 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   final _maxDiscount = TextEditingController();
   final _minFare = TextEditingController();
   final _threshold = TextEditingController();
+  final _leaderPercent = TextEditingController();
   bool _firstRide = false;
+  bool _enabled = false;
   bool _saving = false;
 
   @override
@@ -59,7 +61,8 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   @override
   void dispose() {
     _name.dispose(); _description.dispose(); _code.dispose(); _value.dispose();
-    _maxDiscount.dispose(); _minFare.dispose(); _threshold.dispose(); super.dispose();
+    _maxDiscount.dispose(); _minFare.dispose(); _threshold.dispose();
+    _leaderPercent.dispose(); super.dispose();
   }
 
   void _reload() {
@@ -77,7 +80,8 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   void _clear() {
     _id = null; _name.clear(); _description.clear(); _code.clear(); _value.clear();
     _maxDiscount.clear(); _minFare.clear(); _threshold.clear();
-    _discount = 'fixed'; _firstRide = false;
+    _leaderPercent.clear();
+    _discount = 'fixed'; _firstRide = false; _enabled = false;
   }
 
   void _open(Map<String, dynamic> item) {
@@ -91,8 +95,10 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       _maxDiscount.text = config['max_discount']?.toString() ?? '';
       _minFare.text = config['min_fare']?.toString() ?? '';
       _threshold.text = config['trip_threshold']?.toString() ?? '';
+      _leaderPercent.text = config['plan_payment_percent']?.toString() ?? '';
       _discount = config['discount_type']?.toString() ?? 'fixed';
       _firstRide = config['first_ride_only'] == true;
+      _enabled = item['state'] == 'active';
     });
   }
 
@@ -112,8 +118,9 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         'min_fare': double.tryParse(_minFare.text.trim()),
         'first_ride_only': _firstRide,
         'trip_threshold': int.tryParse(_threshold.text.trim()),
+        'plan_payment_percent': double.tryParse(_leaderPercent.text.trim()),
+        'benefit_lifetime': _type == 'referral_commission',
         'service_mode': 'transport',
-        'reward_policy_pending': true,
       }..removeWhere((key, value) => value == null || value == '');
       await supabase.rpc('admin_benefit_program_save', params: {
         'p_id': _id,
@@ -123,11 +130,17 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         'p_name': _name.text.trim(),
         'p_description': _description.text.trim(),
         'p_config': config,
-        'p_state': 'draft',
+        'p_state': _type == 'referral_commission' && _enabled ? 'active' : 'draft',
       });
       if (!mounted) return;
       setState(_reload);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado como borrador. Los beneficios aún no afectan viajes ni pagos.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+        _type == 'referral_commission' && _enabled
+          ? 'Programa activo: se acreditará el porcentaje de cada pago de plan confirmado.'
+          : _type == 'referral_commission'
+            ? 'Programa guardado como borrador.'
+            : 'Guardado como borrador. No afecta viajes ni pagos.',
+      )));
     } catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo guardar: ${friendlyError(error)}')));
     } finally { if (mounted) setState(() => _saving = false); }
@@ -159,7 +172,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           ]),
           const SizedBox(height: 14),
           Card(child: Padding(padding: const EdgeInsets.all(14), child: Text(
-            'Los importes de premio, quién financia descuentos y qué viajes califican todavía deben definirse. Los programas se guardan como borradores y no mueven dinero.',
+            'Los cupones, fidelidad, recompensas automáticas y retos se guardan como borradores mientras se conectan sus reglas de viaje. El referido de conductores en Bolivia sí puede activarse aquí: acredita a la billetera interna del invitador el porcentaje configurado por cada pago de plan confirmado.',
             style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.w700),
           ))),
           const SizedBox(height: 14),
@@ -201,10 +214,20 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             ],
             if (_type == 'loyalty' || _type == 'referral' || _type == 'activation' || _type == 'driver_challenge')
               _field(_type == 'driver_challenge' ? 'Meta de viajes' : 'Viajes pagados requeridos', _threshold, keyboard: TextInputType.number),
+            if (_type == 'referral_commission') ...[
+              _field('Porcentaje de cada pago de plan', _leaderPercent, hint: 'Ej.: 1', keyboard: const TextInputType.numberWithOptions(decimal: true)),
+              const Text('Aplica a pagos de planes de conductores en Bolivia. Cada pago confirmado genera un solo crédito en la billetera interna del conductor invitador; no se repite si el referido no vuelve a pagar.', style: TextStyle(color: Color(0xFF667085))),
+              SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Programa activo'), subtitle: const Text('Solo se acredita después de confirmar cada pago.'), value: _enabled, onChanged: (value) => setState(() => _enabled = value)),
+            ],
             const SizedBox(height: 8),
-            const Text('Estado: BORRADOR · Guardar conserva los datos en este entorno y zona.', style: TextStyle(color: Color(0xFF667085))),
+            Text(
+              _type == 'referral_commission' && _enabled
+                  ? 'Estado: ACTIVO · Aplica a los pagos de plan confirmados en Bolivia.'
+                  : 'Estado: BORRADOR · Guardar conserva los datos en este entorno y zona.',
+              style: const TextStyle(color: Color(0xFF667085)),
+            ),
             const SizedBox(height: 12),
-            Align(alignment: Alignment.centerRight, child: FilledButton.icon(onPressed: _saving ? null : _save, icon: const Icon(Icons.save_outlined), label: Text(_saving ? 'Guardando…' : 'Guardar borrador'))),
+            Align(alignment: Alignment.centerRight, child: FilledButton.icon(onPressed: _saving ? null : _save, icon: const Icon(Icons.save_outlined), label: Text(_saving ? 'Guardando…' : _type == 'referral_commission' && _enabled ? 'Activar programa' : 'Guardar borrador'))),
           ]))),
         ]);
       },
