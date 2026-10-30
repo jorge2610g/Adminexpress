@@ -354,6 +354,10 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   };
 
   bool _sectionAllowed(int index) {
+    // Benefits administration is a central-admin feature and must remain
+    // available to superadmins even when their legacy explicit module list
+    // predates the new `benefits` key. RPCs still enforce the same role.
+    if (index == 36 && adminAccess['role'] == 'super_admin') return true;
     // Identity review is already part of the driver record. The old standalone
     // identity entries are deliberately unreachable.
     if (index == 18 || index == 27) return false;
