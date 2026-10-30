@@ -32,6 +32,7 @@ import 'admin_delivery_unified.dart';
 import 'admin_delivery_settlements.dart';
 import 'admin_driver_priority.dart';
 import 'admin_driver_championship.dart';
+import 'admin_benefits.dart';
 import 'admin_dynamic_pricing.dart';
 import 'admin_detail_dialogs.dart';
 import 'admin_environment_reports.dart';
@@ -349,6 +350,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     32: 'operators',
     33: 'payments',
     34: 'marketplace',
+    35: 'benefits',
   };
 
   bool _sectionAllowed(int index) {
@@ -431,6 +433,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Verificación manual', Icons.fact_check_outlined),
     ('Demanda y precios', Icons.trending_up_rounded),
     ('Campeonato Express', Icons.emoji_events_outlined),
+    ('Beneficios Express', Icons.card_giftcard_outlined),
     ('Restaurantes', Icons.restaurant_rounded),
     ('Liquidaciones de restaurantes', Icons.receipt_long_rounded),
     ('Operadores', Icons.admin_panel_settings_rounded),
@@ -1588,6 +1591,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         return AdminDriverChampionshipPage(
           channel: _sectionChannel(29),
           countryCode: adminCountryCode,
+          zoneId: adminZoneId,
+        );
+      case 35:
+        return AdminBenefitsPage(
+          channel: _sectionChannel(35),
           zoneId: adminZoneId,
         );
       case 28:
