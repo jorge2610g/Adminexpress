@@ -43,4 +43,15 @@ void main() {
     expect(source, contains("'Pagos de plan'"));
     expect(source, contains("onChanged: (value) {\n                        if (value == null) return;"));
   });
+
+  test('benefits forms adapt to phone and tablet widths', () {
+    expect(source, contains('final compact = screen.width < 600;'));
+    expect(source, contains('screen.width - inset * 2'));
+    expect(source, contains('constraints.maxWidth < 700'));
+    expect(source, contains('MediaQuery.sizeOf(context).width < 720 ? 10 : 16'));
+    expect(source, contains('alignment: WrapAlignment.end'));
+    final panel = File('lib/admin_panel.dart').readAsStringSync();
+    expect(panel, contains('constraints.maxWidth < 1180'));
+    expect(panel, contains('drawer: compact'));
+  });
 }

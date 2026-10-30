@@ -442,16 +442,20 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   Future<void> _showEditor() async {
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        child: SizedBox(
-          width: 760,
-          height: MediaQuery.sizeOf(context).height * .84,
+      builder: (dialogContext) {
+        final screen = MediaQuery.sizeOf(dialogContext);
+        final inset = screen.width < 600 ? 8.0 : 24.0;
+        final compact = screen.width < 600;
+        return Dialog(
+          insetPadding: EdgeInsets.symmetric(horizontal: inset, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          child: SizedBox(
+            width: screen.width < 808 ? screen.width - inset * 2 : 760,
+            height: (screen.height - 24).clamp(240.0, 900.0),
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 16, 12),
+                padding: EdgeInsets.fromLTRB(compact ? 16 : 24, 16, 12, 12),
                 child: Row(
                   children: [
                     Expanded(
@@ -475,7 +479,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
               const Divider(height: 1),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(24, 18, 24, 20),
+                  padding: EdgeInsets.fromLTRB(compact ? 16 : 24, 18, compact ? 16 : 24, 20),
                   children: [
                     ..._editorFields(),
                     const SizedBox(height: 8),
@@ -496,15 +500,17 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
               ),
               const Divider(height: 1),
               Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                padding: EdgeInsets.all(compact ? 10 : 16),
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 4,
                   children: [
                     TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop(),
                       child: const Text('Cancelar'),
                     ),
-                    const SizedBox(width: 8),
                     FilledButton.icon(
                       onPressed: _saving ? null : () => _save(dialogContext),
                       icon: const Icon(Icons.save_outlined),
@@ -516,7 +522,8 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             ],
           ),
         ),
-      ),
+        );
+      },
     );
   }
 
@@ -841,8 +848,9 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         if (inlineReferralSettings && rows.isNotEmpty && _editingId != rows.first['id']?.toString()) {
           _open(rows.first);
         }
+        final compact = MediaQuery.sizeOf(context).width < 720;
         return ListView(
-          padding: const EdgeInsets.all(22),
+          padding: EdgeInsets.all(compact ? 12 : 22),
           children: [
             Row(children: [
               const Icon(Icons.card_giftcard_outlined, color: _adminBlue, size: 29),
@@ -1049,35 +1057,48 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         elevation: 0,
         shape: RoundedRectangleBorder(side: const BorderSide(color: _line), borderRadius: BorderRadius.circular(14)),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 720 ? 10 : 16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            LayoutBuilder(builder: (context, constraints) {
+              final title = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(_listTitle, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: _ink)),
                 Text(_listSubtitle, style: const TextStyle(color: _muted, fontSize: 12)),
-              ])),
-              SizedBox(
-                width: 160,
-                child: DropdownButtonFormField<String>(
-                  initialValue: _filter,
-                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(value: 'all', child: Text('Todas')),
-                    DropdownMenuItem(value: 'active', child: Text('Activas')),
-                    DropdownMenuItem(value: 'scheduled', child: Text('Programadas')),
-                    DropdownMenuItem(value: 'closed', child: Text('Terminadas')),
-                    DropdownMenuItem(value: 'draft', child: Text('Inactivas')),
-                  ],
-                  onChanged: (value) => setState(() => _filter = value ?? 'all'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed: () { _clear(); _showEditor(); },
-                icon: const Icon(Icons.add),
-                label: Text(_newButtonLabel),
-              ),
-            ]),
+              ]);
+              final actions = Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(
+                    width: constraints.maxWidth < 420 ? constraints.maxWidth : 160,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _filter,
+                      decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                      items: const [
+                        DropdownMenuItem(value: 'all', child: Text('Todas')),
+                        DropdownMenuItem(value: 'active', child: Text('Activas')),
+                        DropdownMenuItem(value: 'scheduled', child: Text('Programadas')),
+                        DropdownMenuItem(value: 'closed', child: Text('Terminadas')),
+                        DropdownMenuItem(value: 'draft', child: Text('Inactivas')),
+                      ],
+                      onChanged: (value) => setState(() => _filter = value ?? 'all'),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () { _clear(); _showEditor(); },
+                    icon: const Icon(Icons.add),
+                    label: Text(_newButtonLabel),
+                  ),
+                ],
+              );
+              if (constraints.maxWidth < 700) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [title, const SizedBox(height: 12), actions],
+                );
+              }
+              return Row(children: [Expanded(child: title), actions]);
+            }),
             const SizedBox(height: 12),
             if (rows.isEmpty)
               Padding(
