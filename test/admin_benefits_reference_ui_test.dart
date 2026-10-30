@@ -25,7 +25,8 @@ void main() {
     expect(source, contains("_textField('Umbral N (viajes pagados)'"));
     expect(source, contains("_textField('Tope del viaje gratis (Bs)'"));
     expect(source, contains('showDialog<void>'));
-    expect(source, contains("_infoBox('Se guardará como borrador"));
+    expect(source, contains("title: Text(_programType == 'coupon' ? 'Cupón activo'"));
+    expect(source, contains("'reward_destination': _programType == 'activation' || _programType == 'loyalty'"));
   });
 
   test('same-day driver credits and MLM plan-payment duration have separate controls', () {
@@ -44,7 +45,7 @@ void main() {
     expect(source, contains("onChanged: (value) {\n                        if (value == null) return;"));
   });
 
-  test('benefits forms adapt to phone and tablet widths', () {
+  test('benefits forms and list controls adapt to phone and tablet widths', () {
     expect(source, contains('final compact = screen.width < 600;'));
     expect(source, contains('screen.width - inset * 2'));
     expect(source, contains('constraints.maxWidth < 700'));

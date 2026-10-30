@@ -51,7 +51,6 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   String _serviceType = 'all';
   String _audience = 'passengers';
   String _targetAudience = 'all';
-  String _discountAbsorber = 'company';
   String _rewardDestination = 'wallet';
   String _referrerType = 'fixed';
   String _referredType = 'fixed';
@@ -249,8 +248,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     _serviceType = 'all';
     _audience = 'passengers';
     _targetAudience = 'all';
-    _discountAbsorber = 'company';
-    _rewardDestination = 'wallet';
+    _rewardDestination = 'coupon';
     _referrerType = 'fixed';
     _referredType = 'fixed';
     _referrerDestination = 'wallet';
@@ -297,10 +295,13 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     _discount = config['discount_type']?.toString() ?? 'fixed';
     _serviceMode = config['service_mode']?.toString() ?? 'transport';
     _serviceType = config['service_type']?.toString() ?? 'all';
-    _audience = config['audience']?.toString() ?? 'passengers';
+    _audience = const {'coupon', 'activation', 'loyalty'}.contains(_programType)
+        ? 'passengers'
+        : config['audience']?.toString() ?? 'passengers';
     _targetAudience = config['target_audience']?.toString() ?? 'all';
-    _discountAbsorber = config['discount_absorber']?.toString() ?? 'company';
-    _rewardDestination = config['reward_destination']?.toString() ?? 'wallet';
+    _rewardDestination = _programType == 'activation' || _programType == 'loyalty'
+        ? 'coupon'
+        : config['reward_destination']?.toString() ?? 'wallet';
     _referrerType = config['referrer_reward_type']?.toString() ?? 'fixed';
     _referredType = config['referred_reward_type']?.toString() ?? 'fixed';
     _referrerDestination = config['referrer_destination']?.toString() ?? 'wallet';
@@ -320,12 +321,16 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     final config = <String, dynamic>{
       'service_mode': _serviceMode,
       'service_type': _serviceType,
-      'audience': _audience,
+      'audience': const {'coupon', 'activation', 'loyalty'}.contains(_programType)
+          ? 'passengers'
+          : _audience,
       'target_audience': _targetAudience,
-      'discount_absorber': _discountAbsorber,
+      'discount_absorber': 'company',
       'value': double.tryParse(_value.text.trim()),
       'reward_type': _rewardType.text.trim(),
-      'reward_destination': _rewardDestination,
+      'reward_destination': _programType == 'activation' || _programType == 'loyalty'
+          ? 'coupon'
+          : _rewardDestination,
       'referrer_reward_type': _referrerType,
       'referred_reward_type': _referredType,
       'referrer_destination': _referrerDestination,
@@ -341,6 +346,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       'max_total_uses': int.tryParse(_maxTotalUses.text.trim()),
       'uses_per_user': int.tryParse(_usesPerUser.text.trim()),
       'trip_threshold': int.tryParse(_threshold.text.trim()),
+      'trip_goal': int.tryParse(_threshold.text.trim()),
       'free_trip_cap': double.tryParse(_maxDiscount.text.trim()),
       'driver_no_commission_trips': int.tryParse(_driverNoCommission.text.trim()),
       'max_credits_per_driver_day': int.tryParse(_dailyDriverCap.text.trim()),
@@ -390,6 +396,12 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       _showMessage('Indica una meta de viajes válida.');
       return;
     }
+    if (_programType == 'activation' &&
+        (_trigger != 'first_trip' || _audience != 'passengers' ||
+            (double.tryParse(_value.text.trim()) ?? 0) <= 0)) {
+      _showMessage('La bienvenida requiere primer viaje, pasajeros y un cupón válido.');
+      return;
+    }
     if (_programType == 'referral_commission' &&
         (double.tryParse(_leaderPercent.text.trim()) ?? 0) <= 0) {
       _showMessage('Indica el porcentaje del pago de plan.');
@@ -398,9 +410,9 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
 
     setState(() => _saving = true);
     try {
-      final state = _programType == 'referral_commission' && _enabled
-          ? 'active'
-          : 'draft';
+      final state = _enabled && const {
+        'coupon', 'activation', 'loyalty', 'driver_challenge', 'referral_commission'
+      }.contains(_programType) ? 'active' : 'draft';
       await supabase.rpc(
         'admin_benefit_program_save',
         params: {
@@ -425,7 +437,9 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       _showMessage(
         _programType == 'referral_commission' && _enabled
             ? 'MLM activo: se acreditará el porcentaje de cada pago de plan confirmado.'
-            : 'Guardado como borrador. No aplica descuentos ni premios todavía.',
+            : state == 'active'
+                ? 'Campaña activa. Los beneficios se liquidan al completar un viaje pagado.'
+                : 'Guardado como borrador. No aplica descuentos ni premios todavía.',
       );
     } catch (error) {
       _showMessage('No se pudo guardar: ${friendlyError(error)}');
@@ -452,11 +466,11 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           child: SizedBox(
             width: screen.width < 808 ? screen.width - inset * 2 : 760,
             height: (screen.height - 24).clamp(240.0, 900.0),
-          child: Column(
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(compact ? 16 : 24, 16, 12, 12),
-                child: Row(
+            child: Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(compact ? 16 : 24, 16, 12, 12),
+                  child: Row(
                   children: [
                     Expanded(
                       child: Column(
@@ -474,17 +488,29 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
                       icon: const Icon(Icons.close_rounded),
                     ),
                   ],
+                  ),
                 ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.fromLTRB(compact ? 16 : 24, 18, compact ? 16 : 24, 20),
-                  children: [
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.fromLTRB(compact ? 16 : 24, 18, compact ? 16 : 24, 20),
+                    children: [
                     ..._editorFields(),
                     const SizedBox(height: 8),
-                    if (_programType != 'referral_commission')
-                      _infoBox('Se guardará como borrador hasta conectar sus reglas de viaje y liquidación.'),
+                    if (_programType == 'coupon' && _serviceMode == 'delivery')
+                      _infoBox('Los cupones de Delivery se guardan como borrador; la liquidación de pedidos tiene un flujo aparte.'),
+                    if (_programType == 'referral')
+                      _infoBox('Los referidos de conductores por pago de plan se configuran en Grupos MLM.'),
+                    if (_programType == 'activation' || _programType == 'loyalty' || _programType == 'driver_challenge')
+                      _infoBox('Las recompensas se aplican al completar viajes pagados y se liquidan dentro de la app.'),
+                    if (const {'coupon', 'activation', 'loyalty', 'driver_challenge'}.contains(_programType))
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(_programType == 'coupon' ? 'Cupón activo' : _programType == 'driver_challenge' ? 'Reto activo' : 'Campaña activa'),
+                        subtitle: const Text('Los descuentos y bonos se liquidan al completar un viaje pagado.'),
+                        value: _enabled,
+                        onChanged: (value) => setState(() => _enabled = value),
+                      ),
                     if (_programType == 'referral_commission') ...[
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
@@ -495,18 +521,18 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
                       ),
                       _dateFields(),
                     ],
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const Divider(height: 1),
-              Padding(
-                padding: EdgeInsets.all(compact ? 10 : 16),
-                child: Wrap(
-                  alignment: WrapAlignment.end,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
+                const Divider(height: 1),
+                Padding(
+                  padding: EdgeInsets.all(compact ? 10 : 16),
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
                     TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop(),
                       child: const Text('Cancelar'),
@@ -516,12 +542,12 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
                       icon: const Icon(Icons.save_outlined),
                       label: Text(_saving ? 'Guardando…' : _editorActionLabel),
                     ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
         );
       },
     );
@@ -574,10 +600,10 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           ]),
           _dropdown('Tipos de servicio', _serviceType, const {'all': 'Todos los servicios', 'economy': 'Económico', 'comfort': 'Confort', 'moto': 'Moto', 'motocar': 'Motocar'}, (value) => setState(() => _serviceType = value)),
           _textField('Monto mínimo de viaje (Bs)', _minFare, hint: 'Sin mínimo', keyboard: const TextInputType.numberWithOptions(decimal: true)),
-          _dropdown('Audiencia', _audience, const {'passengers': 'Pasajeros', 'drivers': 'Conductores'}, (value) => setState(() => _audience = value)),
+          _dropdown('Audiencia', 'passengers', const {'passengers': 'Pasajeros'}, (_) => setState(() => _audience = 'passengers')),
           _twoColumns([
             _dropdown('Audiencia objetivo', _targetAudience, const {'all': 'Todos los usuarios', 'new': 'Usuarios nuevos', 'returning': 'Usuarios frecuentes'}, (value) => setState(() => _targetAudience = value)),
-            _dropdown('Quién absorbe el descuento', _discountAbsorber, const {'company': 'Administrador (empresa)', 'driver': 'Conductor'}, (value) => setState(() => _discountAbsorber = value)),
+            _dropdown('Quién cubre el descuento', 'company', const {'company': 'Express · crédito al conductor'}, (_) {}),
           ]),
           _twoColumns([
             _textField('Usos totales máximos', _maxTotalUses, hint: 'Ilimitado', keyboard: TextInputType.number),
@@ -602,8 +628,8 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             _textField('Valor de recompensa', _value, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
           _twoColumns([
-            _dropdown('Destino de recompensa', _rewardDestination, const {'wallet': 'Billetera', 'coupon': 'Cupón'}, (value) => setState(() => _rewardDestination = value)),
-            _dropdown('Audiencia objetivo', _audience, const {'passengers': 'Clientes', 'drivers': 'Conductores'}, (value) => setState(() => _audience = value)),
+            _dropdown('Destino de recompensa', 'coupon', const {'coupon': 'Cupón de viaje'}, (_) {}),
+            _dropdown('Audiencia objetivo', _audience, const {'passengers': 'Pasajeros'}, (_) => setState(() => _audience = 'passengers')),
           ]),
           _textField('Máximo de activaciones (opcional)', _maxActivations, hint: 'Sin límite', keyboard: TextInputType.number),
           _dateFields(),
@@ -615,22 +641,11 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             _textField('Tope del viaje gratis (Bs)', _maxDiscount, hint: 'Sin límite', keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
           _twoColumns([
-            _textField('N° viajes sin comisión (conductor)', _driverNoCommission, hint: '15', keyboard: TextInputType.number),
-            _textField('Máx. créditos/conductor/día', _dailyDriverCap, hint: '1', keyboard: TextInputType.number),
-          ]),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Los viajes sin comisión arrancan el mismo día'),
-            subtitle: const Text('Apagado: aplican al día siguiente del viaje premiado.'),
-            value: _sameDayCredits,
-            onChanged: (value) => setState(() => _sameDayCredits = value),
-          ),
-          _twoColumns([
             _textField('Máx. premios por cliente', _maxPerCustomer, hint: 'Sin límite', keyboard: TextInputType.number),
             _textField('Máx. premios totales', _maxTotalRewards, hint: 'Sin límite', keyboard: TextInputType.number),
           ]),
+          _infoBox('Cada N viajes pagados, el pasajero recibe un cupón para su próximo viaje gratis. El valor cubierto se acredita a la billetera interna del conductor.'),
           _dateFields(),
-          _disabledActivationSwitch('Campaña activa'),
         ]);
       case 'referral':
         fields.addAll([
@@ -674,7 +689,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           ]),
           _dateFields(),
           _twoColumns([
-            _dropdown('Tipo de recompensa', _rewardType.text, const {'wallet': 'Bono en billetera', 'commission_credit': 'Crédito sin comisión'}, (value) => setState(() => _rewardType.text = value)),
+            _dropdown('Tipo de recompensa', 'wallet', const {'wallet': 'Bono en billetera interna'}, (_) {}),
             _textField('Monto del bono (Bs)', _value, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
           _infoBox('Zona: ${widget.zoneId ?? 'Selecciona una zona'}'),
@@ -689,14 +704,6 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     }
     return fields;
   }
-
-  Widget _disabledActivationSwitch(String title) => const SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text('Campaña activa'),
-        subtitle: Text('Disponible cuando se conecten las reglas de viaje y liquidación.'),
-        value: false,
-        onChanged: null,
-      );
 
   Widget _dateFields() => _twoColumns([
         _dateButton('Fecha de inicio *', _startsAt, isEnd: false),
@@ -1055,15 +1062,23 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
 
   Widget _programTable(List<Map<String, dynamic>> rows) => Card(
         elevation: 0,
-        shape: RoundedRectangleBorder(side: const BorderSide(color: _line), borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: _line),
+          borderRadius: BorderRadius.circular(14),
+        ),
         child: Padding(
           padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 720 ? 10 : 16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             LayoutBuilder(builder: (context, constraints) {
-              final title = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              final title = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 Text(_listTitle, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: _ink)),
                 Text(_listSubtitle, style: const TextStyle(color: _muted, fontSize: 12)),
-              ]);
+                ],
+              );
               final actions = Wrap(
                 spacing: 8,
                 runSpacing: 8,

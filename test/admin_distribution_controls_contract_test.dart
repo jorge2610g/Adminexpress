@@ -42,12 +42,15 @@ void main() {
     expect(source, isNot(contains("supabase.from('app_releases').update")));
   });
 
-  test('Critical update is opt-in and existing workflows are retained', () {
+  test('Critical update is opt-in and the unified candidate flow is retained', () {
     expect(source, contains('bool isCritical = saved?'));
     expect(source, contains('confirmedPlay = false'));
     expect(source, contains('confirmedCritical = false'));
-    expect(source, contains('Future<void> _queueInternalAab() async'));
+    expect(source, contains('mustConfirm = isCurrent && !confirmedPlay'));
+    expect(source, contains('mustConfirmCritical = isCritical && !confirmedCritical'));
+    expect(source, contains("'admin_queue_single_app_candidate'"));
     expect(source, contains('admin_publish_build'));
     expect(source, contains('latest_app_release'));
+    expect(source, isNot(contains('Future<void> _queueInternalAab() async')));
   });
 }
