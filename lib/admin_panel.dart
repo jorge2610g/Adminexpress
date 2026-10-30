@@ -268,7 +268,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   bool get _readOnly => adminAccess['read_only'] == true;
   static const Set<int> _environmentFilteredSections = <int>{
     0, 1, 2, 3, 4, 5, 6, 9, 13, 15, 18, 21, 22, 23, 24, 25, 26, 29, 30,
-    31, 33, 36,
+    31, 33, 35,
   };
 
   String _sectionChannel(int sectionIndex) {
@@ -350,14 +350,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     32: 'operators',
     33: 'payments',
     34: 'marketplace',
-    36: 'benefits',
+    35: 'benefits',
   };
 
   bool _sectionAllowed(int index) {
     // Benefits administration is a central-admin feature and must remain
     // available to superadmins even when their legacy explicit module list
     // predates the new `benefits` key. RPCs still enforce the same role.
-    if (index == 36 && adminAccess['role'] == 'super_admin') return true;
+    if (index == 35 && adminAccess['role'] == 'super_admin') return true;
     // Identity review is already part of the driver record. The old standalone
     // identity entries are deliberately unreachable.
     if (index == 18 || index == 27) return false;
@@ -1597,9 +1597,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
         );
-      case 36:
+      case 35:
         return AdminBenefitsPage(
-          channel: _sectionChannel(36),
+          channel: _sectionChannel(35),
           zoneId: adminZoneId,
         );
       case 28:
@@ -2645,8 +2645,8 @@ class _Navigation extends StatelessWidget {
         : const <(String, List<int>)>[
             ('GENERAL', [0]),
             ('OPERACIONES', [1, 2, 13, 4, 5, 6]),
-            ('MÓDULOS', [23, 24, 25, 26, 29, 30, 34, 36]),
-            ('FINANZAS', [9, 8, 22, 31, 33]),
+            ('MÓDULOS', [23, 25, 29, 30, 34, 35]),
+            ('FINANZAS', [9, 8, 22, 33]),
             ('ANÁLISIS', [10, 14]),
             ('COMUNICACIÓN', [15]),
             ('CONFIGURACIÓN', [16, 7, 11, 19, 12, 28, 32]),
