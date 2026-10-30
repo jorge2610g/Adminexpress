@@ -268,7 +268,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   bool get _readOnly => adminAccess['read_only'] == true;
   static const Set<int> _environmentFilteredSections = <int>{
     0, 1, 2, 3, 4, 5, 6, 9, 13, 15, 18, 21, 22, 23, 24, 25, 26, 29, 30,
-    31, 33, 35,
+    31, 33, 36,
   };
 
   String _sectionChannel(int sectionIndex) {
@@ -350,7 +350,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     32: 'operators',
     33: 'payments',
     34: 'marketplace',
-    35: 'benefits',
+    36: 'benefits',
   };
 
   bool _sectionAllowed(int index) {
@@ -433,12 +433,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Verificación manual', Icons.fact_check_outlined),
     ('Demanda y precios', Icons.trending_up_rounded),
     ('Campeonato Express', Icons.emoji_events_outlined),
-    ('Beneficios Express', Icons.card_giftcard_outlined),
     ('Restaurantes', Icons.restaurant_rounded),
     ('Liquidaciones de restaurantes', Icons.receipt_long_rounded),
     ('Operadores', Icons.admin_panel_settings_rounded),
     ('Deudas y ajustes', Icons.account_balance_wallet_outlined),
     ('Requisitos de restaurantes', Icons.fact_check_outlined),
+    ('Beneficios Express', Icons.card_giftcard_outlined),
   ];
 
   Future<bool> _authorized() async {
@@ -1593,9 +1593,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
         );
-      case 35:
+      case 36:
         return AdminBenefitsPage(
-          channel: _sectionChannel(35),
+          channel: _sectionChannel(36),
           zoneId: adminZoneId,
         );
       case 28:
