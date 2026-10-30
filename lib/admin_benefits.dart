@@ -42,7 +42,9 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   late Future<Map<String, dynamic>> _referralDashboardFuture;
   String _category = 'coupon';
   String _couponTab = 'coupons';
-  String _referralTab = 'program';
+  // Open the active business model first: driver referrals earn a percentage
+  // from each approved plan payment, not a trip-count reward.
+  String _referralTab = 'mlm';
   String _discount = 'fixed';
   String _filter = 'all';
   String _referralFilter = 'all';
@@ -1155,36 +1157,26 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         child: Padding(
           padding: const EdgeInsets.all(22),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Configuración del Programa', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-            const Text('Define las recompensas y condiciones del programa de referidos.', style: TextStyle(color: _muted)),
-            const SizedBox(height: 20),
-            const Text('Recompensa para quien refiere', style: TextStyle(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 10),
-            _twoColumns([
-              _dropdown('Tipo de recompensa', _referrerType, const {'fixed': 'Monto fijo', 'percent': 'Porcentaje', 'coupon': 'Cupón'}, (value) => setState(() => _referrerType = value)),
-              _textField('Valor (BOB)', _referrerReward, keyboard: const TextInputType.numberWithOptions(decimal: true)),
-            ]),
-            _dropdown('Destino', _referrerDestination, const {'wallet': 'Billetera interna del conductor', 'coupon': 'Cupón'}, (value) => setState(() => _referrerDestination = value)),
+            const Text('Programa de referidos de conductores', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
-            const Text('Recompensa para el conductor referido', style: TextStyle(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 10),
-            _twoColumns([
-              _dropdown('Tipo de recompensa', _referredType, const {'fixed': 'Monto fijo', 'percent': 'Porcentaje', 'coupon': 'Cupón'}, (value) => setState(() => _referredType = value)),
-              _textField('Valor (BOB)', _referredReward, keyboard: const TextInputType.numberWithOptions(decimal: true)),
-            ]),
-            _dropdown('Destino', _referredDestination, const {'wallet': 'Billetera interna del conductor', 'coupon': 'Cupón'}, (value) => setState(() => _referredDestination = value)),
-            const SizedBox(height: 8),
-            const Text('Condiciones', style: TextStyle(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 10),
-            _twoColumns([
-              _textField('Viajes mínimos para activar', _referralMinimumTrips, keyboard: TextInputType.number),
-              _textField('Máximo de referidos por usuario', _maxReferrals, hint: 'Sin límite', keyboard: TextInputType.number),
-              _dropdown('Moneda', 'BOB', const {'BOB': 'BOB — Boliviano'}, (_) {}),
-            ]),
-            _infoBox('Las recompensas de referidos a conductores se mantienen como borrador hasta conectar la activación con pagos de plan y su liquidación.'),
+            const Text(
+              'La comisión vigente se calcula como un porcentaje de cada pago de plan aprobado por el conductor referido. No depende de viajes mínimos ni genera un bono fijo por viaje.',
+              style: TextStyle(color: _muted),
+            ),
+            const SizedBox(height: 18),
+            _infoBox('Configura el porcentaje, la vigencia y la activación en Grupos MLM. La comisión se acredita en la billetera interna del conductor que refirió.'),
             Align(
               alignment: Alignment.centerRight,
-              child: FilledButton.icon(onPressed: _saving ? null : _save, icon: const Icon(Icons.save_outlined), label: const Text('Guardar Configuración')),
+              child: FilledButton.icon(
+                onPressed: () => setState(() {
+                  _clear();
+                  _referralTab = 'mlm';
+                  _filter = 'all';
+                  _reload();
+                }),
+                icon: const Icon(Icons.account_tree_outlined),
+                label: const Text('Configurar comisión del plan'),
+              ),
             ),
           ]),
         ),

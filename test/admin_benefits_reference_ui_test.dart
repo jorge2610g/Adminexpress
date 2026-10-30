@@ -45,6 +45,14 @@ void main() {
     expect(source, contains("onChanged: (value) {\n                        if (value == null) return;"));
   });
 
+  test('driver referral program directs to plan-payment commission settings', () {
+    expect(source, contains("String _referralTab = 'mlm';"));
+    expect(source, contains('Configura el porcentaje, la vigencia y la activación en Grupos MLM.'));
+    expect(source, contains('Configurar comisión del plan'));
+    expect(source, contains('No depende de viajes mínimos'));
+    expect(source, isNot(contains('Las recompensas de referidos a conductores se mantienen como borrador')));
+  });
+
   test('benefits forms and list controls adapt to phone and tablet widths', () {
     expect(source, contains('final compact = screen.width < 600;'));
     expect(source, contains('screen.width - inset * 2'));
