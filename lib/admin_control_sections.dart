@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'partner_panel.dart';
 import 'core/admin_friendly_error.dart';
 import 'core/admin_friendly_labels.dart';
 import 'core/admin_money.dart';
@@ -26,6 +28,13 @@ import 'core/admin_zone_passenger_services.dart';
 const Color _blue = Color(0xFF2563EB);
 const Color _dark = Color(0xFF0F172A);
 const Color _muted = Color(0xFF64748B);
+
+Color _partnerBrandColorValue(dynamic value) {
+  final text = value?.toString() ?? '';
+  final hex = text.startsWith('#') ? text.substring(1) : text;
+  final parsed = int.tryParse(hex, radix: 16);
+  return parsed == null ? const Color(0xFFEAF2FF) : Color(0xFF000000 | parsed);
+}
 
 class AdminDispatchPage extends StatefulWidget {
   final String channel;
@@ -827,6 +836,9 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
         TextEditingController(text: row?['contact_email']?.toString() ?? '');
     final notes =
         TextEditingController(text: row?['notes']?.toString() ?? '');
+    final logoUrl = TextEditingController(text: row?['logo_url']?.toString() ?? '');
+    final brandColor = TextEditingController(text: row?['brand_color']?.toString() ?? '#ED6B1F');
+    XFile? pickedLogo;
     var type = row?['organization_type']?.toString() ?? 'syndicate';
     var status = row?['status']?.toString() ?? 'active';
 
@@ -851,6 +863,39 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                       labelText: 'Nombre del sindicato o aliado',
                     ),
                   ),
+                  if (type == 'syndicate') ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: brandColor,
+                      decoration: const InputDecoration(
+                        labelText: 'Color del sindicato',
+                        hintText: '#ED6B1F',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: logoUrl,
+                      decoration: const InputDecoration(
+                        labelText: 'URL del logo',
+                        helperText: 'Puedes pegar un enlace o elegir una imagen al guardar.',
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final image = await ImagePicker().pickImage(
+                            source: ImageSource.gallery,
+                            imageQuality: 85,
+                          );
+                          if (image != null) setLocal(() => pickedLogo = image);
+                        },
+                        icon: const Icon(Icons.upload_rounded),
+                        label: Text(pickedLogo?.name ?? 'Elegir logo'),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   TextField(
                     controller: code,
@@ -955,6 +1000,9 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     var saved = false;
     if (save == true) {
       try {
+        if (!RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(brandColor.text.trim())) {
+          throw const FormatException('El color debe tener formato #RRGGBB.');
+        }
         if (_environment.isPreview) {
           final key = row == null
               ? _environment.createRecordKey('partner')
@@ -976,10 +1024,16 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'contact_phone': contactPhone.text.trim(),
               'contact_email': contactEmail.text.trim(),
               'notes': notes.text.trim(),
+              'logo_url': logoUrl.text.trim(),
+              'brand_color': brandColor.text.trim().toUpperCase(),
             },
           );
         } else {
-          await supabase.rpc(
+          final colorValue = brandColor.text.trim();
+          if (!RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(colorValue)) {
+            throw const FormatException('El color debe tener formato #RRGGBB.');
+          }
+          final savedId = await supabase.rpc(
             'admin_upsert_partner',
             params: {
               'p_id': row?['id'],
@@ -996,6 +1050,22 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
               'p_notes': notes.text.trim(),
             },
           );
+          final partnerId = row?['id'] ?? savedId;
+          var resolvedLogoUrl = logoUrl.text.trim();
+          if (pickedLogo != null) {
+            final path = '$partnerId/logo-${DateTime.now().millisecondsSinceEpoch}.jpg';
+            await supabase.storage.from('partner-logos').uploadBinary(
+                  path,
+                  await pickedLogo!.readAsBytes(),
+                );
+            resolvedLogoUrl = supabase.storage.from('partner-logos').getPublicUrl(path);
+          }
+          await supabase.rpc('partner_save_branding', params: {
+            'p_partner_id': partnerId,
+            'p_name': name.text.trim(),
+            'p_logo_url': resolvedLogoUrl,
+            'p_brand_color': colorValue.toUpperCase(),
+          });
         }
         saved = true;
       } catch (e) {
@@ -1010,6 +1080,8 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
     contactPhone.dispose();
     contactEmail.dispose();
     notes.dispose();
+    logoUrl.dispose();
+    brandColor.dispose();
     return saved;
   }
 
@@ -1306,7 +1378,9 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
       if (_environment.isPreview) {
         final partnerId = partner['id']?.toString();
         final payments = (await _environment.previewList('partner_payments'))
-            .where((row) => row['partner_id']?.toString() == partnerId)
+            .where((row) =>
+                row['partner_id']?.toString() == partnerId &&
+                row['status']?.toString() == 'approved')
             .toList();
         final settlements =
             (await _environment.previewList('partner_settlements'))
@@ -1779,13 +1853,20 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             CircleAvatar(
-                              backgroundColor: const Color(0xFFEAF2FF),
-                              child: Icon(
-                                row['organization_type'] == 'syndicate'
-                                    ? Icons.groups_2_rounded
-                                    : Icons.business_outlined,
-                                color: _blue,
-                              ),
+                              backgroundColor:
+                                  _partnerBrandColorValue(row['brand_color']),
+                              backgroundImage:
+                                  (row['logo_url']?.toString().isNotEmpty ?? false)
+                                      ? NetworkImage(row['logo_url'].toString())
+                                      : null,
+                              child: (row['logo_url']?.toString().isNotEmpty ?? false)
+                                  ? null
+                                  : Icon(
+                                      row['organization_type'] == 'syndicate'
+                                          ? Icons.groups_2_rounded
+                                          : Icons.business_outlined,
+                                      color: _blue,
+                                    ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -1822,6 +1903,23 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                               positive: active,
                             ),
                             const SizedBox(width: 4),
+                            IconButton(
+                              tooltip: _environment.isPreview
+                                  ? 'El panel real está separado de Preview'
+                                  : 'Abrir panel del sindicato',
+                              onPressed: _environment.isPreview
+                                  ? null
+                                  : () => showDialog<void>(
+                                context: context,
+                                builder: (panelContext) => Dialog.fullscreen(
+                                  child: PartnerExpressPanel(
+                                    initialPartnerId: row['id']?.toString(),
+                                    onExit: () => Navigator.pop(panelContext),
+                                  ),
+                                ),
+                              ),
+                              icon: const Icon(Icons.open_in_full_rounded, size: 19),
+                            ),
                             IconButton(
                               tooltip: 'Dashboard financiero',
                               onPressed: () => _showPartnerDashboard(row),
