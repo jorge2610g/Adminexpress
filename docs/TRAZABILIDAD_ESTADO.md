@@ -29,7 +29,7 @@ Fecha de corte: **2026-11-01**. Base: `main` en `bda192c`.
 
 ### SUPERADOS — no reabrir
 
-Cierre pendiente en GitHub de las PR de esta lista: ver `docs/CIERRE_PR_LISTA_A.md`. Hasta que se cierren, siguen abiertas y su contenido no debe fusionarse.
+Cerradas en GitHub el 01-11 con sus motivos (ver `docs/CIERRE_PR_LISTA_A.md`). No deben fusionarse; las ramas se conservan.
 
 | PR | Tema | Motivo | Evidencia |
 |---|---|---|---|
@@ -46,15 +46,15 @@ Cierre pendiente en GitHub de las PR de esta lista: ver `docs/CIERRE_PR_LISTA_A.
 
 | PR | Qué falta | Estado |
 |---|---|---|
-| #82 | Premios numéricos de campeonato e historial de créditos. El backend `driver_championships` está aplicado en Supabase, pero la PR difiere de `lib/admin_driver_championship.dart` en `main` (77 líneas nuevas, 34 borradas). | Hay que revisar qué aporta la PR antes de cerrarla. |
+| #82 | Premios numéricos de campeonato e historial de créditos. El backend `driver_championships` está aplicado en Supabase, pero la PR difiere de `lib/admin_driver_championship.dart` en `main` (77 líneas nuevas, 34 borradas). | Cerrada sin fusionar el 01-11 por decisión del propietario; reconstruir sobre main si se retoma. |
 
 ### DECISIÓN del propietario
 
 | PR | Pregunta |
 |---|---|
-| #137 | Permisos de lectura, edición y borrado por módulo para operadores. Tiene una migración `20261028163325_operator_module_permissions.sql` **no aplicada** en Supabase, y se solapa con `2cf430f` (endurecimiento de operadores) ya en main. ¿Se aplica la migración o se retira la PR? |
-| #131 | Honrar la versión elegida para Internal. Se decide junto con la PR de Express #322. |
-| #100 | Tiempos globales reales de Preview en solo lectura. No aparece en main. ¿Se necesita todavía? |
+| #137 | Permisos de lectura, edición y borrado por módulo para operadores. Tiene una migración `20261028163325_operator_module_permissions.sql` **no aplicada** en Supabase, y se solapa con `2cf430f` (endurecimiento de operadores) ya en main. Cerrada sin fusionar el 01-11 por decisión del propietario; la migración `20261028163325` sigue sin aplicar. |
+| #131 | Honrar la versión elegida para Internal. Cerrada sin fusionar el 01-11 por decisión del propietario. |
+| #100 | Tiempos globales reales de Preview en solo lectura. Cerrada sin fusionar el 01-11 por decisión del propietario. |
 
 ## Inconsistencias conocidas
 

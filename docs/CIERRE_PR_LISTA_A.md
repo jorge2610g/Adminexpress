@@ -1,6 +1,6 @@
 # Cierre de PR superadas — lista A de Adminexpress
 
-Estado: **pendiente de ejecutar en GitHub**. Las 13 PR siguen abiertas al 2026-11-01. El intento desde esta sesión no pudo completarse porque la cuenta de GitHub no estaba conectada para la organización.
+Estado: **ejecutado el 2026-11-01**. Las 13 PR están cerradas y verificadas en GitHub.
 
 Cerrar cada PR con el comentario indicado. Las ramas se conservan para historia. Si alguna se quiere reabrir, basta con «Reopen».
 
