@@ -24,6 +24,9 @@ class _AdminFareRoundingEditorState extends State<AdminFareRoundingEditor> {
   bool _saving = false;
   String _increment = '0.01';
   String? _error;
+  // true when the current configuration could not be read. Saving in that
+  // state would overwrite the real server value with the local default.
+  bool _loadFailed = false;
   int _revision = 0;
 
   static const Map<String, String> _increments = {
@@ -53,6 +56,7 @@ class _AdminFareRoundingEditorState extends State<AdminFareRoundingEditor> {
     final revision = ++_revision;
     setState(() {
       _loading = true;
+      _loadFailed = false;
       _error = null;
     });
     try {
@@ -62,7 +66,9 @@ class _AdminFareRoundingEditorState extends State<AdminFareRoundingEditor> {
       });
       if (!mounted || revision != _revision) return;
       if (raw is! Map) throw StateError('Respuesta inválida del servidor');
-      final value = double.tryParse(raw['increment'].toString()) ?? 0.01;
+      // An unreadable increment is a load failure, not the default value.
+      final value = double.tryParse(raw['increment']?.toString() ?? '');
+      if (value == null) throw StateError('Respuesta inválida del servidor');
       setState(() {
         _increment = value == 1 ? '1' : value == 0.5 ? '0.5' : '0.01';
         _loading = false;
@@ -71,6 +77,7 @@ class _AdminFareRoundingEditorState extends State<AdminFareRoundingEditor> {
       if (mounted && revision == _revision) {
         setState(() {
           _loading = false;
+          _loadFailed = true;
           _error = 'No se pudo cargar la configuración: $e';
         });
       }
@@ -78,7 +85,7 @@ class _AdminFareRoundingEditorState extends State<AdminFareRoundingEditor> {
   }
 
   Future<void> _save() async {
-    if (_saving || _loading) return;
+    if (_saving || _loading || _loadFailed) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -155,7 +162,7 @@ class _AdminFareRoundingEditorState extends State<AdminFareRoundingEditor> {
                           },
                   );
                   final save = FilledButton.icon(
-                    onPressed: _saving ? null : _save,
+                    onPressed: (_saving || _loadFailed) ? null : _save,
                     icon: const Icon(Icons.save_outlined),
                     label: Text(_saving ? 'Guardando...' : 'Guardar redondeo'),
                   );
