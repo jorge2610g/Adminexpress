@@ -29,6 +29,8 @@ Fecha de corte: **2026-11-01**. Base: `main` en `bda192c`.
 
 ### SUPERADOS — no reabrir
 
+Cierre pendiente en GitHub de las PR de esta lista: ver `docs/CIERRE_PR_LISTA_A.md`. Hasta que se cierren, siguen abiertas y su contenido no debe fusionarse.
+
 | PR | Tema | Motivo | Evidencia |
 |---|---|---|---|
 | #118 | Deudas y ajustes por zona | Ya fusionado en main con otro número | `567e073`, PR #124. La rama borra 614 líneas de main. |
