@@ -3056,25 +3056,6 @@ class _TopBar extends StatelessWidget {
             onPressed: onRefresh,
             icon: const Icon(Icons.refresh_rounded, size: 20),
           ),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              IconButton(
-                tooltip: 'Notificaciones',
-                onPressed: () {},
-                icon: const Icon(Icons.notifications_none_rounded, size: 20),
-              ),
-              const Positioned(
-                right: 7,
-                top: 7,
-                child: CircleAvatar(
-                  radius: 4,
-                  backgroundColor: Color(0xFFEF4444),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 7),
           PopupMenuButton<String>(
             tooltip: 'Cuenta',
             onSelected: (value) {
