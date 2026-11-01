@@ -1,3 +1,11 @@
+## 2026-11-01 · Trazabilidad de estado y línea de tiempo
+
+- Se creó `docs/TRAZABILIDAD_ESTADO.md` como referencia única de estado. Clasifica los 17 PRs abiertos como SUPERADO, INCONCLUSO o DECISIÓN, con evidencia de `main` y Supabase.
+- Ninguna PR se cerró ni se fusionó; no hubo cambios de código ni de base de datos.
+- Las entradas anteriores se conservan como historia. Esta entrada es la vigente para estos temas.
+
+---
+
 ## 2026-10-21 · Builds Admin prepara la candidata Android unificada 1.6.3+142
 
 - Corrige la tarjeta de Builds que seguía fijada en 1.6.2/build 140 y ofrecía una solicitud separada AAB-only build 141. El panel ahora permite crear solo la candidata oficial APK+AAB 1.6.3+142 mediante `admin_queue_single_app_candidate`, valida que Google Play indique el siguiente código 142 y muestra el UUID devuelto.
