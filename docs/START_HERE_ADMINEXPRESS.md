@@ -4,7 +4,7 @@
 
 # ADMINEXPRESS — START HERE
 
-> **Última actualización:** 2026-10-11  
+> **Última actualización:** 2026-11-01 (estado vigente en `docs/TRAZABILIDAD_ESTADO.md`)  
 > Este es el punto de entrada vigente.
 
 ## 1. Qué es Adminexpress
