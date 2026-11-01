@@ -56,6 +56,15 @@ Cerradas en GitHub el 01-11 con sus motivos (ver `docs/CIERRE_PR_LISTA_A.md`). N
 | #131 | Honrar la versión elegida para Internal. Cerrada sin fusionar el 01-11 por decisión del propietario. |
 | #100 | Tiempos globales reales de Preview en solo lectura. Cerrada sin fusionar el 01-11 por decisión del propietario. |
 
+## Cierre definitivo — 2026-11-01
+
+| Punto | Estado final |
+|---|---|
+| PR #137, #131, #100, #82 | CERRADAS sin fusionar por decisión del propietario. Ramas conservadas. |
+| Migración `20261028163325` de #137 | No aplicada. Queda registrada; no se aplica sin orden. |
+| Desfases de versión de migraciones | CERRADO. Documentado; no se renombran archivos. |
+| Trabajo de Admin activo | Ninguno. |
+
 ## Inconsistencias conocidas
 
 1. **Migraciones con versión distinta en el repo y en Supabase** (archivo del repo → versión aplicada): `20261026032432` → `20261026042837`; `20261026043600` → `20261026050049`; `20261026234131` → `20261026234434`; `20261027000500` → `20261027000558`; `20261031062041` → `20261031064126`. Estado: INCONCLUSO. Las migraciones aplicadas no se editan (AGENTS.md). Hay que documentar la correspondencia o crear una migración de alineación con orden del propietario.
