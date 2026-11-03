@@ -321,7 +321,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
 
   Map<String, dynamic> _buildConfig() {
     final config = <String, dynamic>{
-      'service_mode': _serviceMode,
+      'service_mode': _programType == 'coupon' ? 'transport' : _serviceMode,
       'service_type': _serviceType,
       'audience': const {'coupon', 'activation', 'loyalty'}.contains(_programType)
           ? 'passengers'
@@ -499,8 +499,6 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
                     children: [
                     ..._editorFields(),
                     const SizedBox(height: 8),
-                    if (_programType == 'coupon' && _serviceMode == 'delivery')
-                      _infoBox('Los cupones de Delivery se guardan como borrador; la liquidación de pedidos tiene un flujo aparte.'),
                     if (_programType == 'referral')
                       _infoBox('Los referidos de conductores por pago de plan se configuran en Grupos MLM.'),
                     if (_programType == 'activation' || _programType == 'loyalty' || _programType == 'driver_challenge')
@@ -598,7 +596,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           ]),
           _twoColumns([
             _textField('Máximo de descuento (Bs)', _maxDiscount, hint: 'Sin límite', keyboard: const TextInputType.numberWithOptions(decimal: true)),
-            _segmentedField('Servicio', _serviceMode, const {'transport': 'Transporte', 'delivery': 'Delivery'}, (value) => setState(() => _serviceMode = value)),
+            _segmentedField('Servicio', _programType == 'coupon' ? 'transport' : _serviceMode, _programType == 'coupon' ? const {'transport': 'Transporte'} : const {'transport': 'Transporte', 'delivery': 'Delivery'}, (value) => setState(() => _serviceMode = value)),
           ]),
           _dropdown('Tipos de servicio', _serviceType, const {'all': 'Todos los servicios', 'economy': 'Económico', 'comfort': 'Confort', 'moto': 'Moto', 'motocar': 'Motocar'}, (value) => setState(() => _serviceType = value)),
           _textField('Monto mínimo de viaje (Bs)', _minFare, hint: 'Sin mínimo', keyboard: const TextInputType.numberWithOptions(decimal: true)),
