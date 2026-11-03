@@ -455,10 +455,13 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void Function(VoidCallback)? _editorSetState;
+
   Future<void> _showEditor() async {
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) {
+      builder: (dialogContext) => StatefulBuilder(builder: (context, setLocal) {
+        _editorSetState = setLocal;
         final screen = MediaQuery.sizeOf(dialogContext);
         final inset = screen.width < 600 ? 8.0 : 24.0;
         final compact = screen.width < 600;
@@ -509,7 +512,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
                         title: Text(_programType == 'coupon' ? 'Cupón activo' : _programType == 'driver_challenge' ? 'Reto activo' : 'Campaña activa'),
                         subtitle: const Text('Los descuentos y bonos se liquidan al completar un viaje pagado.'),
                         value: _enabled,
-                        onChanged: (value) => setState(() => _enabled = value),
+                        onChanged: (value) => _refreshEditor(() => _enabled = value),
                       ),
                     if (_programType == 'referral_commission') ...[
                       SwitchListTile(
@@ -517,7 +520,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
                         title: const Text('Programa activo'),
                         subtitle: const Text('La recompensa va a la billetera del conductor que refiere y se genera solo por pagos de plan confirmados.'),
                         value: _enabled,
-                        onChanged: (value) => setState(() => _enabled = value),
+                        onChanged: (value) => _refreshEditor(() => _enabled = value),
                       ),
                       _dateFields(),
                     ],
@@ -549,8 +552,15 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             ),
           ),
         );
-      },
+      }),
     );
+    _editorSetState = null;
+  }
+
+  void _refreshEditor(VoidCallback change) {
+    change();
+    setState(() {});
+    _editorSetState?.call(() {});
   }
 
   String get _editorSubtitle => switch (_programType) {
@@ -591,18 +601,18 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       case 'coupon':
         fields.addAll([
           _twoColumns([
-            _dropdown('Tipo de descuento', _discount, const {'fixed': 'Monto fijo', 'percent': 'Porcentaje'}, (value) => setState(() => _discount = value)),
+            _dropdown('Tipo de descuento', _discount, const {'fixed': 'Monto fijo', 'percent': 'Porcentaje'}, (value) => _refreshEditor(() => _discount = value)),
             _textField(_discount == 'percent' ? 'Porcentaje *' : 'Monto (Bs) *', _value, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
           _twoColumns([
             _textField('Máximo de descuento (Bs)', _maxDiscount, hint: 'Sin límite', keyboard: const TextInputType.numberWithOptions(decimal: true)),
-            _segmentedField('Servicio', _programType == 'coupon' ? 'transport' : _serviceMode, _programType == 'coupon' ? const {'transport': 'Transporte'} : const {'transport': 'Transporte', 'delivery': 'Delivery'}, (value) => setState(() => _serviceMode = value)),
+            _segmentedField('Servicio', _programType == 'coupon' ? 'transport' : _serviceMode, _programType == 'coupon' ? const {'transport': 'Transporte'} : const {'transport': 'Transporte', 'delivery': 'Delivery'}, (value) => _refreshEditor(() => _serviceMode = value)),
           ]),
-          _dropdown('Tipos de servicio', _serviceType, const {'all': 'Todos los servicios', 'economy': 'Económico', 'comfort': 'Confort', 'moto': 'Moto', 'motocar': 'Motocar'}, (value) => setState(() => _serviceType = value)),
+          _dropdown('Tipos de servicio', _serviceType, const {'all': 'Todos los servicios', 'economy': 'Económico', 'comfort': 'Confort', 'moto': 'Moto', 'motocar': 'Motocar'}, (value) => _refreshEditor(() => _serviceType = value)),
           _textField('Monto mínimo de viaje (Bs)', _minFare, hint: 'Sin mínimo', keyboard: const TextInputType.numberWithOptions(decimal: true)),
-          _dropdown('Audiencia', 'passengers', const {'passengers': 'Pasajeros'}, (_) => setState(() => _audience = 'passengers')),
+          _dropdown('Audiencia', 'passengers', const {'passengers': 'Pasajeros'}, (_) => _refreshEditor(() => _audience = 'passengers')),
           _twoColumns([
-            _dropdown('Audiencia objetivo', _targetAudience, const {'all': 'Todos los usuarios', 'new': 'Usuarios nuevos', 'returning': 'Usuarios frecuentes'}, (value) => setState(() => _targetAudience = value)),
+            _dropdown('Audiencia objetivo', _targetAudience, const {'all': 'Todos los usuarios', 'new': 'Usuarios nuevos', 'returning': 'Usuarios frecuentes'}, (value) => _refreshEditor(() => _targetAudience = value)),
             _dropdown('Quién cubre el descuento', 'company', const {'company': 'Express · crédito al conductor'}, (_) {}),
           ]),
           _twoColumns([
@@ -614,22 +624,22 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             contentPadding: EdgeInsets.zero,
             title: const Text('Solo primer viaje'),
             value: _firstRide,
-            onChanged: (value) => setState(() => _firstRide = value),
+            onChanged: (value) => _refreshEditor(() => _firstRide = value),
           ),
         ]);
       case 'activation':
         fields.addAll([
           _twoColumns([
-            _dropdown('Tipo de disparador', _trigger, const {'first_trip': 'Primer viaje', 'paid_trips': 'Viajes pagados', 'first_delivery': 'Primer delivery'}, (value) => setState(() => _trigger = value)),
+            _dropdown('Tipo de disparador', _trigger, const {'first_trip': 'Primer viaje', 'paid_trips': 'Viajes pagados', 'first_delivery': 'Primer delivery'}, (value) => _refreshEditor(() => _trigger = value)),
             _textField('Valor (opcional)', _triggerValue, hint: 'Opcional', keyboard: TextInputType.number),
           ]),
           _twoColumns([
-            _dropdown('Tipo de recompensa', _rewardType.text, const {'fixed': 'Monto fijo (Bs)', 'percent': 'Porcentaje', 'coupon': 'Cupón de viaje'}, (value) => setState(() => _rewardType.text = value)),
+            _dropdown('Tipo de recompensa', _rewardType.text, const {'fixed': 'Monto fijo (Bs)', 'percent': 'Porcentaje', 'coupon': 'Cupón de viaje'}, (value) => _refreshEditor(() => _rewardType.text = value)),
             _textField('Valor de recompensa', _value, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
           _twoColumns([
             _dropdown('Destino de recompensa', 'coupon', const {'coupon': 'Cupón de viaje'}, (_) {}),
-            _dropdown('Audiencia objetivo', _audience, const {'passengers': 'Pasajeros'}, (_) => setState(() => _audience = 'passengers')),
+            _dropdown('Audiencia objetivo', _audience, const {'passengers': 'Pasajeros'}, (_) => _refreshEditor(() => _audience = 'passengers')),
           ]),
           _textField('Máximo de activaciones (opcional)', _maxActivations, hint: 'Sin límite', keyboard: TextInputType.number),
           _dateFields(),
@@ -652,15 +662,15 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           const Text('Recompensa para quien refiere', style: TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           _twoColumns([
-            _dropdown('Tipo de recompensa', _rewardType.text, const {'fixed': 'Monto fijo', 'percent': 'Porcentaje', 'coupon': 'Cupón'}, (value) => setState(() => _rewardType.text = value)),
+            _dropdown('Tipo de recompensa', _rewardType.text, const {'fixed': 'Monto fijo', 'percent': 'Porcentaje', 'coupon': 'Cupón'}, (value) => _refreshEditor(() => _rewardType.text = value)),
             _textField('Valor (Bs)', _referrerReward, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
-          _dropdown('Destino', _rewardDestination, const {'wallet': 'Billetera interna', 'coupon': 'Cupón'}, (value) => setState(() => _rewardDestination = value)),
+          _dropdown('Destino', _rewardDestination, const {'wallet': 'Billetera interna', 'coupon': 'Cupón'}, (value) => _refreshEditor(() => _rewardDestination = value)),
           const SizedBox(height: 14),
           const Text('Recompensa para el conductor referido', style: TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           _twoColumns([
-            _dropdown('Tipo de recompensa', _rewardType.text, const {'fixed': 'Monto fijo', 'percent': 'Porcentaje', 'coupon': 'Cupón'}, (value) => setState(() => _rewardType.text = value)),
+            _dropdown('Tipo de recompensa', _rewardType.text, const {'fixed': 'Monto fijo', 'percent': 'Porcentaje', 'coupon': 'Cupón'}, (value) => _refreshEditor(() => _rewardType.text = value)),
             _textField('Valor (Bs)', _referredReward, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
           _twoColumns([
@@ -676,7 +686,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             contentPadding: EdgeInsets.zero,
             title: const Text('Beneficio de por vida'),
             value: _lifetime,
-            onChanged: (value) => setState(() => _lifetime = value),
+            onChanged: (value) => _refreshEditor(() => _lifetime = value),
           ),
           if (!_lifetime) _textField('Vigencia del beneficio (meses)', _benefitMonths, keyboard: TextInputType.number),
           _infoBox('El crédito va a la billetera interna del conductor que refirió, únicamente por cada pago de plan confirmado en Bolivia.'),
@@ -685,7 +695,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         fields.addAll([
           _twoColumns([
             _textField('Meta (número de viajes) *', _threshold, hint: '10', keyboard: TextInputType.number),
-            _dropdown('Periodo', _period, const {'daily': 'Diario', 'weekly': 'Semanal', 'monthly': 'Mensual', 'custom': 'Personalizado'}, (value) => setState(() => _period = value)),
+            _dropdown('Periodo', _period, const {'daily': 'Diario', 'weekly': 'Semanal', 'monthly': 'Mensual', 'custom': 'Personalizado'}, (value) => _refreshEditor(() => _period = value)),
           ]),
           _dateFields(),
           _twoColumns([
@@ -697,7 +707,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             contentPadding: EdgeInsets.zero,
             title: const Text('Reto exclusivo (el conductor no puede inscribirse a otros retos)'),
             value: _exclusive,
-            onChanged: (value) => setState(() => _exclusive = value),
+            onChanged: (value) => _refreshEditor(() => _exclusive = value),
           ),
           _textField('Compatible con (opcional)', _compatibleChallenges, hint: 'Nombres separados por coma'),
         ]);
@@ -727,7 +737,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
               lastDate: DateTime(2100),
             );
             if (selected == null || !mounted) return;
-            setState(() {
+            _refreshEditor(() {
               if (isEnd) {
                 _endsAt = selected;
               } else {
