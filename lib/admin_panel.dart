@@ -16,6 +16,7 @@ import 'package:latlong2/latlong.dart';
 import 'core/supabase_client.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
+import 'admin_landing_banners.dart';
 import 'admin_debt_management.dart';
 import 'admin_operators.dart';
 import 'admin_operator_fares.dart';
@@ -268,7 +269,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   bool get _readOnly => adminAccess['read_only'] == true;
   static const Set<int> _environmentFilteredSections = <int>{
     0, 1, 2, 3, 4, 5, 6, 9, 13, 15, 18, 21, 22, 23, 24, 25, 26, 29, 30,
-    31, 33, 35,
+    31, 33, 35, 36,
   };
 
   String _sectionChannel(int sectionIndex) {
@@ -443,6 +444,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Deudas y ajustes', Icons.account_balance_wallet_outlined),
     ('Requisitos de restaurantes', Icons.fact_check_outlined),
     ('Beneficios Express', Icons.card_giftcard_outlined),
+    ('Publicidad de pasajeros', Icons.campaign_rounded),
   ];
 
   Future<bool> _authorized() async {
@@ -1532,6 +1534,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
         );
+      case 36:
+        return adminZoneId == null || adminZoneId!.isEmpty
+            ? const Center(child: Text('Selecciona una zona.'))
+            : AdminLandingBannersPage(
+                key: ValueKey('passenger-ads-${_sectionChannel(36)}-$adminZoneId'),
+                channel: _sectionChannel(36),
+                zoneId: adminZoneId!,
+              );
       case 23:
         return AdminDeliveryUnifiedPage(
           channel: _sectionChannel(23),
