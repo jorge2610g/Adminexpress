@@ -2655,7 +2655,7 @@ class _Navigation extends StatelessWidget {
         : const <(String, List<int>)>[
             ('GENERAL', [0]),
             ('OPERACIONES', [1, 2, 13, 4, 5, 6]),
-            ('MÓDULOS', [23, 25, 29, 30, 34, 35]),
+            ('MÓDULOS', [23, 25, 29, 30, 34, 35, 36]),
             ('FINANZAS', [9, 8, 22, 33]),
             ('ANÁLISIS', [10, 14]),
             ('COMUNICACIÓN', [15]),
