@@ -90,6 +90,24 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
     bool active = banner?['active'] != false;
     Uint8List? pickedBytes;
     String? pickedFilename;
+    String mediaType = banner?['media_type']?.toString() == 'video' ? 'video' : 'image';
+    final mediaUrl =
+        TextEditingController(text: banner?['media_url']?.toString() ?? '');
+    final seconds = TextEditingController(
+      text: banner?['display_seconds']?.toString() ?? '5',
+    );
+    final advertiser = TextEditingController(
+      text: banner?['advertiser_name']?.toString() ?? '',
+    );
+    final advertiserContact = TextEditingController(
+      text: banner?['advertiser_contact']?.toString() ?? '',
+    );
+    final amount = TextEditingController(
+      text: banner?['amount_bs']?.toString() ?? '',
+    );
+    String paymentStatus = banner?['payment_status']?.toString() ?? 'unpaid';
+    Uint8List? pickedVideoBytes;
+    String? pickedVideoName;
 
     final save = await showDialog<bool>(
       context: context,
@@ -150,6 +168,81 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
                     labelText: 'URL de imagen (alternativa a subirla)',
                     hintText: 'https://...',
                   )),
+                const SizedBox(height: 12),
+                AdminDropdownField<String>(
+                  initialValue: mediaType,
+                  decoration: const InputDecoration(labelText: 'Tipo de anuncio'),
+                  items: const [
+                    DropdownMenuItem(value: 'image', child: Text('Imagen')),
+                    DropdownMenuItem(value: 'video', child: Text('Video corto')),
+                  ],
+                  onChanged: (value) => update(() => mediaType = value ?? 'image'),
+                ),
+                if (mediaType == 'video') ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.videocam_outlined),
+                    label: Text(pickedVideoName == null
+                        ? 'Subir video (MP4 o WebM, máx. 30 MB)'
+                        : 'Video: $pickedVideoName'),
+                    onPressed: () async {
+                      final video = await ImagePicker().pickVideo(
+                        source: ImageSource.gallery,
+                        maxDuration: const Duration(seconds: 60),
+                      );
+                      if (video == null) return;
+                      final bytes = await video.readAsBytes();
+                      if (bytes.lengthInBytes > 30 * 1024 * 1024) {
+                        _snack('El video debe pesar menos de 30 MB.');
+                        return;
+                      }
+                      update(() {
+                        pickedVideoBytes = bytes;
+                        pickedVideoName = video.name;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(controller: mediaUrl,
+                    decoration: const InputDecoration(
+                      labelText: 'URL de video (alternativa a subirlo)',
+                      hintText: 'https://...mp4',
+                    )),
+                ],
+                const SizedBox(height: 10),
+                TextField(controller: seconds,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Segundos en pantalla (3 a 60)',
+                    helperText: 'Tiempo que el anuncio se queda antes de pasar al siguiente',
+                  )),
+                const SizedBox(height: 10),
+                TextField(controller: advertiser,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre del anunciante')),
+                const SizedBox(height: 10),
+                TextField(controller: advertiserContact,
+                  decoration: const InputDecoration(
+                    labelText: 'Contacto del anunciante (correo o teléfono)')),
+                const SizedBox(height: 10),
+                TextField(controller: amount,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Monto acordado (Bs)',
+                    helperText: 'Solo para tu control; la app no cobra por este medio',
+                  )),
+                const SizedBox(height: 10),
+                AdminDropdownField<String>(
+                  initialValue: ['unpaid','paid','exempt'].contains(paymentStatus)
+                      ? paymentStatus : 'unpaid',
+                  decoration: const InputDecoration(labelText: 'Estado de pago'),
+                  items: const [
+                    DropdownMenuItem(value: 'unpaid', child: Text('Sin pagar')),
+                    DropdownMenuItem(value: 'paid', child: Text('Pagado')),
+                    DropdownMenuItem(value: 'exempt', child: Text('Cortesía (sin cobro)')),
+                  ],
+                  onChanged: (value) => update(() => paymentStatus = value ?? 'unpaid'),
+                ),
                 const SizedBox(height: 12),
                 AdminDropdownField<String>(
                   initialValue: ['','ride','delivery','market'].contains(target)
@@ -254,6 +347,32 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
           url = supabase.storage.from('express-landing-banners')
               .getPublicUrl(path);
         }
+        String mediaFinalUrl = mediaUrl.text.trim();
+        if (mediaType == 'video' && pickedVideoBytes != null) {
+          final vname = (pickedVideoName ?? '').toLowerCase();
+          final vext = vname.endsWith('.webm') ? 'webm' : 'mp4';
+          final vtype = vext == 'webm' ? 'video/webm' : 'video/mp4';
+          final vpath = '${widget.channel}/${widget.zoneId}/'
+              'video-${DateTime.now().microsecondsSinceEpoch}.$vext';
+          await supabase.storage.from('express-landing-banners').uploadBinary(
+            vpath, pickedVideoBytes!,
+            fileOptions: FileOptions(contentType: vtype, upsert: false),
+          );
+          mediaFinalUrl = supabase.storage.from('express-landing-banners')
+              .getPublicUrl(vpath);
+        }
+        if (mediaType == 'video' && !mediaFinalUrl.startsWith('https://')) {
+          throw StateError('El video necesita un archivo o una URL HTTPS.');
+        }
+        final secs = int.tryParse(seconds.text.trim()) ?? 0;
+        if (secs < 3 || secs > 60) {
+          throw StateError('Los segundos deben estar entre 3 y 60.');
+        }
+        final amountText = amount.text.trim().replaceAll(',', '.');
+        final amountValue = amountText.isEmpty ? null : double.tryParse(amountText);
+        if (amountText.isNotEmpty && (amountValue == null || amountValue < 0)) {
+          throw StateError('El monto debe ser un número mayor o igual a 0.');
+        }
         if (url.isNotEmpty && !url.startsWith('https://')) {
           throw StateError('La imagen debe tener una URL HTTPS.');
         }
@@ -261,7 +380,7 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
             !targetUrl.text.trim().startsWith('https://')) {
           throw StateError('El enlace debe comenzar por https://');
         }
-        await supabase.rpc('admin_landing_banner_save_v1', params: {
+        await supabase.rpc('admin_landing_banner_save_v2', params: {
           'p_id': banner?['id'],
           'p_zone_id': widget.zoneId,
           'p_channel': widget.channel,
@@ -277,6 +396,13 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
           'p_sort_order': int.tryParse(order.text.trim()) ?? 100,
           'p_starts_at': startsAt?.toUtc().toIso8601String(),
           'p_ends_at': endsAt?.toUtc().toIso8601String(),
+          'p_media_type': mediaType,
+          'p_media_url': mediaType == 'video' ? mediaFinalUrl : null,
+          'p_display_seconds': secs,
+          'p_advertiser_name': advertiser.text.trim(),
+          'p_advertiser_contact': advertiserContact.text.trim(),
+          'p_amount_bs': amountValue,
+          'p_payment_status': paymentStatus,
         });
         _refresh();
         _snack('Anuncio guardado para ${widget.channel} en esta zona.');
@@ -293,6 +419,11 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
     order.dispose();
     start.dispose();
     end.dispose();
+    mediaUrl.dispose();
+    seconds.dispose();
+    advertiser.dispose();
+    advertiserContact.dispose();
+    amount.dispose();
   }
 
   @override
@@ -360,7 +491,11 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
                     subtitle: Text(
                       '${row['subtitle'] ?? ''} · '
                       '${row['active'] == true ? 'Activo' : 'Desactivado'}'
-                      ' · posición ${row['sort_order'] ?? 100}',
+                      ' · posición ${row['sort_order'] ?? 100}'
+                      ' · ${row['media_type'] == 'video' ? 'Video' : 'Imagen'}'
+                      ' · ${row['display_seconds'] ?? 5} s'
+                      '${(row['advertiser_name'] ?? '').toString().isEmpty ? '' : ' · ${row['advertiser_name']}'}'
+                      ' · ${row['payment_status'] == 'paid' ? 'Pagado' : row['payment_status'] == 'exempt' ? 'Cortesía' : 'Sin pagar'}',
                     ),
                     trailing: const Icon(Icons.edit_outlined),
                     onTap: () => _edit(row),
