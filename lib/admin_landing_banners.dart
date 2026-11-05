@@ -375,6 +375,10 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
             (end.text.trim().isNotEmpty && endsAt == null)) {
           throw StateError('Revisa las fechas. Usa el formato ISO 8601.');
         }
+        // Se valida antes de subir archivos para no dejar imágenes huérfanas.
+        if (placements.isEmpty) {
+          throw StateError('Elige al menos un lugar donde aparecerá el anuncio');
+        }
         String url = imageUrl.text.trim();
         if (pickedBytes != null) {
           final name = (pickedFilename ?? '').toLowerCase();
