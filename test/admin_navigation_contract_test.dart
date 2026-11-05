@@ -47,7 +47,7 @@ void main() {
         .map((match) => int.parse(match.group(0)!))
         .toList();
 
-    expect(indices, [23, 25, 29, 30, 34, 35]);
+    expect(indices, [23, 25, 29, 30, 34, 35, 36]);
     expect(indices, isNot(contains(24)));
     expect(indices, isNot(contains(26)));
   });
