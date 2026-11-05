@@ -10,6 +10,22 @@ import 'core/supabase_client.dart';
 
 /// Scoped advertising management for the passenger landing page.
 /// Market's own store promotions remain separate.
+const List<(String, String)> _adPlacementOptions = [
+  ('home_landing', 'Inicio: Ofertas para ti'),
+  ('map_home', 'Mapa: ¿A dónde vas?'),
+  ('ride_chooser', 'Selector: ¿A dónde y por cuánto?'),
+];
+
+String _placementLabels(Object? raw) {
+  final keys = (raw as List?)?.map((item) => item.toString()).toList() ??
+      const ['home_landing'];
+  final labels = [
+    for (final option in _adPlacementOptions)
+      if (keys.contains(option.$1)) option.$2.split(':').first,
+  ];
+  return labels.isEmpty ? 'Sin lugar' : labels.join(', ');
+}
+
 class AdminLandingBannersPage extends StatefulWidget {
   final String channel;
   final String zoneId;
@@ -106,6 +122,10 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
       text: banner?['amount_bs']?.toString() ?? '',
     );
     String paymentStatus = banner?['payment_status']?.toString() ?? 'unpaid';
+    final placements = <String>{
+      ...((banner?['placements'] as List?)?.map((item) => item.toString()) ??
+          const ['home_landing']),
+    };
     Uint8List? pickedVideoBytes;
     String? pickedVideoName;
 
@@ -242,6 +262,33 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
                     DropdownMenuItem(value: 'exempt', child: Text('Cortesía (sin cobro)')),
                   ],
                   onChanged: (value) => update(() => paymentStatus = value ?? 'unpaid'),
+                ),
+                const SizedBox(height: 14),
+                const Text('Dónde aparece',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final option in _adPlacementOptions)
+                      FilterChip(
+                        label: Text(option.$2),
+                        selected: placements.contains(option.$1),
+                        onSelected: (on) => update(() {
+                          if (on) {
+                            placements.add(option.$1);
+                          } else {
+                            placements.remove(option.$1);
+                          }
+                        }),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Marca uno o varios. Solo se muestran en la app de pasajeros.',
+                  style: TextStyle(fontSize: 12),
                 ),
                 const SizedBox(height: 12),
                 AdminDropdownField<String>(
@@ -380,7 +427,10 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
             !targetUrl.text.trim().startsWith('https://')) {
           throw StateError('El enlace debe comenzar por https://');
         }
-        await supabase.rpc('admin_landing_banner_save_v2', params: {
+        if (placements.isEmpty) {
+          throw StateError('Elige al menos un lugar donde aparecerá el anuncio');
+        }
+        await supabase.rpc('admin_landing_banner_save_v3', params: {
           'p_id': banner?['id'],
           'p_zone_id': widget.zoneId,
           'p_channel': widget.channel,
@@ -403,6 +453,7 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
           'p_advertiser_contact': advertiserContact.text.trim(),
           'p_amount_bs': amountValue,
           'p_payment_status': paymentStatus,
+          'p_placements': placements.toList(),
         });
         _refresh();
         _snack('Anuncio guardado para ${widget.channel} en esta zona.');
@@ -495,7 +546,8 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
                       ' · ${row['media_type'] == 'video' ? 'Video' : 'Imagen'}'
                       ' · ${row['display_seconds'] ?? 5} s'
                       '${(row['advertiser_name'] ?? '').toString().isEmpty ? '' : ' · ${row['advertiser_name']}'}'
-                      ' · ${row['payment_status'] == 'paid' ? 'Pagado' : row['payment_status'] == 'exempt' ? 'Cortesía' : 'Sin pagar'}',
+                      ' · ${row['payment_status'] == 'paid' ? 'Pagado' : row['payment_status'] == 'exempt' ? 'Cortesía' : 'Sin pagar'}'
+                      ' · ${_placementLabels(row['placements'])}',
                     ),
                     trailing: const Icon(Icons.edit_outlined),
                     onTap: () => _edit(row),
