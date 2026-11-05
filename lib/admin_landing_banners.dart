@@ -431,6 +431,9 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
             !targetUrl.text.trim().startsWith('https://')) {
           throw StateError('El enlace debe comenzar por https://');
         }
+        if (placements.isEmpty) {
+          throw StateError('Elige al menos un lugar donde aparecerá el anuncio');
+        }
         await supabase.rpc('admin_landing_banner_save_v3', params: {
           'p_id': banner?['id'],
           'p_zone_id': widget.zoneId,
