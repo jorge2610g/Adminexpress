@@ -352,6 +352,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     33: 'payments',
     34: 'marketplace',
     35: 'benefits',
+    36: 'passenger_ads',
   };
 
   bool _sectionAllowed(int index) {
@@ -359,6 +360,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     // available to superadmins even when their legacy explicit module list
     // predates the new `benefits` key. RPCs still enforce the same role.
     if (index == 35 && adminAccess['role'] == 'super_admin') return true;
+    // Publicidad de pasajeros: central marketing module for the passenger app.
+    // Superadmins always see it, even before the `passenger_ads` key exists.
+    if (index == 36 && adminAccess['role'] == 'super_admin') return true;
     // Identity review is already part of the driver record. The old standalone
     // identity entries are deliberately unreachable.
     if (index == 18 || index == 27) return false;

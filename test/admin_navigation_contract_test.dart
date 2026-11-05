@@ -24,6 +24,8 @@ void main() {
     expect(labels[36], 'Publicidad de pasajeros');
     expect(panel, contains("35: 'benefits'"));
     expect(panel, contains("if (index == 35 && adminAccess['role'] == 'super_admin')"));
+    expect(panel, contains("36: 'passenger_ads'"));
+    expect(panel, contains("if (index == 36 && adminAccess['role'] == 'super_admin')"));
     expect(panel, contains('case 35:\n        return AdminBenefitsPage('));
     expect(panel, contains('_sectionChannel(35)'));
 
