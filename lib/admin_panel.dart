@@ -12,6 +12,7 @@ import 'core/admin_ui.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_runtime_scope.dart';
@@ -1204,20 +1205,22 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         .showSnackBar(SnackBar(content: Text(friendlyError(error))));
   }
 
-  Future<void> _resolveEmergency(String id) async {
+  Future<bool> _resolveEmergency(String id) async {
     try {
       await supabase.rpc(
         'admin_resolve_emergency_v2',
         params: {'p_emergency_id': id, 'p_channel': _sectionChannel(6)},
       );
-      if (!mounted) return;
+      if (!mounted) return false;
       _refresh();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Emergencia marcada como resuelta.')),
       );
+      return true;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       _errorSnack(e);
+      return false;
     }
   }
 
@@ -2507,6 +2510,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _security() {
+    final canResolve = !_readOnly && adminAccess['role'] != 'operator';
     return FutureBuilder<Map<String, dynamic>>(
       key: ValueKey('security-' + revision.toString()),
       future: _dashboardState(6),
@@ -2529,6 +2533,23 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
             margin: const EdgeInsets.only(bottom: 10),
             elevation: 0,
             child: ListTile(
+              onTap: () {
+                final emergencyId = row['id'].toString();
+                showDialog<void>(
+                  context: context,
+                  builder: (dialogContext) => _EmergencyDetailDialog(
+                    loadDetail: () async => _map(await supabase.rpc(
+                      'admin_emergency_detail_v1',
+                      params: {
+                        'p_emergency_id': emergencyId,
+                        'p_channel': _sectionChannel(6),
+                      },
+                    )),
+                    canResolve: canResolve,
+                    onResolve: () => _resolveEmergency(emergencyId),
+                  ),
+                );
+              },
               leading: const CircleAvatar(
                 backgroundColor: Color(0xFFFFE4E8),
                 child: Icon(Icons.sos_rounded, color: Color(0xFFD92D20)),
@@ -2555,6 +2576,285 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Detalle de una alerta SOS: pasajero, conductor, viaje o envío y ubicación.
+/// Solo muestra datos que devuelve admin_emergency_detail_v1; no guarda nada.
+class _EmergencyDetailDialog extends StatefulWidget {
+  final Future<Map<String, dynamic>> Function() loadDetail;
+  final bool canResolve;
+  final Future<bool> Function() onResolve;
+
+  const _EmergencyDetailDialog({
+    required this.loadDetail,
+    required this.canResolve,
+    required this.onResolve,
+  });
+
+  @override
+  State<_EmergencyDetailDialog> createState() => _EmergencyDetailDialogState();
+}
+
+class _EmergencyDetailDialogState extends State<_EmergencyDetailDialog> {
+  late Future<Map<String, dynamic>> _future;
+  bool _resolving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.loadDetail();
+  }
+
+  void _retry() {
+    setState(() => _future = widget.loadDetail());
+  }
+
+  Future<void> _resolve() async {
+    setState(() => _resolving = true);
+    final ok = await widget.onResolve();
+    if (!mounted) return;
+    if (ok) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _resolving = false);
+    }
+  }
+
+  Future<void> _copyPhone(String phone) async {
+    await Clipboard.setData(ClipboardData(text: phone));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Teléfono copiado.')),
+    );
+  }
+
+  Future<void> _openMap(double lat, double lng) async {
+    final uri = Uri.parse('https://www.google.com/maps?q=$lat,$lng');
+    var opened = false;
+    try {
+      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      opened = false;
+    }
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el mapa.')),
+      );
+    }
+  }
+
+  String _text(Object? value, String fallback) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? fallback : text;
+  }
+
+  double? _toDouble(Object? value) =>
+      value == null ? null : double.tryParse(value.toString());
+
+  String _tripStatus(String raw) =>
+      raw == 'emergency' ? 'En emergencia' : friendlyStatus(raw);
+
+  Widget _section(String title, IconData icon, List<Widget> rows) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: adminBlue),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: adminDark,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ...rows,
+        ],
+      ),
+    );
+  }
+
+  Widget _line(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(label, style: const TextStyle(color: adminMuted)),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+
+  Widget _phoneLine(String label, Object? raw) {
+    final phone = _text(raw, '');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(label, style: const TextStyle(color: adminMuted)),
+          ),
+          Expanded(child: Text(phone.isEmpty ? 'Sin teléfono' : phone)),
+          if (phone.isNotEmpty)
+            IconButton(
+              tooltip: 'Copiar teléfono',
+              icon: const Icon(Icons.copy_rounded, size: 18),
+              onPressed: () => _copyPhone(phone),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _errorBlock(Object? error) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'No se pudo cargar el detalle de la alerta.',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        Text(error == null ? 'La consulta no devolvió datos.' : friendlyError(error)),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: _retry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Reintentar'),
+        ),
+      ],
+    );
+  }
+
+  Widget _body(Map<String, dynamic> detail) {
+    final emergency = _map(detail['emergency']);
+    final passenger = _map(detail['passenger']);
+    final driver = _map(detail['driver']);
+    final trip = _map(detail['trip']);
+    final delivery = _map(detail['delivery']);
+    if (emergency.isEmpty) return _errorBlock(null);
+
+    final lat = _toDouble(emergency['latitude']);
+    final lng = _toDouble(emergency['longitude']);
+    final hasTrip = trip.isNotEmpty;
+    final hasDelivery = delivery.isNotEmpty;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _section('Alerta', Icons.sos_rounded, [
+          _line('Hora', _formatDate(emergency['created_at'])),
+          _line('Estado', friendlyStatus(_text(emergency['status'], 'Sin estado'))),
+          _line('Zona', _text(emergency['zone_name'], 'Sin zona')),
+        ]),
+        _section('Pasajero', Icons.person_outline_rounded, [
+          _line('Nombre', _text(passenger['name'], 'Usuario Express')),
+          _phoneLine('Teléfono', passenger['phone']),
+        ]),
+        _section('Conductor', Icons.drive_eta_outlined, driver.isEmpty
+            ? [_line('Asignado', 'Sin conductor asignado')]
+            : [
+                _line('Nombre', _text(driver['name'], 'Sin nombre')),
+                _phoneLine('Teléfono', driver['phone']),
+                _line('Vehículo', _text(driver['vehicle'], 'No registrado')),
+                _line('Placa', _text(driver['plate'], 'No registrada')),
+              ]),
+        if (hasTrip)
+          _section('Viaje', Icons.route_outlined, [
+            _line('Estado', _tripStatus(_text(trip['status'], 'Sin estado'))),
+            _line('Servicio', friendlyCategory(_text(trip['category'], '—'))),
+            _line('Origen', friendlyAddress(_text(trip['origin'], '—'))),
+            _line('Destino', friendlyAddress(_text(trip['destination'], '—'))),
+            _line(
+              'Tarifa final',
+              trip['final_fare'] == null
+                  ? 'Sin tarifa final'
+                  : adminMoney(trip['final_fare'], _text(trip['currency'], '')),
+            ),
+          ]),
+        if (hasDelivery)
+          _section('Envío', Icons.local_shipping_outlined, [
+            _line('Estado', friendlyStatus(_text(delivery['status'], 'Sin estado'))),
+            _line('Origen', friendlyAddress(_text(delivery['origin'], '—'))),
+            _line('Destino', friendlyAddress(_text(delivery['destination'], '—'))),
+            _line('Paquete', friendlyPackage(_text(delivery['package_type'], ''))),
+            _line(
+              'Tarifa',
+              delivery['fare'] == null
+                  ? 'Sin tarifa'
+                  : adminMoney(delivery['fare'], _text(delivery['currency'], '')),
+            ),
+          ]),
+        if (!hasTrip && !hasDelivery)
+          _section('Viaje o envío', Icons.info_outline_rounded, [
+            _line('Asociado', 'Sin viaje ni envío asociado'),
+          ]),
+        _section('Ubicación', Icons.place_outlined, [
+          if (lat != null && lng != null) ...[
+            _line('Coordenadas', '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}'),
+            const SizedBox(height: 6),
+            OutlinedButton.icon(
+              onPressed: () => _openMap(lat, lng),
+              icon: const Icon(Icons.map_outlined),
+              label: const Text('Abrir en mapa'),
+            ),
+          ] else
+            _line('Ubicación', 'Sin ubicación enviada'),
+        ]),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Detalle de alerta SOS'),
+      content: SizedBox(
+        width: 520,
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const SizedBox(
+                height: 160,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasError) return _errorBlock(snapshot.error);
+            final detail = snapshot.data ?? const <String, dynamic>{};
+            if (detail.isEmpty) return _errorBlock(null);
+            return SingleChildScrollView(child: _body(detail));
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cerrar'),
+        ),
+        if (widget.canResolve)
+          FilledButton.icon(
+            onPressed: _resolving ? null : _resolve,
+            icon: const Icon(Icons.check_circle_outline_rounded),
+            label: const Text('Resolver'),
+          ),
+      ],
     );
   }
 }
