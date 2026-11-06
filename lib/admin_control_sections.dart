@@ -22,6 +22,7 @@ import 'admin_fare_rounding.dart';
 import 'admin_zone_cancellation_fees.dart';
 import 'admin_driver_quick_offers.dart';
 import 'admin_zone_coverage_editor.dart';
+import 'admin_notification_schedules.dart';
 import 'core/admin_zone_coverage_label.dart';
 import 'core/admin_zone_passenger_services.dart';
 
@@ -7263,6 +7264,15 @@ class _AdminCommunicationsPageState
     );
   }
 
+  String? _campaignZoneName() {
+    for (final row in campaignZones) {
+      if (row['id']?.toString() == (campaignZoneId ?? widget.zoneId)) {
+        return row['name']?.toString();
+      }
+    }
+    return null;
+  }
+
   Widget _announcementsTab() {
     return ListView(
       padding: const EdgeInsets.all(22),
@@ -7481,6 +7491,15 @@ class _AdminCommunicationsPageState
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 22),
+        AdminNotificationSchedulesSection(
+          channel: widget.channel,
+          zoneId: campaignZoneId ?? widget.zoneId,
+          zoneName: _campaignZoneName(),
+          countryCode: widget.countryCode,
+          partners: widget.operatorOnly ? const [] : campaignPartners,
+          operatorOnly: widget.operatorOnly,
         ),
         const SizedBox(height: 22),
         const Text(
