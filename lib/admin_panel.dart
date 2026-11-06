@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -12,6 +13,8 @@ import 'core/admin_ui.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_runtime_scope.dart';
@@ -1204,21 +1207,38 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         .showSnackBar(SnackBar(content: Text(friendlyError(error))));
   }
 
-  Future<void> _resolveEmergency(String id) async {
+  Future<bool> _resolveEmergency(String id) async {
     try {
-      await supabase.rpc(
-        'admin_resolve_emergency_v2',
+      final result = _map(await supabase.rpc(
+        'admin_resolve_emergency_v3',
         params: {'p_emergency_id': id, 'p_channel': _sectionChannel(6)},
-      );
-      if (!mounted) return;
+      ));
+      if (!mounted) return false;
       _refresh();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Emergencia marcada como resuelta.')),
+        SnackBar(content: Text(_resolveMessage(result))),
       );
+      return true;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       _errorSnack(e);
+      return false;
     }
+  }
+
+  /// Texto del resultado de admin_resolve_emergency_v3: indica si el viaje
+  /// volvió a su servicio normal o sigue en emergencia por otra alerta.
+  String _resolveMessage(Map<String, dynamic> result) {
+    if (result['already_closed'] == true) {
+      return 'Esta alerta ya estaba resuelta.';
+    }
+    if (result['trip_resumed'] == true) {
+      return 'Alerta resuelta. El viaje se reanudó.';
+    }
+    if (result['trip_status'] == 'emergency') {
+      return 'Alerta resuelta. El viaje sigue en emergencia porque hay otra alerta abierta.';
+    }
+    return 'Alerta resuelta.';
   }
 
   @override
@@ -2507,54 +2527,664 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _security() {
-    return FutureBuilder<Map<String, dynamic>>(
-      key: ValueKey('security-' + revision.toString()),
-      future: _dashboardState(6),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading();
-        }
-        if (snapshot.hasError) {
-          return _ErrorView(error: snapshot.error, onRetry: _refresh);
-        }
+    final canResolve = !_readOnly && adminAccess['role'] != 'operator';
+    return _SecurityAlertsView(
+      revision: revision,
+      loadAlerts: () async => _list((await _dashboardState(6))['emergencies']),
+      onOpenAlert: (row) => _openEmergencyDetail(row['id'].toString()),
+      itemBuilder: (row) => Card(
+        margin: const EdgeInsets.only(bottom: 10),
+        elevation: 0,
+        child: ListTile(
+          onTap: () => _openEmergencyDetail(row['id'].toString()),
+          leading: const CircleAvatar(
+            backgroundColor: Color(0xFFFFE4E8),
+            child: Icon(Icons.sos_rounded, color: Color(0xFFD92D20)),
+          ),
+          title: Text(
+            row['user_name']?.toString().trim().isNotEmpty == true
+                ? row['user_name'].toString()
+                : 'Usuario Express',
+          ),
+          subtitle: Text(
+            '${(row['status'] ?? 'open').toString()} · ${_formatDate(row['created_at'])}',
+          ),
+          // Operadores pueden revisar SOS de su zona, pero resolver es exclusivo del admin central.
+          trailing: (_readOnly || adminAccess['role'] == 'operator')
+              ? null
+              : FilledButton.icon(
+                  onPressed: () => _resolveEmergency(row['id'].toString()),
+                  icon: const Icon(Icons.check_circle_outline_rounded),
+                  label: const Text('Resolver'),
+                ),
+        ),
+      ),
+    );
+  }
 
-        final rows = _list(snapshot.data?['emergencies']);
-        return _Records(
-          title: 'Seguridad / SOS',
-          subtitle: 'Emergencias activas registradas desde Viajes y Delivery.',
-          empty: 'No hay emergencias abiertas.',
-          rows: rows,
-          item: (row) => Card(
-            margin: const EdgeInsets.only(bottom: 10),
-            elevation: 0,
-            child: ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFFFE4E8),
-                child: Icon(Icons.sos_rounded, color: Color(0xFFD92D20)),
-              ),
-              title: Text(
-                row['user_name']?.toString().trim().isNotEmpty == true
-                    ? row['user_name'].toString()
-                    : 'Usuario Express',
-              ),
-              subtitle: Text(
-                (row['status'] ?? 'open').toString() +
-                    ' · ' +
-                    _formatDate(row['created_at']),
-              ),
-              // Operadores pueden revisar SOS de su zona, pero resolver es exclusivo del admin central.
-              trailing: (_readOnly || adminAccess['role'] == 'operator')
-                  ? null
-                  : FilledButton.icon(
-                      onPressed: () => _resolveEmergency(row['id'].toString()),
-                      icon: const Icon(Icons.check_circle_outline_rounded),
-                      label: const Text('Resolver'),
-                    ),
+  /// Abre el detalle de una alerta. Solo se resuelve desde el popup si el
+  /// usuario es admin central y el panel no está en solo lectura.
+  void _openEmergencyDetail(String emergencyId) {
+    final canResolve = !_readOnly && adminAccess['role'] != 'operator';
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => _EmergencyDetailDialog(
+        loadDetail: () async => _map(await supabase.rpc(
+          'admin_emergency_detail_v1',
+          params: {
+            'p_emergency_id': emergencyId,
+            'p_channel': _sectionChannel(6),
+          },
+        )),
+        canResolve: canResolve,
+        onResolve: () => _resolveEmergency(emergencyId),
+      ),
+    );
+  }
+}
+
+/// Sonido de alerta desbloqueado por un clic del usuario. Los navegadores solo
+/// permiten audio después de una interacción; el estado dura lo que la página.
+bool _alertSoundUnlocked = false;
+
+/// Lista de alertas SOS de la sección 6. Mientras la sección está abierta
+/// consulta la lista cada 10 s con polling (no usa realtime). Si aparece una
+/// alerta abierta que no estaba en la consulta anterior, suena el aviso y se
+/// muestra un banner rojo con «Ver alerta». La primera consulta solo fija la
+/// base: las alertas que ya estaban abiertas no suenan al abrir la sección.
+class _SecurityAlertsView extends StatefulWidget {
+  final int revision;
+  final Future<List<Map<String, dynamic>>> Function() loadAlerts;
+  final void Function(Map<String, dynamic> row) onOpenAlert;
+  final Widget Function(Map<String, dynamic> row) itemBuilder;
+
+  const _SecurityAlertsView({
+    required this.revision,
+    required this.loadAlerts,
+    required this.onOpenAlert,
+    required this.itemBuilder,
+  });
+
+  @override
+  State<_SecurityAlertsView> createState() => _SecurityAlertsViewState();
+}
+
+class _SecurityAlertsViewState extends State<_SecurityAlertsView> {
+  static const Duration _pollEvery = Duration(seconds: 10);
+  static const String _alertAsset = 'sounds/alerta_sos.wav';
+
+  final AudioPlayer _player = AudioPlayer();
+  Timer? _timer;
+  bool _polling = false;
+  bool _baselineReady = false;
+  final Set<String> _openIds = <String>{};
+  List<Map<String, dynamic>>? _rows;
+  Object? _error;
+  Map<String, dynamic>? _newAlert;
+  int _newCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_poll());
+    _timer = Timer.periodic(_pollEvery, (_) => unawaited(_poll()));
+  }
+
+  @override
+  void didUpdateWidget(covariant _SecurityAlertsView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.revision != widget.revision) unawaited(_poll());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _poll() async {
+    if (_polling || !mounted) return;
+    _polling = true;
+    try {
+      final rows = await widget.loadAlerts();
+      if (!mounted) return;
+      final fresh = rows
+          .where((row) => !_openIds.contains(row['id'].toString()))
+          .toList();
+      final announce = _baselineReady && fresh.isNotEmpty;
+      _openIds
+        ..clear()
+        ..addAll(rows.map((row) => row['id'].toString()));
+      setState(() {
+        _rows = rows;
+        _error = null;
+        _baselineReady = true;
+        if (announce) {
+          _newAlert = fresh.first;
+          _newCount = fresh.length;
+        }
+      });
+      if (announce) unawaited(_playAlert());
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error);
+    } finally {
+      _polling = false;
+    }
+  }
+
+  Future<void> _playAlert() async {
+    if (!_alertSoundUnlocked) return;
+    try {
+      await _player.stop();
+      await _player.play(AssetSource(_alertAsset));
+    } catch (_) {
+      // Si el navegador bloquea el audio, el banner visual sigue visible.
+    }
+  }
+
+  Future<void> _enableSound() async {
+    try {
+      await _player.play(AssetSource(_alertAsset), volume: 1);
+      _alertSoundUnlocked = true;
+    } catch (_) {
+      _alertSoundUnlocked = false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'El navegador bloqueó el sonido. Vuelve a pulsar «Activar sonido de alertas».',
             ),
           ),
         );
-      },
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _dismissBanner() {
+    setState(() {
+      _newAlert = null;
+      _newCount = 0;
+    });
+  }
+
+  Widget _soundPrompt() {
+    if (_alertSoundUnlocked) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: _enableSound,
+          icon: const Icon(Icons.volume_up_rounded),
+          label: const Text('Activar sonido de alertas'),
+        ),
+      ),
+    );
+  }
+
+  Widget _alertBanner() {
+    final alert = _newAlert;
+    if (alert == null) return const SizedBox.shrink();
+    final name = alert['user_name']?.toString().trim() ?? '';
+    final who = name.isEmpty ? 'Usuario Express' : name;
+    final text = _newCount > 1
+        ? 'Hay $_newCount alertas SOS nuevas. La más reciente es de $who.'
+        : 'Nueva alerta SOS de $who.';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFD92D20),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.sos_rounded, color: Colors.white),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              _dismissBanner();
+              widget.onOpenAlert(alert);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+            child: const Text('Ver alerta'),
+          ),
+          IconButton(
+            tooltip: 'Cerrar aviso',
+            onPressed: _dismissBanner,
+            icon: const Icon(Icons.close_rounded, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = _rows;
+    if (rows == null) {
+      if (_error != null) {
+        return _ErrorView(error: _error, onRetry: () => unawaited(_poll()));
+      }
+      return const _Loading();
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _soundPrompt(),
+        _alertBanner(),
+        if (_error != null)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'No se pudo actualizar la lista. Se reintentará en 10 segundos.',
+              style: TextStyle(
+                color: Color(0xFFB42318),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        Expanded(
+          child: _Records(
+            title: 'Seguridad / SOS',
+            subtitle:
+                'Emergencias activas registradas desde Viajes y Delivery. Se actualiza cada 10 segundos.',
+            empty: 'No hay emergencias abiertas.',
+            rows: rows,
+            item: widget.itemBuilder,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Detalle de una alerta SOS. En pantallas de 900 px o más, pasajero a la
+/// izquierda y conductor a la derecha; en pantallas pequeñas se apilan con el
+/// pasajero primero. Solo muestra datos de admin_emergency_detail_v1 y no guarda
+/// nada. «Resolver» llama admin_resolve_emergency_v3.
+class _EmergencyDetailDialog extends StatefulWidget {
+  final Future<Map<String, dynamic>> Function() loadDetail;
+  final bool canResolve;
+  final Future<bool> Function() onResolve;
+
+  const _EmergencyDetailDialog({
+    required this.loadDetail,
+    required this.canResolve,
+    required this.onResolve,
+  });
+
+  @override
+  State<_EmergencyDetailDialog> createState() => _EmergencyDetailDialogState();
+}
+
+class _EmergencyDetailDialogState extends State<_EmergencyDetailDialog> {
+  late Future<Map<String, dynamic>> _future;
+  bool _resolving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.loadDetail();
+  }
+
+  void _retry() {
+    setState(() => _future = widget.loadDetail());
+  }
+
+  Future<void> _resolve() async {
+    setState(() => _resolving = true);
+    final ok = await widget.onResolve();
+    if (!mounted) return;
+    if (ok) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _resolving = false);
+    }
+  }
+
+  Future<void> _copyPhone(String phone) async {
+    await Clipboard.setData(ClipboardData(text: phone));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Teléfono copiado.')),
+    );
+  }
+
+  Future<void> _openMap(double lat, double lng) async {
+    final uri = Uri.parse('https://www.google.com/maps?q=$lat,$lng');
+    var opened = false;
+    try {
+      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      opened = false;
+    }
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el mapa.')),
+      );
+    }
+  }
+
+  String _text(Object? value, String fallback) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? fallback : text;
+  }
+
+  double? _toDouble(Object? value) =>
+      value == null ? null : double.tryParse(value.toString());
+
+  String _tripStatus(String raw) =>
+      raw == 'emergency' ? 'En emergencia' : friendlyStatus(raw);
+
+  /// Tarjeta de una persona o de una sección del detalle.
+  Widget _panel(String title, IconData icon, List<Widget> rows) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: adminBlue),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: adminDark,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...rows,
+        ],
+      ),
+    );
+  }
+
+  Widget _section(String title, IconData icon, List<Widget> rows) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: _panel(title, icon, rows),
+    );
+  }
+
+  Widget _line(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 124,
+            child: Text(label, style: const TextStyle(color: adminMuted)),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+
+  Widget _phoneLine(String label, Object? raw) {
+    final phone = _text(raw, '');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 124,
+            child: Text(label, style: const TextStyle(color: adminMuted)),
+          ),
+          Expanded(child: Text(phone.isEmpty ? 'Sin teléfono' : phone)),
+          if (phone.isNotEmpty)
+            IconButton(
+              tooltip: 'Copiar teléfono',
+              icon: const Icon(Icons.copy_rounded, size: 18),
+              onPressed: () => _copyPhone(phone),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _errorBlock(Object? error) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'No se pudo cargar el detalle de la alerta.',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          error == null
+              ? 'La consulta no devolvió datos.'
+              : friendlyError(error),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: _retry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Reintentar'),
+        ),
+      ],
+    );
+  }
+
+  Widget _body(Map<String, dynamic> detail, bool wide) {
+    final emergency = _map(detail['emergency']);
+    final passenger = _map(detail['passenger']);
+    final driver = _map(detail['driver']);
+    final trip = _map(detail['trip']);
+    final delivery = _map(detail['delivery']);
+    if (emergency.isEmpty) return _errorBlock(null);
+
+    final lat = _toDouble(emergency['latitude']);
+    final lng = _toDouble(emergency['longitude']);
+    final hasTrip = trip.isNotEmpty;
+    final hasDelivery = delivery.isNotEmpty;
+    final passengerPhone = _text(passenger['phone'], '');
+    final driverPhone = _text(driver['phone'], '');
+    final samePhone =
+        passengerPhone.isNotEmpty && passengerPhone == driverPhone;
+
+    final passengerPanel = _panel('Pasajero', Icons.person_outline_rounded, [
+      _line('Nombre', _text(passenger['name'], 'Usuario Express')),
+      _phoneLine('Teléfono', passenger['phone']),
+      _line('Correo', _text(passenger['email'], 'Sin correo registrado')),
+      _line('Zona', _text(emergency['zone_name'], 'Sin zona')),
+      _line(
+        'Estado de cuenta',
+        friendlyStatus(_text(passenger['account_status'], 'Sin dato')),
+      ),
+    ]);
+
+    final driverPanel = driver.isEmpty
+        ? _panel('Conductor', Icons.drive_eta_outlined, [
+            _line('Asignado', 'Sin conductor asignado'),
+          ])
+        : _panel('Conductor', Icons.drive_eta_outlined, [
+            _line('Nombre', _text(driver['name'], 'Sin nombre')),
+            _phoneLine('Teléfono', driver['phone']),
+            _line('Correo', _text(driver['email'], 'Sin correo registrado')),
+            _line('Vehículo', _text(driver['vehicle'], 'No registrado')),
+            _line('Placa', _text(driver['plate'], 'No registrada')),
+            _line(
+              'Calificación',
+              driver['rating'] == null
+                  ? 'Sin calificación'
+                  : '${driver['rating']} / 5',
+            ),
+            _line(
+              'Estado de cuenta',
+              friendlyStatus(_text(driver['account_status'], 'Sin dato')),
+            ),
+            _line(
+              'Conexión',
+              friendlyStatus(_text(driver['online_status'], 'Sin dato')),
+            ),
+          ]);
+
+    final people = wide
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: passengerPanel),
+              const SizedBox(width: 14),
+              Expanded(child: driverPanel),
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              passengerPanel,
+              const SizedBox(height: 12),
+              driverPanel,
+            ],
+          );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (samePhone)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: Text(
+              'Mismo teléfono en ambas cuentas: revisa la cuenta de prueba.',
+              style: TextStyle(
+                color: Color(0xFFB54708),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        people,
+        const SizedBox(height: 14),
+        if (hasTrip)
+          _section('Viaje', Icons.route_outlined, [
+            _line('Estado', _tripStatus(_text(trip['status'], 'Sin estado'))),
+            _line('Servicio', friendlyCategory(_text(trip['category'], '—'))),
+            _line('Origen', friendlyAddress(_text(trip['origin'], '—'))),
+            _line('Destino', friendlyAddress(_text(trip['destination'], '—'))),
+            _line(
+              'Tarifa final',
+              trip['final_fare'] == null
+                  ? 'Sin tarifa final'
+                  : adminMoney(trip['final_fare'], _text(trip['currency'], '')),
+            ),
+          ])
+        else if (hasDelivery)
+          _section('Envío', Icons.local_shipping_outlined, [
+            _line(
+              'Estado',
+              friendlyStatus(_text(delivery['status'], 'Sin estado')),
+            ),
+            _line('Origen', friendlyAddress(_text(delivery['origin'], '—'))),
+            _line('Destino', friendlyAddress(_text(delivery['destination'], '—'))),
+            _line(
+              'Paquete',
+              friendlyPackage(_text(delivery['package_type'], '')),
+            ),
+            _line(
+              'Tarifa',
+              delivery['fare'] == null
+                  ? 'Sin tarifa'
+                  : adminMoney(
+                      delivery['fare'],
+                      _text(delivery['currency'], ''),
+                    ),
+            ),
+          ])
+        else
+          _section('Viaje o envío', Icons.info_outline_rounded, [
+            _line('Asociado', 'Sin viaje asociado'),
+          ]),
+        _section('Alerta', Icons.sos_rounded, [
+          _line('Hora', _formatDate(emergency['created_at'])),
+          _line(
+            'Estado',
+            friendlyStatus(_text(emergency['status'], 'Sin estado')),
+          ),
+        ]),
+        _section('Ubicación', Icons.place_outlined, [
+          if (lat != null && lng != null) ...[
+            _line(
+              'Coordenadas',
+              '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}',
+            ),
+            const SizedBox(height: 6),
+            OutlinedButton.icon(
+              onPressed: () => _openMap(lat, lng),
+              icon: const Icon(Icons.map_outlined),
+              label: const Text('Abrir en mapa'),
+            ),
+          ] else
+            _line('Ubicación', 'Sin ubicación enviada'),
+        ]),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final wide = screenWidth >= 900;
+    final contentWidth = wide
+        ? 940.0
+        : (screenWidth - 96).clamp(260.0, 520.0).toDouble();
+    return AlertDialog(
+      title: const Text('Detalle de alerta SOS'),
+      content: SizedBox(
+        width: contentWidth,
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const SizedBox(
+                height: 160,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasError) return _errorBlock(snapshot.error);
+            final detail = snapshot.data ?? const <String, dynamic>{};
+            if (detail.isEmpty) return _errorBlock(null);
+            return SingleChildScrollView(child: _body(detail, wide));
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cerrar'),
+        ),
+        if (widget.canResolve)
+          FilledButton.icon(
+            onPressed: _resolving ? null : _resolve,
+            icon: const Icon(Icons.check_circle_outline_rounded),
+            label: const Text('Resolver'),
+          ),
+      ],
     );
   }
 }
