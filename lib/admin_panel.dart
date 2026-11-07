@@ -4979,18 +4979,10 @@ class _LiveDriverList extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: _driverStatusColor(status).withOpacity(.12),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Icon(
-                  Icons.drive_eta_rounded,
-                  size: 16,
-                  color: _driverStatusColor(status),
-                ),
+              _DriverAvatar(
+                photoUrl: row['map_photo_url']?.toString(),
+                color: _driverStatusColor(status),
+                size: 30,
               ),
               const SizedBox(width: 9),
               Expanded(
@@ -5849,18 +5841,10 @@ class _DriverMapCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: _driverStatusColor(status).withOpacity(.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.drive_eta_rounded,
-                  size: 18,
-                  color: _driverStatusColor(status),
-                ),
+              _DriverAvatar(
+                photoUrl: driver['map_photo_url']?.toString(),
+                color: _driverStatusColor(status),
+                size: 44,
               ),
               const SizedBox(width: 9),
               Expanded(
@@ -6119,6 +6103,49 @@ class _MapStatusLegend extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// Avatar de conductor para listas y fichas: foto de perfil con fondo del color de su
+// estado. Sin foto (o si la imagen falla) muestra un icono de persona, nunca un auto.
+class _DriverAvatar extends StatelessWidget {
+  final String? photoUrl;
+  final Color color;
+  final double size;
+
+  const _DriverAvatar({
+    required this.photoUrl,
+    required this.color,
+    required this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final url = photoUrl?.trim() ?? '';
+    final radius = BorderRadius.circular(size * .3);
+    Widget placeholder() => Container(
+          alignment: Alignment.center,
+          color: color.withOpacity(.12),
+          child: Icon(Icons.person_rounded, size: size * .5, color: color),
+        );
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: ClipRRect(
+        borderRadius: radius,
+        child: url.isEmpty
+            ? placeholder()
+            : Image.network(
+                url,
+                fit: BoxFit.cover,
+                width: size,
+                height: size,
+                gaplessPlayback: true,
+                errorBuilder: (_, __, ___) => placeholder(),
+              ),
       ),
     );
   }
