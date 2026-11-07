@@ -1464,7 +1464,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           includeProduction: allowProduction,
         );
       case 11:
-        return AdminSettingsPage(channel: 'production');
+        return AdminSettingsPage(
+          channel: 'production',
+          canEditSocialLinks:
+              adminAccess['role'] == 'super_admin' && !_readOnly,
+        );
       case 12:
         return AdminSingleAppReleasePage(
           productionAccess: allowProduction,

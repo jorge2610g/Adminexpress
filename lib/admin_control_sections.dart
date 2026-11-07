@@ -7697,12 +7697,15 @@ class AdminSettingsPage extends StatefulWidget {
   final String channel;
   final String? countryCode;
   final String? zoneId;
+  /// Solo super admin activo y no de solo lectura puede editar las redes sociales.
+  final bool canEditSocialLinks;
 
   const AdminSettingsPage({
     super.key,
     this.channel = 'production',
     this.countryCode,
     this.zoneId,
+    this.canEditSocialLinks = false,
   });
 
   @override
@@ -7978,6 +7981,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       'Soporte',
       'Seguridad',
       'Admin',
+      'Redes sociales',
     ];
 
     Widget content;
@@ -8160,6 +8164,11 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       case 7:
         content = AdminAdMobSettingsPage(channel: widget.channel);
         break;
+      case 8:
+        content = AdminSocialLinksSettingsCard(
+          canEdit: widget.canEditSocialLinks,
+        );
+        break;
       default:
         content = Column(
           children: [
@@ -8209,7 +8218,9 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           title: 'Configuración',
           subtitle: 'Administra los parámetros generales de Express Delivery.',
           action: FilledButton.icon(
-            onPressed: loading || saving || settingsTab == 7 ? null : _save,
+            onPressed: loading || saving || settingsTab == 7 || settingsTab == 8
+                ? null
+                : _save,
             icon: saving
                 ? const SizedBox.square(
                     dimension: 16,
@@ -9645,4 +9656,212 @@ String _formatDate(Object? raw) {
       hour +
       ':' +
       minute;
+}
+
+/// Redes sociales del menú de la app (pasajero y conductor).
+///
+/// Es configuración compartida, no de entorno: no usa AdminEnvironmentStore.
+/// Solo el super admin edita (RPC admin_app_social_links_save_v1). Los demás
+/// ven los enlaces guardados en solo lectura, leídos de la RPC pública.
+/// Un campo vacío oculta su botón en la app.
+class AdminSocialLinksSettingsCard extends StatefulWidget {
+  final bool canEdit;
+
+  const AdminSocialLinksSettingsCard({super.key, required this.canEdit});
+
+  @override
+  State<AdminSocialLinksSettingsCard> createState() =>
+      _AdminSocialLinksSettingsCardState();
+}
+
+class _AdminSocialLinksSettingsCardState
+    extends State<AdminSocialLinksSettingsCard> {
+  static const Map<String, String> _audiences = {
+    'passenger': 'Pasajero',
+    'driver': 'Conductor',
+  };
+  static const Map<String, String> _networks = {
+    'tiktok': 'TikTok',
+    'facebook': 'Facebook',
+    'instagram': 'Instagram',
+  };
+
+  final Map<String, TextEditingController> _controllers = {};
+  final Set<String> _saving = <String>{};
+  bool _loading = true;
+  String? _loadError;
+
+  static String _key(String audience, String network) =>
+      '$audience:$network';
+
+  @override
+  void initState() {
+    super.initState();
+    for (final audience in _audiences.keys) {
+      for (final network in _networks.keys) {
+        _controllers[_key(audience, network)] = TextEditingController();
+      }
+    }
+    _load();
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final values = <String, String>{};
+      if (widget.canEdit) {
+        final rows =
+            _list(await supabase.rpc('admin_app_social_links_list_v1'));
+        for (final row in rows) {
+          values[_key(row['audience'].toString(), row['network'].toString())] =
+              (row['url'] ?? '').toString();
+        }
+      } else {
+        final raw = _map(await supabase.rpc('app_social_links_public_v1'));
+        for (final audience in _audiences.keys) {
+          final block = raw[audience];
+          if (block is! Map) continue;
+          for (final network in _networks.keys) {
+            final url = block[network];
+            if (url is String) values[_key(audience, network)] = url;
+          }
+        }
+      }
+      if (!mounted) return;
+      for (final entry in _controllers.entries) {
+        entry.value.text = values[entry.key] ?? '';
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loadError = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String? _validate(String url) {
+    if (url.isEmpty) return null;
+    if (!url.startsWith('https://')) {
+      return 'El enlace debe empezar con https://';
+    }
+    if (url.length > 300) {
+      return 'El enlace no puede superar 300 caracteres';
+    }
+    return null;
+  }
+
+  Future<void> _saveField(String audience, String network) async {
+    final key = _key(audience, network);
+    final url = _controllers[key]!.text.trim();
+    final problem = _validate(url);
+    if (problem != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(problem)));
+      return;
+    }
+    setState(() => _saving.add(key));
+    try {
+      final row = _map(await supabase.rpc(
+        'admin_app_social_links_save_v1',
+        params: {
+          'p_audience': audience,
+          'p_network': network,
+          'p_url': url,
+        },
+      ));
+      if (!mounted) return;
+      _controllers[key]!.text = (row['url'] ?? url).toString();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            url.isEmpty
+                ? 'Enlace quitado: su botón no se mostrará en la app.'
+                : 'Enlace guardado.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    } finally {
+      if (mounted) setState(() => _saving.remove(key));
+    }
+  }
+
+  Widget _linkField(String audience, String network) {
+    final key = _key(audience, network);
+    final saving = _saving.contains(key);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _controllers[key],
+              enabled: widget.canEdit,
+              decoration: InputDecoration(
+                labelText: _networks[network],
+                hintText: 'https://',
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: !widget.canEdit || saving
+                ? null
+                : () => _saveField(audience, network),
+            child: saving
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const _Loading(title: 'Cargando redes sociales');
+
+    return _SettingsCard(
+      title: 'Redes sociales',
+      subtitle: widget.canEdit
+          ? 'Enlaces de los botones de TikTok, Facebook e Instagram del menú de la app. Si un campo queda vacío, su botón no se muestra. Es configuración compartida por Prueba y Producción.'
+          : 'Solo el super admin puede editar estos enlaces. Aquí se ven los enlaces guardados.',
+      children: [
+        if (_loadError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              'No se pudieron cargar los enlaces: $_loadError',
+              style: TextStyle(color: Colors.red.shade700),
+            ),
+          ),
+        for (final audience in _audiences.entries) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 6, bottom: 8),
+            child: Text(
+              audience.value,
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+          for (final network in _networks.keys)
+            _linkField(audience.key, network),
+        ],
+      ],
+    );
+  }
 }
