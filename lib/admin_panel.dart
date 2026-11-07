@@ -527,7 +527,56 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     }
     final state = await _dashboardState(1);
     final zones = await _filterZones();
+    await _attachDriverMapPhotos(state);
     return (state: state, zones: zones);
+  }
+
+  // Fotos de perfil para el mapa de operaciones. El RPC solo devuelve rutas de
+  // conductores que esta cuenta ya puede ver. Cada URL firmada dura 15 minutos y
+  // se renueva en cada recarga. Si algo falla, el mapa usa un icono de respaldo.
+  Future<void> _attachDriverMapPhotos(Map<String, dynamic> state) async {
+    final drivers = _list(state['drivers']);
+    if (drivers.isEmpty) return;
+    try {
+      final value = await supabase.rpc(
+        'admin_driver_map_photos_v1',
+        params: {
+          'p_channel': _sectionChannel(1),
+          'p_zone_id': adminZoneId,
+        },
+      );
+      final urls = <String, String>{};
+      if (value is List) {
+        final entries = value.whereType<Map>().toList();
+        final signed = await Future.wait<MapEntry<String, String>?>(
+          entries.map((row) async {
+            final id = row['user_id']?.toString() ?? '';
+            final path = row['photo_path']?.toString().trim() ?? '';
+            if (id.isEmpty || path.isEmpty) return null;
+            try {
+              final url = await supabase.storage
+                  .from('driver-onboarding')
+                  .createSignedUrl(path, 900);
+              return MapEntry(id, url);
+            } catch (_) {
+              return null;
+            }
+          }),
+        );
+        for (final entry in signed) {
+          if (entry != null) urls[entry.key] = entry.value;
+        }
+      }
+      state['drivers'] = [
+        for (final driver in drivers)
+          {
+            ...driver,
+            'map_photo_url': urls[(driver['user_id'] ?? '').toString()],
+          },
+      ];
+    } catch (_) {
+      // Sin fotos: los conductores siguen visibles con el icono de respaldo.
+    }
   }
 
   String _zoneCountryCode(Map<String, dynamic> row) {
@@ -5201,8 +5250,8 @@ class _OperationsMapState extends State<_OperationsMap> {
                 _selectedDriverId = _selectedDriverId == id ? null : id;
               });
             },
-            child: _MapDot(
-              icon: Icons.drive_eta_rounded,
+            child: _DriverPhotoDot(
+              photoUrl: row['map_photo_url']?.toString(),
               color: _driverStatusColor(status),
             ),
           ),
@@ -5316,6 +5365,7 @@ class _OperationsMapState extends State<_OperationsMap> {
                   },
                   child: _TripPartyMarker(
                     driverColor: _driverStatusColor(driverStatus),
+                    driverPhotoUrl: focusedDriver['map_photo_url']?.toString(),
                   ),
                 ),
               ),
@@ -5662,8 +5712,9 @@ class _PassengerMapMarker extends StatelessWidget {
 
 class _TripPartyMarker extends StatelessWidget {
   final Color driverColor;
+  final String? driverPhotoUrl;
 
-  const _TripPartyMarker({required this.driverColor});
+  const _TripPartyMarker({required this.driverColor, this.driverPhotoUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -5677,7 +5728,10 @@ class _TripPartyMarker extends StatelessWidget {
             child: SizedBox(
               width: 42,
               height: 42,
-              child: _MapDot(icon: Icons.drive_eta_rounded, color: driverColor),
+              child: _DriverPhotoDot(
+                photoUrl: driverPhotoUrl,
+                color: driverColor,
+              ),
             ),
           ),
           const Align(
@@ -6065,6 +6119,47 @@ class _MapStatusLegend extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// Conductor en el mapa: muestra su foto de perfil dentro de un anillo del color de
+// su estado. Sin foto (o si la imagen falla) usa un icono de persona, nunca un auto.
+class _DriverPhotoDot extends StatelessWidget {
+  final String? photoUrl;
+  final Color color;
+
+  const _DriverPhotoDot({required this.photoUrl, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = photoUrl?.trim() ?? '';
+    final fallback = _MapDot(icon: Icons.person_rounded, color: color);
+    if (url.isEmpty) return fallback;
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => fallback,
+        ),
       ),
     );
   }
