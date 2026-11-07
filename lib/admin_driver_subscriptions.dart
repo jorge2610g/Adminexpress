@@ -45,6 +45,11 @@ class _AdminDriverSubscriptionsPageState
   DateTimeRange? paymentCustomRange;
   Map<String, dynamic> settings = const {};
   Map<String, dynamic> provider = const {};
+  // Grupo que se administra: 'general' o el id del sindicato.
+  String selectedGroup = 'general';
+  Map<String, dynamic> zoneSettings = const {};
+  Map<String, dynamic> generalGroup = const {};
+  List<Map<String, dynamic>> partnerGroups = const [];
   final search = TextEditingController();
   Timer? clock;
 
@@ -70,6 +75,29 @@ class _AdminDriverSubscriptionsPageState
         .whereType<Map>()
         .map((row) => Map<String, dynamic>.from(row))
         .toList();
+  }
+
+  Map<String, dynamic>? _selectedPartner() {
+    if (selectedGroup == 'general') return null;
+    for (final partner in partnerGroups) {
+      if (partner['partner_id']?.toString() == selectedGroup) return partner;
+    }
+    return null;
+  }
+
+  // Ajusta planes e interruptores visibles al grupo seleccionado.
+  void _applyGroupView() {
+    final partner = _selectedPartner();
+    if (partner == null && selectedGroup != 'general') {
+      selectedGroup = 'general';
+    }
+    final group = partner ?? generalGroup;
+    plans = _maps(group['plans']);
+    settings = {
+      ...zoneSettings,
+      'enabled': group['enabled'] ?? false,
+      'enforce_access': group['enforce_access'] ?? false,
+    };
   }
 
   Future<void> _load() async {
@@ -107,13 +135,19 @@ class _AdminDriverSubscriptionsPageState
 
     if (zoneKey != null && zoneKey.isNotEmpty) {
       try {
-        final planRows = await supabase
-            .from('driver_subscription_plans')
-            .select('*')
-            .eq('zone_key', zoneKey)
-            .order('sort_order');
-        if (mounted) {
-          setState(() => plans = _maps(planRows));
+        final groupsRaw = await supabase.rpc(
+          'admin_subscription_groups_v1',
+          params: {'p_zone_key': zoneKey},
+        );
+        if (mounted && groupsRaw is Map) {
+          final data = Map<String, dynamic>.from(groupsRaw);
+          setState(() {
+            generalGroup = Map<String, dynamic>.from(
+              data['general'] as Map? ?? const {},
+            );
+            partnerGroups = _maps(data['partners']);
+            _applyGroupView();
+          });
         }
       } catch (e) {
         loadError ??= 'Planes: ' + friendlyError(e);
@@ -126,7 +160,8 @@ class _AdminDriverSubscriptionsPageState
         );
         if (mounted && settingsRow is Map) {
           setState(() {
-            settings = Map<String, dynamic>.from(settingsRow);
+            zoneSettings = Map<String, dynamic>.from(settingsRow);
+            _applyGroupView();
           });
         }
       } catch (e) {
@@ -416,21 +451,39 @@ class _AdminDriverSubscriptionsPageState
       return;
     }
 
+    final partner = _selectedPartner();
     try {
-      await supabase.rpc(
-        'admin_upsert_driver_subscription_plan',
-        params: {
-          'p_id': plan?['id'],
-          'p_zone_key': zoneKey,
-          'p_code': code.text.trim(),
-          'p_name': name.text.trim(),
-          'p_amount': parsedAmount,
-          'p_days': parsedDays,
-          'p_benefits': benefitList,
-          'p_active': active,
-          'p_sort_order': plan?['sort_order'] ?? (plans.length + 1) * 10,
-        },
-      );
+      if (partner == null) {
+        await supabase.rpc(
+          'admin_upsert_driver_subscription_plan',
+          params: {
+            'p_id': plan?['id'],
+            'p_zone_key': zoneKey,
+            'p_code': code.text.trim(),
+            'p_name': name.text.trim(),
+            'p_amount': parsedAmount,
+            'p_days': parsedDays,
+            'p_benefits': benefitList,
+            'p_active': active,
+            'p_sort_order': plan?['sort_order'] ?? (plans.length + 1) * 10,
+          },
+        );
+      } else {
+        await supabase.rpc(
+          'admin_subscription_partner_plan_upsert_v1',
+          params: {
+            'p_id': plan?['id'],
+            'p_partner_id': partner['partner_id'],
+            'p_code': code.text.trim(),
+            'p_name': name.text.trim(),
+            'p_amount': parsedAmount,
+            'p_days': parsedDays,
+            'p_active': active,
+            'p_sort_order': plan?['sort_order'] ?? (plans.length + 1) * 10,
+            'p_benefits': benefitList,
+          },
+        );
+      }
       _snack(plan == null ? 'Plan creado.' : 'Plan actualizado.');
       await _load();
     } catch (e) {
@@ -441,6 +494,48 @@ class _AdminDriverSubscriptionsPageState
       amount.dispose();
       days.dispose();
       benefits.dispose();
+    }
+  }
+
+  Future<void> _deletePartnerPlan(Map<String, dynamic> plan) async {
+    final partner = _selectedPartner();
+    if (partner == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Borrar plan'),
+        content: Text(
+          'Se borrará «' +
+              (plan['name']?.toString() ?? 'plan') +
+              '» de ' +
+              (partner['name']?.toString() ?? 'este sindicato') +
+              '. Si ya tiene pagos, no se borra: desactívalo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Borrar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await supabase.rpc(
+        'admin_subscription_partner_plan_delete_v1',
+        params: {
+          'p_id': plan['id'],
+          'p_partner_id': partner['partner_id'],
+        },
+      );
+      _snack('Plan borrado.');
+      await _load();
+    } catch (e) {
+      _snack('No se pudo borrar: ' + friendlyError(e));
     }
   }
 
@@ -456,6 +551,7 @@ class _AdminDriverSubscriptionsPageState
       return;
     }
 
+    final partner = _selectedPartner();
     Map<String, dynamic>? selectedZone;
     for (final zone in zones) {
       if (zone['zone_key']?.toString() == zoneKey) {
@@ -463,18 +559,22 @@ class _AdminDriverSubscriptionsPageState
         break;
       }
     }
-    final isBolivia =
+    // El proveedor de pagos es global de la zona: solo se revisa en General.
+    final isBolivia = partner == null &&
         (selectedZone?['country']?.toString() ?? '').toLowerCase() == 'bolivia';
 
     if (enforce && settings['enforce_access'] != true) {
       final zoneName = settings['zone_name']?.toString() ?? zoneKey;
+      final groupLabel = partner == null
+          ? 'la zona $zoneName'
+          : (partner['name']?.toString() ?? 'este sindicato');
       final ok = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text('Exigir suscripción · $zoneName'),
+          title: Text('Exigir suscripción · ' + groupLabel),
           content: Text(
-            'Solo los conductores de $zoneName sin una suscripción vigente '
-            'serán puestos offline. Las demás zonas no se modificarán.',
+            'Solo los conductores de ' + groupLabel + ' sin una suscripción vigente '
+            'serán puestos offline. Los demás grupos no se modificarán.',
           ),
           actions: [
             TextButton(
@@ -506,24 +606,36 @@ class _AdminDriverSubscriptionsPageState
 
     setState(() => savingSettings = true);
     try {
-      await supabase.rpc(
-        'admin_set_driver_subscription_zone_settings',
-        params: {
-          'p_zone_key': zoneKey,
-          'p_enabled': enabled,
-          'p_enforce_access': enforce,
-        },
-      );
-      if (isBolivia) {
+      if (partner == null) {
         await supabase.rpc(
-          'admin_set_driver_subscription_provider_settings',
+          'admin_set_driver_subscription_zone_settings',
           params: {
-            'p_provider_enabled': providerEnabled,
-            'p_qr_validity': qrValidity,
+            'p_zone_key': zoneKey,
+            'p_enabled': enabled,
+            'p_enforce_access': enforce,
           },
         );
+        if (isBolivia) {
+          await supabase.rpc(
+            'admin_set_driver_subscription_provider_settings',
+            params: {
+              'p_provider_enabled': providerEnabled,
+              'p_qr_validity': qrValidity,
+            },
+          );
+        }
+        _snack('Configuración de la zona guardada.');
+      } else {
+        await supabase.rpc(
+          'admin_subscription_partner_settings_set_v1',
+          params: {
+            'p_partner_id': partner['partner_id'],
+            'p_enabled': enabled,
+            'p_enforce_access': enforce,
+          },
+        );
+        _snack('Configuración de ' + (partner['name']?.toString() ?? 'sindicato') + ' guardada.');
       }
-      _snack('Configuración de la zona guardada.');
       await _load();
     } catch (e) {
       _snack('No se pudo guardar: ' + friendlyError(e));
@@ -891,6 +1003,7 @@ class _AdminDriverSubscriptionsPageState
                                 }
                                 setState(() {
                                   selectedZoneKey = value;
+                                  selectedGroup = 'general';
                                   plans = const [];
                                   drivers = const [];
                                   payments = const [];
@@ -905,6 +1018,60 @@ class _AdminDriverSubscriptionsPageState
                 ),
               ),
             ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  const Icon(Icons.groups_rounded),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Grupo',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: AdminDropdownField<String>(
+                      initialValue: selectedGroup,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        labelText: 'Tarifas y cobro de',
+                      ),
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: 'general',
+                          child: Text('General · conductores sin sindicato'),
+                        ),
+                        for (final partner in partnerGroups)
+                          DropdownMenuItem<String>(
+                            value: partner['partner_id']?.toString(),
+                            child: Text(
+                              (partner['name'] ?? 'Sindicato').toString() +
+                                  (partner['status'] == 'active'
+                                      ? ''
+                                      : ' · ' +
+                                          (partner['status'] ?? '').toString()),
+                            ),
+                          ),
+                      ],
+                      onChanged: savingSettings
+                          ? null
+                          : (value) {
+                              if (value == null || value == selectedGroup) {
+                                return;
+                              }
+                              setState(() {
+                                selectedGroup = value;
+                                _applyGroupView();
+                              });
+                            },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 12),
           _AdminSubNotice(
             text: subscriptionMethods.isEmpty
@@ -949,11 +1116,12 @@ class _AdminDriverSubscriptionsPageState
             providerEnabled: providerEnabled,
             providerConfigured: providerConfigured,
             qrValidity: qrValidity,
-            showQrProvider: hasVeriPagosSubscription,
+            showQrProvider:
+                hasVeriPagosSubscription && selectedGroup == 'general',
             saving: savingSettings,
             onSave: _saveSettings,
           ),
-          if (hasVeriPagosSubscription) ...[
+          if (hasVeriPagosSubscription && selectedGroup == 'general') ...[
             const SizedBox(height: 14),
             _ProviderCard(
               configured: providerConfigured,
@@ -965,7 +1133,7 @@ class _AdminDriverSubscriptionsPageState
               onVerify: _verifyProvider,
             ),
           ],
-          if (hasMercadoPagoSubscription) ...[
+          if (hasMercadoPagoSubscription && selectedGroup == 'general') ...[
             const SizedBox(height: 14),
             const Card(
               child: Padding(
@@ -1001,7 +1169,8 @@ class _AdminDriverSubscriptionsPageState
             children: [
               Expanded(
                 child: Text(
-                  'Planes · $zoneName',
+                  'Planes · ' +
+                      (_selectedPartner()?['name']?.toString() ?? zoneName),
                   style: const TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.w900,
@@ -1059,6 +1228,9 @@ class _AdminDriverSubscriptionsPageState
                       ),
                       benefits: _benefits(plan),
                       onEdit: () => _editPlan(plan),
+                      onDelete: _selectedPartner() == null
+                          ? null
+                          : () => _deletePartnerPlan(plan),
                     ),
                   ),
               ],
@@ -1499,12 +1671,14 @@ class _AdminPlanCard extends StatelessWidget {
   final String price;
   final List<String> benefits;
   final VoidCallback onEdit;
+  final VoidCallback? onDelete;
 
   const _AdminPlanCard({
     required this.plan,
     required this.price,
     required this.benefits,
     required this.onEdit,
+    this.onDelete,
   });
 
   @override
@@ -1559,10 +1733,22 @@ class _AdminPlanCard extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: onEdit,
-              icon: const Icon(Icons.edit_rounded, size: 17),
-              label: const Text('Editar plan'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_rounded, size: 17),
+                  label: const Text('Editar plan'),
+                ),
+                if (onDelete != null)
+                  OutlinedButton.icon(
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline_rounded, size: 17),
+                    label: const Text('Borrar'),
+                  ),
+              ],
             ),
           ],
         ),
