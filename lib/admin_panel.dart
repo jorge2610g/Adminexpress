@@ -6394,15 +6394,22 @@ String _driverLiveStatus(
       online == 'online' || online == 'available' || online == 'connected';
   if (!connected) return 'offline';
 
-  // Un conductor parado no envía GPS para ahorrar batería, así que su última
-  // posición puede tener minutos. Eso no significa «sin señal»: sigue disponible
-  // y la ficha muestra cuándo fue su última ubicación. «Sin señal» solo aplica si
-  // no hay coordenadas o si la app reporta una señal perdida de forma explícita.
   final latitude = _toDouble(driver['latitude']);
   final longitude = _toDouble(driver['longitude']);
+  final locationUpdatedAt = DateTime.tryParse(
+    driver['location_updated_at']?.toString() ?? '',
+  );
+  // La app manda un latido de ubicación cada pocos segundos mientras el conductor
+  // está en línea, aunque esté parado. Si no llega ninguno en 2 minutos (app
+  // cerrada, GPS apagado o sin conexión), es «Sin señal» y se conserva la última
+  // posición conocida.
+  final locationStale = locationUpdatedAt == null ||
+      DateTime.now().toUtc().difference(locationUpdatedAt.toUtc()) >
+          const Duration(minutes: 2);
 
   final noSignal = latitude == null ||
       longitude == null ||
+      locationStale ||
       signal.contains('no_signal') ||
       signal.contains('no signal') ||
       signal.contains('lost') ||
