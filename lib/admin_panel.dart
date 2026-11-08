@@ -15,6 +15,8 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show ResizeMode, TransformOptions;
 
 import 'core/supabase_client.dart';
 import 'admin_runtime_scope.dart';
