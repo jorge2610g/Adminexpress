@@ -531,9 +531,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     return (state: state, zones: zones);
   }
 
+  // URLs firmadas de fotos de conductores, reutilizadas entre recargas para que el
+  // navegador no vuelva a bajar la misma foto cada vez que se abre el mapa.
+  final Map<String, _DriverMapPhotoUrls> _driverMapPhotoCache = {};
+
   // Fotos de perfil para el mapa de operaciones. El RPC solo devuelve rutas de
-  // conductores que esta cuenta ya puede ver. Cada URL firmada dura 15 minutos y
-  // se renueva en cada recarga. Si algo falla, el mapa usa un icono de respaldo.
+  // conductores que esta cuenta ya puede ver. Se pide primero una miniatura de
+  // 160 px y el original queda como respaldo si la miniatura no carga.
   Future<void> _attachDriverMapPhotos(Map<String, dynamic> state) async {
     final drivers = _list(state['drivers']);
     if (drivers.isEmpty) return;
@@ -545,37 +549,65 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           'p_zone_id': adminZoneId,
         },
       );
-      final urls = <String, String>{};
+      final photos = <String, _DriverMapPhotoUrls>{};
       if (value is List) {
         final entries = value.whereType<Map>().toList();
-        final signed = await Future.wait<MapEntry<String, String>?>(
+        final signed = await Future.wait<MapEntry<String, _DriverMapPhotoUrls>?>(
           entries.map((row) async {
             final id = row['user_id']?.toString() ?? '';
             final path = row['photo_path']?.toString().trim() ?? '';
             if (id.isEmpty || path.isEmpty) return null;
-            try {
-              final url = await supabase.storage
-                  .from('driver-onboarding')
-                  .createSignedUrl(path, 900);
-              return MapEntry(id, url);
-            } catch (_) {
-              return null;
-            }
+            final urls = await _signedDriverPhotoUrls(path);
+            return urls == null ? null : MapEntry(id, urls);
           }),
         );
         for (final entry in signed) {
-          if (entry != null) urls[entry.key] = entry.value;
+          if (entry != null) photos[entry.key] = entry.value;
         }
       }
       state['drivers'] = [
         for (final driver in drivers)
           {
             ...driver,
-            'map_photo_url': urls[(driver['user_id'] ?? '').toString()],
+            'map_photo_url':
+                photos[(driver['user_id'] ?? '').toString()]?.thumb,
+            'map_photo_original_url':
+                photos[(driver['user_id'] ?? '').toString()]?.original,
           },
       ];
     } catch (_) {
       // Sin fotos: los conductores siguen visibles con el icono de respaldo.
+    }
+  }
+
+  Future<_DriverMapPhotoUrls?> _signedDriverPhotoUrls(String path) async {
+    final now = DateTime.now();
+    final cached = _driverMapPhotoCache[path];
+    if (cached != null &&
+        cached.expiresAt.isAfter(now.add(const Duration(minutes: 10)))) {
+      return cached;
+    }
+    try {
+      final bucket = supabase.storage.from('driver-onboarding');
+      final thumb = await bucket.createSignedUrl(
+        path,
+        3600,
+        transform: TransformOptions(
+          width: 160,
+          height: 160,
+          resize: ResizeMode.cover,
+        ),
+      );
+      final original = await bucket.createSignedUrl(path, 3600);
+      final urls = _DriverMapPhotoUrls(
+        thumb: thumb,
+        original: original,
+        expiresAt: now.add(const Duration(hours: 1)),
+      );
+      _driverMapPhotoCache[path] = urls;
+      return urls;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -4981,6 +5013,7 @@ class _LiveDriverList extends StatelessWidget {
             children: [
               _DriverAvatar(
                 photoUrl: row['map_photo_url']?.toString(),
+                fallbackPhotoUrl: row['map_photo_original_url']?.toString(),
                 color: _driverStatusColor(status),
                 size: 30,
               ),
@@ -5244,6 +5277,7 @@ class _OperationsMapState extends State<_OperationsMap> {
             },
             child: _DriverPhotoDot(
               photoUrl: row['map_photo_url']?.toString(),
+              fallbackPhotoUrl: row['map_photo_original_url']?.toString(),
               color: _driverStatusColor(status),
             ),
           ),
@@ -5358,6 +5392,8 @@ class _OperationsMapState extends State<_OperationsMap> {
                   child: _TripPartyMarker(
                     driverColor: _driverStatusColor(driverStatus),
                     driverPhotoUrl: focusedDriver['map_photo_url']?.toString(),
+                    driverFallbackPhotoUrl:
+                        focusedDriver['map_photo_original_url']?.toString(),
                   ),
                 ),
               ),
@@ -5705,8 +5741,13 @@ class _PassengerMapMarker extends StatelessWidget {
 class _TripPartyMarker extends StatelessWidget {
   final Color driverColor;
   final String? driverPhotoUrl;
+  final String? driverFallbackPhotoUrl;
 
-  const _TripPartyMarker({required this.driverColor, this.driverPhotoUrl});
+  const _TripPartyMarker({
+    required this.driverColor,
+    this.driverPhotoUrl,
+    this.driverFallbackPhotoUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -5722,6 +5763,7 @@ class _TripPartyMarker extends StatelessWidget {
               height: 42,
               child: _DriverPhotoDot(
                 photoUrl: driverPhotoUrl,
+                fallbackPhotoUrl: driverFallbackPhotoUrl,
                 color: driverColor,
               ),
             ),
@@ -5843,6 +5885,7 @@ class _DriverMapCard extends StatelessWidget {
             children: [
               _DriverAvatar(
                 photoUrl: driver['map_photo_url']?.toString(),
+                fallbackPhotoUrl: driver['map_photo_original_url']?.toString(),
                 color: _driverStatusColor(status),
                 size: 44,
               ),
@@ -6112,6 +6155,7 @@ class _MapStatusLegend extends StatelessWidget {
 // estado. Sin foto (o si la imagen falla) muestra un icono de persona, nunca un auto.
 class _DriverAvatar extends StatelessWidget {
   final String? photoUrl;
+  final String? fallbackPhotoUrl;
   final Color color;
   final double size;
 
@@ -6119,6 +6163,7 @@ class _DriverAvatar extends StatelessWidget {
     required this.photoUrl,
     required this.color,
     required this.size,
+    this.fallbackPhotoUrl,
   });
 
   @override
@@ -6138,13 +6183,11 @@ class _DriverAvatar extends StatelessWidget {
         borderRadius: radius,
         child: url.isEmpty
             ? placeholder()
-            : Image.network(
-                url,
-                fit: BoxFit.cover,
-                width: size,
-                height: size,
-                gaplessPlayback: true,
-                errorBuilder: (_, __, ___) => placeholder(),
+            : _ResilientNetworkImage(
+                url: url,
+                fallbackUrl: fallbackPhotoUrl,
+                size: size,
+                placeholder: placeholder(),
               ),
       ),
     );
@@ -6155,9 +6198,14 @@ class _DriverAvatar extends StatelessWidget {
 // su estado. Sin foto (o si la imagen falla) usa un icono de persona, nunca un auto.
 class _DriverPhotoDot extends StatelessWidget {
   final String? photoUrl;
+  final String? fallbackPhotoUrl;
   final Color color;
 
-  const _DriverPhotoDot({required this.photoUrl, required this.color});
+  const _DriverPhotoDot({
+    required this.photoUrl,
+    required this.color,
+    this.fallbackPhotoUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -6179,15 +6227,64 @@ class _DriverPhotoDot extends StatelessWidget {
         ],
       ),
       child: ClipOval(
-        child: Image.network(
-          url,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => fallback,
+        child: _ResilientNetworkImage(
+          url: url,
+          fallbackUrl: fallbackPhotoUrl,
+          size: null,
+          placeholder: fallback,
         ),
       ),
+    );
+  }
+}
+
+class _DriverMapPhotoUrls {
+  final String thumb;
+  final String original;
+  final DateTime expiresAt;
+
+  const _DriverMapPhotoUrls({
+    required this.thumb,
+    required this.original,
+    required this.expiresAt,
+  });
+}
+
+// Imagen de red con respaldo: si la miniatura falla, prueba el original y solo
+// después muestra el placeholder.
+class _ResilientNetworkImage extends StatelessWidget {
+  final String url;
+  final String? fallbackUrl;
+  final double? size;
+  final Widget placeholder;
+
+  const _ResilientNetworkImage({
+    required this.url,
+    required this.fallbackUrl,
+    required this.size,
+    required this.placeholder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = fallbackUrl?.trim() ?? '';
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      width: size ?? double.infinity,
+      height: size ?? double.infinity,
+      gaplessPlayback: true,
+      errorBuilder: (_, __, ___) {
+        if (fallback.isEmpty || fallback == url) return placeholder;
+        return Image.network(
+          fallback,
+          fit: BoxFit.cover,
+          width: size ?? double.infinity,
+          height: size ?? double.infinity,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => placeholder,
+        );
+      },
     );
   }
 }
