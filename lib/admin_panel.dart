@@ -407,6 +407,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<bool>? _authFuture;
   Future<({Map<String, dynamic> state, List<Map<String, dynamic>> zones})>?
       _liveFuture;
+  // Refresco automático del mapa de operaciones (ver _autoRefreshLive).
+  Timer? _liveTimer;
+  bool _liveRefreshInFlight = false;
 
   @override
   void initState() {
@@ -414,6 +417,16 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     adminChannel = 'production';
     _authFuture = _authorized();
     _liveFuture = null;
+    _liveTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _autoRefreshLive(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _liveTimer?.cancel();
+    super.dispose();
   }
 
   static const sections = <(String, IconData)>[
@@ -1152,6 +1165,24 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       revision++;
       _liveFuture = _scopeReady && section == 1 ? _liveState() : null;
     });
+  }
+
+  // Refresco silencioso del mapa de operaciones: mientras estés en esa sección,
+  // trae las posiciones cada 10 s sin vaciar lo que ya se ve. Si una recarga
+  // falla, se conserva la última vista buena en lugar de mostrar error.
+  void _autoRefreshLive() {
+    if (!mounted || section != 1 || !_scopeReady || _liveRefreshInFlight) {
+      return;
+    }
+    _liveRefreshInFlight = true;
+    final next = _liveState();
+    unawaited(
+      next.then<void>((_) {
+        if (mounted && section == 1) {
+          setState(() => _liveFuture = next);
+        }
+      }, onError: (_) {}).whenComplete(() => _liveRefreshInFlight = false),
+    );
   }
 
   /// Per-section data filter. Shared configuration pages deliberately do not
@@ -5862,7 +5893,13 @@ class _DriverMapCard extends StatelessWidget {
     final updated = DateTime.tryParse(_value('location_updated_at'));
     final updatedLabel = updated == null
         ? 'Sin hora de ubicación'
-        : 'Ubicación: ' + _formatDate(updated.toIso8601String());
+        : 'Última ubicación hace ' +
+            DateTime.now()
+                .toUtc()
+                .difference(updated.toUtc())
+                .inMinutes
+                .toString() +
+            ' min';
 
     return Container(
       width: 295,
@@ -6357,22 +6394,27 @@ String _driverLiveStatus(
       online == 'online' || online == 'available' || online == 'connected';
   if (!connected) return 'offline';
 
+  final latitude = _toDouble(driver['latitude']);
+  final longitude = _toDouble(driver['longitude']);
   final locationUpdatedAt = DateTime.tryParse(
     driver['location_updated_at']?.toString() ?? '',
   );
-  final latitude = _toDouble(driver['latitude']);
-  final longitude = _toDouble(driver['longitude']);
-  final locationStale = locationUpdatedAt == null
-      ? latitude == null || longitude == null
-      : DateTime.now().toUtc().difference(locationUpdatedAt.toUtc()) >
+  // La app manda un latido de ubicación cada pocos segundos mientras el conductor
+  // está en línea, aunque esté parado. Si no llega ninguno en 2 minutos (app
+  // cerrada, GPS apagado o sin conexión), es «Sin señal» y se conserva la última
+  // posición conocida.
+  final locationStale = locationUpdatedAt == null ||
+      DateTime.now().toUtc().difference(locationUpdatedAt.toUtc()) >
           const Duration(minutes: 2);
 
-  final noSignal = signal.contains('no_signal') ||
+  final noSignal = latitude == null ||
+      longitude == null ||
+      locationStale ||
+      signal.contains('no_signal') ||
       signal.contains('no signal') ||
       signal.contains('lost') ||
       signal.contains('stale') ||
-      signal.contains('offline') ||
-      locationStale;
+      signal.contains('offline');
   if (noSignal) return 'signal';
 
   return 'available';
