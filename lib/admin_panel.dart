@@ -635,17 +635,37 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     return country.toUpperCase();
   }
 
-  Future<List<Map<String, dynamic>>> _drivers() async {
+  Future<List<Map<String, dynamic>>> _driversPage(
+    int offset,
+    String search,
+  ) async {
     if (!_scopeReady) return const [];
     final value = await supabase.rpc(
-      'admin_driver_list_v3',
+      'admin_driver_list_v4',
       params: {
         'p_channel': _sectionChannel(4),
         'p_zone_id': adminZoneId,
+        'p_search': search.trim().isEmpty ? null : search.trim(),
+        'p_limit': 50,
+        'p_offset': offset,
       },
     );
     return _list(value);
   }
+
+  Future<int> _driversCount(String search) async {
+    if (!_scopeReady) return 0;
+    final value = await supabase.rpc(
+      'admin_driver_count_v1',
+      params: {
+        'p_channel': _sectionChannel(4),
+        'p_zone_id': adminZoneId,
+        'p_search': search.trim().isEmpty ? null : search.trim(),
+      },
+    );
+    return (value as num?)?.toInt() ?? 0;
+  }
+
 
   Future<List<Map<String, dynamic>>> _filterCountries() async {
     final value = await supabase.rpc('admin_country_list_scoped');
@@ -701,32 +721,38 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     }
   }
 
-  Future<List<Map<String, dynamic>>> _users() async {
+  Future<List<Map<String, dynamic>>> _usersPage(
+    int offset,
+    String search,
+  ) async {
     if (!_scopeReady) return const [];
-    // El servidor entrega como máximo 500 usuarios por página; se piden
-    // páginas hasta traerlos todos, para no cortar la lista en 100.
-    const pageSize = 500;
-    const maxPages = 20;
-    final users = <Map<String, dynamic>>[];
-    for (var page = 0; page < maxPages; page++) {
-      final value = await supabase.rpc(
-        'admin_user_list_v4',
-        params: {
-          'p_channel': _sectionChannel(5),
-          'p_zone_id': adminZoneId,
-          'p_search': null,
-          'p_limit': pageSize,
-          'p_offset': page * pageSize,
-        },
-      );
-      final rows = _list(value);
-      users.addAll(rows);
-      if (rows.length < pageSize) break;
-    }
-    return users;
+    final value = await supabase.rpc(
+      'admin_user_list_v4',
+      params: {
+        'p_channel': _sectionChannel(5),
+        'p_zone_id': adminZoneId,
+        'p_search': search.trim().isEmpty ? null : search.trim(),
+        'p_limit': 50,
+        'p_offset': offset,
+      },
+    );
+    return _list(value);
   }
 
-  Future<List<Map<String, dynamic>>> _trips() async {
+  Future<int> _usersCount(String search) async {
+    if (!_scopeReady) return 0;
+    final value = await supabase.rpc(
+      'admin_user_count_v1',
+      params: {
+        'p_channel': _sectionChannel(5),
+        'p_zone_id': adminZoneId,
+        'p_search': search.trim().isEmpty ? null : search.trim(),
+      },
+    );
+    return (value as num?)?.toInt() ?? 0;
+  }
+
+  Future<List<Map<String, dynamic>>> _trips(int offset) async {
     if (!_scopeReady) return const [];
     final range = _periodBounds(tripPeriod, tripCustomRange);
     final value = await supabase.rpc(
@@ -737,14 +763,30 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         'p_to': range.to.toUtc().toIso8601String(),
         'p_zone_id': adminZoneId,
         'p_status': null,
-        'p_limit': 200,
-        'p_offset': 0,
+        'p_limit': 50,
+        'p_offset': offset,
       },
     );
     return _list(value);
   }
 
-  Future<List<Map<String, dynamic>>> _deliveries() async {
+  Future<int> _tripsCount() async {
+    if (!_scopeReady) return 0;
+    final range = _periodBounds(tripPeriod, tripCustomRange);
+    final value = await supabase.rpc(
+      'admin_trip_count_v1',
+      params: {
+        'p_channel': _sectionChannel(2),
+        'p_from': range.from.toUtc().toIso8601String(),
+        'p_to': range.to.toUtc().toIso8601String(),
+        'p_zone_id': adminZoneId,
+        'p_status': null,
+      },
+    );
+    return (value as num?)?.toInt() ?? 0;
+  }
+
+  Future<List<Map<String, dynamic>>> _deliveries(int offset) async {
     if (!_scopeReady) return const [];
     final range = _periodBounds(deliveryPeriod, deliveryCustomRange);
     final value = await supabase.rpc(
@@ -755,11 +797,27 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         'p_to': range.to.toUtc().toIso8601String(),
         'p_zone_id': adminZoneId,
         'p_status': null,
-        'p_limit': 200,
-        'p_offset': 0,
+        'p_limit': 50,
+        'p_offset': offset,
       },
     );
     return _list(value);
+  }
+
+  Future<int> _deliveriesCount() async {
+    if (!_scopeReady) return 0;
+    final range = _periodBounds(deliveryPeriod, deliveryCustomRange);
+    final value = await supabase.rpc(
+      'admin_delivery_count_v1',
+      params: {
+        'p_channel': _sectionChannel(3),
+        'p_from': range.from.toUtc().toIso8601String(),
+        'p_to': range.to.toUtc().toIso8601String(),
+        'p_zone_id': adminZoneId,
+        'p_status': null,
+      },
+    );
+    return (value as num?)?.toInt() ?? 0;
   }
 
   Widget _periodFilter(String target) {
@@ -2068,24 +2126,19 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _tripList() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      key: ValueKey('trips-' + revision.toString()),
-      future: _trips(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading();
-        }
-        if (snapshot.hasError) {
-          return _ErrorView(error: snapshot.error, onRetry: _refresh);
-        }
+    // Se piden 50 filas por vez al servidor, de la más reciente a la más antigua.
+    return Builder(
+      key: ValueKey('trips-' + revision.toString() + tripPeriod.toString() + tripCustomRange.toString()),
+      builder: (context) {
 
-        final rows = snapshot.data ?? const [];
         return _Records(
           title: 'Viajes',
           subtitle: 'Historial y operación de viajes Express.',
           empty: 'Todavía no hay viajes.',
-          rows: rows,
+          rows: const [],
+          pageLoader: (offset, _) => _trips(offset),
+          countLoader: (_) => _tripsCount(),
+          searchOnServer: false,
           serverFilters: _periodFilter('trip'),
           item: (row) => _OperationCard(
             icon: Icons.local_taxi_rounded,
@@ -2125,24 +2178,19 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _deliveryList() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      key: ValueKey('delivery-' + revision.toString()),
-      future: _deliveries(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading();
-        }
-        if (snapshot.hasError) {
-          return _ErrorView(error: snapshot.error, onRetry: _refresh);
-        }
+    // Se piden 50 filas por vez al servidor, de la más reciente a la más antigua.
+    return Builder(
+      key: ValueKey('delivery-' + revision.toString() + deliveryPeriod.toString() + deliveryCustomRange.toString()),
+      builder: (context) {
 
-        final rows = snapshot.data ?? const [];
         return _Records(
           title: 'Delivery',
           subtitle: 'Pedidos y entregas de Express.',
           empty: 'Todavía no hay delivery.',
-          rows: rows,
+          rows: const [],
+          pageLoader: (offset, _) => _deliveries(offset),
+          countLoader: (_) => _deliveriesCount(),
+          searchOnServer: false,
           serverFilters: _periodFilter('delivery'),
           item: (row) => _OperationCard(
             icon: Icons.local_shipping_rounded,
@@ -2174,24 +2222,19 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _driverList() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
+    // Se piden 50 filas por vez al servidor, de la más reciente a la más antigua.
+    return Builder(
       key: ValueKey('drivers-' + revision.toString()),
-      future: _drivers(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading();
-        }
-        if (snapshot.hasError) {
-          return _ErrorView(error: snapshot.error, onRetry: _refresh);
-        }
+      builder: (context) {
 
         return _Records(
           title: 'Conductores',
           subtitle:
               'Aprobación, estado, licencia, vehículo y control de conductores.',
           empty: 'Todavía no hay conductores registrados.',
-          rows: snapshot.data ?? const [],
+          rows: const [],
+          pageLoader: _driversPage,
+          countLoader: _driversCount,
           showQaFilter: false,
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
@@ -2381,18 +2424,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _userList() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
+    // Los usuarios se piden al servidor de a 50, del más reciente al más
+    // antiguo; no se descarga la lista completa.
+    return Builder(
       key: ValueKey('users-' + revision.toString()),
-      future: _users(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading();
-        }
-        if (snapshot.hasError) {
-          return _ErrorView(error: snapshot.error, onRetry: _refresh);
-        }
-
+      builder: (context) {
         return Column(
           children: [
             if (!_readOnly && adminAccess['role'] == 'super_admin')
@@ -2413,7 +2449,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                 subtitle:
                     'Pasajeros, conductores y control del estado de las cuentas.',
                 empty: 'Todavía no hay usuarios registrados.',
-                rows: snapshot.data ?? const [],
+                rows: const [],
+                pageLoader: _usersPage,
+                countLoader: _usersCount,
                 serverFilters: _userGeoFilters(),
                 showQaFilter: true,
                 item: (row) => Container(
@@ -6665,6 +6703,18 @@ class _Records extends StatefulWidget {
   final bool showQaFilter;
   final Widget? serverFilters;
 
+  /// Si se indica, la lista se pide al servidor de a 50 (los más recientes
+  /// primero) y la búsqueda también se hace en el servidor.
+  final Future<List<Map<String, dynamic>>> Function(int offset, String search)?
+      pageLoader;
+
+  /// Total exacto en el servidor para la búsqueda actual.
+  final Future<int> Function(String search)? countLoader;
+
+  /// Si es `false`, la búsqueda filtra solo lo ya cargado (el servidor no
+  /// tiene búsqueda para esa lista).
+  final bool searchOnServer;
+
   const _Records({
     required this.title,
     required this.subtitle,
@@ -6673,6 +6723,9 @@ class _Records extends StatefulWidget {
     required this.item,
     this.showQaFilter = false,
     this.serverFilters,
+    this.pageLoader,
+    this.countLoader,
+    this.searchOnServer = true,
   });
 
   @override
@@ -6680,20 +6733,105 @@ class _Records extends StatefulWidget {
 }
 
 class _RecordsState extends State<_Records> {
+  // Se muestran de a 50 tarjetas; al bajar se agregan otras 50.
+  static const int _pageSize = 50;
   final search = TextEditingController();
   String query = '';
   String? status;
   String qaFilter = 'all';
+  int _shown = _pageSize;
+
+  // Modo servidor: filas traídas hasta ahora, total y estado de carga.
+  final List<Map<String, dynamic>> _serverRows = [];
+  int? _serverTotal;
+  bool _serverLoading = false;
+  bool _serverHasMore = true;
+  Object? _serverError;
+  Timer? _searchDebounce;
+  int _serverGeneration = 0;
+
+  bool get _serverMode => widget.pageLoader != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_serverMode) _reloadServer();
+  }
+
+  void _resetPaging() => _shown = _pageSize;
+
+  Future<void> _reloadServer() async {
+    final generation = ++_serverGeneration;
+    setState(() {
+      _serverRows.clear();
+      _serverTotal = null;
+      _serverHasMore = true;
+      _serverError = null;
+    });
+    final countLoader = widget.countLoader;
+    if (countLoader != null) {
+      countLoader(query).then((total) {
+        if (mounted && generation == _serverGeneration) {
+          setState(() => _serverTotal = total);
+        }
+      }).catchError((_) {});
+    }
+    await _loadNextServerPage(generation);
+  }
+
+  Future<void> _loadNextServerPage([int? generation]) async {
+    final gen = generation ?? _serverGeneration;
+    if (_serverLoading || !_serverHasMore) return;
+    setState(() => _serverLoading = true);
+    try {
+      final rows = await widget.pageLoader!(_serverRows.length, query);
+      if (!mounted || gen != _serverGeneration) return;
+      setState(() {
+        _serverRows.addAll(rows);
+        _serverHasMore = rows.length >= _pageSize;
+      });
+    } catch (error) {
+      if (mounted && gen == _serverGeneration) {
+        setState(() => _serverError = error);
+      }
+    } finally {
+      if (mounted) setState(() => _serverLoading = false);
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    query = value;
+    if (!_serverMode || !widget.searchOnServer) {
+      setState(_resetPaging);
+      return;
+    }
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 450), _reloadServer);
+  }
+
+  bool _onScroll(ScrollNotification notification, int total) {
+    if (notification.metrics.extentAfter >= 700) return false;
+    if (_serverMode) {
+      if (_serverHasMore && !_serverLoading && _serverError == null) {
+        _loadNextServerPage();
+      }
+    } else if (_shown < total) {
+      setState(() => _shown = (_shown + _pageSize).clamp(0, total));
+    }
+    return false;
+  }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     search.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final statuses = widget.rows
+    final sourceRows = _serverMode ? _serverRows : widget.rows;
+    final statuses = sourceRows
         .map((row) => row['status']?.toString())
         .whereType<String>()
         .where((value) => value.isNotEmpty)
@@ -6701,8 +6839,9 @@ class _RecordsState extends State<_Records> {
         .toList()
       ..sort();
 
-    final visible = widget.rows.where((row) {
-      final matchesText = query.isEmpty ||
+    final visible = sourceRows.where((row) {
+      final matchesText = (_serverMode && widget.searchOnServer) ||
+          query.isEmpty ||
           row.values
               .map((value) => value?.toString().toLowerCase() ?? '')
               .join(' ')
@@ -6717,7 +6856,18 @@ class _RecordsState extends State<_Records> {
       return matchesText && matchesStatus && matchesQa;
     }).toList();
 
-    return ListView(
+    final qaCount = sourceRows.where((row) => row['is_qa'] == true).length;
+    final realCount = sourceRows.length - qaCount;
+    final shown = _serverMode
+        ? visible.length
+        : (visible.length < _shown ? visible.length : _shown);
+    final totalLabel = _serverMode
+        ? (_serverTotal?.toString() ?? '…')
+        : '${widget.rows.length}';
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) => _onScroll(n, visible.length),
+      child: ListView(
       padding: const EdgeInsets.all(22),
       children: [
         _Header(title: widget.title, subtitle: widget.subtitle),
@@ -6747,7 +6897,7 @@ class _RecordsState extends State<_Records> {
                           height: 40,
                           child: TextField(
                             controller: search,
-                            onChanged: (value) => setState(() => query = value),
+                            onChanged: _onSearchChanged,
                             decoration: const InputDecoration(
                               isDense: true,
                               prefixIcon: Icon(Icons.search_rounded, size: 18),
@@ -6783,33 +6933,49 @@ class _RecordsState extends State<_Records> {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   AdminPillChoice(
-                    label: 'Todos (' + widget.rows.length.toString() + ')',
+                    label: 'Todos ($totalLabel)',
                     selected: status == null,
                     showCheck: true,
-                    onSelected: (_) => setState(() => status = null),
+                    onSelected: (_) => setState(() {
+                      status = null;
+                      _resetPaging();
+                    }),
                   ),
+                  if (!_serverMode)
                   for (final value in statuses.take(5))
                     AdminPillChoice(
                       label: friendlyStatus(value),
                       selected: status == value,
                       dotColor: adminStatusColor(value),
-                      onSelected: (_) => setState(() => status = value),
+                      onSelected: (_) => setState(() {
+                        status = value;
+                        _resetPaging();
+                      }),
                     ),
-                  if (widget.showQaFilter) ...[
+                  if (widget.showQaFilter && !_serverMode) ...[
                     const SizedBox(width: 4),
                     AdminPillChoice(
-                      label: 'Reales',
+                      label: 'Reales ($realCount)',
                       selected: qaFilter == 'real',
-                      onSelected: (_) => setState(() => qaFilter = 'real'),
+                      onSelected: (_) => setState(() {
+                        qaFilter = 'real';
+                        _resetPaging();
+                      }),
                     ),
                     AdminPillChoice(
-                      label: 'Pruebas',
+                      label: 'Pruebas ($qaCount)',
                       selected: qaFilter == 'qa',
-                      onSelected: (_) => setState(() => qaFilter = 'qa'),
+                      onSelected: (_) => setState(() {
+                        qaFilter = 'qa';
+                        _resetPaging();
+                      }),
                     ),
                     if (qaFilter != 'all')
                       TextButton(
-                        onPressed: () => setState(() => qaFilter = 'all'),
+                        onPressed: () => setState(() {
+                          qaFilter = 'all';
+                          _resetPaging();
+                        }),
                         child: const Text('Quitar filtro de pruebas'),
                       ),
                   ],
@@ -6819,7 +6985,12 @@ class _RecordsState extends State<_Records> {
           ),
         ),
         const SizedBox(height: 12),
-        if (visible.isEmpty)
+        if (visible.isEmpty && _serverMode && _serverLoading)
+          const Padding(
+            padding: EdgeInsets.all(28),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (visible.isEmpty)
           Container(
             padding: const EdgeInsets.all(28),
             decoration: BoxDecoration(
@@ -6834,9 +7005,54 @@ class _RecordsState extends State<_Records> {
               style: const TextStyle(color: adminMuted),
             ),
           )
-        else
-          ...visible.map(widget.item),
+        else ...[
+          ...visible.take(shown).map(widget.item),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Column(
+              children: [
+                Text(
+                  _serverMode
+                      ? 'Mostrando $shown de $totalLabel'
+                      : 'Mostrando $shown de ${visible.length}',
+                  style: const TextStyle(
+                    color: adminMuted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (_serverMode && _serverLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 10),
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.4),
+                    ),
+                  )
+                else if (_serverMode && _serverError != null)
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _serverError = null);
+                      _loadNextServerPage();
+                    },
+                    child: const Text('No se pudo cargar. Reintentar'),
+                  )
+                else if (_serverMode && _serverHasMore)
+                  TextButton(
+                    onPressed: _loadNextServerPage,
+                    child: const Text('Ver 50 más'),
+                  )
+                else if (!_serverMode && shown < visible.length)
+                  TextButton(
+                    onPressed: () => setState(() => _shown += _pageSize),
+                    child: const Text('Ver 50 más'),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ],
+      ),
     );
   }
 }
