@@ -635,17 +635,37 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     return country.toUpperCase();
   }
 
-  Future<List<Map<String, dynamic>>> _drivers() async {
+  Future<List<Map<String, dynamic>>> _driversPage(
+    int offset,
+    String search,
+  ) async {
     if (!_scopeReady) return const [];
     final value = await supabase.rpc(
-      'admin_driver_list_v3',
+      'admin_driver_list_v4',
       params: {
         'p_channel': _sectionChannel(4),
         'p_zone_id': adminZoneId,
+        'p_search': search.trim().isEmpty ? null : search.trim(),
+        'p_limit': 50,
+        'p_offset': offset,
       },
     );
     return _list(value);
   }
+
+  Future<int> _driversCount(String search) async {
+    if (!_scopeReady) return 0;
+    final value = await supabase.rpc(
+      'admin_driver_count_v1',
+      params: {
+        'p_channel': _sectionChannel(4),
+        'p_zone_id': adminZoneId,
+        'p_search': search.trim().isEmpty ? null : search.trim(),
+      },
+    );
+    return (value as num?)?.toInt() ?? 0;
+  }
+
 
   Future<List<Map<String, dynamic>>> _filterCountries() async {
     final value = await supabase.rpc('admin_country_list_scoped');
@@ -732,7 +752,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     return (value as num?)?.toInt() ?? 0;
   }
 
-  Future<List<Map<String, dynamic>>> _trips() async {
+  Future<List<Map<String, dynamic>>> _trips(int offset) async {
     if (!_scopeReady) return const [];
     final range = _periodBounds(tripPeriod, tripCustomRange);
     final value = await supabase.rpc(
@@ -743,14 +763,30 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         'p_to': range.to.toUtc().toIso8601String(),
         'p_zone_id': adminZoneId,
         'p_status': null,
-        'p_limit': 200,
-        'p_offset': 0,
+        'p_limit': 50,
+        'p_offset': offset,
       },
     );
     return _list(value);
   }
 
-  Future<List<Map<String, dynamic>>> _deliveries() async {
+  Future<int> _tripsCount() async {
+    if (!_scopeReady) return 0;
+    final range = _periodBounds(tripPeriod, tripCustomRange);
+    final value = await supabase.rpc(
+      'admin_trip_count_v1',
+      params: {
+        'p_channel': _sectionChannel(2),
+        'p_from': range.from.toUtc().toIso8601String(),
+        'p_to': range.to.toUtc().toIso8601String(),
+        'p_zone_id': adminZoneId,
+        'p_status': null,
+      },
+    );
+    return (value as num?)?.toInt() ?? 0;
+  }
+
+  Future<List<Map<String, dynamic>>> _deliveries(int offset) async {
     if (!_scopeReady) return const [];
     final range = _periodBounds(deliveryPeriod, deliveryCustomRange);
     final value = await supabase.rpc(
@@ -761,11 +797,27 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         'p_to': range.to.toUtc().toIso8601String(),
         'p_zone_id': adminZoneId,
         'p_status': null,
-        'p_limit': 200,
-        'p_offset': 0,
+        'p_limit': 50,
+        'p_offset': offset,
       },
     );
     return _list(value);
+  }
+
+  Future<int> _deliveriesCount() async {
+    if (!_scopeReady) return 0;
+    final range = _periodBounds(deliveryPeriod, deliveryCustomRange);
+    final value = await supabase.rpc(
+      'admin_delivery_count_v1',
+      params: {
+        'p_channel': _sectionChannel(3),
+        'p_from': range.from.toUtc().toIso8601String(),
+        'p_to': range.to.toUtc().toIso8601String(),
+        'p_zone_id': adminZoneId,
+        'p_status': null,
+      },
+    );
+    return (value as num?)?.toInt() ?? 0;
   }
 
   Widget _periodFilter(String target) {
@@ -2074,24 +2126,19 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _tripList() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      key: ValueKey('trips-' + revision.toString()),
-      future: _trips(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading();
-        }
-        if (snapshot.hasError) {
-          return _ErrorView(error: snapshot.error, onRetry: _refresh);
-        }
+    // Se piden 50 filas por vez al servidor, de la más reciente a la más antigua.
+    return Builder(
+      key: ValueKey('trips-' + revision.toString() + tripPeriod.toString() + tripCustomRange.toString()),
+      builder: (context) {
 
-        final rows = snapshot.data ?? const [];
         return _Records(
           title: 'Viajes',
           subtitle: 'Historial y operación de viajes Express.',
           empty: 'Todavía no hay viajes.',
-          rows: rows,
+          rows: const [],
+          pageLoader: (offset, _) => _trips(offset),
+          countLoader: (_) => _tripsCount(),
+          searchOnServer: false,
           serverFilters: _periodFilter('trip'),
           item: (row) => _OperationCard(
             icon: Icons.local_taxi_rounded,
@@ -2131,24 +2178,19 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _deliveryList() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      key: ValueKey('delivery-' + revision.toString()),
-      future: _deliveries(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading();
-        }
-        if (snapshot.hasError) {
-          return _ErrorView(error: snapshot.error, onRetry: _refresh);
-        }
+    // Se piden 50 filas por vez al servidor, de la más reciente a la más antigua.
+    return Builder(
+      key: ValueKey('delivery-' + revision.toString() + deliveryPeriod.toString() + deliveryCustomRange.toString()),
+      builder: (context) {
 
-        final rows = snapshot.data ?? const [];
         return _Records(
           title: 'Delivery',
           subtitle: 'Pedidos y entregas de Express.',
           empty: 'Todavía no hay delivery.',
-          rows: rows,
+          rows: const [],
+          pageLoader: (offset, _) => _deliveries(offset),
+          countLoader: (_) => _deliveriesCount(),
+          searchOnServer: false,
           serverFilters: _periodFilter('delivery'),
           item: (row) => _OperationCard(
             icon: Icons.local_shipping_rounded,
@@ -2180,24 +2222,19 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _driverList() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
+    // Se piden 50 filas por vez al servidor, de la más reciente a la más antigua.
+    return Builder(
       key: ValueKey('drivers-' + revision.toString()),
-      future: _drivers(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading();
-        }
-        if (snapshot.hasError) {
-          return _ErrorView(error: snapshot.error, onRetry: _refresh);
-        }
+      builder: (context) {
 
         return _Records(
           title: 'Conductores',
           subtitle:
               'Aprobación, estado, licencia, vehículo y control de conductores.',
           empty: 'Todavía no hay conductores registrados.',
-          rows: snapshot.data ?? const [],
+          rows: const [],
+          pageLoader: _driversPage,
+          countLoader: _driversCount,
           showQaFilter: false,
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
@@ -6674,6 +6711,10 @@ class _Records extends StatefulWidget {
   /// Total exacto en el servidor para la búsqueda actual.
   final Future<int> Function(String search)? countLoader;
 
+  /// Si es `false`, la búsqueda filtra solo lo ya cargado (el servidor no
+  /// tiene búsqueda para esa lista).
+  final bool searchOnServer;
+
   const _Records({
     required this.title,
     required this.subtitle,
@@ -6684,6 +6725,7 @@ class _Records extends StatefulWidget {
     this.serverFilters,
     this.pageLoader,
     this.countLoader,
+    this.searchOnServer = true,
   });
 
   @override
@@ -6759,7 +6801,7 @@ class _RecordsState extends State<_Records> {
 
   void _onSearchChanged(String value) {
     query = value;
-    if (!_serverMode) {
+    if (!_serverMode || !widget.searchOnServer) {
       setState(_resetPaging);
       return;
     }
@@ -6798,7 +6840,7 @@ class _RecordsState extends State<_Records> {
       ..sort();
 
     final visible = sourceRows.where((row) {
-      final matchesText = _serverMode ||
+      final matchesText = (_serverMode && widget.searchOnServer) ||
           query.isEmpty ||
           row.values
               .map((value) => value?.toString().toLowerCase() ?? '')
