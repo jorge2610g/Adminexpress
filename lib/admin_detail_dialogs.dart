@@ -2579,11 +2579,208 @@ class _TripDetailDialog extends StatefulWidget {
 
 class _TripDetailDialogState extends State<_TripDetailDialog> {
   late Future<Map<String, dynamic>> future;
+  // Solo el super admin ve las acciones de soporte; el servidor lo vuelve a comprobar.
+  String? _role;
 
   @override
   void initState() {
     super.initState();
     future = _load();
+    _loadRole();
+  }
+
+  Future<void> _loadRole() async {
+    try {
+      final value = await supabase.rpc('admin_access_context');
+      if (!mounted) return;
+      setState(() => _role = _map(value)['role']?.toString());
+    } catch (_) {
+      // Sin rol conocido no se muestran acciones.
+    }
+  }
+
+  void _reload() => setState(() => future = _load());
+
+  static const _openStatuses = ['driver_assigned', 'driver_arriving', 'driver_waiting'];
+
+  static const _supportCopy = {
+    'reassign': ('Reasignar viaje', 'El viaje pasa al conductor que elijas. El conductor anterior vuelve a estar disponible.'),
+    'release': ('Liberar viaje', 'El viaje se cancela y se vuelve a buscar conductor. El pasajero recibirá un aviso para pedir otro viaje.'),
+    'cancel': ('Cancelar viaje', 'El viaje se cancela sin tarifa de cancelación.'),
+    'start': ('Iniciar viaje', 'Se inicia el viaje sin el PIN de abordaje. Úsalo solo si el conductor y el pasajero ya están juntos.'),
+    'complete': ('Completar viaje', 'El viaje se marca como completado. Si el pago es en efectivo o QR, queda como pagado.'),
+  };
+
+  Future<String?> _askReason(String action) async {
+    final controller = TextEditingController();
+    final (title, warning) = _supportCopy[action]!;
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(warning),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (obligatorio)',
+                hintText: 'Ej.: el conductor pidió ayuda por la app',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.length < 5) return;
+              Navigator.pop(dialogContext, text);
+            },
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return reason;
+  }
+
+  Future<void> _runSupport(String action, {String? driverId}) async {
+    final reason = await _askReason(action);
+    if (reason == null || !mounted) return;
+    try {
+      await supabase.rpc('admin_trip_action_v1', params: {
+        'p_trip_id': widget.tripId,
+        'p_action': action,
+        'p_channel': widget.channel,
+        'p_driver_id': driverId,
+        'p_reason': reason,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${_supportCopy[action]!.$1}: hecho.')),
+      );
+      _reload();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(friendlyError(error))),
+      );
+    }
+  }
+
+  Future<void> _reassign() async {
+    List<Map<String, dynamic>> drivers;
+    try {
+      drivers = _maps(await supabase.rpc(
+        'admin_available_drivers_v2',
+        params: {'p_channel': widget.channel},
+      ));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(friendlyError(error))),
+      );
+      return;
+    }
+    if (!mounted) return;
+    final driverId = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Elige el conductor'),
+        content: SizedBox(
+          width: 420,
+          child: drivers.isEmpty
+              ? const Text('No hay conductores en línea disponibles en este momento.')
+              : ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final driver in drivers)
+                      ListTile(
+                        title: Text(_text(driver['name'], 'Conductor')),
+                        subtitle: Text(_text(driver['vehicle_summary'], '')),
+                        onTap: () => Navigator.pop(dialogContext, driver['id']?.toString()),
+                      ),
+                  ],
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+    if (driverId == null || !mounted) return;
+    await _runSupport('reassign', driverId: driverId);
+  }
+
+  Widget _supportSection(Map<String, dynamic> trip) {
+    final status = _text(trip['status'], '');
+    final buttons = <Widget>[];
+    String hint = '';
+    if (_openStatuses.contains(status)) {
+      buttons.addAll([
+        OutlinedButton.icon(
+          onPressed: _reassign,
+          icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+          label: const Text('Reasignar'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => _runSupport('release'),
+          icon: const Icon(Icons.replay_rounded, size: 18),
+          label: const Text('Liberar'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => _runSupport('cancel'),
+          icon: const Icon(Icons.cancel_outlined, size: 18),
+          label: const Text('Cancelar viaje'),
+        ),
+        FilledButton.icon(
+          onPressed: () => _runSupport('start'),
+          icon: const Icon(Icons.play_arrow_rounded, size: 18),
+          label: const Text('Iniciar viaje'),
+        ),
+      ]);
+    } else if (status == 'in_progress') {
+      buttons.add(FilledButton.icon(
+        onPressed: () => _runSupport('complete'),
+        icon: const Icon(Icons.flag_rounded, size: 18),
+        label: const Text('Completar viaje'),
+      ));
+    } else if (status == 'emergency') {
+      hint = 'El viaje está en emergencia. Resuélvelo desde el flujo de SOS.';
+    } else {
+      return const SizedBox.shrink();
+    }
+    return _Section(
+      title: 'Acciones de soporte',
+      icon: Icons.support_agent_rounded,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (hint.isNotEmpty)
+            Text(hint, style: const TextStyle(color: _detailMuted)),
+          if (buttons.isNotEmpty)
+            Wrap(spacing: 8, runSpacing: 8, children: buttons),
+          const SizedBox(height: 6),
+          const Text(
+            'Cada acción pide motivo y queda registrada en la bitácora.',
+            style: TextStyle(color: _detailMuted, fontSize: 12),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<Map<String, dynamic>> _load() async {
@@ -2676,6 +2873,7 @@ class _TripDetailDialogState extends State<_TripDetailDialog> {
                     ('Teléfono conductor', _text(driver['phone'])),
                   ]),
                 ),
+                if (_role == 'super_admin') _supportSection(trip),
                 _Section(
                   title: 'Tarifa y pago',
                   icon: Icons.payments_rounded,
