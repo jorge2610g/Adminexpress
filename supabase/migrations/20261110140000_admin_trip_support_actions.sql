@@ -90,12 +90,14 @@ begin
       raise exception 'No se puede asignar un viaje entre producción y auditoría';
     end if;
 
-    update public.driver_profiles
-      set online_status = 'online', updated_at = now()
-      where id = v_trip.driver_id and approval_status = 'approved';
+    -- Primero se mueve el viaje: el conductor anterior ya no tiene servicio activo
+    -- y puede volver a «en línea» (la base no lo permite mientras tenga un viaje).
     update public.trips
       set driver_id = p_driver_id, status = 'driver_assigned'
       where id = p_trip_id;
+    update public.driver_profiles
+      set online_status = 'online', updated_at = now()
+      where id = v_trip.driver_id and approval_status = 'approved';
     update public.driver_profiles
       set online_status = 'busy', updated_at = now()
       where id = p_driver_id;
