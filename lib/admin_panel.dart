@@ -703,17 +703,27 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
 
   Future<List<Map<String, dynamic>>> _users() async {
     if (!_scopeReady) return const [];
-    final value = await supabase.rpc(
-      'admin_user_list_v4',
-      params: {
-        'p_channel': _sectionChannel(5),
-        'p_zone_id': adminZoneId,
-        'p_search': null,
-        'p_limit': 100,
-        'p_offset': 0,
-      },
-    );
-    return _list(value);
+    // El servidor entrega como máximo 500 usuarios por página; se piden
+    // páginas hasta traerlos todos, para no cortar la lista en 100.
+    const pageSize = 500;
+    const maxPages = 20;
+    final users = <Map<String, dynamic>>[];
+    for (var page = 0; page < maxPages; page++) {
+      final value = await supabase.rpc(
+        'admin_user_list_v4',
+        params: {
+          'p_channel': _sectionChannel(5),
+          'p_zone_id': adminZoneId,
+          'p_search': null,
+          'p_limit': pageSize,
+          'p_offset': page * pageSize,
+        },
+      );
+      final rows = _list(value);
+      users.addAll(rows);
+      if (rows.length < pageSize) break;
+    }
+    return users;
   }
 
   Future<List<Map<String, dynamic>>> _trips() async {
