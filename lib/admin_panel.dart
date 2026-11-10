@@ -6680,10 +6680,22 @@ class _Records extends StatefulWidget {
 }
 
 class _RecordsState extends State<_Records> {
+  // Se muestran de a 50 tarjetas; al bajar se agregan otras 50.
+  static const int _pageSize = 50;
   final search = TextEditingController();
   String query = '';
   String? status;
   String qaFilter = 'all';
+  int _shown = _pageSize;
+
+  void _resetPaging() => _shown = _pageSize;
+
+  bool _onScroll(ScrollNotification notification, int total) {
+    if (_shown < total && notification.metrics.extentAfter < 700) {
+      setState(() => _shown = (_shown + _pageSize).clamp(0, total));
+    }
+    return false;
+  }
 
   @override
   void dispose() {
@@ -6717,7 +6729,13 @@ class _RecordsState extends State<_Records> {
       return matchesText && matchesStatus && matchesQa;
     }).toList();
 
-    return ListView(
+    final qaCount = widget.rows.where((row) => row['is_qa'] == true).length;
+    final realCount = widget.rows.length - qaCount;
+    final shown = visible.length < _shown ? visible.length : _shown;
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) => _onScroll(n, visible.length),
+      child: ListView(
       padding: const EdgeInsets.all(22),
       children: [
         _Header(title: widget.title, subtitle: widget.subtitle),
@@ -6747,7 +6765,10 @@ class _RecordsState extends State<_Records> {
                           height: 40,
                           child: TextField(
                             controller: search,
-                            onChanged: (value) => setState(() => query = value),
+                            onChanged: (value) => setState(() {
+                              query = value;
+                              _resetPaging();
+                            }),
                             decoration: const InputDecoration(
                               isDense: true,
                               prefixIcon: Icon(Icons.search_rounded, size: 18),
@@ -6783,33 +6804,48 @@ class _RecordsState extends State<_Records> {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   AdminPillChoice(
-                    label: 'Todos (' + widget.rows.length.toString() + ')',
+                    label: 'Todos (${widget.rows.length})',
                     selected: status == null,
                     showCheck: true,
-                    onSelected: (_) => setState(() => status = null),
+                    onSelected: (_) => setState(() {
+                      status = null;
+                      _resetPaging();
+                    }),
                   ),
                   for (final value in statuses.take(5))
                     AdminPillChoice(
                       label: friendlyStatus(value),
                       selected: status == value,
                       dotColor: adminStatusColor(value),
-                      onSelected: (_) => setState(() => status = value),
+                      onSelected: (_) => setState(() {
+                        status = value;
+                        _resetPaging();
+                      }),
                     ),
                   if (widget.showQaFilter) ...[
                     const SizedBox(width: 4),
                     AdminPillChoice(
-                      label: 'Reales',
+                      label: 'Reales ($realCount)',
                       selected: qaFilter == 'real',
-                      onSelected: (_) => setState(() => qaFilter = 'real'),
+                      onSelected: (_) => setState(() {
+                        qaFilter = 'real';
+                        _resetPaging();
+                      }),
                     ),
                     AdminPillChoice(
-                      label: 'Pruebas',
+                      label: 'Pruebas ($qaCount)',
                       selected: qaFilter == 'qa',
-                      onSelected: (_) => setState(() => qaFilter = 'qa'),
+                      onSelected: (_) => setState(() {
+                        qaFilter = 'qa';
+                        _resetPaging();
+                      }),
                     ),
                     if (qaFilter != 'all')
                       TextButton(
-                        onPressed: () => setState(() => qaFilter = 'all'),
+                        onPressed: () => setState(() {
+                          qaFilter = 'all';
+                          _resetPaging();
+                        }),
                         child: const Text('Quitar filtro de pruebas'),
                       ),
                   ],
@@ -6834,9 +6870,30 @@ class _RecordsState extends State<_Records> {
               style: const TextStyle(color: adminMuted),
             ),
           )
-        else
-          ...visible.map(widget.item),
+        else ...[
+          ...visible.take(shown).map(widget.item),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Column(
+              children: [
+                Text(
+                  'Mostrando $shown de ${visible.length}',
+                  style: const TextStyle(
+                    color: adminMuted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (shown < visible.length)
+                  TextButton(
+                    onPressed: () => setState(() => _shown += _pageSize),
+                    child: const Text('Ver 50 más'),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ],
+      ),
     );
   }
 }
