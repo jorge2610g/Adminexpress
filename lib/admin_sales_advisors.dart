@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -88,6 +89,86 @@ class _AdminSalesAdvisorsPageState extends State<AdminSalesAdvisorsPage> {
     return '${letters.isEmpty ? 'ASESOR' : letters}-$suffix';
   }
 
+  String _latestAccountQuery = '';
+
+  /// Cuentas Express que coinciden con lo escrito (espera a que dejes de escribir).
+  Future<List<Map<String, dynamic>>> _findAccounts(String query) async {
+    final text = query.trim();
+    _latestAccountQuery = text;
+    if (text.length < 3) return const [];
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (text != _latestAccountQuery) return const [];
+    try {
+      final value = await supabase
+          .rpc('admin_sales_find_accounts', params: {'p_query': text});
+      return _rows(value);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Widget _emailField(
+    TextEditingController controller,
+    String helper,
+    StateSetter setDialogState,
+  ) {
+    final focus = FocusNode();
+    return RawAutocomplete<Map<String, dynamic>>(
+      textEditingController: controller,
+      focusNode: focus,
+      displayStringForOption: (option) => option['email'].toString(),
+      optionsBuilder: (value) => _findAccounts(value.text),
+      onSelected: (_) => setDialogState(() {}),
+      fieldViewBuilder: (context, textController, focusNode, onSubmit) =>
+          TextField(
+        controller: textController,
+        focusNode: focusNode,
+        keyboardType: TextInputType.emailAddress,
+        decoration: InputDecoration(
+          labelText: 'Correo de su cuenta Express',
+          helperText: helper,
+          suffixIcon: const Icon(Icons.search_rounded, size: 18),
+        ),
+      ),
+      optionsViewBuilder: (context, onSelected, options) => Align(
+        alignment: Alignment.topLeft,
+        child: Material(
+          elevation: 6,
+          borderRadius: BorderRadius.circular(10),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 260, maxWidth: 420),
+            child: ListView(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              children: [
+                for (final option in options)
+                  ListTile(
+                    dense: true,
+                    leading: Icon(
+                      option['already_advisor'] == true
+                          ? Icons.badge_rounded
+                          : Icons.person_outline_rounded,
+                      size: 20,
+                    ),
+                    title: Text(option['email'].toString()),
+                    subtitle: Text(
+                      [
+                        if (option['name'].toString().isNotEmpty)
+                          option['name'].toString(),
+                        if (option['already_advisor'] == true)
+                          'Ya es asesor',
+                      ].join(' · '),
+                    ),
+                    onTap: () => onSelected(option),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _editAdvisor([Map<String, dynamic>? advisor]) async {
     final name = TextEditingController(text: advisor?['name']?.toString() ?? '');
     final code = TextEditingController(text: advisor?['code']?.toString() ?? '');
@@ -125,15 +206,12 @@ class _AdminSalesAdvisorsPageState extends State<AdminSalesAdvisorsPage> {
                     ),
                   ),
                 const SizedBox(height: 10),
-                TextField(
-                  controller: email,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Correo de su cuenta Express',
-                    helperText: advisor == null
-                        ? 'Con esa cuenta entra a su página de asesor.'
-                        : 'Déjalo vacío para no cambiar la cuenta.',
-                  ),
+                _emailField(
+                  email,
+                  advisor == null
+                      ? 'Escribe 3 letras y elige la cuenta de la lista.'
+                      : 'Déjalo vacío para no cambiar la cuenta.',
+                  setDialogState,
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
