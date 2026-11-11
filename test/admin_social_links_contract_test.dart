@@ -7,9 +7,9 @@ void main() {
   final panel = File('lib/admin_panel.dart').readAsStringSync();
 
   test('Configuración tiene la pestaña Redes sociales con su tarjeta', () {
-    expect(settings, contains("'Redes sociales',\n    ];"));
+    expect(settings, contains("'Redes sociales',\n      'Asesores de ventas',\n    ];"));
     expect(settings, contains('case 8:\n        content = AdminSocialLinksSettingsCard('));
-    expect(settings, contains("settingsTab == 7 || settingsTab == 8"));
+    expect(settings, contains("settingsTab == 7 || settingsTab == 8 || settingsTab == 9"));
     expect(settings, contains("title: 'Redes sociales'"));
   });
 
