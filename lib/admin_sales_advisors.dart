@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -64,6 +66,28 @@ class _AdminSalesAdvisorsPageState extends State<AdminSalesAdvisorsPage> {
     }
   }
 
+  /// Código automático: primer nombre + 3 caracteres al azar (ej. ANA-7K3).
+  /// Sin 0/O ni 1/I para que no se confundan al leerlo.
+  static String _generateCode(String fullName) {
+    const accents = {
+      'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ü': 'U', 'Ñ': 'N',
+    };
+    final first = fullName.trim().toUpperCase().split(RegExp(r'\s+')).first;
+    final letters = first
+        .split('')
+        .map((c) => accents[c] ?? c)
+        .where((c) => RegExp('[A-Z]').hasMatch(c))
+        .take(8)
+        .join();
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final random = Random.secure();
+    final suffix = List.generate(
+      3,
+      (_) => alphabet[random.nextInt(alphabet.length)],
+    ).join();
+    return '${letters.isEmpty ? 'ASESOR' : letters}-$suffix';
+  }
+
   Future<void> _editAdvisor([Map<String, dynamic>? advisor]) async {
     final name = TextEditingController(text: advisor?['name']?.toString() ?? '');
     final code = TextEditingController(text: advisor?['code']?.toString() ?? '');
@@ -84,15 +108,22 @@ class _AdminSalesAdvisorsPageState extends State<AdminSalesAdvisorsPage> {
                   decoration: const InputDecoration(labelText: 'Nombre completo'),
                 ),
                 const SizedBox(height: 10),
-                TextField(
-                  controller: code,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(
-                    labelText: 'Código (para el QR)',
-                    hintText: 'ANA-01',
-                    helperText: '4 a 20 letras, números o guiones.',
+                if (advisor == null)
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'El código del QR se crea automáticamente al guardar.',
+                      style: TextStyle(color: Color(0xFF6B7280), fontSize: 12),
+                    ),
+                  )
+                else
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Código del QR: ${advisor['code']} (no cambia)',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
-                ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: email,
@@ -126,20 +157,40 @@ class _AdminSalesAdvisorsPageState extends State<AdminSalesAdvisorsPage> {
         ),
       ),
     );
-    final params = {
-      'p_id': advisor?['id'],
-      'p_full_name': name.text.trim(),
-      'p_code': code.text.trim().toUpperCase(),
-      'p_email': email.text.trim(),
-      'p_active': active,
-    };
+    final fullName = name.text.trim();
+    final existingCode = code.text.trim().toUpperCase();
+    final emailText = email.text.trim();
     name.dispose();
     code.dispose();
     email.dispose();
     if (save != true) return;
+    if (fullName.length < 2) {
+      _say('Escribe el nombre del asesor.');
+      return;
+    }
+    var savedCode = existingCode;
     await _run(
-      () async => supabase.rpc('admin_sales_advisor_save', params: params),
-      'Asesor guardado.',
+      () async {
+        // Si el código al azar ya existe, se intenta con otro.
+        for (var attempt = 0; ; attempt++) {
+          savedCode = advisor == null ? _generateCode(fullName) : existingCode;
+          try {
+            await supabase.rpc('admin_sales_advisor_save', params: {
+              'p_id': advisor?['id'],
+              'p_full_name': fullName,
+              'p_code': savedCode,
+              'p_email': emailText,
+              'p_active': active,
+            });
+            return;
+          } catch (error) {
+            final duplicated = error.toString().contains('23505') &&
+                error.toString().contains('code');
+            if (advisor != null || !duplicated || attempt >= 4) rethrow;
+          }
+        }
+      },
+      advisor == null ? 'Asesor creado.' : 'Asesor guardado.',
     );
   }
 
