@@ -3,9 +3,18 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 
 import 'core/admin_friendly_error.dart';
 import 'core/supabase_client.dart';
+
+const String _advisorPanelUrl = 'https://expressviajes.online/asesor';
+const String _photoBucket = 'sales-advisor-photos';
 
 /// Asesores de ventas: alta de asesores, conteo por día, revisión de fotos
 /// y pagos por registro terminado.
@@ -20,6 +29,165 @@ class AdminSalesAdvisorsPage extends StatefulWidget {
 
 class _AdminSalesAdvisorsPageState extends State<AdminSalesAdvisorsPage> {
   static const _publicBase = 'https://expressviajes.online';
+
+  /// Foto del asesor: se elige de la galería y se guarda en un bucket privado.
+  Future<void> _uploadPhoto(Map<String, dynamic> advisor) async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 900,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+    final id = advisor['id'].toString();
+    await _run(() async {
+      final bytes = await picked.readAsBytes();
+      final path = '$id/photo.jpg';
+      await supabase.storage.from(_photoBucket).uploadBinary(
+            path,
+            bytes,
+            fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
+          );
+      await supabase.rpc('admin_sales_set_advisor_photo', params: {
+        'p_id': id,
+        'p_path': path,
+      });
+    }, 'Foto del asesor guardada.');
+  }
+
+  /// Genera la credencial (6 × 8,7 cm): frente con foto y cargo; reverso con QR y código.
+  Future<void> _printCredential(Map<String, dynamic> advisor) async {
+    try {
+      final value = await supabase.rpc(
+        'admin_sales_advisor_credential',
+        params: {'p_id': advisor['id']},
+      );
+      final data = Map<String, dynamic>.from(value as Map);
+      final photoPath = data['photo_path']?.toString();
+      if (photoPath == null || photoPath.isEmpty) {
+        _say('Primero sube la foto del asesor (botón de cámara).');
+        return;
+      }
+      final photo = await supabase.storage.from(_photoBucket).download(photoPath);
+      final pdfBytes = await _buildCredentialPdf(
+        name: data['name'].toString(),
+        code: data['code'].toString(),
+        photo: photo,
+      );
+      await Printing.layoutPdf(
+        name: 'Credencial ${data['code']}',
+        onLayout: (_) async => pdfBytes,
+      );
+    } catch (error) {
+      _say(friendlyError(error));
+    }
+  }
+
+  Future<Uint8List> _buildCredentialPdf({
+    required String name,
+    required String code,
+    required Uint8List photo,
+  }) async {
+    final bold = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/PlusJakartaSans-ExtraBold.ttf'),
+    );
+    final regular = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/PlusJakartaSans-Medium.ttf'),
+    );
+    final logo = pw.MemoryImage(
+      (await rootBundle.load('assets/branding/express_icon.png'))
+          .buffer
+          .asUint8List(),
+    );
+    const mm = PdfPageFormat.mm;
+    final format = PdfPageFormat(60 * mm, 87 * mm, marginAll: 0);
+    const navy = PdfColor.fromInt(0xFF0B1739);
+    const blue = PdfColor.fromInt(0xFF0B57D0);
+    final link = '$_publicBase/r/$code';
+
+    final doc = pw.Document();
+    doc.addPage(pw.Page(
+      pageFormat: format,
+      build: (context) => pw.Column(
+        children: [
+          pw.Container(
+            width: double.infinity,
+            height: 20 * mm,
+            color: navy,
+            alignment: pw.Alignment.center,
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.center,
+              children: [
+                pw.Image(logo, height: 10 * mm),
+                pw.SizedBox(width: 2 * mm),
+                pw.Text(
+                  'Express',
+                  style: pw.TextStyle(font: bold, color: PdfColors.white, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 6 * mm),
+          pw.Container(
+            width: 36 * mm,
+            height: 42 * mm,
+            decoration: pw.BoxDecoration(border: pw.Border.all(color: blue, width: 0.6)),
+            child: pw.Image(pw.MemoryImage(photo), fit: pw.BoxFit.cover),
+          ),
+          pw.SizedBox(height: 5 * mm),
+          pw.Padding(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 4 * mm),
+            child: pw.Text(
+              name.toUpperCase(),
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(font: bold, fontSize: 11, color: navy),
+            ),
+          ),
+          pw.SizedBox(height: 3 * mm),
+          pw.Container(
+            color: blue,
+            width: double.infinity,
+            padding: const pw.EdgeInsets.symmetric(vertical: 2.5 * mm),
+            alignment: pw.Alignment.center,
+            child: pw.Text(
+              'ASESOR DE VENTAS',
+              style: pw.TextStyle(font: bold, fontSize: 9, color: PdfColors.white),
+            ),
+          ),
+        ],
+      ),
+    ));
+    doc.addPage(pw.Page(
+      pageFormat: format,
+      build: (context) => pw.Column(
+        mainAxisAlignment: pw.MainAxisAlignment.center,
+        children: [
+          pw.Text(
+            'ESCANEA EL QR',
+            style: pw.TextStyle(font: bold, fontSize: 11, color: navy),
+          ),
+          pw.SizedBox(height: 4 * mm),
+          pw.BarcodeWidget(
+            barcode: pw.Barcode.qrCode(),
+            data: link,
+            width: 40 * mm,
+            height: 40 * mm,
+          ),
+          pw.SizedBox(height: 4 * mm),
+          pw.Text(code, style: pw.TextStyle(font: bold, fontSize: 16, color: navy)),
+          pw.SizedBox(height: 2 * mm),
+          pw.Text(
+            'Descarga la app Express y regístrate con este código.',
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: regular, fontSize: 8),
+          ),
+          pw.Spacer(),
+          pw.Container(height: 4 * mm, width: double.infinity, color: blue),
+        ],
+      ),
+    ));
+    return doc.save();
+  }
+
   late Future<Map<String, dynamic>> _future;
   bool _busy = false;
 
@@ -482,6 +650,25 @@ class _AdminSalesAdvisorsPageState extends State<AdminSalesAdvisorsPage> {
                     ),
                     trailing: Wrap(
                       children: [
+                        IconButton(
+                          tooltip: 'Abrir página del asesor',
+                          icon: const Icon(Icons.open_in_new_rounded),
+                          onPressed: () => launchUrl(
+                            Uri.parse(_advisorPanelUrl),
+                            mode: LaunchMode.externalApplication,
+                          ),
+                        ),
+                        if (edit)
+                          IconButton(
+                            tooltip: 'Subir foto',
+                            icon: const Icon(Icons.photo_camera_rounded),
+                            onPressed: _busy ? null : () => _uploadPhoto(a),
+                          ),
+                        IconButton(
+                          tooltip: 'Generar QR e imprimir credencial',
+                          icon: const Icon(Icons.badge_outlined),
+                          onPressed: () => _printCredential(a),
+                        ),
                         IconButton(
                           tooltip: 'Copiar enlace del QR',
                           icon: const Icon(Icons.link_rounded),
