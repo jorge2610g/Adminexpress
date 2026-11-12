@@ -8595,7 +8595,10 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                   contentPadding: EdgeInsets.zero,
                   value: calls,
                   onChanged: (v) => setLocal(() => calls = v),
-                  title: const Text('Llamadas'),
+                  title: const Text('Llamadas por ZEGO (dentro de la app)'),
+                  subtitle: Text(calls
+                      ? 'Activas: ofrecen llamar por internet o por teléfono normal.'
+                      : 'Apagadas: solo llamada por teléfono normal con el número registrado.'),
                   secondary: const Icon(Icons.call_outlined),
                 ),
                 SwitchListTile.adaptive(
