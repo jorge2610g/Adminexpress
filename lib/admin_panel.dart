@@ -1,3 +1,4 @@
+import 'admin_sales_advisors.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -368,6 +369,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     // Publicidad de pasajeros: central marketing module for the passenger app.
     // Superadmins always see it, even before the `passenger_ads` key exists.
     if (index == 36 && adminAccess['role'] == 'super_admin') return true;
+    // Asesores de ventas: solo super admin (el servidor lo vuelve a comprobar).
+    if (index == 37) return adminAccess['role'] == 'super_admin';
     // Identity review is already part of the driver record. The old standalone
     // identity entries are deliberately unreachable.
     if (index == 18 || index == 27) return false;
@@ -467,6 +470,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Requisitos de restaurantes', Icons.fact_check_outlined),
     ('Beneficios Express', Icons.card_giftcard_outlined),
     ('Publicidad de pasajeros', Icons.campaign_rounded),
+    ('Asesores de ventas', Icons.badge_rounded),
   ];
 
   Future<bool> _authorized() async {
@@ -1743,6 +1747,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           channel: _sectionChannel(22),
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
+        );
+      case 37:
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: AdminSalesAdvisorsPage(canEdit: !_readOnly),
         );
       case 36:
         return adminZoneId == null || adminZoneId!.isEmpty
@@ -3455,7 +3464,7 @@ class _Navigation extends StatelessWidget {
         : const <(String, List<int>)>[
             ('GENERAL', [0]),
             ('OPERACIONES', [1, 2, 13, 4, 5, 6]),
-            ('MÓDULOS', [23, 25, 29, 30, 34, 35, 36]),
+            ('MÓDULOS', [23, 25, 29, 30, 34, 35, 36, 37]),
             ('FINANZAS', [9, 8, 22, 33]),
             ('ANÁLISIS', [10, 14]),
             ('COMUNICACIÓN', [15]),

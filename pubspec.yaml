@@ -17,6 +17,8 @@ dependencies:
   url_launcher: ^6.3.2
   image_picker: ^1.1.2
   audioplayers: ^6.8.1
+  pdf: ^3.13.1
+  printing: ^5.15.1
 
 dev_dependencies:
   flutter_test:
@@ -27,6 +29,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/sounds/alerta_sos.wav
+    - assets/branding/express_icon.png
   fonts:
     - family: Plus Jakarta Sans
       fonts:

@@ -1,3 +1,4 @@
+import 'admin_sales_advisors.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -7982,6 +7983,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       'Seguridad',
       'Admin',
       'Redes sociales',
+      'Asesores de ventas',
     ];
 
     Widget content;
@@ -8169,6 +8171,11 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           canEdit: widget.canEditSocialLinks,
         );
         break;
+      case 9:
+        content = AdminSalesAdvisorsPage(
+          canEdit: widget.canEditSocialLinks,
+        );
+        break;
       default:
         content = Column(
           children: [
@@ -8218,7 +8225,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           title: 'Configuración',
           subtitle: 'Administra los parámetros generales de Express Delivery.',
           action: FilledButton.icon(
-            onPressed: loading || saving || settingsTab == 7 || settingsTab == 8
+            onPressed: loading || saving || settingsTab == 7 || settingsTab == 8 || settingsTab == 9
                 ? null
                 : _save,
             icon: saving
@@ -8588,7 +8595,10 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                   contentPadding: EdgeInsets.zero,
                   value: calls,
                   onChanged: (v) => setLocal(() => calls = v),
-                  title: const Text('Llamadas'),
+                  title: const Text('Llamadas por ZEGO (dentro de la app)'),
+                  subtitle: Text(calls
+                      ? 'Activas: ofrecen llamar por internet o por teléfono normal.'
+                      : 'Apagadas: solo llamada por teléfono normal con el número registrado.'),
                   secondary: const Icon(Icons.call_outlined),
                 ),
                 SwitchListTile.adaptive(
