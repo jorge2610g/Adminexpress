@@ -22,9 +22,11 @@ void main() {
     expect(source, isNot(contains('Pruebas internas: esta configuración se guarda')));
   });
 
-  test('Only the Google Play verified signed Build can appear in history', () {
-    expect(source, contains("rawStatus['production_verified_build_job_id']"));
-    expect(source, contains("row['id']?.toString() == verifiedJobId"));
+  test('History shows the newest signed ready build; saving still needs Play verification', () {
+    // El historial muestra la última build interna firmada, para que el panel se
+    // actualice al lanzar cada build. Guardar avisos sigue exigiendo Play.
+    expect(source, contains("row['artifact_type'] == 'single-app-candidate-apk+aab'"));
+    expect(source, contains("buildHistory = signedReady.take(1).toList();"));
     expect(source, contains("row['signing_mode'] == 'production'"));
     expect(source, contains('jobId != verifiedId'));
     expect(source, contains('build != storeBuild'));

@@ -103,17 +103,17 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
             .whereType<Map>()
             .map((row) => Map<String, dynamic>.from(row))
             .toList();
-        // Show ONLY the specific signed AAB verified in Play Production.
-        // Other builds sharing versionCode 141 must not be offered for updates.
-        final verifiedJobId = rawStatus is Map
-            ? rawStatus['production_verified_build_job_id']?.toString()
-            : null;
-        buildHistory = androidRows.where((row) =>
-            verifiedJobId != null &&
-            row['id']?.toString() == verifiedJobId &&
+        // Muestra la última build interna firmada y lista, aunque Play todavía no
+        // la confirme: así el panel se actualiza al lanzar cada build interna.
+        // Las acciones de aviso siguen exigiendo la confirmación de Play en el servidor.
+        final signedReady = androidRows.where((row) =>
             row['status'] == 'ready' &&
-            row['signing_mode'] == 'production'
-        ).take(1).toList();
+            row['signing_mode'] == 'production' &&
+            row['artifact_type'] == 'single-app-candidate-apk+aab').toList()
+          ..sort((a, b) =>
+              (int.tryParse(b['build_number']?.toString() ?? '') ?? 0)
+                  .compareTo(int.tryParse(a['build_number']?.toString() ?? '') ?? 0));
+        buildHistory = signedReady.take(1).toList();
         if (historyPage * 8 >= buildHistory.length) historyPage = 0;
         releases = androidRows
             .where((row) => row['artifact_type'] == 'apk+aab')
