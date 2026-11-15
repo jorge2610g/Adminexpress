@@ -9,6 +9,7 @@ import 'core/admin_friendly_error.dart';
 import 'core/admin_dropdown_field.dart';
 import 'core/admin_friendly_labels.dart';
 import 'core/admin_money.dart';
+import 'core/admin_page_visibility.dart';
 import 'core/admin_ui.dart';
 
 import 'package:flutter_map/flutter_map.dart';
@@ -547,7 +548,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       return (state: <String, dynamic>{}, zones: <Map<String, dynamic>>[]);
     }
     final state = await _dashboardState(1);
-    final zones = await _filterZones();
+    final zones = await _liveZonesCached();
     await _attachDriverMapPhotos(state);
     return (state: state, zones: zones);
   }
@@ -559,17 +560,60 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // Fotos de perfil para el mapa de operaciones. El RPC solo devuelve rutas de
   // conductores que esta cuenta ya puede ver. Se pide primero una miniatura de
   // 160 px y el original queda como respaldo si la miniatura no carga.
+  // Zonas del país: casi nunca cambian; el mapa en vivo las pide como máximo cada 10 min.
+  List<Map<String, dynamic>>? _liveZonesCache;
+  String _liveZonesKey = '';
+  DateTime? _liveZonesAt;
+
+  Future<List<Map<String, dynamic>>> _liveZonesCached() async {
+    final key = adminCountryCode ?? '';
+    final at = _liveZonesAt;
+    if (_liveZonesCache != null &&
+        _liveZonesKey == key &&
+        at != null &&
+        DateTime.now().difference(at) < const Duration(minutes: 10)) {
+      return _liveZonesCache!;
+    }
+    final zones = await _filterZones();
+    _liveZonesCache = zones;
+    _liveZonesKey = key;
+    _liveZonesAt = DateTime.now();
+    return zones;
+  }
+
+  // Rutas de fotos de conductores: cambian solo al subir una foto nueva, así que
+  // el mapa en vivo las pide como máximo cada 5 min (no en cada tick de 10 s).
+  Object? _photoRowsCache;
+  String _photoRowsKey = '';
+  DateTime? _photoRowsAt;
+
+  Future<Object?> _driverMapPhotoRows() async {
+    final channel = _sectionChannel(1);
+    final key = '$channel|${adminZoneId ?? ''}';
+    final at = _photoRowsAt;
+    if (at != null &&
+        _photoRowsKey == key &&
+        DateTime.now().difference(at) < const Duration(minutes: 5)) {
+      return _photoRowsCache;
+    }
+    final value = await supabase.rpc(
+      'admin_driver_map_photos_v1',
+      params: {
+        'p_channel': channel,
+        'p_zone_id': adminZoneId,
+      },
+    );
+    _photoRowsCache = value;
+    _photoRowsKey = key;
+    _photoRowsAt = DateTime.now();
+    return value;
+  }
+
   Future<void> _attachDriverMapPhotos(Map<String, dynamic> state) async {
     final drivers = _list(state['drivers']);
     if (drivers.isEmpty) return;
     try {
-      final value = await supabase.rpc(
-        'admin_driver_map_photos_v1',
-        params: {
-          'p_channel': _sectionChannel(1),
-          'p_zone_id': adminZoneId,
-        },
-      );
+      final value = await _driverMapPhotoRows();
       final photos = <String, _DriverMapPhotoUrls>{};
       if (value is List) {
         final entries = value.whereType<Map>().toList();
@@ -1281,7 +1325,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   // trae las posiciones cada 10 s sin vaciar lo que ya se ve. Si una recarga
   // falla, se conserva la última vista buena en lugar de mostrar error.
   void _autoRefreshLive() {
-    if (!mounted || section != 1 || !_scopeReady || _liveRefreshInFlight) {
+    if (!mounted ||
+        section != 1 ||
+        !_scopeReady ||
+        _liveRefreshInFlight ||
+        !adminPageIsVisible()) {
       return;
     }
     _liveRefreshInFlight = true;
@@ -2859,7 +2907,7 @@ class _SecurityAlertsViewState extends State<_SecurityAlertsView> {
   }
 
   Future<void> _poll() async {
-    if (_polling || !mounted) return;
+    if (_polling || !mounted || !adminPageIsVisible()) return;
     _polling = true;
     try {
       final rows = await widget.loadAlerts();
