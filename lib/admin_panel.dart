@@ -528,6 +528,20 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     return true;
   }
 
+  /// Emergencias abiertas de la zona. Antes se leía el panel completo
+  /// (admin_dashboard_state_v2) cada 10 s solo para este campo.
+  Future<List<Map<String, dynamic>>> _emergenciesList() async {
+    if (!_scopeReady) return const [];
+    final value = await supabase.rpc(
+      'admin_emergencies_list_v1',
+      params: {
+        'p_channel': _sectionChannel(6),
+        'p_zone_id': adminZoneId,
+      },
+    );
+    return _list(value);
+  }
+
   Future<Map<String, dynamic>> _dashboardState(int sectionIndex) async {
     if (!_scopeReady) return <String, dynamic>{};
     final value = await supabase.rpc(
@@ -2793,7 +2807,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     final canResolve = !_readOnly && adminAccess['role'] != 'operator';
     return _SecurityAlertsView(
       revision: revision,
-      loadAlerts: () async => _list((await _dashboardState(6))['emergencies']),
+      loadAlerts: _emergenciesList,
       onOpenAlert: (row) => _openEmergencyDetail(row['id'].toString()),
       itemBuilder: (row) => Card(
         margin: const EdgeInsets.only(bottom: 10),
