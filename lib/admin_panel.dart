@@ -20,6 +20,8 @@ import 'package:supabase_flutter/supabase_flutter.dart'
     show ResizeMode, TransformOptions;
 
 import 'core/supabase_client.dart';
+import 'admin_csv_download.dart';
+import 'admin_trip_ranking_export.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
 import 'admin_landing_banners.dart';
@@ -754,6 +756,42 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       },
     );
     return (value as num?)?.toInt() ?? 0;
+  }
+
+  /// Descarga el ranking de viajes completados de la zona activa: conductores
+  /// (`drivers: true`) o pasajeros. Usa todas las filas, no solo la página visible.
+  Future<void> _exportCompletedTripRanking({required bool drivers}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (!_scopeReady) return;
+    try {
+      final value = await supabase.rpc(
+        'admin_completed_trip_ranking_v1',
+        params: {
+          'p_channel': _sectionChannel(drivers ? 4 : 5),
+          'p_zone_id': adminZoneId,
+          'p_role': drivers ? 'driver' : 'passenger',
+        },
+      );
+      final rows = _list(value);
+      if (rows.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Todavía no hay viajes completados para exportar.'),
+          ),
+        );
+        return;
+      }
+      adminDownloadTextFile(
+        adminTripRankingFileName(drivers: drivers, day: DateTime.now()),
+        adminTripRankingCsv(rows),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo generar el archivo. Intenta de nuevo.'),
+        ),
+      );
+    }
   }
 
   Future<List<Map<String, dynamic>>> _trips(int offset) async {
@@ -2245,6 +2283,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           pageLoader: _driversPage,
           countLoader: _driversCount,
           showQaFilter: false,
+          onExport: () => _exportCompletedTripRanking(drivers: true),
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
             final online = (row['online_status'] ?? 'offline').toString();
@@ -2463,6 +2502,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                 countLoader: _usersCount,
                 serverFilters: _userGeoFilters(),
                 showQaFilter: true,
+                onExport: () => _exportCompletedTripRanking(drivers: false),
                 item: (row) => Container(
                   margin: const EdgeInsets.only(bottom: 7),
                   decoration: BoxDecoration(
@@ -6712,6 +6752,10 @@ class _Records extends StatefulWidget {
   final bool showQaFilter;
   final Widget? serverFilters;
 
+  /// Exportación del botón «Exportar». Si es null, el botón avisa que aún no
+  /// está disponible en esa lista.
+  final Future<void> Function()? onExport;
+
   /// Si se indica, la lista se pide al servidor de a 50 (los más recientes
   /// primero) y la búsqueda también se hace en el servidor.
   final Future<List<Map<String, dynamic>>> Function(int offset, String search)?
@@ -6732,6 +6776,7 @@ class _Records extends StatefulWidget {
     required this.item,
     this.showQaFilter = false,
     this.serverFilters,
+    this.onExport,
     this.pageLoader,
     this.countLoader,
     this.searchOnServer = true,
@@ -6920,15 +6965,17 @@ class _RecordsState extends State<_Records> {
                   ),
                   const SizedBox(width: 8),
                   OutlinedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'La exportación todavía no está disponible en esta pantalla.',
-                          ),
-                        ),
-                      );
-                    },
+                    onPressed: widget.onExport != null
+                        ? () => widget.onExport!()
+                        : () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'La exportación todavía no está disponible en esta pantalla.',
+                                ),
+                              ),
+                            );
+                          },
                     icon: const Icon(Icons.download_rounded, size: 17),
                     label: const Text('Exportar'),
                   ),
