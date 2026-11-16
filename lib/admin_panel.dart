@@ -838,6 +838,63 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     }
   }
 
+  /// Descarga los viajes del periodo y la zona que se ven en pantalla. Pide
+  /// todas las páginas del servidor (500 por vez), no solo las 50 visibles.
+  Future<void> _exportTrips() async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (!_scopeReady) return;
+    try {
+      final range = _periodBounds(tripPeriod, tripCustomRange);
+      const pageSize = 500;
+      const maxRows = 10000;
+      final rows = <Map<String, dynamic>>[];
+      for (var offset = 0; offset < maxRows; offset += pageSize) {
+        final value = await supabase.rpc(
+          'admin_trip_list_v4',
+          params: {
+            'p_channel': _sectionChannel(2),
+            'p_from': range.from.toUtc().toIso8601String(),
+            'p_to': range.to.toUtc().toIso8601String(),
+            'p_zone_id': adminZoneId,
+            'p_status': null,
+            'p_limit': pageSize,
+            'p_offset': offset,
+          },
+        );
+        final page = _list(value);
+        rows.addAll(page);
+        if (page.length < pageSize) break;
+      }
+      if (rows.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('No hay viajes en este periodo para exportar.'),
+          ),
+        );
+        return;
+      }
+      adminDownloadTextFile(
+        adminTripsFileName(period: tripPeriod, day: DateTime.now()),
+        adminTripsCsv(rows),
+      );
+      if (rows.length >= maxRows) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Se exportaron los primeros 10 000 viajes. Reduce el periodo para ver el resto.',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo generar el archivo. Intenta de nuevo.'),
+        ),
+      );
+    }
+  }
+
   Future<List<Map<String, dynamic>>> _trips(int offset) async {
     if (!_scopeReady) return const [];
     final range = _periodBounds(tripPeriod, tripCustomRange);
@@ -2235,6 +2292,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           countLoader: (_) => _tripsCount(),
           searchOnServer: false,
           serverFilters: _periodFilter('trip'),
+          onExport: _exportTrips,
           item: (row) => _OperationCard(
             icon: Icons.local_taxi_rounded,
             title: friendlyAddress(

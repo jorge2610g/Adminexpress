@@ -80,4 +80,45 @@ void main() {
     expect(sql, isNot(contains('update public.')));
     expect(sql, isNot(contains('delete from')));
   });
+
+  test('CSV de viajes: encabezados, BOM y sin teléfonos ni correos', () {
+    final csv = adminTripsCsv([
+      {
+        'created_at': '2026-11-15T22:35:00Z',
+        'status': 'completed',
+        'category': 'economy',
+        'passenger_name': 'Berecita Vaca',
+        'driver_name': 'Raúl Guaji',
+        'pickup_address': 'Trinidad, Centro',
+        'destination_address': 'Aeropuerto; Terminal',
+        'final_fare': 15.5,
+        'currency': 'BOB',
+        'payment_status': 'paid',
+        'completed_at': '2026-11-15T22:50:00Z',
+        'passenger_phone': '+59170000000',
+      },
+    ]);
+    expect(csv.startsWith('\uFEFF'), isTrue);
+    final lines = csv.substring(1).split('\r\n');
+    expect(lines[0], 'Fecha;Estado;Categoría;Pasajero;Conductor;Origen;'
+        'Destino;Tarifa final;Moneda;Pago;Completado');
+    expect(lines[1], contains('completed;economy;Berecita Vaca;Raúl Guaji;'));
+    expect(lines[1], contains('"Aeropuerto; Terminal"'));
+    expect(lines[1], contains('15.5;BOB;paid;'));
+    expect(csv, isNot(contains('+59170000000')));
+  });
+
+  test('nombre de archivo de viajes según el periodo', () {
+    final day = DateTime(2026, 11, 16);
+    expect(adminTripsFileName(period: 'month', day: day), 'viajes-mes-2026-11-16.csv');
+    expect(adminTripsFileName(period: 'today', day: day), 'viajes-hoy-2026-11-16.csv');
+    expect(adminTripsFileName(period: 'custom', day: day), 'viajes-rango-2026-11-16.csv');
+  });
+
+  test('la lista de viajes exporta todas las páginas del servidor', () {
+    final source = File('lib/admin_panel.dart').readAsStringSync();
+    expect(source, contains('onExport: _exportTrips,'));
+    expect(source, contains('const pageSize = 500;'));
+    expect(source, contains("'admin_trip_list_v4'"));
+  });
 }
