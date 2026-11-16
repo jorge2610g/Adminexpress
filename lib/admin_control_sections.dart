@@ -8458,7 +8458,6 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
     final minOffer = TextEditingController(text: (row['min_driver_offer'] ?? 1).toString());
     final maxOffer = TextEditingController(text: (row['max_driver_offer'] ?? 9999).toString());
     var scheduled = row['scheduled_rides_enabled'] != false;
-    var counteroffers = row['allow_counteroffers'] != false;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -8510,12 +8509,6 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                     onChanged: (v) => setLocal(() => scheduled = v),
                     title: const Text('Viajes programados'),
                   ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: counteroffers,
-                    onChanged: (v) => setLocal(() => counteroffers = v),
-                    title: const Text('Permitir contraofertas'),
-                  ),
                 ],
               ),
             ),
@@ -8544,7 +8537,6 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
         'min_driver_offer': _num(minOffer.text) ?? 1,
         'max_driver_offer': _num(maxOffer.text) ?? 9999,
         'scheduled_rides_enabled': scheduled,
-        'allow_counteroffers': counteroffers,
       });
     }
 
@@ -8939,7 +8931,6 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                   'Cambios operativos centralizados para pasajero, conductor y administración.',
               stats: [
                 ('Respaldo pagos', paymentCount.toString()),
-                ('Ofertas', row['allow_counteroffers'] != false ? 'Activas' : 'Off'),
                 ('Mantenimiento', row['maintenance_mode'] == true ? 'Activo' : 'Normal'),
               ],
             ),
@@ -8968,7 +8959,7 @@ class _AdminAdvancedSettingsPageState extends State<AdminAdvancedSettingsPage> {
                   _AdminModuleCard(
                     icon: Icons.radar_rounded,
                     title: 'Búsqueda y ofertas',
-                    subtitle: 'Tiempos, radio, viajes programados y contraofertas.',
+                    subtitle: 'Tiempos, radio y viajes programados.',
                     accent: _blue,
                     chips: [
                       (row['search_timeout_seconds'] ?? 180).toString() + ' s',
