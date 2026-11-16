@@ -110,10 +110,20 @@ String adminTripsCsv(List<Map<String, dynamic>> rows) {
   return '\uFEFF${lines.join('\r\n')}\r\n';
 }
 
-/// Nombre del archivo de viajes, p. ej. `viajes-mes-2026-11-16.csv`.
-String adminTripsFileName({required String period, required DateTime day}) {
+/// Nombre del archivo de viajes, p. ej. `viajes-completados-mes-2026-11-16.csv`.
+/// [status] es null para todos los viajes, o 'completed' / 'cancelled'.
+String adminTripsFileName({
+  required String period,
+  String? status,
+  required DateTime day,
+}) {
   String two(int n) => n.toString().padLeft(2, '0');
-  final label = switch (period) {
+  final statusLabel = switch (status) {
+    'completed' => 'completados',
+    'cancelled' => 'cancelados',
+    _ => 'todos',
+  };
+  final periodLabel = switch (period) {
     'today' => 'hoy',
     'week' => 'semana',
     'month' => 'mes',
@@ -121,5 +131,5 @@ String adminTripsFileName({required String period, required DateTime day}) {
     _ => 'periodo',
   };
   final stamp = '${day.year}-${two(day.month)}-${two(day.day)}';
-  return 'viajes-$label-$stamp.csv';
+  return 'viajes-$statusLabel-$periodLabel-$stamp.csv';
 }

@@ -110,15 +110,24 @@ void main() {
 
   test('nombre de archivo de viajes según el periodo', () {
     final day = DateTime(2026, 11, 16);
-    expect(adminTripsFileName(period: 'month', day: day), 'viajes-mes-2026-11-16.csv');
-    expect(adminTripsFileName(period: 'today', day: day), 'viajes-hoy-2026-11-16.csv');
-    expect(adminTripsFileName(period: 'custom', day: day), 'viajes-rango-2026-11-16.csv');
+    expect(adminTripsFileName(period: 'month', day: day), 'viajes-todos-mes-2026-11-16.csv');
+    expect(adminTripsFileName(period: 'today', day: day), 'viajes-todos-hoy-2026-11-16.csv');
+    expect(adminTripsFileName(period: 'custom', day: day), 'viajes-todos-rango-2026-11-16.csv');
+    expect(adminTripsFileName(period: 'month', status: 'completed', day: day),
+        'viajes-completados-mes-2026-11-16.csv');
+    expect(adminTripsFileName(period: 'month', status: 'cancelled', day: day),
+        'viajes-cancelados-mes-2026-11-16.csv');
   });
 
   test('la lista de viajes exporta todas las páginas del servidor', () {
     final source = File('lib/admin_panel.dart').readAsStringSync();
     expect(source, contains('onExport: _exportTrips,'));
     expect(source, contains('const pageSize = 500;'));
+    // Lista, conteo y exportación usan el mismo estado seleccionado.
+    expect(source, contains("'p_status': tripStatus,"));
+    expect(source, contains('Widget _tripStatusFilter()'));
+    expect(source, contains("label: 'Completados'"));
+    expect(source, contains("label: 'Cancelados'"));
     expect(source, contains("'admin_trip_list_v4'"));
   });
 }

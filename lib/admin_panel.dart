@@ -263,6 +263,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   String? selectedLiveTripId;
 
   String tripPeriod = 'today';
+  // Estado de los viajes en la lista y en la exportación: null = todos.
+  String? tripStatus;
   DateTimeRange? tripCustomRange;
   String deliveryPeriod = 'today';
   DateTimeRange? deliveryCustomRange;
@@ -856,7 +858,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
             'p_from': range.from.toUtc().toIso8601String(),
             'p_to': range.to.toUtc().toIso8601String(),
             'p_zone_id': adminZoneId,
-            'p_status': null,
+            'p_status': tripStatus,
             'p_limit': pageSize,
             'p_offset': offset,
           },
@@ -874,7 +876,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         return;
       }
       adminDownloadTextFile(
-        adminTripsFileName(period: tripPeriod, day: DateTime.now()),
+        adminTripsFileName(period: tripPeriod, status: tripStatus, day: DateTime.now()),
         adminTripsCsv(rows),
       );
       if (rows.length >= maxRows) {
@@ -905,7 +907,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         'p_from': range.from.toUtc().toIso8601String(),
         'p_to': range.to.toUtc().toIso8601String(),
         'p_zone_id': adminZoneId,
-        'p_status': null,
+        'p_status': tripStatus,
         'p_limit': 50,
         'p_offset': offset,
       },
@@ -923,7 +925,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         'p_from': range.from.toUtc().toIso8601String(),
         'p_to': range.to.toUtc().toIso8601String(),
         'p_zone_id': adminZoneId,
-        'p_status': null,
+        'p_status': tripStatus,
       },
     );
     return (value as num?)?.toInt() ?? 0;
@@ -961,6 +963,42 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       },
     );
     return (value as num?)?.toInt() ?? 0;
+  }
+
+  /// Chips de estado de los viajes: Todos, Completados y Cancelados. Afectan a la
+  /// lista, a su conteo y a la exportación.
+  Widget _tripStatusFilter() {
+    void select(String? value) {
+      setState(() {
+        tripStatus = value;
+        revision++;
+      });
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        AdminPillChoice(
+          label: 'Todos',
+          selected: tripStatus == null,
+          showCheck: true,
+          onSelected: (_) => select(null),
+        ),
+        AdminPillChoice(
+          label: 'Completados',
+          selected: tripStatus == 'completed',
+          showCheck: true,
+          onSelected: (_) => select('completed'),
+        ),
+        AdminPillChoice(
+          label: 'Cancelados',
+          selected: tripStatus == 'cancelled',
+          showCheck: true,
+          onSelected: (_) => select('cancelled'),
+        ),
+      ],
+    );
   }
 
   Widget _periodFilter(String target) {
@@ -2280,7 +2318,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Widget _tripList() {
     // Se piden 50 filas por vez al servidor, de la más reciente a la más antigua.
     return Builder(
-      key: ValueKey('trips-' + revision.toString() + tripPeriod.toString() + tripCustomRange.toString()),
+      key: ValueKey('trips-' + revision.toString() + tripPeriod.toString() + tripCustomRange.toString() + (tripStatus ?? 'all')),
       builder: (context) {
 
         return _Records(
@@ -2291,7 +2329,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           pageLoader: (offset, _) => _trips(offset),
           countLoader: (_) => _tripsCount(),
           searchOnServer: false,
-          serverFilters: _periodFilter('trip'),
+          serverFilters: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _periodFilter('trip'),
+              const SizedBox(height: 8),
+              _tripStatusFilter(),
+            ],
+          ),
           onExport: _exportTrips,
           item: (row) => _OperationCard(
             icon: Icons.local_taxi_rounded,
