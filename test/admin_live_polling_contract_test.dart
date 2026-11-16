@@ -37,6 +37,12 @@ void main() {
     expect(live, isNot(contains('await _filterZones()')));
   });
 
+  test('el SOS usa la lista de emergencias y no el panel completo', () {
+    expect(panel, contains("'admin_emergencies_list_v1'"));
+    expect(panel, contains('loadAlerts: _emergenciesList,'));
+    expect(panel, isNot(contains("loadAlerts: () async => _list((await _dashboardState(6))['emergencies'])")));
+  });
+
   test('el intervalo visible del mapa sigue en 10 s (sin perder calidad)', () {
     expect(panel, contains('const Duration(seconds: 10),\n      (_) => _autoRefreshLive(),'));
   });
