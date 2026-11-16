@@ -265,6 +265,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   String tripPeriod = 'today';
   // Estado de los viajes en la lista y en la exportación: null = todos.
   String? tripStatus;
+  // Estado de conductores (por defecto, pendientes) y de usuarios (null = todos).
+  String driverStatus = 'pending';
+  String? userStatus;
   DateTimeRange? tripCustomRange;
   String deliveryPeriod = 'today';
   DateTimeRange? deliveryCustomRange;
@@ -693,13 +696,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   ) async {
     if (!_scopeReady) return const [];
     final value = await supabase.rpc(
-      'admin_driver_list_v4',
+      'admin_driver_list_v5',
       params: {
         'p_channel': _sectionChannel(4),
         'p_zone_id': adminZoneId,
         'p_search': search.trim().isEmpty ? null : search.trim(),
         'p_limit': 50,
         'p_offset': offset,
+        'p_status': driverStatus,
       },
     );
     return _list(value);
@@ -708,11 +712,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<int> _driversCount(String search) async {
     if (!_scopeReady) return 0;
     final value = await supabase.rpc(
-      'admin_driver_count_v1',
+      'admin_driver_count_v2',
       params: {
         'p_channel': _sectionChannel(4),
         'p_zone_id': adminZoneId,
         'p_search': search.trim().isEmpty ? null : search.trim(),
+        'p_status': driverStatus,
       },
     );
     return (value as num?)?.toInt() ?? 0;
@@ -779,13 +784,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   ) async {
     if (!_scopeReady) return const [];
     final value = await supabase.rpc(
-      'admin_user_list_v4',
+      'admin_user_list_v5',
       params: {
         'p_channel': _sectionChannel(5),
         'p_zone_id': adminZoneId,
         'p_search': search.trim().isEmpty ? null : search.trim(),
         'p_limit': 50,
         'p_offset': offset,
+        'p_status': userStatus,
       },
     );
     return _list(value);
@@ -794,11 +800,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<int> _usersCount(String search) async {
     if (!_scopeReady) return 0;
     final value = await supabase.rpc(
-      'admin_user_count_v1',
+      'admin_user_count_v2',
       params: {
         'p_channel': _sectionChannel(5),
         'p_zone_id': adminZoneId,
         'p_search': search.trim().isEmpty ? null : search.trim(),
+        'p_status': userStatus,
       },
     );
     return (value as num?)?.toInt() ?? 0;
@@ -963,6 +970,88 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       },
     );
     return (value as num?)?.toInt() ?? 0;
+  }
+
+  /// Chips de estado de conductores. Por defecto se ven los pendientes.
+  Widget _driverStatusFilter() {
+    void select(String value) {
+      setState(() {
+        driverStatus = value;
+        revision++;
+      });
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        AdminPillChoice(
+          label: 'Pendientes',
+          selected: driverStatus == 'pending',
+          showCheck: true,
+          onSelected: (_) => select('pending'),
+        ),
+        AdminPillChoice(
+          label: 'Activos',
+          selected: driverStatus == 'approved',
+          showCheck: true,
+          onSelected: (_) => select('approved'),
+        ),
+        AdminPillChoice(
+          label: 'Rechazados',
+          selected: driverStatus == 'rejected',
+          showCheck: true,
+          onSelected: (_) => select('rejected'),
+        ),
+        AdminPillChoice(
+          label: 'Suspendidos',
+          selected: driverStatus == 'suspended',
+          showCheck: true,
+          onSelected: (_) => select('suspended'),
+        ),
+      ],
+    );
+  }
+
+  /// Chips de estado de usuarios. Por defecto se ven todos, como antes.
+  Widget _userStatusFilter() {
+    void select(String? value) {
+      setState(() {
+        userStatus = value;
+        revision++;
+      });
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        AdminPillChoice(
+          label: 'Todos',
+          selected: userStatus == null,
+          showCheck: true,
+          onSelected: (_) => select(null),
+        ),
+        AdminPillChoice(
+          label: 'Rechazados',
+          selected: userStatus == 'rejected',
+          showCheck: true,
+          onSelected: (_) => select('rejected'),
+        ),
+        AdminPillChoice(
+          label: 'Bloqueados',
+          selected: userStatus == 'blocked',
+          showCheck: true,
+          onSelected: (_) => select('blocked'),
+        ),
+        AdminPillChoice(
+          label: 'Suspendidos',
+          selected: userStatus == 'suspended',
+          showCheck: true,
+          onSelected: (_) => select('suspended'),
+        ),
+      ],
+    );
   }
 
   /// Chips de estado de los viajes: Todos, Completados y Cancelados. Afectan a la
@@ -2422,19 +2511,22 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Widget _driverList() {
     // Se piden 50 filas por vez al servidor, de la más reciente a la más antigua.
     return Builder(
-      key: ValueKey('drivers-' + revision.toString()),
+      key: ValueKey('drivers-' + revision.toString() + driverStatus),
       builder: (context) {
 
         return _Records(
           title: 'Conductores',
           subtitle:
               'Aprobación, estado, licencia, vehículo y control de conductores.',
-          empty: 'Todavía no hay conductores registrados.',
+          empty: driverStatus == 'pending'
+              ? 'No hay conductores pendientes.'
+              : 'No hay conductores con este estado.',
           rows: const [],
           pageLoader: _driversPage,
           countLoader: _driversCount,
           showQaFilter: false,
           onExport: () => _exportCompletedTripRanking(drivers: true),
+          serverFilters: _driverStatusFilter(),
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
             final online = (row['online_status'] ?? 'offline').toString();
@@ -2626,7 +2718,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     // Los usuarios se piden al servidor de a 50, del más reciente al más
     // antiguo; no se descarga la lista completa.
     return Builder(
-      key: ValueKey('users-' + revision.toString()),
+      key: ValueKey('users-' + revision.toString() + (userStatus ?? 'all')),
       builder: (context) {
         return Column(
           children: [
@@ -2651,7 +2743,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                 rows: const [],
                 pageLoader: _usersPage,
                 countLoader: _usersCount,
-                serverFilters: _userGeoFilters(),
+                serverFilters: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _userGeoFilters(),
+                    const SizedBox(height: 8),
+                    _userStatusFilter(),
+                  ],
+                ),
                 showQaFilter: true,
                 onExport: () => _exportCompletedTripRanking(drivers: false),
                 item: (row) => Container(
