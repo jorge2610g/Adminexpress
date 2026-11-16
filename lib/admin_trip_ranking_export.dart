@@ -70,3 +70,66 @@ String adminTripRankingFileName({
   final stamp = '${day.year}-${two(day.month)}-${two(day.day)}';
   return 'ranking-${drivers ? 'conductores' : 'usuarios'}-$stamp.csv';
 }
+
+/// Encabezados del CSV de viajes, en el orden del archivo.
+const List<String> adminTripsHeaders = <String>[
+  'Fecha',
+  'Estado',
+  'Categoría',
+  'Pasajero',
+  'Conductor',
+  'Origen',
+  'Destino',
+  'Tarifa final',
+  'Moneda',
+  'Pago',
+  'Completado',
+];
+
+/// CSV de viajes: una fila por viaje, con el orden que llegue del servidor.
+/// No incluye teléfonos ni correos.
+String adminTripsCsv(List<Map<String, dynamic>> rows) {
+  final lines = <String>[
+    adminTripsHeaders.map(adminCsvCell).join(';'),
+  ];
+  for (final row in rows) {
+    lines.add(<Object?>[
+      adminCsvDate(row['created_at']),
+      row['status'],
+      row['category'],
+      row['passenger_name'],
+      row['driver_name'],
+      row['pickup_address'],
+      row['destination_address'],
+      row['final_fare'],
+      row['currency'] ?? row['currency_code'],
+      row['payment_status'],
+      adminCsvDate(row['completed_at']),
+    ].map(adminCsvCell).join(';'));
+  }
+  return '\uFEFF${lines.join('\r\n')}\r\n';
+}
+
+/// Nombre del archivo de viajes, p. ej. `viajes-completados-mes-2026-11-16.csv`.
+/// [status] es null para todos los viajes, o 'completed' / 'cancelled'.
+String adminTripsFileName({
+  required String period,
+  String? status,
+  required DateTime day,
+}) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  final statusLabel = switch (status) {
+    'completed' => 'completados',
+    'cancelled' => 'cancelados',
+    _ => 'todos',
+  };
+  final periodLabel = switch (period) {
+    'today' => 'hoy',
+    'week' => 'semana',
+    'month' => 'mes',
+    'custom' => 'rango',
+    _ => 'periodo',
+  };
+  final stamp = '${day.year}-${two(day.month)}-${two(day.day)}';
+  return 'viajes-$statusLabel-$periodLabel-$stamp.csv';
+}
