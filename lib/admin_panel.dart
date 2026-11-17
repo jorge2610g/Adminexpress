@@ -21,6 +21,7 @@ import 'package:supabase_flutter/supabase_flutter.dart'
     show ResizeMode, TransformOptions;
 
 import 'core/supabase_client.dart';
+import 'admin_passenger_verification.dart';
 import 'admin_csv_download.dart';
 import 'admin_trip_ranking_export.dart';
 import 'admin_runtime_scope.dart';
@@ -2748,6 +2749,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                     label: const Text('Crear cuenta'),
                   ),
                 ),
+              ),
+            if (adminAccess['role'] == 'super_admin')
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: AdminPassengerVerificationSettings(),
               ),
             Expanded(
               child: _Records(
