@@ -2114,6 +2114,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         return AdminBenefitsPage(
           channel: _sectionChannel(35),
           zoneId: adminZoneId,
+          countryCode: adminCountryCode,
         );
       case 28:
         return AdminDynamicPricingPage(

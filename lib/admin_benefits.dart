@@ -28,10 +28,13 @@ class AdminBenefitsPage extends StatefulWidget {
     super.key,
     required this.channel,
     required this.zoneId,
+    this.countryCode,
   });
 
   final String channel;
   final String? zoneId;
+  // Solo para mostrar el nombre de la zona en el formulario (no el UUID).
+  final String? countryCode;
 
   @override
   State<AdminBenefitsPage> createState() => _AdminBenefitsPageState();
@@ -130,12 +133,14 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       };
 
   String? _editingId;
+  String? _zoneLabel;
 
   @override
   void initState() {
     super.initState();
     _referralDashboardFuture = Future.value(const <String, dynamic>{});
     _reload();
+    _loadZoneLabel();
   }
 
   @override
@@ -145,6 +150,41 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       _clear();
       _reload();
     }
+    if (oldWidget.zoneId != widget.zoneId ||
+        oldWidget.countryCode != widget.countryCode) {
+      _loadZoneLabel();
+    }
+  }
+
+  /// Nombre y ciudad de la zona para el formulario. Si falla, se muestra un
+  /// texto genérico; nunca el identificador técnico.
+  Future<void> _loadZoneLabel() async {
+    final zoneId = widget.zoneId;
+    final country = widget.countryCode;
+    String? label;
+    if (zoneId != null && country != null) {
+      try {
+        final raw = await supabase.rpc(
+          'admin_zone_list_for_country',
+          params: {'p_country_code': country},
+        );
+        if (raw is List) {
+          for (final row in raw.whereType<Map>()) {
+            if (row['id']?.toString() == zoneId) {
+              final name = (row['name'] ?? '').toString().trim();
+              final city = (row['city'] ?? '').toString().trim();
+              if (name.isNotEmpty) {
+                label = city.isEmpty ? name : '$name · $city';
+              }
+              break;
+            }
+          }
+        }
+      } catch (_) {
+        label = null;
+      }
+    }
+    if (mounted) setState(() => _zoneLabel = label);
   }
 
   @override
@@ -709,7 +749,9 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             _textField('Monto del bono (Bs)', _value, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
           _dropdown('Dirigido a', _audience, const {'drivers': 'Conductores', 'all': 'Todos los usuarios'}, (value) => _refreshEditor(() => _audience = value)),
-          _infoBox('Zona: ${widget.zoneId ?? 'Selecciona una zona'}'),
+          _infoBox(
+            'Zona: ${widget.zoneId == null ? 'Selecciona una zona' : (_zoneLabel ?? 'Zona seleccionada')}',
+          ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Reto exclusivo (el conductor no puede inscribirse a otros retos)'),
