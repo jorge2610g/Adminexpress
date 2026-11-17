@@ -95,18 +95,18 @@ class _AdminPassengerVerificationSettingsState
             contentPadding: EdgeInsets.zero,
             value: _profilePhoto,
             onChanged: _saving ? null : (value) => setState(() => _profilePhoto = value),
-            title: const Text('Pedir foto de perfil'),
+            title: const Text('Pedir foto de perfil cada día'),
             subtitle: const Text(
-              'El pasajero sube su foto antes de pedir un viaje.',
+              'Al pedir un viaje, el pasajero se toma su foto de perfil una vez por día.',
             ),
           ),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
             value: _identity,
             onChanged: _saving ? null : (value) => setState(() => _identity = value),
-            title: const Text('Pedir carnet de identidad (frente y reverso)'),
+            title: const Text('Pedir carnet de identidad (anverso y reverso)'),
             subtitle: const Text(
-              'Apagado por ahora. Solo lo ve el administrador, nunca el conductor.',
+              'Apagado: no se piden documentos. Encendido: al pedir un viaje, si aún no los tiene. Solo los ve el administrador.',
             ),
           ),
           SwitchListTile.adaptive(
@@ -115,7 +115,7 @@ class _AdminPassengerVerificationSettingsState
             onChanged: _saving ? null : (value) => setState(() => _selfie = value),
             title: const Text('Pedir selfie para reconocimiento facial'),
             subtitle: const Text(
-              'Apagado por ahora. Solo para revisión de seguridad del administrador.',
+              'Apagado por ahora. Se pide al pedir un viaje, junto con el carnet. Solo la ve el administrador.',
             ),
           ),
           if (_error != null)
