@@ -13,7 +13,7 @@ void main() {
 
   test('el reto de conductores se guarda con audiencia drivers', () {
     expect(source, contains("'audience': _programType == 'driver_challenge'"));
-    expect(source, contains("? 'drivers'"));
+    expect(source, contains("(_audience == 'all' ? 'all' : 'drivers')"));
   });
 
   test('al cargar un reto de conductores la audiencia es drivers', () {
