@@ -1044,12 +1044,12 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           '${config['value'] ?? '—'}${config['discount_type'] == 'percent' ? '%' : ''}',
           '${config['uses'] ?? 0}/${config['max_total_uses'] ?? '∞'}',
           validity,
-          config['audience']?.toString() ?? 'Pasajeros', state, actions,
+          _audienceLabel(config['audience'], 'Pasajeros'), state, actions,
         ],
       'activation' => [
           row['name']?.toString() ?? '—', config['trigger_type']?.toString() ?? 'Primer viaje',
           '${config['reward_type'] ?? 'Monto fijo'} ${config['value'] ?? '—'}',
-          config['audience']?.toString() ?? 'Clientes', '${config['activations'] ?? 0}', state, actions,
+          _audienceLabel(config['audience'], 'Clientes'), '${config['activations'] ?? 0}', state, actions,
         ],
       'loyalty' => [
           row['name']?.toString() ?? '—', '${config['trip_threshold'] ?? '—'} viajes',
@@ -1446,4 +1446,14 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       };
 
   String _formatDate(DateTime value) => '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+}
+
+/// Texto legible de la audiencia de un beneficio, en lugar del valor técnico.
+String _audienceLabel(Object? audience, String fallback) {
+  return switch (audience?.toString() ?? '') {
+    'drivers' => 'Conductores',
+    'passengers' => 'Pasajeros',
+    'all' => 'Todos los usuarios',
+    _ => fallback,
+  };
 }
