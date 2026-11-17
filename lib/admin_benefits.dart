@@ -28,10 +28,13 @@ class AdminBenefitsPage extends StatefulWidget {
     super.key,
     required this.channel,
     required this.zoneId,
+    this.countryCode,
   });
 
   final String channel;
   final String? zoneId;
+  // Solo para mostrar el nombre de la zona en el formulario (no el UUID).
+  final String? countryCode;
 
   @override
   State<AdminBenefitsPage> createState() => _AdminBenefitsPageState();
@@ -130,12 +133,14 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       };
 
   String? _editingId;
+  String? _zoneLabel;
 
   @override
   void initState() {
     super.initState();
     _referralDashboardFuture = Future.value(const <String, dynamic>{});
     _reload();
+    _loadZoneLabel();
   }
 
   @override
@@ -145,6 +150,41 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       _clear();
       _reload();
     }
+    if (oldWidget.zoneId != widget.zoneId ||
+        oldWidget.countryCode != widget.countryCode) {
+      _loadZoneLabel();
+    }
+  }
+
+  /// Nombre y ciudad de la zona para el formulario. Si falla, se muestra un
+  /// texto genérico; nunca el identificador técnico.
+  Future<void> _loadZoneLabel() async {
+    final zoneId = widget.zoneId;
+    final country = widget.countryCode;
+    String? label;
+    if (zoneId != null && country != null) {
+      try {
+        final raw = await supabase.rpc(
+          'admin_zone_list_for_country',
+          params: {'p_country_code': country},
+        );
+        if (raw is List) {
+          for (final row in raw.whereType<Map>()) {
+            if (row['id']?.toString() == zoneId) {
+              final name = (row['name'] ?? '').toString().trim();
+              final city = (row['city'] ?? '').toString().trim();
+              if (name.isNotEmpty) {
+                label = city.isEmpty ? name : '$name · $city';
+              }
+              break;
+            }
+          }
+        }
+      } catch (_) {
+        label = null;
+      }
+    }
+    if (mounted) setState(() => _zoneLabel = label);
   }
 
   @override
@@ -297,9 +337,11 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     _discount = config['discount_type']?.toString() ?? 'fixed';
     _serviceMode = config['service_mode']?.toString() ?? 'transport';
     _serviceType = config['service_type']?.toString() ?? 'all';
-    _audience = const {'coupon', 'activation', 'loyalty'}.contains(_programType)
-        ? 'passengers'
-        : config['audience']?.toString() ?? 'passengers';
+    _audience = _programType == 'driver_challenge'
+        ? (const {'drivers', 'all'}.contains(config['audience']) ? config['audience'].toString() : 'drivers')
+        : const {'coupon', 'activation', 'loyalty'}.contains(_programType)
+            ? 'passengers'
+            : config['audience']?.toString() ?? 'passengers';
     _targetAudience = config['target_audience']?.toString() ?? 'all';
     _rewardDestination = _programType == 'activation' || _programType == 'loyalty'
         ? 'coupon'
@@ -323,9 +365,11 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     final config = <String, dynamic>{
       'service_mode': _programType == 'coupon' ? 'transport' : _serviceMode,
       'service_type': _serviceType,
-      'audience': const {'coupon', 'activation', 'loyalty'}.contains(_programType)
-          ? 'passengers'
-          : _audience,
+      'audience': _programType == 'driver_challenge'
+          ? (_audience == 'all' ? 'all' : 'drivers')
+          : const {'coupon', 'activation', 'loyalty'}.contains(_programType)
+              ? 'passengers'
+              : _audience,
       'target_audience': _targetAudience,
       'discount_absorber': 'company',
       'value': double.tryParse(_value.text.trim()),
@@ -610,7 +654,9 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           ]),
           _dropdown('Tipos de servicio', _serviceType, const {'all': 'Todos los servicios', 'economy': 'Económico', 'comfort': 'Confort', 'moto': 'Moto', 'motocar': 'Motocar'}, (value) => _refreshEditor(() => _serviceType = value)),
           _textField('Monto mínimo de viaje (Bs)', _minFare, hint: 'Sin mínimo', keyboard: const TextInputType.numberWithOptions(decimal: true)),
-          _dropdown('Audiencia', 'passengers', const {'passengers': 'Pasajeros'}, (_) => _refreshEditor(() => _audience = 'passengers')),
+          _programType == 'driver_challenge'
+              ? _dropdown('Audiencia', 'drivers', const {'drivers': 'Conductores'}, (_) => _refreshEditor(() => _audience = 'drivers'))
+              : _dropdown('Audiencia', 'passengers', const {'passengers': 'Pasajeros'}, (_) => _refreshEditor(() => _audience = 'passengers')),
           _twoColumns([
             _dropdown('Audiencia objetivo', _targetAudience, const {'all': 'Todos los usuarios', 'new': 'Usuarios nuevos', 'returning': 'Usuarios frecuentes'}, (value) => _refreshEditor(() => _targetAudience = value)),
             _dropdown('Quién cubre el descuento', 'company', const {'company': 'Express · crédito al conductor'}, (_) {}),
@@ -702,7 +748,10 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             _dropdown('Tipo de recompensa', 'wallet', const {'wallet': 'Bono en billetera interna'}, (_) {}),
             _textField('Monto del bono (Bs)', _value, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
-          _infoBox('Zona: ${widget.zoneId ?? 'Selecciona una zona'}'),
+          _dropdown('Dirigido a', _audience, const {'drivers': 'Conductores', 'all': 'Todos los usuarios'}, (value) => _refreshEditor(() => _audience = value)),
+          _infoBox(
+            'Zona: ${widget.zoneId == null ? 'Selecciona una zona' : (_zoneLabel ?? 'Zona seleccionada')}',
+          ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Reto exclusivo (el conductor no puede inscribirse a otros retos)'),
@@ -1038,12 +1087,12 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           '${config['value'] ?? '—'}${config['discount_type'] == 'percent' ? '%' : ''}',
           '${config['uses'] ?? 0}/${config['max_total_uses'] ?? '∞'}',
           validity,
-          config['audience']?.toString() ?? 'Pasajeros', state, actions,
+          _audienceLabel(config['audience'], 'Pasajeros'), state, actions,
         ],
       'activation' => [
           row['name']?.toString() ?? '—', config['trigger_type']?.toString() ?? 'Primer viaje',
           '${config['reward_type'] ?? 'Monto fijo'} ${config['value'] ?? '—'}',
-          config['audience']?.toString() ?? 'Clientes', '${config['activations'] ?? 0}', state, actions,
+          _audienceLabel(config['audience'], 'Clientes'), '${config['activations'] ?? 0}', state, actions,
         ],
       'loyalty' => [
           row['name']?.toString() ?? '—', '${config['trip_threshold'] ?? '—'} viajes',
@@ -1440,4 +1489,14 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       };
 
   String _formatDate(DateTime value) => '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+}
+
+/// Texto legible de la audiencia de un beneficio, en lugar del valor técnico.
+String _audienceLabel(Object? audience, String fallback) {
+  return switch (audience?.toString() ?? '') {
+    'drivers' => 'Conductores',
+    'passengers' => 'Pasajeros',
+    'all' => 'Todos los usuarios',
+    _ => fallback,
+  };
 }

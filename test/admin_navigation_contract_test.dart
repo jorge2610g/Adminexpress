@@ -18,10 +18,11 @@ void main() {
         .map((match) => match.group(1)!)
         .toList();
 
-    expect(labels, hasLength(37));
+    expect(labels, hasLength(38));
     expect(labels[24], 'Delivery Fase 2 / Express Plus');
     expect(labels[35], 'Beneficios Express');
     expect(labels[36], 'Publicidad de pasajeros');
+    expect(labels[37], 'Asesores de ventas');
     expect(panel, contains("35: 'benefits'"));
     expect(panel, contains("if (index == 35 && adminAccess['role'] == 'super_admin')"));
     expect(panel, contains("36: 'passenger_ads'"));
@@ -49,7 +50,7 @@ void main() {
         .map((match) => int.parse(match.group(0)!))
         .toList();
 
-    expect(indices, [23, 25, 29, 30, 34, 35, 36]);
+    expect(indices, [23, 25, 29, 30, 34, 35, 36, 37]);
     expect(indices, isNot(contains(24)));
     expect(indices, isNot(contains(26)));
   });

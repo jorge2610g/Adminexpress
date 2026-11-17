@@ -1,3 +1,5 @@
+import 'admin_sales_advisors.dart';
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -7,13 +9,20 @@ import 'core/admin_friendly_error.dart';
 import 'core/admin_dropdown_field.dart';
 import 'core/admin_friendly_labels.dart';
 import 'core/admin_money.dart';
+import 'core/admin_page_visibility.dart';
 import 'core/admin_ui.dart';
 
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show ResizeMode, TransformOptions;
 
 import 'core/supabase_client.dart';
+import 'admin_csv_download.dart';
+import 'admin_trip_ranking_export.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
 import 'admin_landing_banners.dart';
@@ -254,6 +263,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   String? selectedLiveTripId;
 
   String tripPeriod = 'today';
+  // Estado de los viajes en la lista y en la exportación: null = todos.
+  String? tripStatus;
+  // Estado de conductores (por defecto, pendientes) y de usuarios (null = todos).
+  String driverStatus = 'pending';
+  String? userStatus;
   DateTimeRange? tripCustomRange;
   String deliveryPeriod = 'today';
   DateTimeRange? deliveryCustomRange;
@@ -363,6 +377,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     // Publicidad de pasajeros: central marketing module for the passenger app.
     // Superadmins always see it, even before the `passenger_ads` key exists.
     if (index == 36 && adminAccess['role'] == 'super_admin') return true;
+    // Asesores de ventas: solo super admin (el servidor lo vuelve a comprobar).
+    if (index == 37) return adminAccess['role'] == 'super_admin';
     // Identity review is already part of the driver record. The old standalone
     // identity entries are deliberately unreachable.
     if (index == 18 || index == 27) return false;
@@ -402,6 +418,9 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Future<bool>? _authFuture;
   Future<({Map<String, dynamic> state, List<Map<String, dynamic>> zones})>?
       _liveFuture;
+  // Refresco automático del mapa de operaciones (ver _autoRefreshLive).
+  Timer? _liveTimer;
+  bool _liveRefreshInFlight = false;
 
   @override
   void initState() {
@@ -409,6 +428,16 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     adminChannel = 'production';
     _authFuture = _authorized();
     _liveFuture = null;
+    _liveTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _autoRefreshLive(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _liveTimer?.cancel();
+    super.dispose();
   }
 
   static const sections = <(String, IconData)>[
@@ -449,6 +478,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Requisitos de restaurantes', Icons.fact_check_outlined),
     ('Beneficios Express', Icons.card_giftcard_outlined),
     ('Publicidad de pasajeros', Icons.campaign_rounded),
+    ('Asesores de ventas', Icons.badge_rounded),
   ];
 
   Future<bool> _authorized() async {
@@ -503,6 +533,20 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     return true;
   }
 
+  /// Emergencias abiertas de la zona. Antes se leía el panel completo
+  /// (admin_dashboard_state_v2) cada 10 s solo para este campo.
+  Future<List<Map<String, dynamic>>> _emergenciesList() async {
+    if (!_scopeReady) return const [];
+    final value = await supabase.rpc(
+      'admin_emergencies_list_v1',
+      params: {
+        'p_channel': _sectionChannel(6),
+        'p_zone_id': adminZoneId,
+      },
+    );
+    return _list(value);
+  }
+
   Future<Map<String, dynamic>> _dashboardState(int sectionIndex) async {
     if (!_scopeReady) return <String, dynamic>{};
     final value = await supabase.rpc(
@@ -523,8 +567,132 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       return (state: <String, dynamic>{}, zones: <Map<String, dynamic>>[]);
     }
     final state = await _dashboardState(1);
-    final zones = await _filterZones();
+    final zones = await _liveZonesCached();
+    await _attachDriverMapPhotos(state);
     return (state: state, zones: zones);
+  }
+
+  // URLs firmadas de fotos de conductores, reutilizadas entre recargas para que el
+  // navegador no vuelva a bajar la misma foto cada vez que se abre el mapa.
+  final Map<String, _DriverMapPhotoUrls> _driverMapPhotoCache = {};
+
+  // Fotos de perfil para el mapa de operaciones. El RPC solo devuelve rutas de
+  // conductores que esta cuenta ya puede ver. Se pide primero una miniatura de
+  // 160 px y el original queda como respaldo si la miniatura no carga.
+  // Zonas del país: casi nunca cambian; el mapa en vivo las pide como máximo cada 10 min.
+  List<Map<String, dynamic>>? _liveZonesCache;
+  String _liveZonesKey = '';
+  DateTime? _liveZonesAt;
+
+  Future<List<Map<String, dynamic>>> _liveZonesCached() async {
+    final key = adminCountryCode ?? '';
+    final at = _liveZonesAt;
+    if (_liveZonesCache != null &&
+        _liveZonesKey == key &&
+        at != null &&
+        DateTime.now().difference(at) < const Duration(minutes: 10)) {
+      return _liveZonesCache!;
+    }
+    final zones = await _filterZones();
+    _liveZonesCache = zones;
+    _liveZonesKey = key;
+    _liveZonesAt = DateTime.now();
+    return zones;
+  }
+
+  // Rutas de fotos de conductores: cambian solo al subir una foto nueva, así que
+  // el mapa en vivo las pide como máximo cada 5 min (no en cada tick de 10 s).
+  Object? _photoRowsCache;
+  String _photoRowsKey = '';
+  DateTime? _photoRowsAt;
+
+  Future<Object?> _driverMapPhotoRows() async {
+    final channel = _sectionChannel(1);
+    final key = '$channel|${adminZoneId ?? ''}';
+    final at = _photoRowsAt;
+    if (at != null &&
+        _photoRowsKey == key &&
+        DateTime.now().difference(at) < const Duration(minutes: 5)) {
+      return _photoRowsCache;
+    }
+    final value = await supabase.rpc(
+      'admin_driver_map_photos_v1',
+      params: {
+        'p_channel': channel,
+        'p_zone_id': adminZoneId,
+      },
+    );
+    _photoRowsCache = value;
+    _photoRowsKey = key;
+    _photoRowsAt = DateTime.now();
+    return value;
+  }
+
+  Future<void> _attachDriverMapPhotos(Map<String, dynamic> state) async {
+    final drivers = _list(state['drivers']);
+    if (drivers.isEmpty) return;
+    try {
+      final value = await _driverMapPhotoRows();
+      final photos = <String, _DriverMapPhotoUrls>{};
+      if (value is List) {
+        final entries = value.whereType<Map>().toList();
+        final signed = await Future.wait<MapEntry<String, _DriverMapPhotoUrls>?>(
+          entries.map((row) async {
+            final id = row['user_id']?.toString() ?? '';
+            final path = row['photo_path']?.toString().trim() ?? '';
+            if (id.isEmpty || path.isEmpty) return null;
+            final urls = await _signedDriverPhotoUrls(path);
+            return urls == null ? null : MapEntry(id, urls);
+          }),
+        );
+        for (final entry in signed) {
+          if (entry != null) photos[entry.key] = entry.value;
+        }
+      }
+      state['drivers'] = [
+        for (final driver in drivers)
+          {
+            ...driver,
+            'map_photo_url':
+                photos[(driver['user_id'] ?? '').toString()]?.thumb,
+            'map_photo_original_url':
+                photos[(driver['user_id'] ?? '').toString()]?.original,
+          },
+      ];
+    } catch (_) {
+      // Sin fotos: los conductores siguen visibles con el icono de respaldo.
+    }
+  }
+
+  Future<_DriverMapPhotoUrls?> _signedDriverPhotoUrls(String path) async {
+    final now = DateTime.now();
+    final cached = _driverMapPhotoCache[path];
+    if (cached != null &&
+        cached.expiresAt.isAfter(now.add(const Duration(minutes: 10)))) {
+      return cached;
+    }
+    try {
+      final bucket = supabase.storage.from('driver-onboarding');
+      final thumb = await bucket.createSignedUrl(
+        path,
+        3600,
+        transform: TransformOptions(
+          width: 160,
+          height: 160,
+          resize: ResizeMode.cover,
+        ),
+      );
+      final original = await bucket.createSignedUrl(path, 3600);
+      final urls = _DriverMapPhotoUrls(
+        thumb: thumb,
+        original: original,
+        expiresAt: now.add(const Duration(hours: 1)),
+      );
+      _driverMapPhotoCache[path] = urls;
+      return urls;
+    } catch (_) {
+      return null;
+    }
   }
 
   String _zoneCountryCode(Map<String, dynamic> row) {
@@ -536,17 +704,39 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     return country.toUpperCase();
   }
 
-  Future<List<Map<String, dynamic>>> _drivers() async {
+  Future<List<Map<String, dynamic>>> _driversPage(
+    int offset,
+    String search,
+  ) async {
     if (!_scopeReady) return const [];
     final value = await supabase.rpc(
-      'admin_driver_list_v3',
+      'admin_driver_list_v5',
       params: {
         'p_channel': _sectionChannel(4),
         'p_zone_id': adminZoneId,
+        'p_search': search.trim().isEmpty ? null : search.trim(),
+        'p_limit': 50,
+        'p_offset': offset,
+        'p_status': driverStatus,
       },
     );
     return _list(value);
   }
+
+  Future<int> _driversCount(String search) async {
+    if (!_scopeReady) return 0;
+    final value = await supabase.rpc(
+      'admin_driver_count_v2',
+      params: {
+        'p_channel': _sectionChannel(4),
+        'p_zone_id': adminZoneId,
+        'p_search': search.trim().isEmpty ? null : search.trim(),
+        'p_status': driverStatus,
+      },
+    );
+    return (value as num?)?.toInt() ?? 0;
+  }
+
 
   Future<List<Map<String, dynamic>>> _filterCountries() async {
     final value = await supabase.rpc('admin_country_list_scoped');
@@ -602,22 +792,133 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     }
   }
 
-  Future<List<Map<String, dynamic>>> _users() async {
+  Future<List<Map<String, dynamic>>> _usersPage(
+    int offset,
+    String search,
+  ) async {
     if (!_scopeReady) return const [];
     final value = await supabase.rpc(
-      'admin_user_list_v4',
+      'admin_user_list_v5',
       params: {
         'p_channel': _sectionChannel(5),
         'p_zone_id': adminZoneId,
-        'p_search': null,
-        'p_limit': 100,
-        'p_offset': 0,
+        'p_search': search.trim().isEmpty ? null : search.trim(),
+        'p_limit': 50,
+        'p_offset': offset,
+        'p_status': userStatus,
       },
     );
     return _list(value);
   }
 
-  Future<List<Map<String, dynamic>>> _trips() async {
+  Future<int> _usersCount(String search) async {
+    if (!_scopeReady) return 0;
+    final value = await supabase.rpc(
+      'admin_user_count_v2',
+      params: {
+        'p_channel': _sectionChannel(5),
+        'p_zone_id': adminZoneId,
+        'p_search': search.trim().isEmpty ? null : search.trim(),
+        'p_status': userStatus,
+      },
+    );
+    return (value as num?)?.toInt() ?? 0;
+  }
+
+  /// Descarga el ranking de viajes completados de la zona activa: conductores
+  /// (`drivers: true`) o pasajeros. Usa todas las filas, no solo la página visible.
+  Future<void> _exportCompletedTripRanking({required bool drivers}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (!_scopeReady) return;
+    try {
+      final value = await supabase.rpc(
+        'admin_completed_trip_ranking_v1',
+        params: {
+          'p_channel': _sectionChannel(drivers ? 4 : 5),
+          'p_zone_id': adminZoneId,
+          'p_role': drivers ? 'driver' : 'passenger',
+        },
+      );
+      final rows = _list(value);
+      if (rows.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Todavía no hay viajes completados para exportar.'),
+          ),
+        );
+        return;
+      }
+      adminDownloadTextFile(
+        adminTripRankingFileName(drivers: drivers, day: DateTime.now()),
+        adminTripRankingCsv(rows),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo generar el archivo. Intenta de nuevo.'),
+        ),
+      );
+    }
+  }
+
+  /// Descarga los viajes del periodo y la zona que se ven en pantalla. Pide
+  /// todas las páginas del servidor (500 por vez), no solo las 50 visibles.
+  Future<void> _exportTrips() async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (!_scopeReady) return;
+    try {
+      final range = _periodBounds(tripPeriod, tripCustomRange);
+      const pageSize = 500;
+      const maxRows = 10000;
+      final rows = <Map<String, dynamic>>[];
+      for (var offset = 0; offset < maxRows; offset += pageSize) {
+        final value = await supabase.rpc(
+          'admin_trip_list_v4',
+          params: {
+            'p_channel': _sectionChannel(2),
+            'p_from': range.from.toUtc().toIso8601String(),
+            'p_to': range.to.toUtc().toIso8601String(),
+            'p_zone_id': adminZoneId,
+            'p_status': tripStatus,
+            'p_limit': pageSize,
+            'p_offset': offset,
+          },
+        );
+        final page = _list(value);
+        rows.addAll(page);
+        if (page.length < pageSize) break;
+      }
+      if (rows.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('No hay viajes en este periodo para exportar.'),
+          ),
+        );
+        return;
+      }
+      adminDownloadTextFile(
+        adminTripsFileName(period: tripPeriod, status: tripStatus, day: DateTime.now()),
+        adminTripsCsv(rows),
+      );
+      if (rows.length >= maxRows) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Se exportaron los primeros 10 000 viajes. Reduce el periodo para ver el resto.',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo generar el archivo. Intenta de nuevo.'),
+        ),
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _trips(int offset) async {
     if (!_scopeReady) return const [];
     final range = _periodBounds(tripPeriod, tripCustomRange);
     final value = await supabase.rpc(
@@ -627,15 +928,31 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         'p_from': range.from.toUtc().toIso8601String(),
         'p_to': range.to.toUtc().toIso8601String(),
         'p_zone_id': adminZoneId,
-        'p_status': null,
-        'p_limit': 200,
-        'p_offset': 0,
+        'p_status': tripStatus,
+        'p_limit': 50,
+        'p_offset': offset,
       },
     );
     return _list(value);
   }
 
-  Future<List<Map<String, dynamic>>> _deliveries() async {
+  Future<int> _tripsCount() async {
+    if (!_scopeReady) return 0;
+    final range = _periodBounds(tripPeriod, tripCustomRange);
+    final value = await supabase.rpc(
+      'admin_trip_count_v1',
+      params: {
+        'p_channel': _sectionChannel(2),
+        'p_from': range.from.toUtc().toIso8601String(),
+        'p_to': range.to.toUtc().toIso8601String(),
+        'p_zone_id': adminZoneId,
+        'p_status': tripStatus,
+      },
+    );
+    return (value as num?)?.toInt() ?? 0;
+  }
+
+  Future<List<Map<String, dynamic>>> _deliveries(int offset) async {
     if (!_scopeReady) return const [];
     final range = _periodBounds(deliveryPeriod, deliveryCustomRange);
     final value = await supabase.rpc(
@@ -646,11 +963,145 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         'p_to': range.to.toUtc().toIso8601String(),
         'p_zone_id': adminZoneId,
         'p_status': null,
-        'p_limit': 200,
-        'p_offset': 0,
+        'p_limit': 50,
+        'p_offset': offset,
       },
     );
     return _list(value);
+  }
+
+  Future<int> _deliveriesCount() async {
+    if (!_scopeReady) return 0;
+    final range = _periodBounds(deliveryPeriod, deliveryCustomRange);
+    final value = await supabase.rpc(
+      'admin_delivery_count_v1',
+      params: {
+        'p_channel': _sectionChannel(3),
+        'p_from': range.from.toUtc().toIso8601String(),
+        'p_to': range.to.toUtc().toIso8601String(),
+        'p_zone_id': adminZoneId,
+        'p_status': null,
+      },
+    );
+    return (value as num?)?.toInt() ?? 0;
+  }
+
+  /// Chips de estado de conductores. Por defecto se ven los pendientes.
+  Widget _driverStatusFilter() {
+    void select(String value) {
+      setState(() {
+        driverStatus = value;
+        revision++;
+      });
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        AdminPillChoice(
+          label: 'Pendientes',
+          selected: driverStatus == 'pending',
+          showCheck: true,
+          onSelected: (_) => select('pending'),
+        ),
+        AdminPillChoice(
+          label: 'Activos',
+          selected: driverStatus == 'approved',
+          showCheck: true,
+          onSelected: (_) => select('approved'),
+        ),
+        AdminPillChoice(
+          label: 'Rechazados',
+          selected: driverStatus == 'rejected',
+          showCheck: true,
+          onSelected: (_) => select('rejected'),
+        ),
+        AdminPillChoice(
+          label: 'Suspendidos',
+          selected: driverStatus == 'suspended',
+          showCheck: true,
+          onSelected: (_) => select('suspended'),
+        ),
+      ],
+    );
+  }
+
+  /// Chips de estado de usuarios. Por defecto se ven todos, como antes.
+  Widget _userStatusFilter() {
+    void select(String? value) {
+      setState(() {
+        userStatus = value;
+        revision++;
+      });
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        AdminPillChoice(
+          label: 'Todos',
+          selected: userStatus == null,
+          showCheck: true,
+          onSelected: (_) => select(null),
+        ),
+        AdminPillChoice(
+          label: 'Rechazados',
+          selected: userStatus == 'rejected',
+          showCheck: true,
+          onSelected: (_) => select('rejected'),
+        ),
+        AdminPillChoice(
+          label: 'Bloqueados',
+          selected: userStatus == 'blocked',
+          showCheck: true,
+          onSelected: (_) => select('blocked'),
+        ),
+        AdminPillChoice(
+          label: 'Suspendidos',
+          selected: userStatus == 'suspended',
+          showCheck: true,
+          onSelected: (_) => select('suspended'),
+        ),
+      ],
+    );
+  }
+
+  /// Chips de estado de los viajes: Todos, Completados y Cancelados. Afectan a la
+  /// lista, a su conteo y a la exportación.
+  Widget _tripStatusFilter() {
+    void select(String? value) {
+      setState(() {
+        tripStatus = value;
+        revision++;
+      });
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        AdminPillChoice(
+          label: 'Todos',
+          selected: tripStatus == null,
+          showCheck: true,
+          onSelected: (_) => select(null),
+        ),
+        AdminPillChoice(
+          label: 'Completados',
+          selected: tripStatus == 'completed',
+          showCheck: true,
+          onSelected: (_) => select('completed'),
+        ),
+        AdminPillChoice(
+          label: 'Cancelados',
+          selected: tripStatus == 'cancelled',
+          showCheck: true,
+          onSelected: (_) => select('cancelled'),
+        ),
+      ],
+    );
   }
 
   Widget _periodFilter(String target) {
@@ -1068,6 +1519,28 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     });
   }
 
+  // Refresco silencioso del mapa de operaciones: mientras estés en esa sección,
+  // trae las posiciones cada 10 s sin vaciar lo que ya se ve. Si una recarga
+  // falla, se conserva la última vista buena en lugar de mostrar error.
+  void _autoRefreshLive() {
+    if (!mounted ||
+        section != 1 ||
+        !_scopeReady ||
+        _liveRefreshInFlight ||
+        !adminPageIsVisible()) {
+      return;
+    }
+    _liveRefreshInFlight = true;
+    final next = _liveState();
+    unawaited(
+      next.then<void>((_) {
+        if (mounted && section == 1) {
+          setState(() => _liveFuture = next);
+        }
+      }, onError: (_) {}).whenComplete(() => _liveRefreshInFlight = false),
+    );
+  }
+
   /// Per-section data filter. Shared configuration pages deliberately do not
   /// expose a Preview/Production selector.
   Widget _sectionEnvironmentFilter() {
@@ -1204,21 +1677,38 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         .showSnackBar(SnackBar(content: Text(friendlyError(error))));
   }
 
-  Future<void> _resolveEmergency(String id) async {
+  Future<bool> _resolveEmergency(String id) async {
     try {
-      await supabase.rpc(
-        'admin_resolve_emergency_v2',
+      final result = _map(await supabase.rpc(
+        'admin_resolve_emergency_v3',
         params: {'p_emergency_id': id, 'p_channel': _sectionChannel(6)},
-      );
-      if (!mounted) return;
+      ));
+      if (!mounted) return false;
       _refresh();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Emergencia marcada como resuelta.')),
+        SnackBar(content: Text(_resolveMessage(result))),
       );
+      return true;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       _errorSnack(e);
+      return false;
     }
+  }
+
+  /// Texto del resultado de admin_resolve_emergency_v3: indica si el viaje
+  /// volvió a su servicio normal o sigue en emergencia por otra alerta.
+  String _resolveMessage(Map<String, dynamic> result) {
+    if (result['already_closed'] == true) {
+      return 'Esta alerta ya estaba resuelta.';
+    }
+    if (result['trip_resumed'] == true) {
+      return 'Alerta resuelta. El viaje se reanudó.';
+    }
+    if (result['trip_status'] == 'emergency') {
+      return 'Alerta resuelta. El viaje sigue en emergencia porque hay otra alerta abierta.';
+    }
+    return 'Alerta resuelta.';
   }
 
   @override
@@ -1444,7 +1934,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           includeProduction: allowProduction,
         );
       case 11:
-        return AdminSettingsPage(channel: 'production');
+        return AdminSettingsPage(
+          channel: 'production',
+          canEditSocialLinks:
+              adminAccess['role'] == 'super_admin' && !_readOnly,
+        );
       case 12:
         return AdminSingleAppReleasePage(
           productionAccess: allowProduction,
@@ -1538,6 +2032,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
         );
+      case 37:
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: AdminSalesAdvisorsPage(canEdit: !_readOnly),
+        );
       case 36:
         return adminZoneId == null || adminZoneId!.isEmpty
             ? const Center(child: Text('Selecciona una zona.'))
@@ -1615,6 +2114,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         return AdminBenefitsPage(
           channel: _sectionChannel(35),
           zoneId: adminZoneId,
+          countryCode: adminCountryCode,
         );
       case 28:
         return AdminDynamicPricingPage(
@@ -1920,25 +2420,28 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _tripList() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      key: ValueKey('trips-' + revision.toString()),
-      future: _trips(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading();
-        }
-        if (snapshot.hasError) {
-          return _ErrorView(error: snapshot.error, onRetry: _refresh);
-        }
+    // Se piden 50 filas por vez al servidor, de la más reciente a la más antigua.
+    return Builder(
+      key: ValueKey('trips-' + revision.toString() + tripPeriod.toString() + tripCustomRange.toString() + (tripStatus ?? 'all')),
+      builder: (context) {
 
-        final rows = snapshot.data ?? const [];
         return _Records(
           title: 'Viajes',
           subtitle: 'Historial y operación de viajes Express.',
           empty: 'Todavía no hay viajes.',
-          rows: rows,
-          serverFilters: _periodFilter('trip'),
+          rows: const [],
+          pageLoader: (offset, _) => _trips(offset),
+          countLoader: (_) => _tripsCount(),
+          searchOnServer: false,
+          serverFilters: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _periodFilter('trip'),
+              const SizedBox(height: 8),
+              _tripStatusFilter(),
+            ],
+          ),
+          onExport: _exportTrips,
           item: (row) => _OperationCard(
             icon: Icons.local_taxi_rounded,
             title: friendlyAddress(
@@ -1977,24 +2480,19 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _deliveryList() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      key: ValueKey('delivery-' + revision.toString()),
-      future: _deliveries(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading();
-        }
-        if (snapshot.hasError) {
-          return _ErrorView(error: snapshot.error, onRetry: _refresh);
-        }
+    // Se piden 50 filas por vez al servidor, de la más reciente a la más antigua.
+    return Builder(
+      key: ValueKey('delivery-' + revision.toString() + deliveryPeriod.toString() + deliveryCustomRange.toString()),
+      builder: (context) {
 
-        final rows = snapshot.data ?? const [];
         return _Records(
           title: 'Delivery',
           subtitle: 'Pedidos y entregas de Express.',
           empty: 'Todavía no hay delivery.',
-          rows: rows,
+          rows: const [],
+          pageLoader: (offset, _) => _deliveries(offset),
+          countLoader: (_) => _deliveriesCount(),
+          searchOnServer: false,
           serverFilters: _periodFilter('delivery'),
           item: (row) => _OperationCard(
             icon: Icons.local_shipping_rounded,
@@ -2026,25 +2524,24 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _driverList() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      key: ValueKey('drivers-' + revision.toString()),
-      future: _drivers(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading();
-        }
-        if (snapshot.hasError) {
-          return _ErrorView(error: snapshot.error, onRetry: _refresh);
-        }
+    // Se piden 50 filas por vez al servidor, de la más reciente a la más antigua.
+    return Builder(
+      key: ValueKey('drivers-' + revision.toString() + driverStatus),
+      builder: (context) {
 
         return _Records(
           title: 'Conductores',
           subtitle:
               'Aprobación, estado, licencia, vehículo y control de conductores.',
-          empty: 'Todavía no hay conductores registrados.',
-          rows: snapshot.data ?? const [],
+          empty: driverStatus == 'pending'
+              ? 'No hay conductores pendientes.'
+              : 'No hay conductores con este estado.',
+          rows: const [],
+          pageLoader: _driversPage,
+          countLoader: _driversCount,
           showQaFilter: false,
+          onExport: () => _exportCompletedTripRanking(drivers: true),
+          serverFilters: _driverStatusFilter(),
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
             final online = (row['online_status'] ?? 'offline').toString();
@@ -2233,18 +2730,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _userList() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      key: ValueKey('users-' + revision.toString()),
-      future: _users(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading();
-        }
-        if (snapshot.hasError) {
-          return _ErrorView(error: snapshot.error, onRetry: _refresh);
-        }
-
+    // Los usuarios se piden al servidor de a 50, del más reciente al más
+    // antiguo; no se descarga la lista completa.
+    return Builder(
+      key: ValueKey('users-' + revision.toString() + (userStatus ?? 'all')),
+      builder: (context) {
         return Column(
           children: [
             if (!_readOnly && adminAccess['role'] == 'super_admin')
@@ -2265,9 +2755,19 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                 subtitle:
                     'Pasajeros, conductores y control del estado de las cuentas.',
                 empty: 'Todavía no hay usuarios registrados.',
-                rows: snapshot.data ?? const [],
-                serverFilters: _userGeoFilters(),
+                rows: const [],
+                pageLoader: _usersPage,
+                countLoader: _usersCount,
+                serverFilters: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _userGeoFilters(),
+                    const SizedBox(height: 8),
+                    _userStatusFilter(),
+                  ],
+                ),
                 showQaFilter: true,
+                onExport: () => _exportCompletedTripRanking(drivers: false),
                 item: (row) => Container(
                   margin: const EdgeInsets.only(bottom: 7),
                   decoration: BoxDecoration(
@@ -2507,54 +3007,664 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _security() {
-    return FutureBuilder<Map<String, dynamic>>(
-      key: ValueKey('security-' + revision.toString()),
-      future: _dashboardState(6),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading();
-        }
-        if (snapshot.hasError) {
-          return _ErrorView(error: snapshot.error, onRetry: _refresh);
-        }
+    final canResolve = !_readOnly && adminAccess['role'] != 'operator';
+    return _SecurityAlertsView(
+      revision: revision,
+      loadAlerts: _emergenciesList,
+      onOpenAlert: (row) => _openEmergencyDetail(row['id'].toString()),
+      itemBuilder: (row) => Card(
+        margin: const EdgeInsets.only(bottom: 10),
+        elevation: 0,
+        child: ListTile(
+          onTap: () => _openEmergencyDetail(row['id'].toString()),
+          leading: const CircleAvatar(
+            backgroundColor: Color(0xFFFFE4E8),
+            child: Icon(Icons.sos_rounded, color: Color(0xFFD92D20)),
+          ),
+          title: Text(
+            row['user_name']?.toString().trim().isNotEmpty == true
+                ? row['user_name'].toString()
+                : 'Usuario Express',
+          ),
+          subtitle: Text(
+            '${(row['status'] ?? 'open').toString()} · ${_formatDate(row['created_at'])}',
+          ),
+          // Operadores pueden revisar SOS de su zona, pero resolver es exclusivo del admin central.
+          trailing: (_readOnly || adminAccess['role'] == 'operator')
+              ? null
+              : FilledButton.icon(
+                  onPressed: () => _resolveEmergency(row['id'].toString()),
+                  icon: const Icon(Icons.check_circle_outline_rounded),
+                  label: const Text('Resolver'),
+                ),
+        ),
+      ),
+    );
+  }
 
-        final rows = _list(snapshot.data?['emergencies']);
-        return _Records(
-          title: 'Seguridad / SOS',
-          subtitle: 'Emergencias activas registradas desde Viajes y Delivery.',
-          empty: 'No hay emergencias abiertas.',
-          rows: rows,
-          item: (row) => Card(
-            margin: const EdgeInsets.only(bottom: 10),
-            elevation: 0,
-            child: ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFFFE4E8),
-                child: Icon(Icons.sos_rounded, color: Color(0xFFD92D20)),
-              ),
-              title: Text(
-                row['user_name']?.toString().trim().isNotEmpty == true
-                    ? row['user_name'].toString()
-                    : 'Usuario Express',
-              ),
-              subtitle: Text(
-                (row['status'] ?? 'open').toString() +
-                    ' · ' +
-                    _formatDate(row['created_at']),
-              ),
-              // Operadores pueden revisar SOS de su zona, pero resolver es exclusivo del admin central.
-              trailing: (_readOnly || adminAccess['role'] == 'operator')
-                  ? null
-                  : FilledButton.icon(
-                      onPressed: () => _resolveEmergency(row['id'].toString()),
-                      icon: const Icon(Icons.check_circle_outline_rounded),
-                      label: const Text('Resolver'),
-                    ),
+  /// Abre el detalle de una alerta. Solo se resuelve desde el popup si el
+  /// usuario es admin central y el panel no está en solo lectura.
+  void _openEmergencyDetail(String emergencyId) {
+    final canResolve = !_readOnly && adminAccess['role'] != 'operator';
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => _EmergencyDetailDialog(
+        loadDetail: () async => _map(await supabase.rpc(
+          'admin_emergency_detail_v1',
+          params: {
+            'p_emergency_id': emergencyId,
+            'p_channel': _sectionChannel(6),
+          },
+        )),
+        canResolve: canResolve,
+        onResolve: () => _resolveEmergency(emergencyId),
+      ),
+    );
+  }
+}
+
+/// Sonido de alerta desbloqueado por un clic del usuario. Los navegadores solo
+/// permiten audio después de una interacción; el estado dura lo que la página.
+bool _alertSoundUnlocked = false;
+
+/// Lista de alertas SOS de la sección 6. Mientras la sección está abierta
+/// consulta la lista cada 10 s con polling (no usa realtime). Si aparece una
+/// alerta abierta que no estaba en la consulta anterior, suena el aviso y se
+/// muestra un banner rojo con «Ver alerta». La primera consulta solo fija la
+/// base: las alertas que ya estaban abiertas no suenan al abrir la sección.
+class _SecurityAlertsView extends StatefulWidget {
+  final int revision;
+  final Future<List<Map<String, dynamic>>> Function() loadAlerts;
+  final void Function(Map<String, dynamic> row) onOpenAlert;
+  final Widget Function(Map<String, dynamic> row) itemBuilder;
+
+  const _SecurityAlertsView({
+    required this.revision,
+    required this.loadAlerts,
+    required this.onOpenAlert,
+    required this.itemBuilder,
+  });
+
+  @override
+  State<_SecurityAlertsView> createState() => _SecurityAlertsViewState();
+}
+
+class _SecurityAlertsViewState extends State<_SecurityAlertsView> {
+  static const Duration _pollEvery = Duration(seconds: 10);
+  static const String _alertAsset = 'sounds/alerta_sos.wav';
+
+  final AudioPlayer _player = AudioPlayer();
+  Timer? _timer;
+  bool _polling = false;
+  bool _baselineReady = false;
+  final Set<String> _openIds = <String>{};
+  List<Map<String, dynamic>>? _rows;
+  Object? _error;
+  Map<String, dynamic>? _newAlert;
+  int _newCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_poll());
+    _timer = Timer.periodic(_pollEvery, (_) => unawaited(_poll()));
+  }
+
+  @override
+  void didUpdateWidget(covariant _SecurityAlertsView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.revision != widget.revision) unawaited(_poll());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _poll() async {
+    if (_polling || !mounted || !adminPageIsVisible()) return;
+    _polling = true;
+    try {
+      final rows = await widget.loadAlerts();
+      if (!mounted) return;
+      final fresh = rows
+          .where((row) => !_openIds.contains(row['id'].toString()))
+          .toList();
+      final announce = _baselineReady && fresh.isNotEmpty;
+      _openIds
+        ..clear()
+        ..addAll(rows.map((row) => row['id'].toString()));
+      setState(() {
+        _rows = rows;
+        _error = null;
+        _baselineReady = true;
+        if (announce) {
+          _newAlert = fresh.first;
+          _newCount = fresh.length;
+        }
+      });
+      if (announce) unawaited(_playAlert());
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error);
+    } finally {
+      _polling = false;
+    }
+  }
+
+  Future<void> _playAlert() async {
+    if (!_alertSoundUnlocked) return;
+    try {
+      await _player.stop();
+      await _player.play(AssetSource(_alertAsset));
+    } catch (_) {
+      // Si el navegador bloquea el audio, el banner visual sigue visible.
+    }
+  }
+
+  Future<void> _enableSound() async {
+    try {
+      await _player.play(AssetSource(_alertAsset), volume: 1);
+      _alertSoundUnlocked = true;
+    } catch (_) {
+      _alertSoundUnlocked = false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'El navegador bloqueó el sonido. Vuelve a pulsar «Activar sonido de alertas».',
             ),
           ),
         );
-      },
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _dismissBanner() {
+    setState(() {
+      _newAlert = null;
+      _newCount = 0;
+    });
+  }
+
+  Widget _soundPrompt() {
+    if (_alertSoundUnlocked) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: _enableSound,
+          icon: const Icon(Icons.volume_up_rounded),
+          label: const Text('Activar sonido de alertas'),
+        ),
+      ),
+    );
+  }
+
+  Widget _alertBanner() {
+    final alert = _newAlert;
+    if (alert == null) return const SizedBox.shrink();
+    final name = alert['user_name']?.toString().trim() ?? '';
+    final who = name.isEmpty ? 'Usuario Express' : name;
+    final text = _newCount > 1
+        ? 'Hay $_newCount alertas SOS nuevas. La más reciente es de $who.'
+        : 'Nueva alerta SOS de $who.';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFD92D20),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.sos_rounded, color: Colors.white),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              _dismissBanner();
+              widget.onOpenAlert(alert);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+            child: const Text('Ver alerta'),
+          ),
+          IconButton(
+            tooltip: 'Cerrar aviso',
+            onPressed: _dismissBanner,
+            icon: const Icon(Icons.close_rounded, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = _rows;
+    if (rows == null) {
+      if (_error != null) {
+        return _ErrorView(error: _error, onRetry: () => unawaited(_poll()));
+      }
+      return const _Loading();
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _soundPrompt(),
+        _alertBanner(),
+        if (_error != null)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'No se pudo actualizar la lista. Se reintentará en 10 segundos.',
+              style: TextStyle(
+                color: Color(0xFFB42318),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        Expanded(
+          child: _Records(
+            title: 'Seguridad / SOS',
+            subtitle:
+                'Emergencias activas registradas desde Viajes y Delivery. Se actualiza cada 10 segundos.',
+            empty: 'No hay emergencias abiertas.',
+            rows: rows,
+            item: widget.itemBuilder,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Detalle de una alerta SOS. En pantallas de 900 px o más, pasajero a la
+/// izquierda y conductor a la derecha; en pantallas pequeñas se apilan con el
+/// pasajero primero. Solo muestra datos de admin_emergency_detail_v1 y no guarda
+/// nada. «Resolver» llama admin_resolve_emergency_v3.
+class _EmergencyDetailDialog extends StatefulWidget {
+  final Future<Map<String, dynamic>> Function() loadDetail;
+  final bool canResolve;
+  final Future<bool> Function() onResolve;
+
+  const _EmergencyDetailDialog({
+    required this.loadDetail,
+    required this.canResolve,
+    required this.onResolve,
+  });
+
+  @override
+  State<_EmergencyDetailDialog> createState() => _EmergencyDetailDialogState();
+}
+
+class _EmergencyDetailDialogState extends State<_EmergencyDetailDialog> {
+  late Future<Map<String, dynamic>> _future;
+  bool _resolving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.loadDetail();
+  }
+
+  void _retry() {
+    setState(() => _future = widget.loadDetail());
+  }
+
+  Future<void> _resolve() async {
+    setState(() => _resolving = true);
+    final ok = await widget.onResolve();
+    if (!mounted) return;
+    if (ok) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _resolving = false);
+    }
+  }
+
+  Future<void> _copyPhone(String phone) async {
+    await Clipboard.setData(ClipboardData(text: phone));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Teléfono copiado.')),
+    );
+  }
+
+  Future<void> _openMap(double lat, double lng) async {
+    final uri = Uri.parse('https://www.google.com/maps?q=$lat,$lng');
+    var opened = false;
+    try {
+      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      opened = false;
+    }
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el mapa.')),
+      );
+    }
+  }
+
+  String _text(Object? value, String fallback) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? fallback : text;
+  }
+
+  double? _toDouble(Object? value) =>
+      value == null ? null : double.tryParse(value.toString());
+
+  String _tripStatus(String raw) =>
+      raw == 'emergency' ? 'En emergencia' : friendlyStatus(raw);
+
+  /// Tarjeta de una persona o de una sección del detalle.
+  Widget _panel(String title, IconData icon, List<Widget> rows) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: adminBlue),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: adminDark,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...rows,
+        ],
+      ),
+    );
+  }
+
+  Widget _section(String title, IconData icon, List<Widget> rows) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: _panel(title, icon, rows),
+    );
+  }
+
+  Widget _line(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 124,
+            child: Text(label, style: const TextStyle(color: adminMuted)),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+
+  Widget _phoneLine(String label, Object? raw) {
+    final phone = _text(raw, '');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 124,
+            child: Text(label, style: const TextStyle(color: adminMuted)),
+          ),
+          Expanded(child: Text(phone.isEmpty ? 'Sin teléfono' : phone)),
+          if (phone.isNotEmpty)
+            IconButton(
+              tooltip: 'Copiar teléfono',
+              icon: const Icon(Icons.copy_rounded, size: 18),
+              onPressed: () => _copyPhone(phone),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _errorBlock(Object? error) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'No se pudo cargar el detalle de la alerta.',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          error == null
+              ? 'La consulta no devolvió datos.'
+              : friendlyError(error),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: _retry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Reintentar'),
+        ),
+      ],
+    );
+  }
+
+  Widget _body(Map<String, dynamic> detail, bool wide) {
+    final emergency = _map(detail['emergency']);
+    final passenger = _map(detail['passenger']);
+    final driver = _map(detail['driver']);
+    final trip = _map(detail['trip']);
+    final delivery = _map(detail['delivery']);
+    if (emergency.isEmpty) return _errorBlock(null);
+
+    final lat = _toDouble(emergency['latitude']);
+    final lng = _toDouble(emergency['longitude']);
+    final hasTrip = trip.isNotEmpty;
+    final hasDelivery = delivery.isNotEmpty;
+    final passengerPhone = _text(passenger['phone'], '');
+    final driverPhone = _text(driver['phone'], '');
+    final samePhone =
+        passengerPhone.isNotEmpty && passengerPhone == driverPhone;
+
+    final passengerPanel = _panel('Pasajero', Icons.person_outline_rounded, [
+      _line('Nombre', _text(passenger['name'], 'Usuario Express')),
+      _phoneLine('Teléfono', passenger['phone']),
+      _line('Correo', _text(passenger['email'], 'Sin correo registrado')),
+      _line('Zona', _text(emergency['zone_name'], 'Sin zona')),
+      _line(
+        'Estado de cuenta',
+        friendlyStatus(_text(passenger['account_status'], 'Sin dato')),
+      ),
+    ]);
+
+    final driverPanel = driver.isEmpty
+        ? _panel('Conductor', Icons.drive_eta_outlined, [
+            _line('Asignado', 'Sin conductor asignado'),
+          ])
+        : _panel('Conductor', Icons.drive_eta_outlined, [
+            _line('Nombre', _text(driver['name'], 'Sin nombre')),
+            _phoneLine('Teléfono', driver['phone']),
+            _line('Correo', _text(driver['email'], 'Sin correo registrado')),
+            _line('Vehículo', _text(driver['vehicle'], 'No registrado')),
+            _line('Placa', _text(driver['plate'], 'No registrada')),
+            _line(
+              'Calificación',
+              driver['rating'] == null
+                  ? 'Sin calificación'
+                  : '${driver['rating']} / 5',
+            ),
+            _line(
+              'Estado de cuenta',
+              friendlyStatus(_text(driver['account_status'], 'Sin dato')),
+            ),
+            _line(
+              'Conexión',
+              friendlyStatus(_text(driver['online_status'], 'Sin dato')),
+            ),
+          ]);
+
+    final people = wide
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: passengerPanel),
+              const SizedBox(width: 14),
+              Expanded(child: driverPanel),
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              passengerPanel,
+              const SizedBox(height: 12),
+              driverPanel,
+            ],
+          );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (samePhone)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: Text(
+              'Mismo teléfono en ambas cuentas: revisa la cuenta de prueba.',
+              style: TextStyle(
+                color: Color(0xFFB54708),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        people,
+        const SizedBox(height: 14),
+        if (hasTrip)
+          _section('Viaje', Icons.route_outlined, [
+            _line('Estado', _tripStatus(_text(trip['status'], 'Sin estado'))),
+            _line('Servicio', friendlyCategory(_text(trip['category'], '—'))),
+            _line('Origen', friendlyAddress(_text(trip['origin'], '—'))),
+            _line('Destino', friendlyAddress(_text(trip['destination'], '—'))),
+            _line(
+              'Tarifa final',
+              trip['final_fare'] == null
+                  ? 'Sin tarifa final'
+                  : adminMoney(trip['final_fare'], _text(trip['currency'], '')),
+            ),
+          ])
+        else if (hasDelivery)
+          _section('Envío', Icons.local_shipping_outlined, [
+            _line(
+              'Estado',
+              friendlyStatus(_text(delivery['status'], 'Sin estado')),
+            ),
+            _line('Origen', friendlyAddress(_text(delivery['origin'], '—'))),
+            _line('Destino', friendlyAddress(_text(delivery['destination'], '—'))),
+            _line(
+              'Paquete',
+              friendlyPackage(_text(delivery['package_type'], '')),
+            ),
+            _line(
+              'Tarifa',
+              delivery['fare'] == null
+                  ? 'Sin tarifa'
+                  : adminMoney(
+                      delivery['fare'],
+                      _text(delivery['currency'], ''),
+                    ),
+            ),
+          ])
+        else
+          _section('Viaje o envío', Icons.info_outline_rounded, [
+            _line('Asociado', 'Sin viaje asociado'),
+          ]),
+        _section('Alerta', Icons.sos_rounded, [
+          _line('Hora', _formatDate(emergency['created_at'])),
+          _line(
+            'Estado',
+            friendlyStatus(_text(emergency['status'], 'Sin estado')),
+          ),
+        ]),
+        _section('Ubicación', Icons.place_outlined, [
+          if (lat != null && lng != null) ...[
+            _line(
+              'Coordenadas',
+              '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}',
+            ),
+            const SizedBox(height: 6),
+            OutlinedButton.icon(
+              onPressed: () => _openMap(lat, lng),
+              icon: const Icon(Icons.map_outlined),
+              label: const Text('Abrir en mapa'),
+            ),
+          ] else
+            _line('Ubicación', 'Sin ubicación enviada'),
+        ]),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final wide = screenWidth >= 900;
+    final contentWidth = wide
+        ? 940.0
+        : (screenWidth - 96).clamp(260.0, 520.0).toDouble();
+    return AlertDialog(
+      title: const Text('Detalle de alerta SOS'),
+      content: SizedBox(
+        width: contentWidth,
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const SizedBox(
+                height: 160,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasError) return _errorBlock(snapshot.error);
+            final detail = snapshot.data ?? const <String, dynamic>{};
+            if (detail.isEmpty) return _errorBlock(null);
+            return SingleChildScrollView(child: _body(detail, wide));
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cerrar'),
+        ),
+        if (widget.canResolve)
+          FilledButton.icon(
+            onPressed: _resolving ? null : _resolve,
+            icon: const Icon(Icons.check_circle_outline_rounded),
+            label: const Text('Resolver'),
+          ),
+      ],
     );
   }
 }
@@ -2659,7 +3769,7 @@ class _Navigation extends StatelessWidget {
         : const <(String, List<int>)>[
             ('GENERAL', [0]),
             ('OPERACIONES', [1, 2, 13, 4, 5, 6]),
-            ('MÓDULOS', [23, 25, 29, 30, 34, 35, 36]),
+            ('MÓDULOS', [23, 25, 29, 30, 34, 35, 36, 37]),
             ('FINANZAS', [9, 8, 22, 33]),
             ('ANÁLISIS', [10, 14]),
             ('COMUNICACIÓN', [15]),
@@ -4296,18 +5406,11 @@ class _LiveDriverList extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: _driverStatusColor(status).withOpacity(.12),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Icon(
-                  Icons.drive_eta_rounded,
-                  size: 16,
-                  color: _driverStatusColor(status),
-                ),
+              _DriverAvatar(
+                photoUrl: row['map_photo_url']?.toString(),
+                fallbackPhotoUrl: row['map_photo_original_url']?.toString(),
+                color: _driverStatusColor(status),
+                size: 30,
               ),
               const SizedBox(width: 9),
               Expanded(
@@ -4567,8 +5670,9 @@ class _OperationsMapState extends State<_OperationsMap> {
                 _selectedDriverId = _selectedDriverId == id ? null : id;
               });
             },
-            child: _MapDot(
-              icon: Icons.drive_eta_rounded,
+            child: _DriverPhotoDot(
+              photoUrl: row['map_photo_url']?.toString(),
+              fallbackPhotoUrl: row['map_photo_original_url']?.toString(),
               color: _driverStatusColor(status),
             ),
           ),
@@ -4682,6 +5786,9 @@ class _OperationsMapState extends State<_OperationsMap> {
                   },
                   child: _TripPartyMarker(
                     driverColor: _driverStatusColor(driverStatus),
+                    driverPhotoUrl: focusedDriver['map_photo_url']?.toString(),
+                    driverFallbackPhotoUrl:
+                        focusedDriver['map_photo_original_url']?.toString(),
                   ),
                 ),
               ),
@@ -5028,8 +6135,14 @@ class _PassengerMapMarker extends StatelessWidget {
 
 class _TripPartyMarker extends StatelessWidget {
   final Color driverColor;
+  final String? driverPhotoUrl;
+  final String? driverFallbackPhotoUrl;
 
-  const _TripPartyMarker({required this.driverColor});
+  const _TripPartyMarker({
+    required this.driverColor,
+    this.driverPhotoUrl,
+    this.driverFallbackPhotoUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -5043,7 +6156,11 @@ class _TripPartyMarker extends StatelessWidget {
             child: SizedBox(
               width: 42,
               height: 42,
-              child: _MapDot(icon: Icons.drive_eta_rounded, color: driverColor),
+              child: _DriverPhotoDot(
+                photoUrl: driverPhotoUrl,
+                fallbackPhotoUrl: driverFallbackPhotoUrl,
+                color: driverColor,
+              ),
             ),
           ),
           const Align(
@@ -5138,7 +6255,13 @@ class _DriverMapCard extends StatelessWidget {
     final updated = DateTime.tryParse(_value('location_updated_at'));
     final updatedLabel = updated == null
         ? 'Sin hora de ubicación'
-        : 'Ubicación: ' + _formatDate(updated.toIso8601String());
+        : 'Última ubicación hace ' +
+            DateTime.now()
+                .toUtc()
+                .difference(updated.toUtc())
+                .inMinutes
+                .toString() +
+            ' min';
 
     return Container(
       width: 295,
@@ -5161,18 +6284,11 @@ class _DriverMapCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: _driverStatusColor(status).withOpacity(.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.drive_eta_rounded,
-                  size: 18,
-                  color: _driverStatusColor(status),
-                ),
+              _DriverAvatar(
+                photoUrl: driver['map_photo_url']?.toString(),
+                fallbackPhotoUrl: driver['map_photo_original_url']?.toString(),
+                color: _driverStatusColor(status),
+                size: 44,
               ),
               const SizedBox(width: 9),
               Expanded(
@@ -5436,6 +6552,144 @@ class _MapStatusLegend extends StatelessWidget {
   }
 }
 
+// Avatar de conductor para listas y fichas: foto de perfil con fondo del color de su
+// estado. Sin foto (o si la imagen falla) muestra un icono de persona, nunca un auto.
+class _DriverAvatar extends StatelessWidget {
+  final String? photoUrl;
+  final String? fallbackPhotoUrl;
+  final Color color;
+  final double size;
+
+  const _DriverAvatar({
+    required this.photoUrl,
+    required this.color,
+    required this.size,
+    this.fallbackPhotoUrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final url = photoUrl?.trim() ?? '';
+    final radius = BorderRadius.circular(size * .3);
+    Widget placeholder() => Container(
+          alignment: Alignment.center,
+          color: color.withOpacity(.12),
+          child: Icon(Icons.person_rounded, size: size * .5, color: color),
+        );
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: ClipRRect(
+        borderRadius: radius,
+        child: url.isEmpty
+            ? placeholder()
+            : _ResilientNetworkImage(
+                url: url,
+                fallbackUrl: fallbackPhotoUrl,
+                size: size,
+                placeholder: placeholder(),
+              ),
+      ),
+    );
+  }
+}
+
+// Conductor en el mapa: muestra su foto de perfil dentro de un anillo del color de
+// su estado. Sin foto (o si la imagen falla) usa un icono de persona, nunca un auto.
+class _DriverPhotoDot extends StatelessWidget {
+  final String? photoUrl;
+  final String? fallbackPhotoUrl;
+  final Color color;
+
+  const _DriverPhotoDot({
+    required this.photoUrl,
+    required this.color,
+    this.fallbackPhotoUrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final url = photoUrl?.trim() ?? '';
+    final fallback = _MapDot(icon: Icons.person_rounded, color: color);
+    if (url.isEmpty) return fallback;
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: _ResilientNetworkImage(
+          url: url,
+          fallbackUrl: fallbackPhotoUrl,
+          size: null,
+          placeholder: fallback,
+        ),
+      ),
+    );
+  }
+}
+
+class _DriverMapPhotoUrls {
+  final String thumb;
+  final String original;
+  final DateTime expiresAt;
+
+  const _DriverMapPhotoUrls({
+    required this.thumb,
+    required this.original,
+    required this.expiresAt,
+  });
+}
+
+// Imagen de red con respaldo: si la miniatura falla, prueba el original y solo
+// después muestra el placeholder.
+class _ResilientNetworkImage extends StatelessWidget {
+  final String url;
+  final String? fallbackUrl;
+  final double? size;
+  final Widget placeholder;
+
+  const _ResilientNetworkImage({
+    required this.url,
+    required this.fallbackUrl,
+    required this.size,
+    required this.placeholder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = fallbackUrl?.trim() ?? '';
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      width: size ?? double.infinity,
+      height: size ?? double.infinity,
+      gaplessPlayback: true,
+      errorBuilder: (_, __, ___) {
+        if (fallback.isEmpty || fallback == url) return placeholder;
+        return Image.network(
+          fallback,
+          fit: BoxFit.cover,
+          width: size ?? double.infinity,
+          height: size ?? double.infinity,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => placeholder,
+        );
+      },
+    );
+  }
+}
+
 class _MapDot extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -5502,22 +6756,27 @@ String _driverLiveStatus(
       online == 'online' || online == 'available' || online == 'connected';
   if (!connected) return 'offline';
 
+  final latitude = _toDouble(driver['latitude']);
+  final longitude = _toDouble(driver['longitude']);
   final locationUpdatedAt = DateTime.tryParse(
     driver['location_updated_at']?.toString() ?? '',
   );
-  final latitude = _toDouble(driver['latitude']);
-  final longitude = _toDouble(driver['longitude']);
-  final locationStale = locationUpdatedAt == null
-      ? latitude == null || longitude == null
-      : DateTime.now().toUtc().difference(locationUpdatedAt.toUtc()) >
+  // La app manda un latido de ubicación cada pocos segundos mientras el conductor
+  // está en línea, aunque esté parado. Si no llega ninguno en 2 minutos (app
+  // cerrada, GPS apagado o sin conexión), es «Sin señal» y se conserva la última
+  // posición conocida.
+  final locationStale = locationUpdatedAt == null ||
+      DateTime.now().toUtc().difference(locationUpdatedAt.toUtc()) >
           const Duration(minutes: 2);
 
-  final noSignal = signal.contains('no_signal') ||
+  final noSignal = latitude == null ||
+      longitude == null ||
+      locationStale ||
+      signal.contains('no_signal') ||
       signal.contains('no signal') ||
       signal.contains('lost') ||
       signal.contains('stale') ||
-      signal.contains('offline') ||
-      locationStale;
+      signal.contains('offline');
   if (noSignal) return 'signal';
 
   return 'available';
@@ -5758,6 +7017,22 @@ class _Records extends StatefulWidget {
   final bool showQaFilter;
   final Widget? serverFilters;
 
+  /// Exportación del botón «Exportar». Si es null, el botón avisa que aún no
+  /// está disponible en esa lista.
+  final Future<void> Function()? onExport;
+
+  /// Si se indica, la lista se pide al servidor de a 50 (los más recientes
+  /// primero) y la búsqueda también se hace en el servidor.
+  final Future<List<Map<String, dynamic>>> Function(int offset, String search)?
+      pageLoader;
+
+  /// Total exacto en el servidor para la búsqueda actual.
+  final Future<int> Function(String search)? countLoader;
+
+  /// Si es `false`, la búsqueda filtra solo lo ya cargado (el servidor no
+  /// tiene búsqueda para esa lista).
+  final bool searchOnServer;
+
   const _Records({
     required this.title,
     required this.subtitle,
@@ -5766,6 +7041,10 @@ class _Records extends StatefulWidget {
     required this.item,
     this.showQaFilter = false,
     this.serverFilters,
+    this.onExport,
+    this.pageLoader,
+    this.countLoader,
+    this.searchOnServer = true,
   });
 
   @override
@@ -5773,20 +7052,105 @@ class _Records extends StatefulWidget {
 }
 
 class _RecordsState extends State<_Records> {
+  // Se muestran de a 50 tarjetas; al bajar se agregan otras 50.
+  static const int _pageSize = 50;
   final search = TextEditingController();
   String query = '';
   String? status;
   String qaFilter = 'all';
+  int _shown = _pageSize;
+
+  // Modo servidor: filas traídas hasta ahora, total y estado de carga.
+  final List<Map<String, dynamic>> _serverRows = [];
+  int? _serverTotal;
+  bool _serverLoading = false;
+  bool _serverHasMore = true;
+  Object? _serverError;
+  Timer? _searchDebounce;
+  int _serverGeneration = 0;
+
+  bool get _serverMode => widget.pageLoader != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_serverMode) _reloadServer();
+  }
+
+  void _resetPaging() => _shown = _pageSize;
+
+  Future<void> _reloadServer() async {
+    final generation = ++_serverGeneration;
+    setState(() {
+      _serverRows.clear();
+      _serverTotal = null;
+      _serverHasMore = true;
+      _serverError = null;
+    });
+    final countLoader = widget.countLoader;
+    if (countLoader != null) {
+      countLoader(query).then((total) {
+        if (mounted && generation == _serverGeneration) {
+          setState(() => _serverTotal = total);
+        }
+      }).catchError((_) {});
+    }
+    await _loadNextServerPage(generation);
+  }
+
+  Future<void> _loadNextServerPage([int? generation]) async {
+    final gen = generation ?? _serverGeneration;
+    if (_serverLoading || !_serverHasMore) return;
+    setState(() => _serverLoading = true);
+    try {
+      final rows = await widget.pageLoader!(_serverRows.length, query);
+      if (!mounted || gen != _serverGeneration) return;
+      setState(() {
+        _serverRows.addAll(rows);
+        _serverHasMore = rows.length >= _pageSize;
+      });
+    } catch (error) {
+      if (mounted && gen == _serverGeneration) {
+        setState(() => _serverError = error);
+      }
+    } finally {
+      if (mounted) setState(() => _serverLoading = false);
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    query = value;
+    if (!_serverMode || !widget.searchOnServer) {
+      setState(_resetPaging);
+      return;
+    }
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 450), _reloadServer);
+  }
+
+  bool _onScroll(ScrollNotification notification, int total) {
+    if (notification.metrics.extentAfter >= 700) return false;
+    if (_serverMode) {
+      if (_serverHasMore && !_serverLoading && _serverError == null) {
+        _loadNextServerPage();
+      }
+    } else if (_shown < total) {
+      setState(() => _shown = (_shown + _pageSize).clamp(0, total));
+    }
+    return false;
+  }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     search.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final statuses = widget.rows
+    final sourceRows = _serverMode ? _serverRows : widget.rows;
+    final statuses = sourceRows
         .map((row) => row['status']?.toString())
         .whereType<String>()
         .where((value) => value.isNotEmpty)
@@ -5794,8 +7158,9 @@ class _RecordsState extends State<_Records> {
         .toList()
       ..sort();
 
-    final visible = widget.rows.where((row) {
-      final matchesText = query.isEmpty ||
+    final visible = sourceRows.where((row) {
+      final matchesText = (_serverMode && widget.searchOnServer) ||
+          query.isEmpty ||
           row.values
               .map((value) => value?.toString().toLowerCase() ?? '')
               .join(' ')
@@ -5810,7 +7175,18 @@ class _RecordsState extends State<_Records> {
       return matchesText && matchesStatus && matchesQa;
     }).toList();
 
-    return ListView(
+    final qaCount = sourceRows.where((row) => row['is_qa'] == true).length;
+    final realCount = sourceRows.length - qaCount;
+    final shown = _serverMode
+        ? visible.length
+        : (visible.length < _shown ? visible.length : _shown);
+    final totalLabel = _serverMode
+        ? (_serverTotal?.toString() ?? '…')
+        : '${widget.rows.length}';
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) => _onScroll(n, visible.length),
+      child: ListView(
       padding: const EdgeInsets.all(22),
       children: [
         _Header(title: widget.title, subtitle: widget.subtitle),
@@ -5840,7 +7216,7 @@ class _RecordsState extends State<_Records> {
                           height: 40,
                           child: TextField(
                             controller: search,
-                            onChanged: (value) => setState(() => query = value),
+                            onChanged: _onSearchChanged,
                             decoration: const InputDecoration(
                               isDense: true,
                               prefixIcon: Icon(Icons.search_rounded, size: 18),
@@ -5854,15 +7230,17 @@ class _RecordsState extends State<_Records> {
                   ),
                   const SizedBox(width: 8),
                   OutlinedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'La exportación todavía no está disponible en esta pantalla.',
-                          ),
-                        ),
-                      );
-                    },
+                    onPressed: widget.onExport != null
+                        ? () => widget.onExport!()
+                        : () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'La exportación todavía no está disponible en esta pantalla.',
+                                ),
+                              ),
+                            );
+                          },
                     icon: const Icon(Icons.download_rounded, size: 17),
                     label: const Text('Exportar'),
                   ),
@@ -5876,33 +7254,49 @@ class _RecordsState extends State<_Records> {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   AdminPillChoice(
-                    label: 'Todos (' + widget.rows.length.toString() + ')',
+                    label: 'Todos ($totalLabel)',
                     selected: status == null,
                     showCheck: true,
-                    onSelected: (_) => setState(() => status = null),
+                    onSelected: (_) => setState(() {
+                      status = null;
+                      _resetPaging();
+                    }),
                   ),
+                  if (!_serverMode)
                   for (final value in statuses.take(5))
                     AdminPillChoice(
                       label: friendlyStatus(value),
                       selected: status == value,
                       dotColor: adminStatusColor(value),
-                      onSelected: (_) => setState(() => status = value),
+                      onSelected: (_) => setState(() {
+                        status = value;
+                        _resetPaging();
+                      }),
                     ),
-                  if (widget.showQaFilter) ...[
+                  if (widget.showQaFilter && !_serverMode) ...[
                     const SizedBox(width: 4),
                     AdminPillChoice(
-                      label: 'Reales',
+                      label: 'Reales ($realCount)',
                       selected: qaFilter == 'real',
-                      onSelected: (_) => setState(() => qaFilter = 'real'),
+                      onSelected: (_) => setState(() {
+                        qaFilter = 'real';
+                        _resetPaging();
+                      }),
                     ),
                     AdminPillChoice(
-                      label: 'Pruebas',
+                      label: 'Pruebas ($qaCount)',
                       selected: qaFilter == 'qa',
-                      onSelected: (_) => setState(() => qaFilter = 'qa'),
+                      onSelected: (_) => setState(() {
+                        qaFilter = 'qa';
+                        _resetPaging();
+                      }),
                     ),
                     if (qaFilter != 'all')
                       TextButton(
-                        onPressed: () => setState(() => qaFilter = 'all'),
+                        onPressed: () => setState(() {
+                          qaFilter = 'all';
+                          _resetPaging();
+                        }),
                         child: const Text('Quitar filtro de pruebas'),
                       ),
                   ],
@@ -5912,7 +7306,12 @@ class _RecordsState extends State<_Records> {
           ),
         ),
         const SizedBox(height: 12),
-        if (visible.isEmpty)
+        if (visible.isEmpty && _serverMode && _serverLoading)
+          const Padding(
+            padding: EdgeInsets.all(28),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (visible.isEmpty)
           Container(
             padding: const EdgeInsets.all(28),
             decoration: BoxDecoration(
@@ -5927,9 +7326,54 @@ class _RecordsState extends State<_Records> {
               style: const TextStyle(color: adminMuted),
             ),
           )
-        else
-          ...visible.map(widget.item),
+        else ...[
+          ...visible.take(shown).map(widget.item),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Column(
+              children: [
+                Text(
+                  _serverMode
+                      ? 'Mostrando $shown de $totalLabel'
+                      : 'Mostrando $shown de ${visible.length}',
+                  style: const TextStyle(
+                    color: adminMuted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (_serverMode && _serverLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 10),
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.4),
+                    ),
+                  )
+                else if (_serverMode && _serverError != null)
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _serverError = null);
+                      _loadNextServerPage();
+                    },
+                    child: const Text('No se pudo cargar. Reintentar'),
+                  )
+                else if (_serverMode && _serverHasMore)
+                  TextButton(
+                    onPressed: _loadNextServerPage,
+                    child: const Text('Ver 50 más'),
+                  )
+                else if (!_serverMode && shown < visible.length)
+                  TextButton(
+                    onPressed: () => setState(() => _shown += _pageSize),
+                    child: const Text('Ver 50 más'),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ],
+      ),
     );
   }
 }
