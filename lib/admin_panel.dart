@@ -674,16 +674,23 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     }
     try {
       final bucket = supabase.storage.from('driver-onboarding');
-      final thumb = await bucket.createSignedUrl(
-        path,
-        3600,
-        transform: TransformOptions(
-          width: 160,
-          height: 160,
-          resize: ResizeMode.cover,
-        ),
-      );
       final original = await bucket.createSignedUrl(path, 3600);
+      // La miniatura es opcional: si la transformación de imagen falla, el mapa
+      // muestra la foto original en lugar de quedarse con el icono de respaldo.
+      var thumb = original;
+      try {
+        thumb = await bucket.createSignedUrl(
+          path,
+          3600,
+          transform: TransformOptions(
+            width: 160,
+            height: 160,
+            resize: ResizeMode.cover,
+          ),
+        );
+      } catch (_) {
+        thumb = original;
+      }
       final urls = _DriverMapPhotoUrls(
         thumb: thumb,
         original: original,
