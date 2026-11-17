@@ -298,7 +298,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     _serviceMode = config['service_mode']?.toString() ?? 'transport';
     _serviceType = config['service_type']?.toString() ?? 'all';
     _audience = _programType == 'driver_challenge'
-        ? 'drivers'
+        ? (const {'drivers', 'all'}.contains(config['audience']) ? config['audience'].toString() : 'drivers')
         : const {'coupon', 'activation', 'loyalty'}.contains(_programType)
             ? 'passengers'
             : config['audience']?.toString() ?? 'passengers';
@@ -326,7 +326,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       'service_mode': _programType == 'coupon' ? 'transport' : _serviceMode,
       'service_type': _serviceType,
       'audience': _programType == 'driver_challenge'
-          ? 'drivers'
+          ? (_audience == 'all' ? 'all' : 'drivers')
           : const {'coupon', 'activation', 'loyalty'}.contains(_programType)
               ? 'passengers'
               : _audience,
@@ -708,6 +708,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             _dropdown('Tipo de recompensa', 'wallet', const {'wallet': 'Bono en billetera interna'}, (_) {}),
             _textField('Monto del bono (Bs)', _value, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
+          _dropdown('Dirigido a', _audience, const {'drivers': 'Conductores', 'all': 'Todos los usuarios'}, (value) => _refreshEditor(() => _audience = value)),
           _infoBox('Zona: ${widget.zoneId ?? 'Selecciona una zona'}'),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
