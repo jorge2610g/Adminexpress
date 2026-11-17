@@ -297,9 +297,11 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     _discount = config['discount_type']?.toString() ?? 'fixed';
     _serviceMode = config['service_mode']?.toString() ?? 'transport';
     _serviceType = config['service_type']?.toString() ?? 'all';
-    _audience = const {'coupon', 'activation', 'loyalty'}.contains(_programType)
-        ? 'passengers'
-        : config['audience']?.toString() ?? 'passengers';
+    _audience = _programType == 'driver_challenge'
+        ? 'drivers'
+        : const {'coupon', 'activation', 'loyalty'}.contains(_programType)
+            ? 'passengers'
+            : config['audience']?.toString() ?? 'passengers';
     _targetAudience = config['target_audience']?.toString() ?? 'all';
     _rewardDestination = _programType == 'activation' || _programType == 'loyalty'
         ? 'coupon'
@@ -323,9 +325,11 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     final config = <String, dynamic>{
       'service_mode': _programType == 'coupon' ? 'transport' : _serviceMode,
       'service_type': _serviceType,
-      'audience': const {'coupon', 'activation', 'loyalty'}.contains(_programType)
-          ? 'passengers'
-          : _audience,
+      'audience': _programType == 'driver_challenge'
+          ? 'drivers'
+          : const {'coupon', 'activation', 'loyalty'}.contains(_programType)
+              ? 'passengers'
+              : _audience,
       'target_audience': _targetAudience,
       'discount_absorber': 'company',
       'value': double.tryParse(_value.text.trim()),
@@ -610,7 +614,9 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           ]),
           _dropdown('Tipos de servicio', _serviceType, const {'all': 'Todos los servicios', 'economy': 'Económico', 'comfort': 'Confort', 'moto': 'Moto', 'motocar': 'Motocar'}, (value) => _refreshEditor(() => _serviceType = value)),
           _textField('Monto mínimo de viaje (Bs)', _minFare, hint: 'Sin mínimo', keyboard: const TextInputType.numberWithOptions(decimal: true)),
-          _dropdown('Audiencia', 'passengers', const {'passengers': 'Pasajeros'}, (_) => _refreshEditor(() => _audience = 'passengers')),
+          _programType == 'driver_challenge'
+              ? _dropdown('Audiencia', 'drivers', const {'drivers': 'Conductores'}, (_) => _refreshEditor(() => _audience = 'drivers'))
+              : _dropdown('Audiencia', 'passengers', const {'passengers': 'Pasajeros'}, (_) => _refreshEditor(() => _audience = 'passengers')),
           _twoColumns([
             _dropdown('Audiencia objetivo', _targetAudience, const {'all': 'Todos los usuarios', 'new': 'Usuarios nuevos', 'returning': 'Usuarios frecuentes'}, (value) => _refreshEditor(() => _targetAudience = value)),
             _dropdown('Quién cubre el descuento', 'company', const {'company': 'Express · crédito al conductor'}, (_) {}),
