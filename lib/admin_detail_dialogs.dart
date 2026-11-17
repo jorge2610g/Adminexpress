@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 import 'core/admin_friendly_error.dart';
 import 'core/admin_friendly_labels.dart';
 import 'core/admin_ui.dart';
@@ -13,6 +15,23 @@ const Color _detailDark = Color(0xFF0F172A);
 const Color _detailMuted = Color(0xFF64748B);
 const Color _detailBorder = Color(0xFFE2E8F0);
 const Color _detailSoft = Color(0xFFF8FAFC);
+
+/// Extensión permitida para fotos del conductor (jpg, png o webp), o null.
+String? _driverPhotoExtension(String fileName) {
+  final lower = fileName.toLowerCase();
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'jpg';
+  if (lower.endsWith('.png')) return 'png';
+  if (lower.endsWith('.webp')) return 'webp';
+  return null;
+}
+
+String _driverPhotoContentType(String extension) {
+  return switch (extension) {
+    'png' => 'image/png',
+    'webp' => 'image/webp',
+    _ => 'image/jpeg',
+  };
+}
 
 List<Map<String, dynamic>> _maps(Object? value) {
   if (value is! List) return const [];
@@ -765,6 +784,60 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
         if (parcelGrantError != null)
           Text(parcelGrantError!,style: const TextStyle(color: Colors.red)),
       ]);
+  }
+
+  /// El administrador cambia la foto de perfil del conductor. La imagen se sube
+  /// a la carpeta profile/ del conductor y la RPC apunta la foto de perfil a ella.
+  Future<void> _changeProfilePhoto() async {
+    if (saving) return;
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 86,
+      maxWidth: 2200,
+    );
+    if (file == null) return;
+    final ext = _driverPhotoExtension(file.name);
+    if (ext == null) {
+      setState(() => error = 'Usa una foto en JPG, PNG o WebP.');
+      return;
+    }
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    try {
+      final bytes = await file.readAsBytes();
+      final path =
+          '${widget.userId}/profile/profile-${DateTime.now().millisecondsSinceEpoch}.$ext';
+      await supabase.storage.from('driver-onboarding').uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: _driverPhotoContentType(ext),
+              upsert: false,
+            ),
+          );
+      await supabase.rpc(
+        'admin_driver_set_profile_photo_v1',
+        params: {
+          'p_driver_id': widget.userId,
+          'p_object_path': path,
+          'p_channel': widget.channel,
+        },
+      );
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto de perfil actualizada.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => error = 'No se pudo cambiar la foto. ${friendlyError(e)}');
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
   }
 
   Future<void> _save() async {
@@ -1666,6 +1739,15 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                     icon: const Icon(Icons.account_circle_outlined),
                                     label: const Text('Ver foto de perfil'),
                                   ),
+                                OutlinedButton.icon(
+                                  onPressed: saving ? null : _changeProfilePhoto,
+                                  icon: const Icon(Icons.add_a_photo_outlined),
+                                  label: Text(
+                                    profilePhotoPath.isEmpty
+                                        ? 'Agregar foto de perfil'
+                                        : 'Cambiar foto de perfil',
+                                  ),
+                                ),
                                 for (var i = 0; i < vehiclePhotos.length; i++)
                                   OutlinedButton.icon(
                                     onPressed: () => _openDriverAsset(vehiclePhotos[i]),
