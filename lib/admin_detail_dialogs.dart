@@ -840,6 +840,70 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
     }
   }
 
+  /// El administrador actualiza una parte del documento ya cargado por el conductor
+  /// (frente, reverso o selfie), sin cambiar su estado. La foto de perfil usa su propio método.
+  Future<void> _updateDocumentPart(Map<String, dynamic> document, String slot) async {
+    if (slot == 'profile') {
+      await _changeProfilePhoto();
+      return;
+    }
+    if (saving) return;
+    final documentId = document['id']?.toString() ?? '';
+    if (documentId.isEmpty) {
+      setState(() => error = 'No se encontró el documento.');
+      return;
+    }
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 86,
+      maxWidth: 2200,
+    );
+    if (file == null) return;
+    final ext = _driverPhotoExtension(file.name);
+    if (ext == null) {
+      setState(() => error = 'Usa una foto en JPG, PNG o WebP.');
+      return;
+    }
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    try {
+      final bytes = await file.readAsBytes();
+      final path =
+          '${widget.userId}/documents/$documentId/$slot-${DateTime.now().millisecondsSinceEpoch}.$ext';
+      await supabase.storage.from('driver-onboarding').uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: _driverPhotoContentType(ext),
+              upsert: false,
+            ),
+          );
+      await supabase.rpc(
+        'admin_driver_document_part_replace_v1',
+        params: {
+          'p_document_id': documentId,
+          'p_slot': slot,
+          'p_path': path,
+          'p_channel': widget.channel,
+        },
+      );
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Documento actualizado.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => error = 'No se pudo actualizar el documento. ${friendlyError(e)}');
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
   Future<void> _save() async {
     if (saving) return;
     if (countryCode == null || countryCode!.isEmpty) {
@@ -1332,6 +1396,11 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                 icon: const Icon(Icons.visibility_outlined, size: 16),
                 label: const Text('Ver'),
               ),
+              OutlinedButton.icon(
+                onPressed: saving ? null : () => _updateDocumentPart(document, slot),
+                icon: const Icon(Icons.upload_file_outlined, size: 16),
+                label: const Text('Actualizar'),
+              ),
               if (status != 'approved')
                 FilledButton.icon(
                   onPressed: saving
@@ -1571,6 +1640,11 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                   icon: const Icon(Icons.visibility_outlined, size: 16),
                   label: const Text('Ver'),
                 ),
+                OutlinedButton.icon(
+                  onPressed: saving ? null : () => _updateDocumentPart(document, slot),
+                  icon: const Icon(Icons.upload_file_outlined, size: 16),
+                  label: const Text('Actualizar'),
+                ),
                 if (status != 'approved')
                   FilledButton.icon(
                     onPressed: saving ? null
@@ -1745,7 +1819,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                                   label: Text(
                                     profilePhotoPath.isEmpty
                                         ? 'Agregar foto de perfil'
-                                        : 'Cambiar foto de perfil',
+                                        : 'Actualizar foto de perfil',
                                   ),
                                 ),
                                 for (var i = 0; i < vehiclePhotos.length; i++)

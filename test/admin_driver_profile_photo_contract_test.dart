@@ -18,7 +18,7 @@ void main() {
     expect(dialogs, contains("'admin_driver_set_profile_photo_v1'"));
     expect(dialogs, contains("'p_driver_id': widget.userId"));
     expect(dialogs, contains("'p_channel': widget.channel"));
-    expect(dialogs, contains('Cambiar foto de perfil'));
+    expect(dialogs, contains('Actualizar foto de perfil'));
     expect(dialogs, contains('Agregar foto de perfil'));
   });
 
