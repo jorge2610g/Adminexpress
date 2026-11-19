@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
+import 'admin_csv_download.dart';
+import 'admin_file_download.dart';
+import 'admin_qr_code.dart';
 
 /// Edición centralizada del QR público de Express.
 class AdminAppDownloadLinksCard extends StatefulWidget {
@@ -38,15 +41,23 @@ class _AdminAppDownloadLinksCardState
   String? _saving;
   String? _error;
 
+  void _refreshQr() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
+    for (final controller in _urls.values) {
+      controller.addListener(_refreshQr);
+    }
     _load();
   }
 
   @override
   void dispose() {
     for (final controller in _urls.values) {
+      controller.removeListener(_refreshQr);
       controller.dispose();
     }
     super.dispose();
@@ -114,6 +125,11 @@ class _AdminAppDownloadLinksCardState
     }
   }
 
+  static bool _validHttps(String value) {
+    final parsed = Uri.tryParse(value.trim());
+    return parsed != null && parsed.scheme == 'https' && parsed.host.isNotEmpty;
+  }
+
   Widget _platformCard(String platform) {
     final data = platforms[platform]!;
     final active = _enabled[platform] ?? false;
@@ -155,6 +171,15 @@ class _AdminAppDownloadLinksCardState
                 hintText: 'https://...',
                 helperText: active ? 'Activo al escanear el QR' : 'No disponible para usuarios',
               ),
+            ),
+            const SizedBox(height: 12),
+            AdminQrPanel(
+              title: 'QR directo de ${data.$1}',
+              data: _validHttps(_urls[platform]!.text) ? _urls[platform]!.text.trim() : null,
+              fileBase: 'qr-express-$platform',
+              emptyText: 'Escribe un enlace HTTPS para ver su QR.',
+              note: 'Este QR lleva directo a este enlace. Si lo cambias, el QR cambia y '
+                  'hay que volver a imprimirlo. Para no reimprimir usa el QR permanente de arriba.',
             ),
             const SizedBox(height: 12),
             Align(
@@ -249,6 +274,15 @@ class _AdminAppDownloadLinksCardState
                     ),
                   ],
                 ),
+                const SizedBox(height: 14),
+                const AdminQrPanel(
+                  title: 'QR permanente de descarga',
+                  data: qrUrl,
+                  fileBase: 'qr-express-app',
+                  note: 'Este QR no cambia nunca: manda al celular a la tienda que '
+                      'corresponda (Android, iPhone) según los enlaces de abajo. '
+                      'Úsalo en chalecos, vehículos y anuncios.',
+                ),
               ],
             ),
           ),
@@ -261,6 +295,179 @@ class _AdminAppDownloadLinksCardState
             style: TextStyle(color: Color(0xFF64748B)),
           ),
       ],
+    );
+  }
+}
+
+
+/// QR con vista previa y acciones: descargar PNG o SVG, compartir y copiar el
+/// enlace. Se redibuja solo cuando cambia [data].
+class AdminQrPanel extends StatelessWidget {
+  const AdminQrPanel({
+    super.key,
+    required this.title,
+    required this.data,
+    required this.fileBase,
+    this.emptyText = '',
+    this.note,
+  });
+
+  final String title;
+  final String? data;
+  final String fileBase;
+  final String emptyText;
+  final String? note;
+
+  void _snack(BuildContext context, String message) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _downloadPng(BuildContext context) async {
+    final value = data;
+    if (value == null) return;
+    try {
+      final bytes = await adminQrPng(value);
+      adminDownloadBytesFile('$fileBase.png', bytes, mimeType: 'image/png');
+      _snack(context, 'QR descargado (PNG).');
+    } catch (error) {
+      _snack(context, 'No se pudo generar el QR: $error');
+    }
+  }
+
+  void _downloadSvg(BuildContext context) {
+    final value = data;
+    if (value == null) return;
+    adminDownloadTextFile(
+      '$fileBase.svg',
+      adminQrSvg(value),
+      mimeType: 'image/svg+xml',
+    );
+    _snack(context, 'QR descargado (SVG vectorial para imprenta).');
+  }
+
+  Future<void> _share(BuildContext context) async {
+    final value = data;
+    if (value == null) return;
+    try {
+      final bytes = await adminQrPng(value);
+      final sharedImage = await adminShareImage(
+        fileName: '$fileBase.png',
+        bytes: bytes,
+        title: title,
+        text: value,
+      );
+      if (sharedImage) return;
+      final sharedLink = await adminShareLink(title: title, url: value);
+      if (sharedLink) return;
+      await Clipboard.setData(ClipboardData(text: value));
+      _snack(context,
+          'Este navegador no permite compartir. Copié el enlace; descarga el QR para enviarlo.');
+    } catch (error) {
+      _snack(context, 'No se pudo compartir: $error');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final value = data;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 16,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.start,
+            children: [
+              if (value == null)
+                Container(
+                  width: 180,
+                  height: 180,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(emptyText,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Color(0xFF64748B))),
+                )
+              else
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: AdminQrView(data: value, size: 180),
+                ),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (value != null) ...[
+                      SelectableText(value,
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF475569))),
+                      const SizedBox(height: 10),
+                    ],
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton.icon(
+                          onPressed:
+                              value == null ? null : () => _downloadPng(context),
+                          icon: const Icon(Icons.download_rounded),
+                          label: const Text('Descargar PNG'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed:
+                              value == null ? null : () => _downloadSvg(context),
+                          icon: const Icon(Icons.draw_outlined),
+                          label: const Text('Descargar SVG'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: value == null ? null : () => _share(context),
+                          icon: const Icon(Icons.share_outlined),
+                          label: const Text('Compartir'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: value == null
+                              ? null
+                              : () async {
+                                  await Clipboard.setData(
+                                      ClipboardData(text: value));
+                                  _snack(context, 'Enlace copiado.');
+                                },
+                          icon: const Icon(Icons.copy),
+                          label: const Text('Copiar enlace'),
+                        ),
+                      ],
+                    ),
+                    if (note != null) ...[
+                      const SizedBox(height: 10),
+                      Text(note!,
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF64748B))),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
