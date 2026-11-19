@@ -18,6 +18,7 @@ import 'admin_environment_store.dart';
 import 'admin_driver_document_requirements.dart';
 import 'admin_country_coverage.dart';
 import 'admin_admob_settings.dart';
+import 'admin_app_download_links.dart';
 import 'admin_distance_fares.dart';
 import 'admin_time_fares.dart';
 import 'admin_fare_rounding.dart';
@@ -7992,6 +7993,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       'Admin',
       'Redes sociales',
       'Asesores de ventas',
+      'Enlaces de descarga',
     ];
 
     Widget content;
@@ -8184,6 +8186,11 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           canEdit: widget.canEditSocialLinks,
         );
         break;
+      case 10:
+        content = AdminAppDownloadLinksCard(
+          canEdit: widget.canEditSocialLinks,
+        );
+        break;
       default:
         content = Column(
           children: [
@@ -8233,7 +8240,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
           title: 'Configuración',
           subtitle: 'Administra los parámetros generales de Express Delivery.',
           action: FilledButton.icon(
-            onPressed: loading || saving || settingsTab == 7 || settingsTab == 8 || settingsTab == 9
+            onPressed: loading || saving || settingsTab == 7 || settingsTab == 8 || settingsTab == 9 || settingsTab == 10
                 ? null
                 : _save,
             icon: saving
