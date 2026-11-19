@@ -19,6 +19,7 @@ import 'admin_driver_document_requirements.dart';
 import 'admin_country_coverage.dart';
 import 'admin_admob_settings.dart';
 import 'admin_distance_fares.dart';
+import 'admin_time_fares.dart';
 import 'admin_fare_rounding.dart';
 import 'admin_zone_cancellation_fees.dart';
 import 'admin_driver_quick_offers.dart';
@@ -5115,6 +5116,13 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
             if (data.zone != null)
               AdminDistanceFaresEditor(
                 key: ValueKey('distance-steps-${data.zone!['id']}-${widget.channel}'),
+                channel: widget.channel,
+                zone: data.zone!,
+                services: data.services,
+              ),
+            if (data.zone != null)
+              AdminTimeFaresEditor(
+                key: ValueKey('time-fares-${data.zone!['id']}-${widget.channel}'),
                 channel: widget.channel,
                 zone: data.zone!,
                 services: data.services,
