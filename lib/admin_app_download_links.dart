@@ -41,23 +41,15 @@ class _AdminAppDownloadLinksCardState
   String? _saving;
   String? _error;
 
-  void _refreshQr() {
-    if (mounted) setState(() {});
-  }
-
   @override
   void initState() {
     super.initState();
-    for (final controller in _urls.values) {
-      controller.addListener(_refreshQr);
-    }
     _load();
   }
 
   @override
   void dispose() {
     for (final controller in _urls.values) {
-      controller.removeListener(_refreshQr);
       controller.dispose();
     }
     super.dispose();
@@ -125,11 +117,6 @@ class _AdminAppDownloadLinksCardState
     }
   }
 
-  static bool _validHttps(String value) {
-    final parsed = Uri.tryParse(value.trim());
-    return parsed != null && parsed.scheme == 'https' && parsed.host.isNotEmpty;
-  }
-
   Widget _platformCard(String platform) {
     final data = platforms[platform]!;
     final active = _enabled[platform] ?? false;
@@ -173,14 +160,6 @@ class _AdminAppDownloadLinksCardState
               ),
             ),
             const SizedBox(height: 12),
-            AdminQrPanel(
-              title: 'QR directo de ${data.$1}',
-              data: _validHttps(_urls[platform]!.text) ? _urls[platform]!.text.trim() : null,
-              fileBase: 'qr-express-$platform',
-              emptyText: 'Escribe un enlace HTTPS para ver su QR.',
-              note: 'Este QR lleva directo a este enlace. Si lo cambias, el QR cambia y '
-                  'hay que volver a imprimirlo. Para no reimprimir usa el QR permanente de arriba.',
-            ),
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerRight,
@@ -276,12 +255,12 @@ class _AdminAppDownloadLinksCardState
                 ),
                 const SizedBox(height: 14),
                 const AdminQrPanel(
-                  title: 'QR permanente de descarga',
+                  title: 'QR de descarga de Express',
                   data: qrUrl,
                   fileBase: 'qr-express-app',
-                  note: 'Este QR no cambia nunca: manda al celular a la tienda que '
-                      'corresponda (Android, iPhone) según los enlaces de abajo. '
-                      'Úsalo en chalecos, vehículos y anuncios.',
+                  note: 'Es un solo QR para todo: reconoce el teléfono y lo lleva a Google '
+                      'Play (Android), a la App Store (iPhone) o a la web. Si cambias '
+                      'un enlace de abajo, este QR no cambia ni hay que reimprimirlo.',
                 ),
               ],
             ),

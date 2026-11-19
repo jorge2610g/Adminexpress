@@ -53,9 +53,10 @@ void main() {
     expect(screen, contains("'Descargar SVG'"));
     expect(screen, contains("'Compartir'"));
     expect(screen, contains("'Copiar enlace'"));
-    // El QR de cada plataforma sigue lo que se escribe en el campo del enlace.
-    expect(screen, contains('controller.addListener(_refreshQr)'));
-    expect(screen, contains("'qr-express-\$platform'"));
+    // Hay un solo QR (el permanente) y no uno por plataforma.
+    expect('AdminQrPanel('.allMatches(screen).length, 2); // uso + definición de clase no cuenta
+    expect(screen, isNot(contains("'qr-express-\$platform'")));
+    expect(screen, contains("fileBase: 'qr-express-app'"));
     // El QR permanente sigue apuntando a la página /app.
     expect(screen, contains("static const qrUrl = 'https://expressviajes.online/app/'"));
   });
