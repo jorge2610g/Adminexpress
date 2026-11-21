@@ -978,8 +978,12 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
     final buildNumberMatchesGate = candidateBuildNumber != null &&
         storeBuildNumber != null &&
         nextBuildNumber != null &&
-        candidateBuildNumber == nextBuildNumber &&
-        candidateBuildNumber == storeBuildNumber + 1;
+        // Igual que el servidor: la candidata debe ser posterior a la de Play
+        // y menor que el código reservado, que avanza al subir a Prueba
+        // interna (la 175 con Play en 174 y reserva 176 es válida).
+        candidateBuildNumber > storeBuildNumber &&
+        candidateBuildNumber < nextBuildNumber &&
+        nextBuildNumber >= storeBuildNumber + 1;
     final playSync = status['play_sync'] is Map
         ? Map<String, dynamic>.from(status['play_sync'] as Map)
         : <String, dynamic>{};
@@ -1101,7 +1105,7 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                             : candidateAlreadyInPlay
                                 ? 'Google Play ya confirmó esta versión en Producción. No vuelvas a aprobarla ni promoverla; configura el aviso desde Distribución de actualizaciones · Producción.'
                                 : !buildNumberMatchesGate
-                                    ? 'Aprobación detenida: esta candidata es build ${candidateBuildNumber ?? '—'}, Play figura en ${storeBuildNumber ?? '—'} y el panel espera ${nextBuildNumber ?? '—'}. Sincroniza el estado real de Play antes de aprobar o promover.'
+                                    ? 'Aprobación detenida: esta candidata es build ${candidateBuildNumber ?? '—'}, Play figura en ${storeBuildNumber ?? '—'} y el código reservado es ${nextBuildNumber ?? '—'}: la candidata debe ser mayor que Play y menor que el reservado. Sincroniza el estado real de Play antes de aprobar o promover.'
                                     : !approved
                                         ? 'Aprueba la candidata después de certificar las pruebas para habilitar “Promover APK/AAB”.'
                                         : promoted
