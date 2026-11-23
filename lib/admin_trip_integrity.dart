@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'core/admin_friendly_error.dart';
 import 'core/admin_friendly_labels.dart';
+import 'admin_detail_dialogs.dart' show showAdminTripDetail;
 import 'core/supabase_client.dart';
 
 /// Motivos de una irregularidad, en español claro para quien revisa.
@@ -523,6 +524,14 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
             ),
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 6, children: [
+            OutlinedButton.icon(
+                onPressed: f['trip_id'] == null
+                    ? null
+                    : () => showAdminTripDetail(
+                        context, f['trip_id'].toString(),
+                        channel: widget.channel),
+                icon: const Icon(Icons.receipt_long_outlined),
+                label: const Text('Ver viaje completo')),
             OutlinedButton.icon(
                 onPressed: () => _showTrail(f),
                 icon: const Icon(Icons.map_outlined),
