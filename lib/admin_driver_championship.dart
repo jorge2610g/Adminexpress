@@ -3,6 +3,7 @@ import 'core/admin_friendly_error.dart';
 import 'core/admin_dropdown_field.dart';
 import 'core/supabase_client.dart';
 import 'core/admin_friendly_labels.dart';
+import 'admin_detail_dialogs.dart' show showAdminTripDetail;
 
 /// Servicio del campeonato en español; «*» significa todos los servicios.
 String _serviceName(String key) => friendlyService(key);
@@ -311,8 +312,15 @@ class _AdminDriverChampionshipPageState
                     +(payment(t['payment_method']).isNotEmpty
                       ?' · '+payment(t['payment_method']):''),
                     maxLines:3,overflow:TextOverflow.ellipsis),
-                  trailing:Text(money(t['fare'],t['currency']),
-                    style:const TextStyle(fontWeight:FontWeight.w900)),
+                  trailing:Row(mainAxisSize:MainAxisSize.min,children:[
+                    Text(money(t['fare'],t['currency']),
+                      style:const TextStyle(fontWeight:FontWeight.w900)),
+                    const SizedBox(width:6),
+                    const Icon(Icons.chevron_right_rounded,size:20),
+                  ]),
+                  // Detalle completo del viaje (hora, ruta, pago, conductor, etc.).
+                  onTap:()=>showAdminTripDetail(context,
+                    t['trip_id'].toString(),channel:widget.channel),
                 );
               })),
           ]);
