@@ -28,6 +28,7 @@ import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
 import 'admin_landing_banners.dart';
 import 'admin_debt_management.dart';
+import 'admin_wallets.dart';
 import 'admin_operators.dart';
 import 'admin_operator_fares.dart';
 import 'admin_operator_payments.dart';
@@ -368,6 +369,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     34: 'marketplace',
     35: 'benefits',
     36: 'passenger_ads',
+    38: 'payments',
   };
 
   bool _sectionAllowed(int index) {
@@ -480,6 +482,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Beneficios Express', Icons.card_giftcard_outlined),
     ('Publicidad de pasajeros', Icons.campaign_rounded),
     ('Asesores de ventas', Icons.badge_rounded),
+    ('Billeteras', Icons.account_balance_wallet_rounded),
   ];
 
   Future<bool> _authorized() async {
@@ -2039,6 +2042,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           channel: _sectionChannel(22),
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
+        );
+      case 38:
+        return AdminWalletsPage(
+          zoneId: adminZoneId ?? '',
+          zoneName:
+              (adminAccess['zone_name'] ?? 'Zona seleccionada').toString(),
+          canEdit: !_readOnly,
         );
       case 37:
         return SingleChildScrollView(

@@ -2916,6 +2916,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
     var enabled = row?['enabled'] == true;
     var bidding = row?['allow_bidding'] != false;
     var fixed = row?['allow_fixed_price'] != false;
+    var directFixedPrice = row?['price_mode'] == 'fixed';
     var passengerVisible = row?['passenger_visible'] == true;
     var driverVisible = row?['driver_visible'] == true;
     var scheduled = row?['scheduled_enabled'] != false;
@@ -3069,6 +3070,21 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                     onChanged: (value) => setLocal(() => fixed = value),
                     title: const Text('Permitir precio fijo'),
                   ),
+                  if (!_environment.isPreview &&
+                      row?['service_key'] != 'delivery' &&
+                      row?['service_key'] != 'parcel')
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: directFixedPrice,
+                      onChanged: (value) =>
+                          setLocal(() => directFixedPrice = value),
+                      title: Text('Precio fijo en $zoneName'),
+                      subtitle: const Text(
+                        'El precio lo calcula Express y no se puede cambiar. '
+                        'El viaje se ofrece al conductor más cercano, uno por '
+                        'vez (15 s cada uno), sin ofertas ni contraofertas.',
+                      ),
+                    ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: scheduled,
@@ -3168,6 +3184,19 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
               'p_sort_order': sortOrder,
             },
           );
+
+          if (row?['service_key'] != 'delivery' &&
+              row?['service_key'] != 'parcel' &&
+              (directFixedPrice != (row?['price_mode'] == 'fixed'))) {
+            await supabase.rpc(
+              'admin_set_zone_service_price_mode_v1',
+              params: {
+                'p_zone_id': zoneId,
+                'p_service_key': serviceKey,
+                'p_price_mode': directFixedPrice ? 'fixed' : 'offer',
+              },
+            );
+          }
         }
 
         if (mounted) {
