@@ -16,6 +16,8 @@ const Map<String, String> _reasonLabels = {
   'origen_y_destino_casi_iguales': 'Origen y destino casi iguales',
   'misma_pareja_repetida': 'Mismo pasajero repetido muchas veces',
   'muchos_viajes_cortos_seguidos': 'Muchos viajes cortos seguidos',
+  'viaje_historico_muy_corto':
+      'Terminó en menos de 5 minutos con una distancia larga (revisión del historial)',
 };
 
 String _reasonLabel(String key) => _reasonLabels[key] ?? key;
@@ -378,6 +380,10 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
     }
     if (m['velocidad_maxima_kmh'] != null && (m['velocidad_maxima_kmh'] as num) > 0) {
       parts.add('Velocidad máx. ${m['velocidad_maxima_kmh']} km/h');
+    }
+    if (m['velocidad_implicita_kmh'] != null) {
+      parts.add('Velocidad implícita ${m['velocidad_implicita_kmh']} km/h '
+          '(${m['km_ruta'] ?? '—'} km en ${m['minutos_reales']} min)');
     }
     if (m['sin_recorrido'] == true) {
       parts.add('Sin recorrido GPS guardado');
