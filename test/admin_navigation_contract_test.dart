@@ -55,4 +55,9 @@ void main() {
     expect(indices, isNot(contains(24)));
     expect(indices, isNot(contains(26)));
   });
+
+  test('Billeteras aparece en el menú, dentro de Finanzas', () {
+    final panel = File('lib/admin_panel.dart').readAsStringSync();
+    expect(panel, contains("('FINANZAS', [9, 38, 8, 22, 33])"));
+  });
 }
