@@ -256,7 +256,7 @@ class _AdminDriverChampionshipPageState
         Row(children:[
           const Icon(Icons.leaderboard_outlined,color:Color(0xFF2563EB)),
           const SizedBox(width:10),
-          Expanded(child:Text('Ranking · '+(champ['title']?.toString()??''),
+          Expanded(child:Text('Top 10 · '+(champ['title']?.toString()??''),
             style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900))),
           IconButton(tooltip:'Actualizar ranking',
             onPressed:()=>setState(_loadRanking),
@@ -288,7 +288,7 @@ class _AdminDriverChampionshipPageState
               return Text('No se pudo cargar el ranking: '+friendlyError(snap.error));
             final rows=((snap.data?['rows']) is List)
               ?(snap.data!['rows'] as List).whereType<Map>()
-                  .map((x)=>Map<String,dynamic>.from(x)).toList()
+                  .map((x)=>Map<String,dynamic>.from(x)).take(10).toList()
               :<Map<String,dynamic>>[];
             if(rows.isEmpty)
               return const Text('Todavía no hay conductores en el ranking.');
@@ -297,7 +297,7 @@ class _AdminDriverChampionshipPageState
               for(final r in rows)
                 ListTile(
                   dense:true,
-                  leading:SizedBox(width:34,child:Text(
+                  leading:SizedBox(width:48,child:Text(
                     (r['position'] as num)<=3
                       ?medals[(r['position'] as num).toInt()-1]
                       :'#'+r['position'].toString(),
