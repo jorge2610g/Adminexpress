@@ -20,4 +20,12 @@ void main() {
     expect(src, contains("'p_price_mode': fareMode"));
     expect(src, contains('Esta tarifa es para'));
   });
+  tarifasBotonVisible();
+}
+
+void tarifasBotonVisible() {
+  test('Tarifas tiene un botón Nueva tarifa junto a la lista', () {
+    final src = File('lib/admin_control_sections.dart').readAsStringSync();
+    expect(src, contains("ValueKey('fare-new-inline')"));
+  });
 }
