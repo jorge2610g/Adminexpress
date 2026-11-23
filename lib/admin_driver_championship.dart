@@ -3,6 +3,7 @@ import 'core/admin_friendly_error.dart';
 import 'core/admin_dropdown_field.dart';
 import 'core/supabase_client.dart';
 import 'core/admin_friendly_labels.dart';
+import 'admin_detail_dialogs.dart' show showAdminTripDetail;
 
 /// Servicio del campeonato en español; «*» significa todos los servicios.
 String _serviceName(String key) => friendlyService(key);
@@ -243,6 +244,92 @@ class _AdminDriverChampionshipPageState
       }));
   }
 
+  /// Ventana con todos los viajes del conductor que cuentan en este campeonato.
+  Future<void> _showDriverTrips(Map<String,dynamic> row) async {
+    final id=_rankId;
+    if(id==null)return;
+    final future=()async{
+      final raw=await supabase.rpc('admin_driver_championship_driver_trips',params:{
+        'p_championship_id':id,'p_driver_id':row['driver_id'],
+        'p_service_key':_rankService});
+      return raw is Map?Map<String,dynamic>.from(raw):<String,dynamic>{};
+    }();
+    String when(Object? raw){
+      final d=DateTime.tryParse(raw?.toString()??'')?.toLocal();
+      if(d==null)return '';
+      return _format(d)+' '+d.hour.toString().padLeft(2,'0')+':'
+        +d.minute.toString().padLeft(2,'0');
+    }
+    String money(Object? amount,Object? currency){
+      final n=amount is num?amount:num.tryParse(amount?.toString()??'');
+      if(n==null)return '—';
+      final c=(currency?.toString()??'').toUpperCase();
+      final text=n==n.roundToDouble()?n.toInt().toString():n.toStringAsFixed(2);
+      return (c=='CLP'?'\$ ':c=='BOB'?'Bs ':'')+text;
+    }
+    String payment(Object? m)=>switch(m?.toString()){
+      'cash'=>'Efectivo','qr'=>'QR','wallet'=>'Billetera','card'=>'Tarjeta',
+      final v when v!=null&&v.isNotEmpty=>v,_=>''};
+    await showDialog<void>(context:context,builder:(dialogContext)=>AlertDialog(
+      title:Text('Viajes de '+(row['name']?.toString()??'conductor')),
+      content:SizedBox(width:560,height:460,child:FutureBuilder<Map<String,dynamic>>(
+        future:future,
+        builder:(context,snap){
+          if(snap.connectionState!=ConnectionState.done)
+            return const Center(child:CircularProgressIndicator());
+          if(snap.hasError)
+            return Text('No se pudieron cargar los viajes: '+friendlyError(snap.error));
+          final data=snap.data??<String,dynamic>{};
+          final trips=(data['trips'] is List)
+            ?(data['trips'] as List).whereType<Map>()
+                .map((x)=>Map<String,dynamic>.from(x)).toList()
+            :<Map<String,dynamic>>[];
+          final total=(data['total'] as num?)?.toInt()??trips.length;
+          if(trips.isEmpty)
+            return const Center(child:Text('Este conductor aún no tiene viajes en el campeonato.'));
+          return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text(total.toString()+' viajes completados en el campeonato'
+              +(total>trips.length?' (se muestran los últimos '+trips.length.toString()+')':'')
+              +' · '+_serviceName(data['service_key']?.toString()??'*'),
+              style:const TextStyle(fontWeight:FontWeight.w800)),
+            const SizedBox(height:8),
+            Expanded(child:ListView.separated(
+              itemCount:trips.length,
+              separatorBuilder:(_,__)=>const Divider(height:1),
+              itemBuilder:(context,i){
+                final t=trips[i];
+                final km=(t['distance_km'] as num?)?.toDouble();
+                return ListTile(
+                  dense:true,
+                  isThreeLine:true,
+                  leading:Text('#'+(total-i).toString()),
+                  title:Text(when(t['completed_at'])+' · '
+                    +_serviceName(t['service_key']?.toString()??'')),
+                  subtitle:Text(
+                    (t['pickup']?.toString()??'—')+'  →  '
+                    +(t['destination']?.toString()??'—')
+                    +(km!=null?'\n'+km.toStringAsFixed(1)+' km':'')
+                    +(payment(t['payment_method']).isNotEmpty
+                      ?' · '+payment(t['payment_method']):''),
+                    maxLines:3,overflow:TextOverflow.ellipsis),
+                  trailing:Row(mainAxisSize:MainAxisSize.min,children:[
+                    Text(money(t['fare'],t['currency']),
+                      style:const TextStyle(fontWeight:FontWeight.w900)),
+                    const SizedBox(width:6),
+                    const Icon(Icons.chevron_right_rounded,size:20),
+                  ]),
+                  // Detalle completo del viaje (hora, ruta, pago, conductor, etc.).
+                  onTap:()=>showAdminTripDetail(context,
+                    t['trip_id'].toString(),channel:widget.channel),
+                );
+              })),
+          ]);
+        })),
+      actions:[TextButton(onPressed:()=>Navigator.pop(dialogContext),
+        child:const Text('Cerrar'))],
+    ));
+  }
+
   /// Ranking del campeonato elegido, con filtro por servicio cuando es de «todos».
   Widget _rankingCard(List<Map<String,dynamic>> records){
     if(_rankId==null||_rankFuture==null)return const SizedBox.shrink();
@@ -256,7 +343,7 @@ class _AdminDriverChampionshipPageState
         Row(children:[
           const Icon(Icons.leaderboard_outlined,color:Color(0xFF2563EB)),
           const SizedBox(width:10),
-          Expanded(child:Text('Ranking · '+(champ['title']?.toString()??''),
+          Expanded(child:Text('Top 10 · '+(champ['title']?.toString()??''),
             style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900))),
           IconButton(tooltip:'Actualizar ranking',
             onPressed:()=>setState(_loadRanking),
@@ -288,7 +375,7 @@ class _AdminDriverChampionshipPageState
               return Text('No se pudo cargar el ranking: '+friendlyError(snap.error));
             final rows=((snap.data?['rows']) is List)
               ?(snap.data!['rows'] as List).whereType<Map>()
-                  .map((x)=>Map<String,dynamic>.from(x)).toList()
+                  .map((x)=>Map<String,dynamic>.from(x)).take(10).toList()
               :<Map<String,dynamic>>[];
             if(rows.isEmpty)
               return const Text('Todavía no hay conductores en el ranking.');
@@ -297,14 +384,24 @@ class _AdminDriverChampionshipPageState
               for(final r in rows)
                 ListTile(
                   dense:true,
-                  leading:SizedBox(width:34,child:Text(
+                  leading:SizedBox(width:44,child:Text(
                     (r['position'] as num)<=3
                       ?medals[(r['position'] as num).toInt()-1]
                       :'#'+r['position'].toString(),
-                    style:const TextStyle(fontSize:18,fontWeight:FontWeight.w800))),
+                    maxLines:1,softWrap:false,overflow:TextOverflow.visible,
+                    // Medallas un poco más grandes; el número de puesto, discreto.
+                    style:TextStyle(
+                      fontSize:(r['position'] as num)<=3?20:14,
+                      fontWeight:FontWeight.w700,
+                      color:const Color(0xFF475467)))),
                   title:Text(r['name']?.toString()??'Conductor'),
-                  trailing:Text(r['rides'].toString()+' viajes',
-                    style:const TextStyle(fontWeight:FontWeight.w800)),
+                  trailing:Row(mainAxisSize:MainAxisSize.min,children:[
+                    Text(r['rides'].toString()+' viajes',
+                      style:const TextStyle(fontWeight:FontWeight.w800)),
+                    const SizedBox(width:6),
+                    const Icon(Icons.chevron_right_rounded,size:20),
+                  ]),
+                  onTap:()=>_showDriverTrips(r),
                 ),
             ]);
           }),
