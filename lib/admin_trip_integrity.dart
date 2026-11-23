@@ -48,6 +48,7 @@ class AdminTripIntegrityPage extends StatefulWidget {
 class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
   String _status = 'open';
   late Future<List<Map<String, dynamic>>> _future;
+  late Future<List<Map<String, dynamic>>> _driversFuture;
 
   @override
   void initState() {
@@ -65,6 +66,16 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
   }
 
   void _reload() {
+    _driversFuture = () async {
+      if (widget.zoneId == null) return <Map<String, dynamic>>[];
+      final raw = await supabase.rpc('admin_driver_integrity_list', params: {
+        'p_zone_id': widget.zoneId,
+        'p_channel': widget.channel,
+      });
+      return raw is List
+          ? raw.whereType<Map>().map((x) => Map<String, dynamic>.from(x)).toList()
+          : <Map<String, dynamic>>[];
+    }();
     _future = () async {
       if (widget.zoneId == null) return <Map<String, dynamic>>[];
       final raw = await supabase.rpc('admin_trip_integrity_list', params: {
@@ -94,6 +105,175 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
     final c = (currency?.toString() ?? '').toUpperCase();
     final text = n == n.roundToDouble() ? n.toInt().toString() : n.toStringAsFixed(2);
     return (c == 'CLP' ? '\$ ' : c == 'BOB' ? 'Bs ' : '') + text;
+  }
+
+  Future<void> _driverAction(Map<String, dynamic> d, String action) async {
+    final controller = TextEditingController();
+    final days = TextEditingController(text: '7');
+    final title = switch (action) {
+      'suspend_days' => 'Suspender conductor',
+      'reset' => 'Reiniciar avisos',
+      'lift' => 'Levantar suspensión',
+      'disable' => 'Inhabilitar permanentemente',
+      _ => 'Acción',
+    };
+    final text = switch (action) {
+      'suspend_days' => 'El conductor no podrá conectarse durante los días que indiques y recibirá un aviso.',
+      'reset' => 'Los avisos vuelven a cero y empieza de nuevo el ciclo de 3 avisos.',
+      'lift' => 'El conductor podrá conectarse de inmediato.',
+      'disable' => 'La cuenta queda suspendida de forma permanente (estado «suspendido»). Puedes revertirlo desde la ficha del conductor.',
+      _ => '',
+    };
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('$title · ${d['driver_name']}'),
+        content: SizedBox(
+          width: 420,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(text),
+            if (action == 'suspend_days') ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: days,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Días de suspensión'),
+              ),
+            ],
+            if (action == 'suspend_days') ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                maxLines: 2,
+                decoration: const InputDecoration(labelText: 'Mensaje para el conductor (opcional)'),
+              ),
+            ],
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(action == 'disable' ? 'Inhabilitar' : 'Confirmar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      if (action == 'disable') {
+        await supabase.rpc('admin_set_driver_approval_v2', params: {
+          'p_user_id': d['driver_id'],
+          'p_status': 'suspended',
+          'p_channel': widget.channel,
+        });
+      } else {
+        await supabase.rpc('admin_driver_integrity_action', params: {
+          'p_driver_id': d['driver_id'],
+          'p_action': action,
+          'p_days': action == 'suspend_days' ? int.tryParse(days.text.trim()) : null,
+          'p_note': controller.text.trim(),
+        });
+      }
+      if (!mounted) return;
+      setState(_reload);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Listo.')));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No se pudo aplicar: ${friendlyError(e)}')));
+      }
+    }
+  }
+
+  Widget _driversSection() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _driversFuture,
+      builder: (context, snap) {
+        final rows = snap.data ?? const <Map<String, dynamic>>[];
+        if (snap.connectionState != ConnectionState.done || rows.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Row(children: [
+                Icon(Icons.person_off_outlined, color: Color(0xFFB42318)),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text('Conductores con avisos y sanciones',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                ),
+              ]),
+              const SizedBox(height: 4),
+              const Text(
+                  'Ciclo 1: 3 avisos y luego 1 día de suspensión. Ciclo 2: 3 avisos más y luego revisión tuya. '
+                  'Los de «En revisión» esperan tu decisión.',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF667085))),
+              const SizedBox(height: 8),
+              for (final d in rows) _driverTile(d),
+            ]),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _driverTile(Map<String, dynamic> d) {
+    final cycle = (d['cycle'] as num?)?.toInt() ?? 1;
+    final suspended = d['suspended'] == true;
+    final under = cycle >= 3;
+    final until = _when(d['suspended_until']);
+    final status = under
+        ? 'En revisión: espera tu decisión'
+        : suspended
+            ? 'Suspendido hasta $until'
+            : 'Ciclo $cycle · ${d['warnings']} de 3 avisos';
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: under ? const Color(0xFFFDA29B) : const Color(0xFFE4E7EC)),
+        color: under ? const Color(0xFFFEF3F2) : null,
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+            child: Text(d['driver_name']?.toString() ?? 'Conductor',
+                style: const TextStyle(fontWeight: FontWeight.w900)),
+          ),
+          Text(status,
+              style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: under ? const Color(0xFFB42318) : const Color(0xFF475467))),
+        ]),
+        if (d['approval_status'] == 'suspended')
+          const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text('Cuenta inhabilitada', style: TextStyle(color: Color(0xFFB42318)))),
+        if (widget.canEdit)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Wrap(spacing: 8, runSpacing: 6, children: [
+              OutlinedButton(
+                  onPressed: () => _driverAction(d, 'suspend_days'), child: const Text('Suspender días')),
+              if (suspended)
+                OutlinedButton(
+                    onPressed: () => _driverAction(d, 'lift'), child: const Text('Levantar suspensión')),
+              OutlinedButton(
+                  onPressed: () => _driverAction(d, 'reset'), child: const Text('Reiniciar avisos')),
+              if (d['approval_status'] != 'suspended')
+                FilledButton(
+                    style: FilledButton.styleFrom(backgroundColor: const Color(0xFFB42318)),
+                    onPressed: () => _driverAction(d, 'disable'),
+                    child: const Text('Inhabilitar permanentemente')),
+            ]),
+          ),
+      ]),
+    );
   }
 
   Future<void> _review(Map<String, dynamic> flag, String decision) async {
@@ -237,6 +417,7 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
                   icon: const Icon(Icons.refresh_rounded)),
             ]),
             const SizedBox(height: 12),
+            _driversSection(),
             Wrap(spacing: 8, runSpacing: 6, children: [
               for (final s in const ['open', 'confirmed', 'cleared', 'all'])
                 ChoiceChip(
