@@ -283,6 +283,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Map<String, dynamic> adminAccess = const {};
 
   bool get _readOnly => adminAccess['read_only'] == true;
+
+  /// Permiso fino del operador. El administrador completo puede todo.
+  bool _can(String permission) {
+    if (_readOnly) return false;
+    if (adminAccess['role'] == 'super_admin') return true;
+    final raw = adminAccess['allowed_permissions'];
+    return raw is List && raw.map((e) => e.toString()).contains(permission);
+  }
   static const Set<int> _environmentFilteredSections = <int>{
     0, 1, 2, 3, 4, 5, 6, 9, 13, 15, 18, 21, 22, 23, 24, 25, 26, 29, 30,
     31, 33, 35, 36,
@@ -2639,33 +2647,43 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                               value,
                             );
                           },
-                          itemBuilder: (_) => const [
+                          itemBuilder: (_) => [
                             PopupMenuItem(
                               value: 'edit',
                               child: ListTile(
                                 dense: true,
                                 contentPadding: EdgeInsets.zero,
-                                leading: Icon(Icons.manage_accounts_outlined),
-                                title: Text('Ver / editar ficha'),
+                                leading:
+                                    const Icon(Icons.manage_accounts_outlined),
+                                title: Text(_can('drivers.edit')
+                                    ? 'Ver / editar ficha'
+                                    : 'Ver ficha'),
                               ),
                             ),
-                            PopupMenuDivider(),
-                            PopupMenuItem(
-                              value: 'approved',
-                              child: Text('Aprobar'),
-                            ),
-                            PopupMenuItem(
-                              value: 'pending',
-                              child: Text('Marcar pendiente'),
-                            ),
-                            PopupMenuItem(
-                              value: 'rejected',
-                              child: Text('Rechazar'),
-                            ),
-                            PopupMenuItem(
-                              value: 'suspended',
-                              child: Text('Suspender'),
-                            ),
+                            if (_can('drivers.approve') ||
+                                _can('drivers.reject') ||
+                                _can('drivers.suspend'))
+                              const PopupMenuDivider(),
+                            if (_can('drivers.approve'))
+                              const PopupMenuItem(
+                                value: 'approved',
+                                child: Text('Aprobar'),
+                              ),
+                            if (_can('drivers.suspend'))
+                              const PopupMenuItem(
+                                value: 'pending',
+                                child: Text('Marcar pendiente'),
+                              ),
+                            if (_can('drivers.reject'))
+                              const PopupMenuItem(
+                                value: 'rejected',
+                                child: Text('Rechazar'),
+                              ),
+                            if (_can('drivers.suspend'))
+                              const PopupMenuItem(
+                                value: 'suspended',
+                                child: Text('Suspender'),
+                              ),
                           ],
                           icon: const Icon(Icons.more_horiz_rounded),
                         );

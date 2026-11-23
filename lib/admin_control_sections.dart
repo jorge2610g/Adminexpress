@@ -5302,6 +5302,20 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                 ),
               ),
             const SizedBox(height: 14),
+            // Botón siempre visible junto a la lista (el del encabezado queda
+            // fuera de vista en pantallas anchas o con zoom).
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.icon(
+                key: const ValueKey('fare-new-inline'),
+                onPressed: data.zones.isEmpty
+                    ? null
+                    : () => _edit(data.zones, data.services, null, data.fares),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Nueva tarifa'),
+              ),
+            ),
+            const SizedBox(height: 10),
             if (visibleFares.isEmpty)
               const _Empty(text: 'No hay reglas de tarifa configuradas.')
             else
