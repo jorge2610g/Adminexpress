@@ -44,6 +44,7 @@ import 'admin_delivery_unified.dart';
 import 'admin_delivery_settlements.dart';
 import 'admin_driver_priority.dart';
 import 'admin_driver_championship.dart';
+import 'admin_trip_integrity.dart';
 import 'admin_benefits.dart';
 import 'admin_dynamic_pricing.dart';
 import 'admin_detail_dialogs.dart';
@@ -293,7 +294,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
   static const Set<int> _environmentFilteredSections = <int>{
     0, 1, 2, 3, 4, 5, 6, 9, 13, 15, 18, 21, 22, 23, 24, 25, 26, 29, 30,
-    31, 33, 35, 36,
+    31, 33, 35, 36, 39,
   };
 
   String _sectionChannel(int sectionIndex) {
@@ -378,6 +379,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     35: 'benefits',
     36: 'passenger_ads',
     38: 'payments',
+    39: 'trips',
   };
 
   bool _sectionAllowed(int index) {
@@ -390,6 +392,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     if (index == 36 && adminAccess['role'] == 'super_admin') return true;
     // Asesores de ventas: solo super admin (el servidor lo vuelve a comprobar).
     if (index == 37) return adminAccess['role'] == 'super_admin';
+    // Viajes sospechosos: revisión de irregularidades, solo super admin (el servidor lo vuelve a comprobar).
+    if (index == 39) return adminAccess['role'] == 'super_admin';
     // Identity review is already part of the driver record. The old standalone
     // identity entries are deliberately unreachable.
     if (index == 18 || index == 27) return false;
@@ -491,6 +495,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Publicidad de pasajeros', Icons.campaign_rounded),
     ('Asesores de ventas', Icons.badge_rounded),
     ('Billeteras', Icons.account_balance_wallet_rounded),
+    ('Viajes sospechosos', Icons.policy_outlined),
   ];
 
   Future<bool> _authorized() async {
@@ -2050,6 +2055,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           channel: _sectionChannel(22),
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
+        );
+      case 39:
+        return AdminTripIntegrityPage(
+          channel: _sectionChannel(39),
+          zoneId: adminZoneId,
+          canEdit: !_readOnly,
         );
       case 38:
         return AdminWalletsPage(
@@ -3809,7 +3820,7 @@ class _Navigation extends StatelessWidget {
           ]
         : const <(String, List<int>)>[
             ('GENERAL', [0]),
-            ('OPERACIONES', [1, 2, 13, 4, 5, 6]),
+            ('OPERACIONES', [1, 2, 39, 13, 4, 5, 6]),
             ('MÓDULOS', [23, 25, 29, 30, 34, 35, 36, 37]),
             ('FINANZAS', [9, 38, 8, 22, 33]),
             ('ANÁLISIS', [10, 14]),
