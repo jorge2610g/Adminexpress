@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'core/admin_friendly_error.dart';
 import 'core/admin_friendly_labels.dart';
+import 'admin_detail_dialogs.dart' show showAdminTripDetail;
 import 'core/supabase_client.dart';
 
 /// Motivos de una irregularidad, en español claro para quien revisa.
@@ -16,9 +17,17 @@ const Map<String, String> _reasonLabels = {
   'origen_y_destino_casi_iguales': 'Origen y destino casi iguales',
   'misma_pareja_repetida': 'Mismo pasajero repetido muchas veces',
   'muchos_viajes_cortos_seguidos': 'Muchos viajes cortos seguidos',
+  'viaje_historico_muy_corto':
+      'Terminó en menos de 5 minutos con una distancia larga (revisión del historial)',
 };
 
-String _reasonLabel(String key) => _reasonLabels[key] ?? key;
+String _reasonLabel(String key) {
+  final known = _reasonLabels[key];
+  if (known != null) return known;
+  // Un código nuevo sin traducir no debe verse crudo: se muestra legible.
+  final text = key.replaceAll('_', ' ').trim();
+  return text.isEmpty ? key : text[0].toUpperCase() + text.substring(1);
+}
 
 String _statusLabel(String status) => switch (status) {
       'open' => 'Por revisar',
@@ -379,6 +388,10 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
     if (m['velocidad_maxima_kmh'] != null && (m['velocidad_maxima_kmh'] as num) > 0) {
       parts.add('Velocidad máx. ${m['velocidad_maxima_kmh']} km/h');
     }
+    if (m['velocidad_implicita_kmh'] != null) {
+      parts.add('Velocidad implícita ${m['velocidad_implicita_kmh']} km/h '
+          '(${m['km_ruta'] ?? '—'} km en ${m['minutos_reales']} min)');
+    }
     if (m['sin_recorrido'] == true) {
       parts.add('Sin recorrido GPS guardado');
     }
@@ -517,6 +530,14 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
             ),
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 6, children: [
+            OutlinedButton.icon(
+                onPressed: f['trip_id'] == null
+                    ? null
+                    : () => showAdminTripDetail(
+                        context, f['trip_id'].toString(),
+                        channel: widget.channel),
+                icon: const Icon(Icons.receipt_long_outlined),
+                label: const Text('Ver viaje completo')),
             OutlinedButton.icon(
                 onPressed: () => _showTrail(f),
                 icon: const Icon(Icons.map_outlined),

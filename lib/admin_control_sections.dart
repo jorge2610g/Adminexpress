@@ -1925,7 +1925,7 @@ class _AdminZonesPageState extends State<AdminZonesPage> {
                               icon: const Icon(Icons.open_in_full_rounded, size: 19),
                             ),
                             IconButton(
-                              tooltip: 'Dashboard financiero',
+                              tooltip: 'Panel financiero',
                               onPressed: () => _showPartnerDashboard(row),
                               icon: const Icon(
                                 Icons.dashboard_customize_outlined,

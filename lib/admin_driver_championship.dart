@@ -223,7 +223,7 @@ class _AdminDriverChampionshipPageState
             const SizedBox(height:13),
             _input('Reglas y condiciones',_rules,maxLines:3),
             const SizedBox(height:10),
-            const Text('El ranking se calcula desde viajes reales completados. '
+            const Text('La clasificación se calcula desde viajes reales completados. '
               'No se generan pagos automáticos y la clasificación solo es visible '
               'a conductores aprobados de la misma zona y entorno.',
               style:TextStyle(color:Color(0xFF667085),fontSize:12)),
@@ -306,12 +306,13 @@ class _AdminDriverChampionshipPageState
                   title:Text(when(t['completed_at'])+' · '
                     +_serviceName(t['service_key']?.toString()??'')),
                   subtitle:Text(
-                    (t['pickup']?.toString()??'—')+'  →  '
+                    'Pasajero: '+(t['passenger_name']?.toString()??'—')+'\n'
+                    +(t['pickup']?.toString()??'—')+'  →  '
                     +(t['destination']?.toString()??'—')
                     +(km!=null?'\n'+km.toStringAsFixed(1)+' km':'')
                     +(payment(t['payment_method']).isNotEmpty
                       ?' · '+payment(t['payment_method']):''),
-                    maxLines:3,overflow:TextOverflow.ellipsis),
+                    maxLines:4,overflow:TextOverflow.ellipsis),
                   trailing:Row(mainAxisSize:MainAxisSize.min,children:[
                     Text(money(t['fare'],t['currency']),
                       style:const TextStyle(fontWeight:FontWeight.w900)),
@@ -343,7 +344,7 @@ class _AdminDriverChampionshipPageState
         Row(children:[
           const Icon(Icons.leaderboard_outlined,color:Color(0xFF2563EB)),
           const SizedBox(width:10),
-          Expanded(child:Text('Top 10 · '+(champ['title']?.toString()??''),
+          Expanded(child:Text('Los 10 mejores · '+(champ['title']?.toString()??''),
             style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900))),
           IconButton(tooltip:'Actualizar ranking',
             onPressed:()=>setState(_loadRanking),
@@ -372,13 +373,13 @@ class _AdminDriverChampionshipPageState
               return const Padding(padding:EdgeInsets.all(16),
                 child:Center(child:CircularProgressIndicator()));
             if(snap.hasError)
-              return Text('No se pudo cargar el ranking: '+friendlyError(snap.error));
+              return Text('No se pudo cargar la clasificación: '+friendlyError(snap.error));
             final rows=((snap.data?['rows']) is List)
               ?(snap.data!['rows'] as List).whereType<Map>()
                   .map((x)=>Map<String,dynamic>.from(x)).take(10).toList()
               :<Map<String,dynamic>>[];
             if(rows.isEmpty)
-              return const Text('Todavía no hay conductores en el ranking.');
+              return const Text('Todavía no hay conductores en la clasificación.');
             const medals=['🥇','🥈','🥉'];
             return Column(children:[
               for(final r in rows)
@@ -430,7 +431,7 @@ class _AdminDriverChampionshipPageState
             const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
               Text('Campeonato Express',style:TextStyle(
                 fontSize:21,fontWeight:FontWeight.w900)),
-              Text('Ranking de viajes por ciudad y servicio, con premios configurables',
+              Text('Clasificación de viajes por ciudad y servicio, con premios configurables',
                 style:TextStyle(fontSize:12,color:Color(0xFF667085))),
             ])),
             FilledButton.icon(onPressed:()=>_showEditor(),
