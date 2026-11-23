@@ -306,12 +306,13 @@ class _AdminDriverChampionshipPageState
                   title:Text(when(t['completed_at'])+' · '
                     +_serviceName(t['service_key']?.toString()??'')),
                   subtitle:Text(
-                    (t['pickup']?.toString()??'—')+'  →  '
+                    'Pasajero: '+(t['passenger_name']?.toString()??'—')+'\n'
+                    +(t['pickup']?.toString()??'—')+'  →  '
                     +(t['destination']?.toString()??'—')
                     +(km!=null?'\n'+km.toStringAsFixed(1)+' km':'')
                     +(payment(t['payment_method']).isNotEmpty
                       ?' · '+payment(t['payment_method']):''),
-                    maxLines:3,overflow:TextOverflow.ellipsis),
+                    maxLines:4,overflow:TextOverflow.ellipsis),
                   trailing:Row(mainAxisSize:MainAxisSize.min,children:[
                     Text(money(t['fare'],t['currency']),
                       style:const TextStyle(fontWeight:FontWeight.w900)),
