@@ -1106,7 +1106,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                           controller: rating,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(
-                            labelText: 'Rating',
+                            labelText: 'Calificación',
                           ),
                         ),
                       ),

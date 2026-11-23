@@ -754,10 +754,10 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
               style: TextStyle(fontSize: 11, color: _muted),
             )
           : module.key == 'live_operations'
-              ? const Text('Incluye Dashboard y Conductores',
+              ? const Text('Incluye Panel y Conductores',
                   style: TextStyle(fontSize: 11, color: _muted))
               : module.key == 'safety_sos'
-                  ? const Text('Solo lectura; incluye Dashboard y Conductores',
+                  ? const Text('Solo lectura; incluye Panel y Conductores',
                       style: TextStyle(fontSize: 11, color: _muted))
                   : module.key == 'delivery'
                       ? const Text('Consulta de entregas por zona',

@@ -21,7 +21,13 @@ const Map<String, String> _reasonLabels = {
       'Terminó en menos de 5 minutos con una distancia larga (revisión del historial)',
 };
 
-String _reasonLabel(String key) => _reasonLabels[key] ?? key;
+String _reasonLabel(String key) {
+  final known = _reasonLabels[key];
+  if (known != null) return known;
+  // Un código nuevo sin traducir no debe verse crudo: se muestra legible.
+  final text = key.replaceAll('_', ' ').trim();
+  return text.isEmpty ? key : text[0].toUpperCase() + text.substring(1);
+}
 
 String _statusLabel(String status) => switch (status) {
       'open' => 'Por revisar',

@@ -167,7 +167,7 @@ class _AdminDriverPriorityPageState extends State<AdminDriverPriorityPage> {
                         ? (value) =>
                             setLocal(() => productionEnforcement = value)
                         : null,
-                    title: const Text('Aplicar ranking al despacho'),
+                    title: const Text('Aplicar clasificación al despacho'),
                     subtitle: const Text(
                       'Ordena las solicitudes sin bloquear conductores.',
                     ),
