@@ -2916,7 +2916,11 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
     var enabled = row?['enabled'] == true;
     var bidding = row?['allow_bidding'] != false;
     var fixed = row?['allow_fixed_price'] != false;
-    var directFixedPrice = row?['price_mode'] == 'fixed';
+    // offer = solo ofertas, fixed = solo precio fijo, both = el pasajero elige.
+    var priceMode = (row?['price_mode'] ?? 'offer').toString();
+    if (!const ['offer', 'fixed', 'both'].contains(priceMode)) {
+      priceMode = 'offer';
+    }
     var passengerVisible = row?['passenger_visible'] == true;
     var driverVisible = row?['driver_visible'] == true;
     var scheduled = row?['scheduled_enabled'] != false;
@@ -3064,25 +3068,44 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                     onChanged: (value) => setLocal(() => bidding = value),
                     title: const Text('Permitir ofertas'),
                   ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: fixed,
-                    onChanged: (value) => setLocal(() => fixed = value),
-                    title: const Text('Permitir precio fijo'),
-                  ),
                   if (!_environment.isPreview &&
                       row?['service_key'] != 'delivery' &&
                       row?['service_key'] != 'parcel')
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      value: directFixedPrice,
-                      onChanged: (value) =>
-                          setLocal(() => directFixedPrice = value),
-                      title: Text('Precio fijo en $zoneName'),
-                      subtitle: const Text(
-                        'El precio lo calcula Express y no se puede cambiar. '
-                        'El viaje se ofrece al conductor más cercano, uno por '
-                        'vez (15 s cada uno), sin ofertas ni contraofertas.',
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: AdminDropdownField<String>(
+                        initialValue: priceMode,
+                        decoration: InputDecoration(
+                          labelText: 'Tipo de precio en $zoneName',
+                          helperText: priceMode == 'offer'
+                              ? 'El pasajero ofrece su precio y los conductores '
+                                  'pueden contraofertar.'
+                              : priceMode == 'fixed'
+                                  ? 'El precio lo calcula Express (tarifa de '
+                                      'precio fijo) y no se puede cambiar. Se '
+                                      'ofrece al conductor más cercano, uno por '
+                                      'vez (15 s cada uno).'
+                                  : 'El pasajero elige entre precio fijo y '
+                                      'ofrecer su precio. Cada uno usa su tarifa.',
+                          helperMaxLines: 4,
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'offer',
+                            child: Text('Solo ofertas'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'fixed',
+                            child: Text('Solo precio fijo'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'both',
+                            child: Text('Ambos · el pasajero elige'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) setLocal(() => priceMode = value);
+                        },
                       ),
                     ),
                   SwitchListTile.adaptive(
@@ -3187,13 +3210,13 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
 
           if (row?['service_key'] != 'delivery' &&
               row?['service_key'] != 'parcel' &&
-              (directFixedPrice != (row?['price_mode'] == 'fixed'))) {
+              (priceMode != (row?['price_mode'] ?? 'offer').toString())) {
             await supabase.rpc(
               'admin_set_zone_service_price_mode_v1',
               params: {
                 'p_zone_id': zoneId,
                 'p_service_key': serviceKey,
-                'p_price_mode': directFixedPrice ? 'fixed' : 'offer',
+                'p_price_mode': priceMode,
               },
             );
           }
@@ -3355,7 +3378,10 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                             if (friendlyVehicle(row['vehicle_type']?.toString() ?? 'car').isNotEmpty)
                               friendlyVehicle(row['vehicle_type']?.toString() ?? 'car'),
                             if (row['allow_bidding'] == true) 'Ofertas',
-                            if (row['allow_fixed_price'] == true) 'Precio fijo',
+                            if (row['price_mode'] == 'fixed')
+                              'Solo precio fijo'
+                            else if (row['price_mode'] == 'both')
+                              'Precio fijo y ofertas',
                             if (row['passenger_visible'] == true)
                               'Visible pasajero',
                             if (row['driver_visible'] == true)
@@ -4394,14 +4420,30 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     List<Map<String, dynamic>> zones,
     List<Map<String, dynamic>> services, [
     Map<String, dynamic>? row,
+    List<Map<String, dynamic>> existingFares = const [],
   ]) async {
     var scope = row?['scope_type']?.toString() ?? 'zone_service';
-    var service = row?['service_key']?.toString() ??
-        (services.isNotEmpty
-            ? services.first['service_key']?.toString() ?? 'motorcycle'
-            : 'motorcycle');
+    var fareMode = (row?['price_mode'] ?? 'offer').toString();
     String? zoneId =
         row?['zone_id']?.toString() ?? selectedZoneId;
+    // Servicios que ya tienen tarifa en la zona (solo puede haber una).
+    bool hasZoneRule(String? key, String? zone) => existingFares.any(
+          (f) =>
+              f['scope_type'] == 'zone_service' &&
+              f['service_key']?.toString() == key &&
+              f['zone_id']?.toString() == zone &&
+              (f['price_mode'] ?? 'offer').toString() == fareMode &&
+              f['id'] != row?['id'],
+        );
+    var service = row?['service_key']?.toString() ??
+        (services
+                .map((e) => e['service_key']?.toString())
+                .whereType<String>()
+                .where((k) => !hasZoneRule(k, zoneId))
+                .firstOrNull ??
+            (services.isNotEmpty
+                ? services.first['service_key']?.toString() ?? 'motorcycle'
+                : 'motorcycle'));
     var active = row?['active'] != false;
 
     final base = TextEditingController(
@@ -4446,6 +4488,30 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                   ),
                   const SizedBox(height: 12),
                   AdminDropdownField<String>(
+                    initialValue: fareMode,
+                    decoration: const InputDecoration(
+                      labelText: 'Esta tarifa es para',
+                      helperText: 'El precio fijo y el de ofertas pueden tener '
+                          'tarifas distintas. Si no hay tarifa de precio fijo '
+                          'se usa la de ofertas.',
+                      helperMaxLines: 3,
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'offer',
+                        child: Text('Ofertas'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'fixed',
+                        child: Text('Precio fijo'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setLocal(() => fareMode = value);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  AdminDropdownField<String>(
                     initialValue: scope,
                     decoration: const InputDecoration(labelText: 'Jerarquía'),
                     items: const [
@@ -4477,9 +4543,16 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                             (item) => DropdownMenuItem<String>(
                               value: item['service_key']?.toString(),
                               child: Text(
-                                item['name']?.toString() ??
-                                    item['service_key']?.toString() ??
-                                    'Servicio',
+                                (item['name']?.toString() ??
+                                        item['service_key']?.toString() ??
+                                        'Servicio') +
+                                    (scope == 'zone_service' &&
+                                            hasZoneRule(
+                                              item['service_key']?.toString(),
+                                              zoneId,
+                                            )
+                                        ? ' · ya tiene tarifa (editar con el lápiz)'
+                                        : ''),
                               ),
                             ),
                           )
@@ -4551,7 +4624,18 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
       ),
     );
 
-    if (save == true) {
+    if (save == true && scope == 'zone_service' && hasZoneRule(service, zoneId)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Ese servicio ya tiene una tarifa en esta zona. '
+              'Edítala con el lápiz de la lista; solo puede haber una por servicio y zona.',
+            ),
+          ),
+        );
+      }
+    } else if (save == true) {
       try {
         if (_environment.isPreview) {
           final key = row == null
@@ -4573,6 +4657,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
               'surge_multiplier': _num(surge.text) ?? 1,
               'commission_percent': _num(commission.text) ?? 0,
               'active': active,
+              'price_mode': fareMode,
             },
           );
         } else {
@@ -4590,6 +4675,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
               'p_surge_multiplier': _num(surge.text) ?? 1,
               'p_commission_percent': _num(commission.text) ?? 0,
               'p_active': active,
+              'p_price_mode': fareMode,
             },
           );
         }
@@ -5122,7 +5208,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                         const SizedBox(width: 8),
                         FilledButton.icon(
                           onPressed: () =>
-                              _edit(data.zones, data.services),
+                              _edit(data.zones, data.services, null, data.fares),
                           icon: const Icon(Icons.add_rounded),
                           label: const Text('Nueva tarifa'),
                         ),
@@ -5256,7 +5342,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                     ),
                     trailing: IconButton(
                       onPressed: () =>
-                          _edit(data.zones, data.services, row),
+                          _edit(data.zones, data.services, row, data.fares),
                       icon: const Icon(Icons.edit_outlined),
                     ),
                   )),
@@ -9695,7 +9781,8 @@ String _fareTitle(Map<String, dynamic> row) {
   }
   return (row['zone_name'] ?? 'Zona').toString() +
       ' · ' +
-      (row['service_key'] ?? '—').toString();
+      (row['service_key'] ?? '—').toString() +
+      (row['price_mode'] == 'fixed' ? ' · precio fijo' : ' · ofertas');
 }
 
 String _formatDate(Object? raw) {
