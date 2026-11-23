@@ -929,14 +929,19 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                 ),
                 const SizedBox(height: 14),
               ],
-              Text(
-                _hasCatalog ? 'Otros módulos' : 'Módulos que verá el operador',
-                style: const TextStyle(fontWeight: FontWeight.w900, color: _dark),
-              ),
-              const Text(
-                'Los permisos pendientes quedarán guardados; se abrirán cuando la función de zona esté preparada. Usuarios siempre incluido.',
-                style: TextStyle(fontSize: 12, color: _muted),
-              ),
+              if (!_hasCatalog ||
+                  operatorSelectorModules
+                      .any((m) => !fineModules.contains(m.key))) ...[
+                Text(
+                  _hasCatalog ? 'Otros módulos' : 'Módulos que verá el operador',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w900, color: _dark),
+                ),
+                const Text(
+                  'Los permisos pendientes quedarán guardados; se abrirán cuando la función de zona esté preparada. Usuarios siempre incluido.',
+                  style: TextStyle(fontSize: 12, color: _muted),
+                ),
+              ],
               for (final group in _groupOrder.where((g) => operatorSelectorModules
                   .any((m) => m.group == g && !fineModules.contains(m.key)))) ...[
                 Padding(

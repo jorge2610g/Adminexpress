@@ -74,4 +74,35 @@ void main() {
     await tester.pump();
     expect(selected, containsAll(['drivers.approve', 'drivers.view']));
   });
+  permisosEtapa2();
+}
+
+void permisosEtapa2() {
+  test('el catálogo marca los módulos que aún no funcionan para operadores', () {
+    final parsed = parseOperatorPermissionCatalog([
+      {'key': 'fares.edit', 'module_key': 'fares', 'group_label': 'Tarifas', 'label': 'Editar', 'sensitive': false, 'ready': true},
+      {'key': 'zones.edit', 'module_key': 'zones', 'group_label': 'Zonas', 'label': 'Editar zonas', 'sensitive': false, 'ready': false},
+    ]);
+    expect(parsed[0].ready, isTrue);
+    expect(parsed[1].ready, isFalse);
+  });
+
+  testWidgets('un permiso sin efecto todavía lo dice', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: OperatorPermissionPicker(
+            catalog: const [
+              OperatorPermission(key: 'zones.view', moduleKey: 'zones', group: 'Zonas', label: 'Ver zonas', ready: false),
+            ],
+            selected: const {},
+            onChanged: (_) {},
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('Zonas (0/1)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Se guarda; funciona cuando la zona lo habilite'), findsOneWidget);
+  });
 }
