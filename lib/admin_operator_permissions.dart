@@ -10,6 +10,7 @@ class OperatorPermission {
     required this.group,
     required this.label,
     this.sensitive = false,
+    this.ready = true,
   });
 
   final String key;
@@ -17,6 +18,10 @@ class OperatorPermission {
   final String group;
   final String label;
   final bool sensitive;
+
+  /// El servidor ya deja actuar a un operador en este módulo. Si es falso, el
+  /// permiso se guarda pero no tiene efecto hasta que la zona lo habilite.
+  final bool ready;
 }
 
 List<OperatorPermission> parseOperatorPermissionCatalog(Object? raw) {
@@ -30,6 +35,7 @@ List<OperatorPermission> parseOperatorPermissionCatalog(Object? raw) {
           group: row['group_label'].toString(),
           label: row['label'].toString(),
           sensitive: row['sensitive'] == true,
+          ready: row['ready'] != false,
         ),
       )
       .toList();
@@ -181,6 +187,22 @@ class OperatorPermissionPicker extends StatelessWidget {
     );
   }
 
+  Widget? _subtitle(OperatorPermission p) {
+    final notes = <String>[
+      if (p.key == 'users.view') 'Siempre incluido',
+      if (p.sensitive) 'Dato sensible',
+      if (!p.ready) 'Se guarda; funciona cuando la zona lo habilite',
+    ];
+    if (notes.isEmpty) return null;
+    return Text(
+      notes.join(' · '),
+      style: TextStyle(
+        fontSize: 11,
+        color: p.sensitive ? const Color(0xFFB54708) : _muted,
+      ),
+    );
+  }
+
   Widget _group(String title, List<OperatorPermission> items) {
     final moduleKey = items.first.moduleKey;
     final on = items.where((p) => selected.contains(p.key)).length;
@@ -227,17 +249,7 @@ class OperatorPermissionPicker extends StatelessWidget {
                 value: selected.contains(p.key) ||
                     (p.key == 'users.view' && moduleKey == 'users'),
                 title: Text(p.label),
-                subtitle: p.sensitive
-                    ? const Text(
-                        'Dato sensible',
-                        style: TextStyle(fontSize: 11, color: Color(0xFFB54708)),
-                      )
-                    : (p.key == 'users.view'
-                        ? const Text(
-                            'Siempre incluido',
-                            style: TextStyle(fontSize: 11, color: _muted),
-                          )
-                        : null),
+                subtitle: _subtitle(p),
                 onChanged: !enabled || p.key == 'users.view'
                     ? null
                     : (value) => onChanged(
