@@ -4655,9 +4655,8 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
       text: row?['priority']?.toString() ?? '100',
     );
     var type = row?['zone_type']?.toString() ?? 'airport';
-    var service = row?['service_key']?.toString() ??
-        services.first['service_key']?.toString() ??
-        'motorcycle';
+    // '*' = todos los servicios (valor por defecto de aeropuerto/terminal).
+    var service = row?['service_key']?.toString() ?? '*';
     var active = row?['active'] != false;
     var points = _specialPoints(row?['polygon']);
     final centerLat = _double(zone['center_latitude']);
@@ -4735,18 +4734,22 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                           decoration: const InputDecoration(
                             labelText: 'Servicio',
                           ),
-                          items: services
-                              .map(
-                                (item) => DropdownMenuItem<String>(
-                                  value: item['service_key']?.toString(),
-                                  child: Text(
-                                    item['name']?.toString() ??
-                                        item['service_key']?.toString() ??
-                                        'Servicio',
-                                  ),
+                          items: [
+                            const DropdownMenuItem<String>(
+                              value: '*',
+                              child: Text('Todos los servicios'),
+                            ),
+                            ...services.map(
+                              (item) => DropdownMenuItem<String>(
+                                value: item['service_key']?.toString(),
+                                child: Text(
+                                  item['name']?.toString() ??
+                                      item['service_key']?.toString() ??
+                                      'Servicio',
                                 ),
-                              )
-                              .toList(),
+                              ),
+                            ),
+                          ],
                           onChanged: (value) {
                             if (value != null) {
                               setLocal(() => service = value);
@@ -4762,7 +4765,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                       Expanded(
                         child: _NumberField(
                           controller: fare,
-                          label: 'Tarifa fija · ' +
+                          label: 'Tarifa base · ' +
                               (zone['currency_code'] ?? '').toString(),
                         ),
                       ),
@@ -4774,6 +4777,14 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'El viaje se cobra igual que uno normal (km, minutos, '
+                    'mínimo y demanda). Solo cambia la tarifa base: si el '
+                    'origen o el destino está en este sector se usa esta base '
+                    'en lugar de la de la zona.',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
                   ),
                   const SizedBox(height: 12),
                   _PolygonEditor(
@@ -4996,9 +5007,11 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                         subtitle: Text(
                           label +
                               ' · ' +
-                              (row['service_key'] ?? 'servicio')
-                                  .toString() +
-                              ' · ' +
+                              (row['service_key'] == '*'
+                                      ? 'todos los servicios'
+                                      : (row['service_key'] ?? 'servicio')
+                                          .toString()) +
+                              ' · base ' +
                               (zone['currency_code'] ?? '').toString() +
                               ' ' +
                               (row['fixed_fare'] ?? '—').toString() +
