@@ -4394,14 +4394,28 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
     List<Map<String, dynamic>> zones,
     List<Map<String, dynamic>> services, [
     Map<String, dynamic>? row,
+    List<Map<String, dynamic>> existingFares = const [],
   ]) async {
     var scope = row?['scope_type']?.toString() ?? 'zone_service';
-    var service = row?['service_key']?.toString() ??
-        (services.isNotEmpty
-            ? services.first['service_key']?.toString() ?? 'motorcycle'
-            : 'motorcycle');
     String? zoneId =
         row?['zone_id']?.toString() ?? selectedZoneId;
+    // Servicios que ya tienen tarifa en la zona (solo puede haber una).
+    bool hasZoneRule(String? key, String? zone) => existingFares.any(
+          (f) =>
+              f['scope_type'] == 'zone_service' &&
+              f['service_key']?.toString() == key &&
+              f['zone_id']?.toString() == zone &&
+              f['id'] != row?['id'],
+        );
+    var service = row?['service_key']?.toString() ??
+        (services
+                .map((e) => e['service_key']?.toString())
+                .whereType<String>()
+                .where((k) => !hasZoneRule(k, zoneId))
+                .firstOrNull ??
+            (services.isNotEmpty
+                ? services.first['service_key']?.toString() ?? 'motorcycle'
+                : 'motorcycle'));
     var active = row?['active'] != false;
 
     final base = TextEditingController(
@@ -4477,9 +4491,16 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                             (item) => DropdownMenuItem<String>(
                               value: item['service_key']?.toString(),
                               child: Text(
-                                item['name']?.toString() ??
-                                    item['service_key']?.toString() ??
-                                    'Servicio',
+                                (item['name']?.toString() ??
+                                        item['service_key']?.toString() ??
+                                        'Servicio') +
+                                    (scope == 'zone_service' &&
+                                            hasZoneRule(
+                                              item['service_key']?.toString(),
+                                              zoneId,
+                                            )
+                                        ? ' · ya tiene tarifa (editar con el lápiz)'
+                                        : ''),
                               ),
                             ),
                           )
@@ -4551,7 +4572,18 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
       ),
     );
 
-    if (save == true) {
+    if (save == true && scope == 'zone_service' && hasZoneRule(service, zoneId)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Ese servicio ya tiene una tarifa en esta zona. '
+              'Edítala con el lápiz de la lista; solo puede haber una por servicio y zona.',
+            ),
+          ),
+        );
+      }
+    } else if (save == true) {
       try {
         if (_environment.isPreview) {
           final key = row == null
@@ -5122,7 +5154,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                         const SizedBox(width: 8),
                         FilledButton.icon(
                           onPressed: () =>
-                              _edit(data.zones, data.services),
+                              _edit(data.zones, data.services, null, data.fares),
                           icon: const Icon(Icons.add_rounded),
                           label: const Text('Nueva tarifa'),
                         ),
@@ -5256,7 +5288,7 @@ class _AdminFaresPageState extends State<AdminFaresPage> {
                     ),
                     trailing: IconButton(
                       onPressed: () =>
-                          _edit(data.zones, data.services, row),
+                          _edit(data.zones, data.services, row, data.fares),
                       icon: const Icon(Icons.edit_outlined),
                     ),
                   )),
