@@ -42,6 +42,9 @@ class _AdminDriverChampionshipPageState
   DateTime _starts=DateTime.now();
   DateTime _ends=DateTime.now().add(const Duration(days:14));
   bool _saving=false;
+  String? _rankId;
+  String _rankService='*';
+  Future<Map<String,dynamic>>? _rankFuture;
 
   @override
   void initState(){super.initState();_reload();}
@@ -62,9 +65,27 @@ class _AdminDriverChampionshipPageState
       if(widget.zoneId==null) return <Map<String,dynamic>>[];
       final raw=await supabase.rpc('admin_driver_championship_list',params:{
         'p_zone_id':widget.zoneId,'p_channel':widget.channel});
-      return raw is List?raw.whereType<Map>()
+      final list=raw is List?raw.whereType<Map>()
         .map((x)=>Map<String,dynamic>.from(x)).toList()
         :<Map<String,dynamic>>[];
+      // El ranking se muestra para el campeonato elegido (por defecto, el activo).
+      if(list.isNotEmpty&&!list.any((c)=>c['id']?.toString()==_rankId)){
+        final activeOne=list.where((c)=>c['state']=='active');
+        _rankId=(activeOne.isNotEmpty?activeOne.first:list.first)['id']?.toString();
+        _rankService='*';
+      }
+      if(list.isEmpty)_rankId=null;
+      _loadRanking();
+      return list;
+    }();
+  }
+  void _loadRanking(){
+    final id=_rankId;
+    if(id==null){_rankFuture=null;return;}
+    _rankFuture=()async{
+      final raw=await supabase.rpc('admin_driver_championship_ranking',params:{
+        'p_championship_id':id,'p_service_key':_rankService});
+      return raw is Map?Map<String,dynamic>.from(raw):<String,dynamic>{};
     }();
   }
   void _newRecord(){
@@ -104,11 +125,11 @@ class _AdminDriverChampionshipPageState
       else _ends=chosen;
     });
   }
-  Future<void> _save() async {
-    if(_saving || widget.zoneId==null)return;
+  Future<bool> _save() async {
+    if(_saving || widget.zoneId==null)return false;
     if(_title.text.trim().length<4||_ends.isBefore(_starts)){
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content:Text('Escribe un nombre y fechas válidas.')));return;
+        content:Text('Escribe un nombre y fechas válidas.')));return false;
     }
     setState(()=>_saving=true);
     try {
@@ -127,14 +148,17 @@ class _AdminDriverChampionshipPageState
         'p_third_prize':_third.text.trim(),
         'p_rules':_rules.text.trim(),
       });
-      if(!mounted)return;
+      if(!mounted)return true;
       _id=(response is Map?response['id']:null)?.toString();
+      if(_id!=null){_rankId=_id;_rankService='*';}
       setState(_reload);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content:Text('Campeonato guardado correctamente.')));
+      return true;
     }catch(e){
       if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content:Text('No se pudo guardar: '+ friendlyError(e))));
+      return false;
     }finally{
       if(mounted)setState(()=>_saving=false);
     }
@@ -143,10 +167,149 @@ class _AdminDriverChampionshipPageState
     {int maxLines=1})=>TextField(controller:controller,maxLines:maxLines,
       decoration:InputDecoration(labelText:label),
     );
-  Widget _dateTile(String title,DateTime date,bool beginning)=>OutlinedButton.icon(
-    onPressed:()=>_pick(beginning),
-    icon:const Icon(Icons.calendar_month_outlined),
-    label:Text(title+': '+_format(date)));
+  /// Crear o editar en una ventana emergente (el formulario ya no ocupa la página).
+  Future<void> _showEditor({Map<String,dynamic>? item}) async {
+    if(item==null){_newRecord();}else{_open(item);}
+    await showDialog<void>(context:context,builder:(dialogContext)=>
+      StatefulBuilder(builder:(context,setLocal){
+        void both(VoidCallback fn){setState(fn);setLocal((){});}
+        return AlertDialog(
+          title:Text(_id==null?'Crear campeonato':'Editar campeonato'),
+          content:SizedBox(width:520,child:SingleChildScrollView(child:Column(
+            mainAxisSize:MainAxisSize.min,
+            crossAxisAlignment:CrossAxisAlignment.start,children:[
+            _input('Nombre del campeonato',_title),
+            const SizedBox(height:12),
+            AdminDropdownField<String>(
+              initialValue:_service,
+              decoration:const InputDecoration(labelText:'Servicio'),
+              items:const [
+                DropdownMenuItem(value:'*',child:Text('Todos los servicios')),
+                DropdownMenuItem(value:'economy',child:Text('Express')),
+                DropdownMenuItem(value:'motorcycle',child:Text('Moto')),
+                DropdownMenuItem(value:'comfort',child:Text('Comfort')),
+                DropdownMenuItem(value:'xl',child:Text('XL')),
+              ],onChanged:(v)=>both(()=>_service=v??'*')),
+            const SizedBox(height:12),
+            Wrap(spacing:12,runSpacing:10,children:[
+              OutlinedButton.icon(
+                onPressed:()async{await _pick(true);setLocal((){});},
+                icon:const Icon(Icons.calendar_month_outlined),
+                label:Text('Inicio: '+_format(_starts))),
+              OutlinedButton.icon(
+                onPressed:()async{await _pick(false);setLocal((){});},
+                icon:const Icon(Icons.calendar_month_outlined),
+                label:Text('Fin: '+_format(_ends))),
+            ]),
+            const SizedBox(height:12),
+            AdminDropdownField<String>(
+              initialValue:_state,
+              decoration:const InputDecoration(labelText:'Estado'),
+              items:const [
+                DropdownMenuItem(value:'draft',child:Text('Borrador · no visible')),
+                DropdownMenuItem(value:'active',child:Text('Activo · visible durante las fechas')),
+                DropdownMenuItem(value:'closed',child:Text('Cerrado · no visible')),
+              ],onChanged:(v)=>both(()=>_state=v??'draft')),
+            const SizedBox(height:17),
+            const Text('Premios para los 3 ganadores',
+              style:TextStyle(fontWeight:FontWeight.w900)),
+            const SizedBox(height:9),
+            _input('🥇 Primer lugar (ej. 50.000 CLP + bono)',_first),
+            const SizedBox(height:9),
+            _input('🥈 Segundo lugar',_second),
+            const SizedBox(height:9),
+            _input('🥉 Tercer lugar',_third),
+            const SizedBox(height:13),
+            _input('Reglas y condiciones',_rules,maxLines:3),
+            const SizedBox(height:10),
+            const Text('El ranking se calcula desde viajes reales completados. '
+              'No se generan pagos automáticos y la clasificación solo es visible '
+              'a conductores aprobados de la misma zona y entorno.',
+              style:TextStyle(color:Color(0xFF667085),fontSize:12)),
+          ]))),
+          actions:[
+            TextButton(onPressed:()=>Navigator.pop(dialogContext),
+              child:const Text('Cancelar')),
+            FilledButton.icon(
+              onPressed:_saving?null:()async{
+                setLocal((){});
+                final ok=await _save();
+                if(ok&&dialogContext.mounted)Navigator.pop(dialogContext);
+              },
+              icon:const Icon(Icons.save_outlined),
+              label:Text(_saving?'Guardando…':'Guardar campeonato')),
+          ],
+        );
+      }));
+  }
+
+  /// Ranking del campeonato elegido, con filtro por servicio cuando es de «todos».
+  Widget _rankingCard(List<Map<String,dynamic>> records){
+    if(_rankId==null||_rankFuture==null)return const SizedBox.shrink();
+    final champ=records.firstWhere((c)=>c['id']?.toString()==_rankId,
+      orElse:()=><String,dynamic>{});
+    final allServices=champ['service_key']?.toString()=='*';
+    const services=[['*','Todos'],['economy','Express'],['motorcycle','Moto'],
+      ['comfort','Comfort'],['xl','XL']];
+    return Card(child:Padding(padding:const EdgeInsets.all(16),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Row(children:[
+          const Icon(Icons.leaderboard_outlined,color:Color(0xFF2563EB)),
+          const SizedBox(width:10),
+          Expanded(child:Text('Ranking · '+(champ['title']?.toString()??''),
+            style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900))),
+          IconButton(tooltip:'Actualizar ranking',
+            onPressed:()=>setState(_loadRanking),
+            icon:const Icon(Icons.refresh_rounded)),
+        ]),
+        Text(allServices
+            ?'Campeonato de todos los servicios · ve el ranking de cada uno'
+            :'Servicio: '+_serviceName(champ['service_key']?.toString()??'*'),
+          style:const TextStyle(fontSize:12,color:Color(0xFF667085))),
+        if(allServices)...[
+          const SizedBox(height:10),
+          Wrap(spacing:8,runSpacing:6,children:[
+            for(final sv in services)
+              ChoiceChip(
+                label:Text(sv[1]),
+                selected:_rankService==sv[0],
+                onSelected:(_)=>setState((){_rankService=sv[0];_loadRanking();}),
+              ),
+          ]),
+        ],
+        const SizedBox(height:12),
+        FutureBuilder<Map<String,dynamic>>(
+          future:_rankFuture,
+          builder:(context,snap){
+            if(snap.connectionState!=ConnectionState.done)
+              return const Padding(padding:EdgeInsets.all(16),
+                child:Center(child:CircularProgressIndicator()));
+            if(snap.hasError)
+              return Text('No se pudo cargar el ranking: '+friendlyError(snap.error));
+            final rows=((snap.data?['rows']) is List)
+              ?(snap.data!['rows'] as List).whereType<Map>()
+                  .map((x)=>Map<String,dynamic>.from(x)).toList()
+              :<Map<String,dynamic>>[];
+            if(rows.isEmpty)
+              return const Text('Todavía no hay conductores en el ranking.');
+            const medals=['🥇','🥈','🥉'];
+            return Column(children:[
+              for(final r in rows)
+                ListTile(
+                  dense:true,
+                  leading:SizedBox(width:34,child:Text(
+                    (r['position'] as num)<=3
+                      ?medals[(r['position'] as num).toInt()-1]
+                      :'#'+r['position'].toString(),
+                    style:const TextStyle(fontSize:18,fontWeight:FontWeight.w800))),
+                  title:Text(r['name']?.toString()??'Conductor'),
+                  trailing:Text(r['rides'].toString()+' viajes',
+                    style:const TextStyle(fontWeight:FontWeight.w800)),
+                ),
+            ]);
+          }),
+      ])));
+  }
   @override
   Widget build(BuildContext context){
     if(widget.zoneId==null)
@@ -173,8 +336,8 @@ class _AdminDriverChampionshipPageState
               Text('Ranking de viajes por ciudad y servicio, con premios configurables',
                 style:TextStyle(fontSize:12,color:Color(0xFF667085))),
             ])),
-            FilledButton.icon(onPressed:_newRecord,
-              icon:const Icon(Icons.add),label:const Text('Nuevo')),
+            FilledButton.icon(onPressed:()=>_showEditor(),
+              icon:const Icon(Icons.add),label:const Text('Crear campeonato')),
           ]),
           const SizedBox(height:16),
           Card(child:Padding(padding:const EdgeInsets.all(16),
@@ -191,65 +354,17 @@ class _AdminDriverChampionshipPageState
                   subtitle:Text(
                     _serviceName(row['service_key']?.toString()??'*')+
                     ' · '+_championshipState(row['state']?.toString()??'draft')),
-                  selected:_id==row['id']?.toString(),
-                  trailing:const Icon(Icons.edit_outlined),
-                  onTap:()=>_open(row),
+                  selected:_rankId==row['id']?.toString(),
+                  trailing:IconButton(tooltip:'Editar',
+                    icon:const Icon(Icons.edit_outlined),
+                    onPressed:()=>_showEditor(item:row)),
+                  onTap:()=>setState((){
+                    _rankId=row['id']?.toString();_rankService='*';_loadRanking();
+                  }),
                 ),
             ]))),
           const SizedBox(height:15),
-          Card(child:Padding(padding:const EdgeInsets.all(18),
-            child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              Text(_id==null?'Crear campeonato':'Editar campeonato',
-                style:const TextStyle(fontSize:17,fontWeight:FontWeight.w800)),
-              const SizedBox(height:12),
-              _input('Nombre del campeonato',_title),
-              const SizedBox(height:12),
-              AdminDropdownField<String>(
-                initialValue:_service,
-                decoration:const InputDecoration(labelText:'Servicio'),
-                items:const [
-                  DropdownMenuItem(value:'*',child:Text('Todos los servicios')),
-                  DropdownMenuItem(value:'economy',child:Text('Express')),
-                  DropdownMenuItem(value:'motorcycle',child:Text('Moto')),
-                  DropdownMenuItem(value:'comfort',child:Text('Comfort')),
-                  DropdownMenuItem(value:'xl',child:Text('XL')),
-                ],onChanged:(v)=>setState(()=>_service=v??'*')),
-              const SizedBox(height:12),
-              Wrap(spacing:12,runSpacing:10,children:[
-                _dateTile('Inicio',_starts,true),
-                _dateTile('Fin',_ends,false),
-              ]),
-              const SizedBox(height:12),
-              AdminDropdownField<String>(
-                initialValue:_state,
-                decoration:const InputDecoration(labelText:'Estado'),
-                items:const [
-                  DropdownMenuItem(value:'draft',child:Text('Borrador · no visible')),
-                  DropdownMenuItem(value:'active',child:Text('Activo · visible durante las fechas')),
-                  DropdownMenuItem(value:'closed',child:Text('Cerrado · no visible')),
-                ],onChanged:(v)=>setState(()=>_state=v??'draft')),
-              const SizedBox(height:17),
-              const Text('Premios para los 3 ganadores',
-                style:TextStyle(fontWeight:FontWeight.w900)),
-              const SizedBox(height:9),
-              _input('🥇 Primer lugar (ej. 50.000 CLP + bono)',_first),
-              const SizedBox(height:9),
-              _input('🥈 Segundo lugar',_second),
-              const SizedBox(height:9),
-              _input('🥉 Tercer lugar',_third),
-              const SizedBox(height:13),
-              _input('Reglas y condiciones',_rules,maxLines:3),
-              const SizedBox(height:10),
-              const Text('El ranking se calcula desde viajes reales completados. '
-                'No se generan pagos automáticos y la clasificación solo es visible '
-                'a conductores aprobados de la misma zona y entorno.',
-                style:TextStyle(color:Color(0xFF667085),fontSize:12)),
-              const SizedBox(height:15),
-              FilledButton.icon(
-                onPressed:_saving?null:_save,
-                icon:const Icon(Icons.save_outlined),
-                label:Text(_saving?'Guardando…':'Guardar campeonato')),
-            ]))),
+          _rankingCard(records),
         ]);
       },
     );
