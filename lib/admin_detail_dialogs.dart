@@ -2737,6 +2737,11 @@ class _TripDetailDialogState extends State<_TripDetailDialog> {
   late Future<Map<String, dynamic>> future;
   // Solo el super admin ve las acciones de soporte; el servidor lo vuelve a comprobar.
   String? _role;
+  // Permisos finos del operador (el administrador completo puede todo).
+  Set<String> _perms = const {};
+
+  bool _canTrip(String action) =>
+      _role == 'super_admin' || _perms.contains('trips.$action');
 
   @override
   void initState() {
@@ -2749,7 +2754,12 @@ class _TripDetailDialogState extends State<_TripDetailDialog> {
     try {
       final value = await supabase.rpc('admin_access_context');
       if (!mounted) return;
-      setState(() => _role = _map(value)['role']?.toString());
+      final context = _map(value);
+      setState(() {
+        _role = context['role']?.toString();
+        final raw = context['allowed_permissions'];
+        _perms = raw is List ? raw.map((e) => e.toString()).toSet() : const {};
+      });
     } catch (_) {
       // Sin rol conocido no se muestran acciones.
     }
@@ -2887,28 +2897,32 @@ class _TripDetailDialogState extends State<_TripDetailDialog> {
     String hint = '';
     if (_openStatuses.contains(status)) {
       buttons.addAll([
-        OutlinedButton.icon(
-          onPressed: _reassign,
-          icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-          label: const Text('Reasignar'),
-        ),
-        OutlinedButton.icon(
-          onPressed: () => _runSupport('release'),
-          icon: const Icon(Icons.replay_rounded, size: 18),
-          label: const Text('Liberar'),
-        ),
-        OutlinedButton.icon(
-          onPressed: () => _runSupport('cancel'),
-          icon: const Icon(Icons.cancel_outlined, size: 18),
-          label: const Text('Cancelar viaje'),
-        ),
-        FilledButton.icon(
-          onPressed: () => _runSupport('start'),
-          icon: const Icon(Icons.play_arrow_rounded, size: 18),
-          label: const Text('Iniciar viaje'),
-        ),
+        if (_canTrip('reassign'))
+          OutlinedButton.icon(
+            onPressed: _reassign,
+            icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+            label: const Text('Reasignar'),
+          ),
+        if (_canTrip('release'))
+          OutlinedButton.icon(
+            onPressed: () => _runSupport('release'),
+            icon: const Icon(Icons.replay_rounded, size: 18),
+            label: const Text('Liberar'),
+          ),
+        if (_canTrip('cancel'))
+          OutlinedButton.icon(
+            onPressed: () => _runSupport('cancel'),
+            icon: const Icon(Icons.cancel_outlined, size: 18),
+            label: const Text('Cancelar viaje'),
+          ),
+        if (_canTrip('start'))
+          FilledButton.icon(
+            onPressed: () => _runSupport('start'),
+            icon: const Icon(Icons.play_arrow_rounded, size: 18),
+            label: const Text('Iniciar viaje'),
+          ),
       ]);
-    } else if (status == 'in_progress') {
+    } else if (status == 'in_progress' && _canTrip('complete')) {
       buttons.add(FilledButton.icon(
         onPressed: () => _runSupport('complete'),
         icon: const Icon(Icons.flag_rounded, size: 18),
@@ -3029,7 +3043,10 @@ class _TripDetailDialogState extends State<_TripDetailDialog> {
                     ('Teléfono conductor', _text(driver['phone'])),
                   ]),
                 ),
-                if (_role == 'super_admin') _supportSection(trip),
+                if (_role == 'super_admin' ||
+                    (_role == 'operator' &&
+                        _perms.any((k) => k.startsWith('trips.') && k != 'trips.view')))
+                  _supportSection(trip),
                 _Section(
                   title: 'Tarifa y pago',
                   icon: Icons.payments_rounded,

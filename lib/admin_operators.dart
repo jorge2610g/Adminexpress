@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'admin_operator_permissions.dart';
 import 'core/admin_dropdown_field.dart';
 import 'core/admin_friendly_error.dart';
 import 'core/admin_hero.dart';
@@ -130,6 +131,7 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
   bool busy = false;
   String? notice;
   List<Map<String, dynamic>> accesses = const [];
+  List<OperatorPermission> permissionCatalog = const [];
 
   final search = TextEditingController();
   final newEmail = TextEditingController();
@@ -180,6 +182,13 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => notice = _friendly(e));
+    }
+    try {
+      final catalog = await supabase.rpc('admin_permission_catalog_v1');
+      if (!mounted) return;
+      setState(() => permissionCatalog = parseOperatorPermissionCatalog(catalog));
+    } catch (_) {
+      // Sin catálogo se usa la lista simple de módulos.
     }
     try {
       final access = await supabase.rpc('admin_panel_access_list');
@@ -270,6 +279,7 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
     required String zone,
     required bool active,
     required Iterable<String> allowed,
+    Iterable<String>? permissions,
   }) async {
     setState(() => busy = true);
     try {
@@ -284,6 +294,22 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
           'p_allowed_modules': operatorNormalizedModules(allowed).toList(),
         },
       );
+      if (permissionCatalog.isNotEmpty) {
+        // Permisos finos: los que marcó el administrador o, si no hay, el «Ver»
+        // de cada módulo asignado.
+        await supabase.rpc(
+          'admin_set_operator_permissions_v1',
+          params: {
+            'p_user_id': userId,
+            'p_permissions': (permissions ??
+                    operatorViewPermissionsFor(
+                      operatorNormalizedModules(allowed),
+                      permissionCatalog,
+                    ))
+                .toList(),
+          },
+        );
+      }
       if (!mounted) return;
       setState(() {
         busy = false;
@@ -342,6 +368,11 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
         zoneLabel: _zoneLabel(row),
         initialActive: row['active'] == true,
         initialModules: _modulesOf(row),
+        catalog: permissionCatalog,
+        initialPermissions: row['allowed_permissions'] is List &&
+                (row['allowed_permissions'] as List).isNotEmpty
+            ? (row['allowed_permissions'] as List).map((e) => e.toString()).toSet()
+            : operatorViewPermissionsFor(_modulesOf(row), permissionCatalog),
       ),
     );
     if (result == null || !mounted) return;
@@ -357,6 +388,7 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
       zone: (row['zone_id'] ?? '').toString(),
       active: result.active,
       allowed: result.modules,
+      permissions: result.permissions,
     );
   }
 
@@ -800,10 +832,17 @@ class _AdminOperatorsPageState extends State<AdminOperatorsPage> {
 
 /// Resultado de la ventana «Editar operador».
 class OperatorEditResult {
-  const OperatorEditResult({required this.active, required this.modules});
+  const OperatorEditResult({
+    required this.active,
+    required this.modules,
+    this.permissions,
+  });
 
   final bool active;
   final Set<String> modules;
+
+  /// Permisos finos marcados (null si el servidor aún no tiene catálogo).
+  final Set<String>? permissions;
 }
 
 /// Ventana «Editar operador»: activar o desactivar el acceso y elegir los módulos.
@@ -815,12 +854,16 @@ class OperatorEditDialog extends StatefulWidget {
     required this.zoneLabel,
     required this.initialActive,
     required this.initialModules,
+    this.catalog = const [],
+    this.initialPermissions = const {},
   });
 
   final String userLabel;
   final String zoneLabel;
   final bool initialActive;
   final Set<String> initialModules;
+  final List<OperatorPermission> catalog;
+  final Set<String> initialPermissions;
 
   @override
   State<OperatorEditDialog> createState() => _OperatorEditDialogState();
@@ -830,9 +873,13 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
   late bool active = widget.initialActive;
   late final Set<String> modules =
       operatorNormalizedModules(widget.initialModules);
+  late Set<String> permissions = {...widget.initialPermissions, 'users.view'};
+
+  bool get _hasCatalog => widget.catalog.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
+    final fineModules = operatorPermissionModules(widget.catalog);
     return AlertDialog(
       title: const Text('Editar operador'),
       content: SizedBox(
@@ -864,15 +911,34 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                 onChanged: (value) => setState(() => active = value),
               ),
               const Divider(height: 20),
-              const Text(
-                'Módulos que verá el operador',
-                style: TextStyle(fontWeight: FontWeight.w900, color: _dark),
+              if (_hasCatalog) ...[
+                const Text(
+                  'Permisos del operador',
+                  style: TextStyle(fontWeight: FontWeight.w900, color: _dark),
+                ),
+                const Text(
+                  'Marca qué puede ver y hacer en su zona. Lo que no marques '
+                  'queda oculto y el servidor lo rechaza.',
+                  style: TextStyle(fontSize: 12, color: _muted),
+                ),
+                const SizedBox(height: 6),
+                OperatorPermissionPicker(
+                  catalog: widget.catalog,
+                  selected: permissions,
+                  onChanged: (value) => setState(() => permissions = value),
+                ),
+                const SizedBox(height: 14),
+              ],
+              Text(
+                _hasCatalog ? 'Otros módulos' : 'Módulos que verá el operador',
+                style: const TextStyle(fontWeight: FontWeight.w900, color: _dark),
               ),
               const Text(
                 'Los permisos pendientes quedarán guardados; se abrirán cuando la función de zona esté preparada. Usuarios siempre incluido.',
                 style: TextStyle(fontSize: 12, color: _muted),
               ),
-              for (final group in _groupOrder) ...[
+              for (final group in _groupOrder.where((g) => operatorSelectorModules
+                  .any((m) => m.group == g && !fineModules.contains(m.key)))) ...[
                 Padding(
                   padding: const EdgeInsets.only(top: 10, bottom: 2),
                   child: Text(
@@ -885,8 +951,8 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
                     ),
                   ),
                 ),
-                for (final module
-                    in operatorSelectorModules.where((m) => m.group == group))
+                for (final module in operatorSelectorModules.where(
+                    (m) => m.group == group && !fineModules.contains(m.key)))
                   CheckboxListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
@@ -922,7 +988,17 @@ class _OperatorEditDialogState extends State<OperatorEditDialog> {
         FilledButton(
           onPressed: () => Navigator.pop(
             context,
-            OperatorEditResult(active: active, modules: modules),
+            OperatorEditResult(
+              active: active,
+              modules: {
+                ...modules,
+                // Los módulos con permisos finos salen de los «Ver» marcados.
+                ...permissions
+                    .where((k) => k.endsWith('.view'))
+                    .map((k) => k.split('.').first),
+              },
+              permissions: _hasCatalog ? permissions : null,
+            ),
           ),
           child: const Text('Guardar cambios'),
         ),
