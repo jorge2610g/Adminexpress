@@ -384,11 +384,16 @@ class _AdminDriverChampionshipPageState
               for(final r in rows)
                 ListTile(
                   dense:true,
-                  leading:SizedBox(width:48,child:Text(
+                  leading:SizedBox(width:44,child:Text(
                     (r['position'] as num)<=3
                       ?medals[(r['position'] as num).toInt()-1]
                       :'#'+r['position'].toString(),
-                    style:const TextStyle(fontSize:18,fontWeight:FontWeight.w800))),
+                    maxLines:1,softWrap:false,overflow:TextOverflow.visible,
+                    // Medallas un poco más grandes; el número de puesto, discreto.
+                    style:TextStyle(
+                      fontSize:(r['position'] as num)<=3?20:14,
+                      fontWeight:FontWeight.w700,
+                      color:const Color(0xFF475467)))),
                   title:Text(r['name']?.toString()??'Conductor'),
                   trailing:Row(mainAxisSize:MainAxisSize.min,children:[
                     Text(r['rides'].toString()+' viajes',
