@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'core/admin_friendly_error.dart';
-import 'core/admin_dropdown_field.dart';
 
 import 'core/supabase_client.dart';
+import 'admin_restaurant_editor.dart';
 import 'admin_marketplace_demos.dart';
 import 'admin_restaurant_panel_access.dart';
 import 'admin_marketplace_requirements.dart';
@@ -984,29 +984,71 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
         .toList();
   }
 
-  /// «Solicitar repartidor»: qué ve el restaurante y cómo se calcula el delivery.
+  /// Servicios y tarifas del restaurante: qué ve en su portal y cómo se calcula el envío de
+  /// los pedidos del menú y de «Solicitar repartidor» (cada uno con su propia tarifa).
   Future<void> _editCourier(Map<String, dynamic> row) async {
     var mode = row['courier_mode']?.toString() ?? 'menu';
-    var pricing = row['courier_pricing']?.toString() ?? 'zone';
-    final fare = TextEditingController(
-        text: row['courier_flat_fare'] == null
-            ? ''
-            : (double.tryParse(row['courier_flat_fare'].toString()) ?? 0)
-                .toStringAsFixed(2)
-                .replaceFirst(RegExp(r'\.?0+$'), ''));
+    var courierPricing = row['courier_pricing']?.toString() ?? 'zone';
+    var menuPricing = row['menu_fee_pricing']?.toString() ?? 'zone';
+    String money(Object? v) => v == null
+        ? ''
+        : (double.tryParse(v.toString()) ?? 0)
+            .toStringAsFixed(2)
+            .replaceFirst(RegExp(r'\.?0+$'), '');
+    final courierFare = TextEditingController(text: money(row['courier_flat_fare']));
+    final menuFee = TextEditingController(text: money(row['menu_flat_fee']));
+    Widget pricingChoice({
+      required String value,
+      required ValueChanged<String> onChanged,
+      required String zoneLabel,
+      required String flatLabel,
+      required TextEditingController flatController,
+      required String flatField,
+    }) =>
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          RadioListTile<String>(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            value: 'zone',
+            groupValue: value,
+            onChanged: (v) => onChanged(v ?? 'zone'),
+            title: Text(zoneLabel),
+          ),
+          RadioListTile<String>(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            value: 'flat',
+            groupValue: value,
+            onChanged: (v) => onChanged(v ?? 'flat'),
+            title: Text(flatLabel),
+          ),
+          if (value == 'flat')
+            Padding(
+              padding: const EdgeInsets.only(left: 4, right: 4, bottom: 6),
+              child: TextField(
+                controller: flatController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: flatField,
+                  helperText: 'En la moneda de la zona. Se cobra igual para cualquier destino.',
+                ),
+              ),
+            ),
+        ]);
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setLocal) => AlertDialog(
-          title: Text('Solicitar repartidor · ${row['name'] ?? 'Comercio'}'),
+          title: Text('Servicios y tarifas · ${row['name'] ?? 'Comercio'}'),
           content: SizedBox(
-            width: 460,
+            width: 520,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Qué ve el restaurante en su portal'),
+                  const Text('Qué ve el restaurante en su portal',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: mode,
@@ -1015,8 +1057,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                           value: 'menu', child: Text('Solo pedidos con menú')),
                       DropdownMenuItem(
                           value: 'courier', child: Text('Solo solicitar repartidor')),
-                      DropdownMenuItem(
-                          value: 'both', child: Text('Ambos')),
+                      DropdownMenuItem(value: 'both', child: Text('Ambos')),
                     ],
                     onChanged: (v) => setLocal(() => mode = v ?? 'menu'),
                   ),
@@ -1027,29 +1068,34 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                           'Con «Solo solicitar repartidor» el restaurante deja de aparecer en la app de los clientes y no usa menú ni comisión.',
                           style: TextStyle(fontSize: 12)),
                     ),
-                  const SizedBox(height: 16),
-                  const Text('Cómo se calcula el delivery'),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: pricing,
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'zone',
-                          child: Text('Tarifa de Express por distancia')),
-                      DropdownMenuItem(
-                          value: 'flat',
-                          child: Text('Tarifa fija de este restaurante')),
-                    ],
-                    onChanged: (v) => setLocal(() => pricing = v ?? 'zone'),
-                  ),
-                  if (pricing == 'flat') ...[
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: fare,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                          labelText: 'Delivery fijo (en la moneda de la zona)',
-                          helperText: 'Se cobra igual para cualquier destino.'),
+                  if (mode != 'courier') ...[
+                    const SizedBox(height: 18),
+                    const Text('Envío de los pedidos del menú',
+                        style: TextStyle(fontWeight: FontWeight.w800)),
+                    const Text('Lo que paga el cliente que pide por la app.',
+                        style: TextStyle(fontSize: 12)),
+                    pricingChoice(
+                      value: menuPricing,
+                      onChanged: (v) => setLocal(() => menuPricing = v),
+                      zoneLabel: 'Tarifa de Express de la zona',
+                      flatLabel: 'Tarifa fija de este restaurante',
+                      flatController: menuFee,
+                      flatField: 'Envío fijo del menú (0 = gratis)',
+                    ),
+                  ],
+                  if (mode != 'menu') ...[
+                    const SizedBox(height: 18),
+                    const Text('Solicitar repartidor',
+                        style: TextStyle(fontWeight: FontWeight.w800)),
+                    const Text('El delivery que se le paga al repartidor en cada solicitud.',
+                        style: TextStyle(fontSize: 12)),
+                    pricingChoice(
+                      value: courierPricing,
+                      onChanged: (v) => setLocal(() => courierPricing = v),
+                      zoneLabel: 'Tarifa de Express por distancia',
+                      flatLabel: 'Tarifa fija de este restaurante',
+                      flatController: courierFare,
+                      flatField: 'Delivery fijo de Solicitar repartidor',
                     ),
                   ],
                 ],
@@ -1067,15 +1113,21 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
         ),
       ),
     );
-    final flat = double.tryParse(fare.text.trim().replaceAll(',', '.'));
-    fare.dispose();
+    double? parse(TextEditingController c) =>
+        double.tryParse(c.text.trim().replaceAll(',', '.'));
+    final courierValue = parse(courierFare);
+    final menuValue = parse(menuFee);
+    courierFare.dispose();
+    menuFee.dispose();
     if (ok != true || !mounted) return;
     try {
-      await supabase.rpc('admin_marketplace_set_courier_settings', params: {
+      await supabase.rpc('admin_marketplace_set_service_settings', params: {
         'p_merchant_id': row['id'],
         'p_mode': mode,
-        'p_pricing': pricing,
-        'p_flat_fare': flat,
+        'p_courier_pricing': courierPricing,
+        'p_courier_flat_fare': courierValue,
+        'p_menu_pricing': menuPricing,
+        'p_menu_flat_fee': menuValue,
       });
       if (!mounted) return;
       _snack('Configuración guardada.');
@@ -1085,226 +1137,23 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     }
   }
 
+  /// Editor completo del restaurante (datos, fotos, ubicación, horarios, accesos y tarifas).
   Future<void> _editMerchant(
     Map<String, dynamic>? row,
     List<Map<String, dynamic>> categories,
   ) async {
     final zones = await _zones();
     if (!mounted) return;
-
-    String? zoneId = row?['zone_id']?.toString() ?? widget.zoneId;
-    String categoryKey = row?['category_key']?.toString() ??
-        (categories.isEmpty
-            ? ''
-            : categories.first['category_key']?.toString() ?? '');
-    final name = TextEditingController(text: row?['name']?.toString() ?? '');
-    final description = TextEditingController(
-      text: row?['description']?.toString() ?? '',
-    );
-    final image = TextEditingController(
-      text: row?['image_url']?.toString() ?? '',
-    );
-    final rating = TextEditingController(
-      text: row?['rating']?.toString() ?? '5',
-    );
-    final etaMin = TextEditingController(
-      text: row?['eta_min_minutes']?.toString() ?? '15',
-    );
-    final etaMax = TextEditingController(
-      text: row?['eta_max_minutes']?.toString() ?? '40',
-    );
-    final fee = TextEditingController(
-      text: row?['delivery_fee']?.toString() ?? '0',
-    );
-    final order = TextEditingController(
-      text: row?['sort_order']?.toString() ?? '100',
-    );
-    bool active = row?['active'] != false;
-    bool visible = row == null ? true : row['production_visible'] == true;
-
-    final save = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Nuevo comercio' : 'Editar comercio'),
-          content: SizedBox(
-            width: 600,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  AdminDropdownField<String?>(
-                    value: zoneId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Zona'),
-                    items: [
-                      ...zones.map(
-                        (z) => DropdownMenuItem<String?>(
-                          value: z['id']?.toString(),
-                          child: Text(
-                            (z['name'] ?? 'Zona').toString() +
-                                ' · ' +
-                                (z['city'] ?? '').toString(),
-                          ),
-                        ),
-                      ),
-                    ],
-                    onChanged: (value) => setLocal(() => zoneId = value),
-                  ),
-                  const SizedBox(height: 10),
-                  AdminDropdownField<String>(
-                    value: categoryKey.isEmpty ? null : categoryKey,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Categoría'),
-                    items: categories
-                        .map(
-                          (c) => DropdownMenuItem<String>(
-                            value: c['category_key']?.toString(),
-                            child: Text(c['name']?.toString() ?? 'Categoría'),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) =>
-                        setLocal(() => categoryKey = value ?? ''),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: name,
-                    decoration: const InputDecoration(labelText: 'Nombre'),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: description,
-                    decoration: const InputDecoration(labelText: 'Descripción'),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: image,
-                    decoration: const InputDecoration(
-                      labelText: 'URL de imagen',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: rating,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Calificación',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: fee,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Costo envío',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: etaMin,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'ETA mínimo',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: etaMax,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'ETA máximo',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: order,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: 'Orden'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: active,
-                    onChanged: (value) => setLocal(() => active = value),
-                    title: const Text('Comercio activo'),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: visible,
-                    onChanged: (value) => setLocal(() => visible = value),
-                    title: const Text('Disponible para los usuarios'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Guardar'),
-            ),
-          ],
-        ),
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => AdminRestaurantEditorPage(
+        merchant: row,
+        categories: categories,
+        zones: zones,
+        defaultZoneId: widget.zoneId,
+        onEditServices: _editCourier,
       ),
-    );
-
-    if (save == true) {
-      try {
-        await supabase.rpc(
-          'admin_marketplace_upsert_merchant',
-          params: {
-            'p_id': row?['id'],
-            'p_zone_id': zoneId,
-            'p_category_key': categoryKey,
-            'p_name': name.text.trim(),
-            'p_description': description.text.trim(),
-            'p_image_url': image.text.trim(),
-            'p_active': active,
-            'p_preview_visible': visible,
-            'p_production_visible': visible,
-            'p_rating': double.tryParse(rating.text.trim()) ?? 5,
-            'p_eta_min_minutes': int.tryParse(etaMin.text.trim()) ?? 15,
-            'p_eta_max_minutes': int.tryParse(etaMax.text.trim()) ?? 40,
-            'p_delivery_fee': double.tryParse(fee.text.trim()) ?? 0,
-            'p_sort_order': int.tryParse(order.text.trim()) ?? 100,
-          },
-        );
-        _refresh();
-        _snack('Comercio guardado.');
-      } catch (e) {
-        _snack(e);
-      }
-    }
-
-    name.dispose();
-    description.dispose();
-    image.dispose();
-    rating.dispose();
-    etaMin.dispose();
-    etaMax.dispose();
-    fee.dispose();
-    order.dispose();
+    ));
+    if (mounted) _refresh();
   }
 
   Future<void> _openProducts(Map<String, dynamic> merchant) =>
@@ -1653,11 +1502,11 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                                 itemBuilder: (_) => [
                                   const PopupMenuItem(
                                     value: 'edit',
-                                    child: Text('Datos y visibilidad en la app'),
+                                    child: Text('Editar restaurante (todos los datos)'),
                                   ),
                                   const PopupMenuItem(
                                     value: 'courier',
-                                    child: Text('Solicitar repartidor'),
+                                    child: Text('Servicios y tarifas'),
                                   ),
                                   for (var i = 0; i < widget.merchantActions.length; i++)
                                     PopupMenuItem(
