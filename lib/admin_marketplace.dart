@@ -7,6 +7,7 @@ import 'core/admin_dropdown_field.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_marketplace_demos.dart';
+import 'admin_restaurant_panel_access.dart';
 import 'admin_marketplace_requirements.dart';
 
 const _blue = Color(0xFF2563EB);
@@ -614,32 +615,6 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       );
     },
   );
-
-  Future<void> _openSupport(Map<String, dynamic> merchant) async {
-    try {
-      final raw = await supabase.rpc(
-        'admin_marketplace_support_open',
-        params: {'p_merchant_id': merchant['id']},
-      );
-      if (raw is! Map || raw['session_id'] == null) {
-        throw StateError('Admin no devolvió una sesión temporal.');
-      }
-      if (!mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => AdminMarketplaceSupportPage(
-            sessionId: raw['session_id'].toString(),
-            merchantName: raw['merchant_name']?.toString() ?? 'Restaurante',
-            expiresAt: DateTime.tryParse(raw['expires_at']?.toString() ?? '') ??
-                DateTime.now().add(const Duration(minutes: 20)),
-          ),
-        ),
-      );
-      _refresh();
-    } catch (error) {
-      _snack('No se pudo abrir el panel temporal: $error');
-    }
-  }
 
   Future<void> _openRestaurantRequirements() async {
     await Navigator.of(context).push(MaterialPageRoute<void>(
@@ -1323,15 +1298,8 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     order.dispose();
   }
 
-  Future<void> _openProducts(Map<String, dynamic> merchant) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _MerchantProductsPage(merchant: merchant),
-      ),
-    );
-    _refresh();
-  }
+  Future<void> _openProducts(Map<String, dynamic> merchant) =>
+      goToRestaurantPanel(context, merchant);
 
   Widget _tag(String label, bool active) {
     return Container(
@@ -1650,34 +1618,33 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                             ),
                           ],
                           onTap: () => _openProducts(row),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                _editMerchant(row, categories);
-                              } else if (value == 'support') {
-                                _openSupport(row);
-                              } else if (value == 'courier') {
-                                _editCourier(row);
-                              } else {
-                                _openProducts(row);
-                              }
-                            },
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(
-                                value: 'edit',
-                                child: Text('Editar comercio'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FilledButton.tonalIcon(
+                                onPressed: () => _openProducts(row),
+                                icon: const Icon(Icons.open_in_new, size: 18),
+                                label: const Text('Ir al panel del restaurante'),
                               ),
-                              PopupMenuItem(
-                                value: 'products',
-                                child: Text('Productos'),
-                              ),
-                              PopupMenuItem(
-                                value: 'courier',
-                                child: Text('Solicitar repartidor'),
-                              ),
-                              PopupMenuItem(
-                                value: 'support',
-                                child: Text('Abrir panel temporal'),
+                              PopupMenuButton<String>(
+                                tooltip: 'Configuración de Express',
+                                onSelected: (value) {
+                                  if (value == 'courier') {
+                                    _editCourier(row);
+                                  } else {
+                                    _editMerchant(row, categories);
+                                  }
+                                },
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                    value: 'edit',
+                                    child: Text('Datos y visibilidad en la app'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'courier',
+                                    child: Text('Solicitar repartidor'),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -1691,438 +1658,4 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
       ),
     );
   }
-}
-
-class AdminMarketplaceSupportPage extends StatefulWidget {
-  const AdminMarketplaceSupportPage({
-    super.key,
-    required this.sessionId,
-    required this.merchantName,
-    required this.expiresAt,
-  });
-
-  final String sessionId;
-  final String merchantName;
-  final DateTime expiresAt;
-
-  @override
-  State<AdminMarketplaceSupportPage> createState() =>
-      _AdminMarketplaceSupportPageState();
-}
-
-class _AdminMarketplaceSupportPageState
-    extends State<AdminMarketplaceSupportPage> {
-  late Future<Map<String, dynamic>> _future;
-  Timer? _timer;
-  Duration _remaining = Duration.zero;
-  bool _closed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = _load();
-    _tick();
-    _timer = Timer.periodic(const Duration(seconds: 15), (_) => _tick());
-  }
-
-  Future<Map<String, dynamic>> _load() async {
-    final value = await supabase.rpc(
-      'admin_marketplace_support_state',
-      params: {'p_session_id': widget.sessionId},
-    );
-    if (value is! Map)
-      throw StateError('El panel temporal no está disponible.');
-    return Map<String, dynamic>.from(value);
-  }
-
-  void _tick() {
-    if (!mounted) return;
-    final left = widget.expiresAt.difference(DateTime.now());
-    setState(() => _remaining = left.isNegative ? Duration.zero : left);
-  }
-
-  Future<void> _close() async {
-    if (_closed) return;
-    _closed = true;
-    try {
-      await supabase.rpc(
-        'admin_marketplace_support_close',
-        params: {'p_session_id': widget.sessionId},
-      );
-    } catch (_) {}
-    if (mounted) Navigator.of(context).pop();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    if (!_closed) {
-      unawaited(
-        supabase.rpc(
-          'admin_marketplace_support_close',
-          params: {'p_session_id': widget.sessionId},
-        ).catchError((_) {}),
-      );
-    }
-    super.dispose();
-  }
-
-  List<Map<String, dynamic>> _rows(Object? value) => value is List
-      ? value.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
-      : const [];
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(widget.merchantName),
-          actions: [
-            TextButton.icon(
-              onPressed: _close,
-              icon: const Icon(Icons.close),
-              label: const Text('Cerrar sesión temporal'),
-            ),
-          ],
-        ),
-        body: FutureBuilder<Map<String, dynamic>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError || _remaining == Duration.zero) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                        'La sesión temporal terminó o no está disponible.'),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: _close,
-                      child: const Text('Volver a Admin'),
-                    ),
-                  ],
-                ),
-              );
-            }
-            final data = snapshot.data ?? const <String, dynamic>{};
-            final merchant = data['merchant'] is Map
-                ? Map<String, dynamic>.from(data['merchant'] as Map)
-                : <String, dynamic>{};
-            final products = _rows(data['products']);
-            final categories = _rows(data['categories']);
-            final orders = _rows(data['orders']);
-            final minutes = _remaining.inMinutes;
-            final seconds = _remaining.inSeconds % 60;
-            return ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Card(
-                  color: const Color(0xFFEAF2FF),
-                  child: ListTile(
-                    leading: const Icon(Icons.support_agent, color: _blue),
-                    title:
-                        const Text('Vista temporal de soporte · solo lectura'),
-                    subtitle: Text(
-                      'Expira en $minutes:${seconds.toString().padLeft(2, '0')}. '
-                      'No has iniciado sesión como el restaurante.',
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  merchant['name']?.toString() ?? widget.merchantName,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                Text(merchant['address']?.toString() ??
-                    'Dirección sin registrar'),
-                const SizedBox(height: 18),
-                Text(
-                  'Categorías (${categories.length})',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                for (final category in categories)
-                  ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.category_outlined),
-                    title: Text(category['name']?.toString() ?? 'Categoría'),
-                  ),
-                Text(
-                  'Productos (${products.length})',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                for (final product in products)
-                  ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.fastfood_outlined),
-                    title: Text(product['name']?.toString() ?? 'Producto'),
-                    subtitle: Text(
-                      product['active'] == true ? 'Disponible' : 'Oculto',
-                    ),
-                  ),
-                Text(
-                  'Pedidos recientes (${orders.length})',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                for (final order in orders)
-                  ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.receipt_long_outlined),
-                    title: Text(
-                      'Pedido ${order['id']?.toString().substring(0, 8) ?? ''}',
-                    ),
-                    subtitle: Text(order['status']?.toString() ?? 'Sin estado'),
-                  ),
-              ],
-            );
-          },
-        ),
-      );
-}
-
-class _MerchantProductsPage extends StatefulWidget {
-  final Map<String, dynamic> merchant;
-
-  const _MerchantProductsPage({required this.merchant});
-
-  @override
-  State<_MerchantProductsPage> createState() => _MerchantProductsPageState();
-}
-
-class _MerchantProductsPageState extends State<_MerchantProductsPage> {
-  late Future<Map<String, dynamic>> future;
-
-  @override
-  void initState() {
-    super.initState();
-    future = _load();
-  }
-
-  Future<Map<String, dynamic>> _load() async {
-    final value = await supabase.rpc(
-      'admin_marketplace_merchant_detail',
-      params: {'p_merchant_id': widget.merchant['id']},
-    );
-    return value is Map
-        ? Map<String, dynamic>.from(value)
-        : <String, dynamic>{};
-  }
-
-  List<Map<String, dynamic>> _rows(Object? value) {
-    if (value is! List) return const [];
-    return value
-        .whereType<Map>()
-        .map((row) => Map<String, dynamic>.from(row))
-        .toList();
-  }
-
-  void _refresh() => setState(() => future = _load());
-
-  Future<void> _editProduct(Map<String, dynamic>? row) async {
-    final name = TextEditingController(text: row?['name']?.toString() ?? '');
-    final description = TextEditingController(
-      text: row?['description']?.toString() ?? '',
-    );
-    final price = TextEditingController(text: row?['price']?.toString() ?? '0');
-    final currency = TextEditingController(
-      text: row?['currency_code']?.toString() ?? 'CLP',
-    );
-    final image = TextEditingController(
-      text: row?['image_url']?.toString() ?? '',
-    );
-    final order = TextEditingController(
-      text: row?['sort_order']?.toString() ?? '100',
-    );
-    bool active = row?['active'] != false;
-
-    final save = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Nuevo producto' : 'Editar producto'),
-          content: SizedBox(
-            width: 520,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  TextField(
-                    controller: name,
-                    decoration: const InputDecoration(labelText: 'Nombre'),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: description,
-                    decoration: const InputDecoration(labelText: 'Descripción'),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: price,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Precio',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: currency,
-                          decoration: const InputDecoration(
-                            labelText: 'Moneda',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: image,
-                    decoration: const InputDecoration(
-                      labelText: 'URL de imagen',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: order,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Orden'),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: active,
-                    onChanged: (value) => setLocal(() => active = value),
-                    title: const Text('Producto activo'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Guardar'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (save == true) {
-      try {
-        await supabase.rpc(
-          'admin_marketplace_upsert_product',
-          params: {
-            'p_id': row?['id'],
-            'p_merchant_id': widget.merchant['id'],
-            'p_name': name.text.trim(),
-            'p_description': description.text.trim(),
-            'p_price': double.tryParse(price.text.trim()) ?? 0,
-            'p_currency_code': currency.text.trim(),
-            'p_image_url': image.text.trim(),
-            'p_active': active,
-            'p_sort_order': int.tryParse(order.text.trim()) ?? 100,
-          },
-        );
-        if (mounted) _refresh();
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
-      }
-    }
-
-    name.dispose();
-    description.dispose();
-    price.dispose();
-    currency.dispose();
-    image.dispose();
-    order.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
-        title: Text(widget.merchant['name']?.toString() ?? 'Productos'),
-        actions: [
-          IconButton(
-            onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _editProduct(null),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Producto'),
-      ),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: future,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData &&
-              snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text(friendlyError(snapshot.error)));
-          }
-          final products = _rows(snapshot.data?['products']);
-          if (products.isEmpty) {
-            return const Center(
-              child: Text('Todavía no hay productos en este comercio.'),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(18),
-            itemCount: products.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final row = products[index];
-              return Card(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: row['active'] == true
-                        ? const Color(0xFFE8F8EF)
-                        : const Color(0xFFF2F4F7),
-                    child: const Icon(Icons.inventory_2_outlined),
-                  ),
-                  title: Text(
-                    row['name']?.toString() ?? 'Producto',
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                  subtitle: Text(
-                    (row['currency_code'] ?? '').toString() +
-                        ' ' +
-                        (row['price'] ?? 0).toString() +
-                        ' · ' +
-                        (row['active'] == true ? 'Activo' : 'Inactivo'),
-                  ),
-                  trailing: const Icon(Icons.edit_outlined),
-                  onTap: () => _editProduct(row),
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Public entry to an existing merchant's catalog editor from unified Delivery.
-class AdminMerchantCatalogPage extends StatelessWidget {
-  final Map<String, dynamic> merchant;
-  const AdminMerchantCatalogPage({super.key, required this.merchant});
-
-  @override
-  Widget build(BuildContext context) =>
-      _MerchantProductsPage(merchant: merchant);
 }

@@ -8,6 +8,7 @@ import 'core/supabase_client.dart';
 import 'admin_marketplace.dart';
 import 'admin_marketplace_demos.dart';
 import 'admin_marketplace_phase2.dart';
+import 'admin_restaurant_panel_access.dart';
 import 'admin_delivery_settlements.dart';
 
 /// Admin central: a single Delivery menu, shared merchant IDs, scoped by zone
@@ -100,12 +101,9 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
     _ => 'Todos',
   };
 
-  void _openProducts(Map<String, dynamic> merchant) async {
-    await Navigator.push(context, MaterialPageRoute(
-      builder: (_) => AdminMerchantCatalogPage(merchant: merchant),
-    ));
-    if (mounted) setState(_refresh);
-  }
+  /// Los productos, horarios y demás datos se editan en el portal real del restaurante.
+  void _openProducts(Map<String, dynamic> merchant) =>
+      goToRestaurantPanel(context, merchant);
 
   Future<void> _openMerchant(Map<String, dynamic> merchant) async {
     await showDialog<void>(context: context, builder: (_) =>
@@ -649,7 +647,7 @@ class _UnifiedMerchantDialogState extends State<_UnifiedMerchantDialog> {
           Wrap(spacing: 10, runSpacing: 9, children: [
             OutlinedButton.icon(onPressed: widget.readOnly ? null : widget.openProducts,
               icon: const Icon(Icons.restaurant_menu),
-              label: const Text('Editar menú y productos')),
+              label: const Text('Ir al panel del restaurante')),
             OutlinedButton.icon(
               onPressed: widget.readOnly || busy ? null :
                 () => _bannerForMerchant(row),
