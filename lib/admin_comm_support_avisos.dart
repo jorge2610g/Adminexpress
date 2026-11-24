@@ -1,4 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show FileOptions;
 
 import 'core/admin_dropdown_field.dart';
 import 'core/admin_friendly_error.dart';
@@ -1010,7 +1014,9 @@ class _AvisoEditorDialog extends StatefulWidget {
 class _AvisoEditorDialogState extends State<_AvisoEditorDialog> {
   late final TextEditingController title;
   late final TextEditingController body;
-  late final TextEditingController image;
+  String imageUrl = '';
+  Uint8List? pickedBytes;
+  String pickedName = '';
   late final TextEditingController days;
   late String category;
   late String audience;
@@ -1026,7 +1032,7 @@ class _AvisoEditorDialogState extends State<_AvisoEditorDialog> {
     final a = widget.aviso;
     title = TextEditingController(text: a?['title']?.toString() ?? '');
     body = TextEditingController(text: a?['body']?.toString() ?? '');
-    image = TextEditingController(text: a?['image_url']?.toString() ?? '');
+    imageUrl = a?['image_url']?.toString() ?? '';
     category = a?['category']?.toString() ?? 'aviso';
     audience = a?['audience']?.toString() ?? 'drivers';
     partnerId = a?['partner_id']?.toString();
@@ -1046,9 +1052,49 @@ class _AvisoEditorDialogState extends State<_AvisoEditorDialog> {
   void dispose() {
     title.dispose();
     body.dispose();
-    image.dispose();
     days.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      imageQuality: 86,
+    );
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (bytes.lengthInBytes > 5 * 1024 * 1024) {
+      if (mounted) _toast(context, 'La imagen debe pesar menos de 5 MB.');
+      return;
+    }
+    setState(() {
+      pickedBytes = bytes;
+      pickedName = file.name;
+    });
+  }
+
+  Future<String> _uploadImage() async {
+    final name = pickedName.toLowerCase();
+    final ext = name.endsWith('.png')
+        ? 'png'
+        : name.endsWith('.webp')
+            ? 'webp'
+            : 'jpg';
+    final type = ext == 'png'
+        ? 'image/png'
+        : ext == 'webp'
+            ? 'image/webp'
+            : 'image/jpeg';
+    final path = '${widget.channel}/${widget.zoneId ?? 'global'}/'
+        '${DateTime.now().microsecondsSinceEpoch}.$ext';
+    final bucket = supabase.storage.from('express-announcements');
+    await bucket.uploadBinary(
+      path,
+      pickedBytes!,
+      fileOptions: FileOptions(contentType: type, upsert: false),
+    );
+    return bucket.getPublicUrl(path);
   }
 
   Future<void> _save() async {
@@ -1064,6 +1110,7 @@ class _AvisoEditorDialogState extends State<_AvisoEditorDialog> {
         : DateTime.now().toUtc().add(Duration(days: d)).toIso8601String();
     setState(() => saving = true);
     try {
+      if (pickedBytes != null) imageUrl = await _uploadImage();
       final result = await supabase.rpc(
         AdminCommRpc.announcementSave,
         params: {
@@ -1072,7 +1119,7 @@ class _AvisoEditorDialogState extends State<_AvisoEditorDialog> {
           'p_category': category,
           'p_title': t,
           'p_body': b,
-          'p_image_url': image.text.trim().isEmpty ? null : image.text.trim(),
+          'p_image_url': imageUrl.isEmpty ? null : imageUrl,
           'p_audience': audience,
           'p_zone_id': widget.zoneId,
           'p_partner_id': audience == 'passengers' ? null : partnerId,
@@ -1165,11 +1212,46 @@ class _AvisoEditorDialogState extends State<_AvisoEditorDialog> {
                 ),
               ),
               const SizedBox(height: 6),
-              TextField(
-                controller: image,
-                decoration: const InputDecoration(
-                  labelText: 'Imagen (enlace https, opcional)',
+              if (pickedBytes != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.memory(pickedBytes!,
+                      height: 150, fit: BoxFit.cover),
+                )
+              else if (imageUrl.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(
+                    imageUrl,
+                    height: 150,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        const Text('Imagen no disponible'),
+                  ),
                 ),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: saving ? null : _pickImage,
+                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                    label: Text(
+                      pickedBytes != null || imageUrl.isNotEmpty
+                          ? 'Cambiar imagen'
+                          : 'Subir imagen desde la galería',
+                    ),
+                  ),
+                  if (pickedBytes != null || imageUrl.isNotEmpty)
+                    TextButton(
+                      onPressed: saving
+                          ? null
+                          : () => setState(() {
+                                pickedBytes = null;
+                                pickedName = '';
+                                imageUrl = '';
+                              }),
+                      child: const Text('Quitar'),
+                    ),
+                ],
               ),
               const SizedBox(height: 10),
               AdminDropdownField<String>(
