@@ -26,6 +26,7 @@ import 'admin_csv_download.dart';
 import 'admin_trip_ranking_export.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
+import 'admin_comm_support_avisos.dart';
 import 'admin_driver_requests.dart';
 import 'admin_landing_banners.dart';
 import 'admin_debt_management.dart';
@@ -295,7 +296,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
   static const Set<int> _environmentFilteredSections = <int>{
     0, 1, 2, 3, 4, 5, 6, 9, 13, 15, 18, 21, 22, 23, 24, 25, 26, 29, 30,
-    31, 33, 35, 36, 39, 40,
+    31, 33, 35, 36, 39, 40, 41,
   };
 
   String _sectionChannel(int sectionIndex) {
@@ -382,6 +383,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     38: 'payments',
     39: 'trips',
     40: 'drivers',
+    41: 'notifications',
   };
 
   bool _sectionAllowed(int index) {
@@ -463,7 +465,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Viajes', Icons.local_taxi_rounded),
     ('Delivery', Icons.local_shipping_rounded),
     ('Conductores', Icons.drive_eta_rounded),
-    ('Usuarios', Icons.people_rounded),
+    ('Clientes', Icons.people_rounded),
     ('Seguridad / SOS', Icons.shield_rounded),
     ('Zonas y cobertura', Icons.hexagon_outlined),
     ('Tarifas', Icons.payments_outlined),
@@ -499,6 +501,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Billeteras', Icons.account_balance_wallet_rounded),
     ('Viajes sospechosos', Icons.policy_outlined),
     ('Solicitudes de conductores', Icons.how_to_reg_rounded),
+    ('Soporte', Icons.support_agent_rounded),
   ];
 
   Future<bool> _authorized() async {
@@ -825,7 +828,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   ) async {
     if (!_scopeReady) return const [];
     final value = await supabase.rpc(
-      'admin_user_list_v5',
+      'admin_customer_list_v1',
       params: {
         'p_channel': _sectionChannel(5),
         'p_zone_id': adminZoneId,
@@ -835,21 +838,65 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         'p_status': userStatus,
       },
     );
-    return _list(value);
+    return value is Map ? _list(value['rows']) : const [];
   }
 
   Future<int> _usersCount(String search) async {
     if (!_scopeReady) return 0;
     final value = await supabase.rpc(
-      'admin_user_count_v2',
+      'admin_customer_list_v1',
       params: {
         'p_channel': _sectionChannel(5),
         'p_zone_id': adminZoneId,
         'p_search': search.trim().isEmpty ? null : search.trim(),
+        'p_limit': 1,
+        'p_offset': 0,
         'p_status': userStatus,
       },
     );
-    return (value as num?)?.toInt() ?? 0;
+    return value is Map ? (value['total'] as num?)?.toInt() ?? 0 : 0;
+  }
+
+  Future<Map<String, dynamic>> _customerDashboard() async {
+    if (!_scopeReady) return const {};
+    final value = await supabase.rpc(
+      'admin_customer_dashboard_v1',
+      params: {
+        'p_channel': _sectionChannel(5),
+        'p_zone_id': adminZoneId,
+      },
+    );
+    return value is Map ? Map<String, dynamic>.from(value) : const {};
+  }
+
+  Future<Map<String, int>> _driverOverview() async {
+    if (!_scopeReady) return const {};
+    Future<int> count(String? status) async {
+      final value = await supabase.rpc(
+        'admin_driver_count_v2',
+        params: {
+          'p_channel': _sectionChannel(4),
+          'p_zone_id': adminZoneId,
+          'p_search': null,
+          'p_status': status,
+        },
+      );
+      return (value as num?)?.toInt() ?? 0;
+    }
+
+    final values = await Future.wait([
+      count(null),
+      count('pending'),
+      count('approved'),
+      count('rejected'),
+      count('suspended'),
+    ]);
+    return {
+      'total': values[0],
+      'pending': values[1],
+      'active': values[2],
+      'inactive': values[3] + values[4],
+    };
   }
 
   /// Pide todas las páginas (500 por vez, hasta 20 000 filas) de una lista del servidor.
@@ -906,19 +953,26 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     }
   }
 
-  /// Descarga TODOS los usuarios (pasajeros y conductores) de la zona activa, sin importar el filtro
-  /// de estado de la pantalla, con sus viajes completados como pasajero y como conductor.
+  /// Exporta los clientes que pertenecen a la zona y al entorno seleccionados.
   Future<void> _exportUsers() async {
     final messenger = ScaffoldMessenger.of(context);
     if (!_scopeReady) return;
     try {
       final channel = _sectionChannel(5);
-      final users = await _fetchAllPages('admin_user_list_v5', {
-        'p_channel': channel,
-        'p_zone_id': adminZoneId,
-        'p_search': null,
-        'p_status': null,
-      });
+      final users = <Map<String, dynamic>>[];
+      for (var offset = 0; offset < 20000; offset += 500) {
+        final raw = await supabase.rpc('admin_customer_list_v1', params: {
+          'p_channel': channel,
+          'p_zone_id': adminZoneId,
+          'p_search': null,
+          'p_status': null,
+          'p_limit': 500,
+          'p_offset': offset,
+        });
+        final page = raw is Map ? _list(raw['rows']) : const <Map<String, dynamic>>[];
+        users.addAll(page);
+        if (page.length < 500) break;
+      }
       if (users.isEmpty) {
         messenger.showSnackBar(
           const SnackBar(content: Text('No hay usuarios para exportar.')),
@@ -942,7 +996,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
         ),
       );
       messenger.showSnackBar(
-        SnackBar(content: Text('Se exportaron ${users.length} usuarios.')),
+        SnackBar(content: Text('Se exportaron ${users.length} clientes.')),
       );
     } catch (_) {
       messenger.showSnackBar(
@@ -1119,7 +1173,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     );
   }
 
-  /// Chips de estado de usuarios. Por defecto se ven todos, como antes.
+  /// Filtros de clientes respaldados por la consulta de la pantalla.
   Widget _userStatusFilter() {
     void select(String? value) {
       setState(() {
@@ -1139,6 +1193,18 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           onSelected: (_) => select(null),
         ),
         AdminPillChoice(
+          label: 'Pendientes',
+          selected: userStatus == 'pending',
+          showCheck: true,
+          onSelected: (_) => select('pending'),
+        ),
+        AdminPillChoice(
+          label: 'Activos',
+          selected: userStatus == 'active',
+          showCheck: true,
+          onSelected: (_) => select('active'),
+        ),
+        AdminPillChoice(
           label: 'Rechazados',
           selected: userStatus == 'rejected',
           showCheck: true,
@@ -1155,6 +1221,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           selected: userStatus == 'suspended',
           showCheck: true,
           onSelected: (_) => select('suspended'),
+        ),
+        AdminPillChoice(
+          label: 'Sin push',
+          selected: userStatus == 'push_disabled',
+          showCheck: true,
+          onSelected: (_) => select('push_disabled'),
         ),
       ],
     );
@@ -2101,6 +2173,11 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
           operatorOnly: adminAccess['role'] == 'operator',
         );
+      case 41:
+        return AdminSupportTicketsTab(
+          channel: _sectionChannel(41),
+          zoneId: adminZoneId,
+        );
       case 16:
         return AdminServicesPage(
           channel: 'production',
@@ -2681,6 +2758,80 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     );
   }
 
+  Widget _sectionMetric(String title, String value, IconData icon,
+      {Color color = adminBlue}) =>
+      Container(
+        constraints: const BoxConstraints(minWidth: 145),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: const Color(0xFFE7ECF3)),
+          borderRadius: BorderRadius.circular(13),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 11, color: adminMuted)),
+                  const SizedBox(height: 7),
+                  Text(value, style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900, color: color)),
+                ],
+              ),
+            ),
+            Icon(icon, color: color, size: 21),
+          ],
+        ),
+      );
+
+  Widget _driverPageHeader() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 10,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Conductores', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: adminDark)),
+                  Text('Gestiona los conductores de Express Delivery', style: TextStyle(color: adminMuted, fontSize: 12)),
+                ],
+              ),
+              Wrap(spacing: 8, children: [
+                OutlinedButton.icon(
+                  onPressed: () => _goTo(40),
+                  icon: const Icon(Icons.assignment_outlined),
+                  label: const Text('Solicitudes y servicios'),
+                ),
+                if (!_readOnly && adminAccess['role'] == 'super_admin')
+                  FilledButton.icon(
+                    onPressed: () => _createAppUser(initialType: 'driver'),
+                    icon: const Icon(Icons.person_add_alt_1),
+                    label: const Text('Nuevo Conductor'),
+                  ),
+              ]),
+            ],
+          ),
+          const SizedBox(height: 15),
+          FutureBuilder<Map<String, int>>(
+            future: _driverOverview(),
+            builder: (context, snapshot) {
+              final values = snapshot.data ?? const <String, int>{};
+              return Wrap(spacing: 10, runSpacing: 10, children: [
+                _sectionMetric('Total', '${values['total'] ?? '…'}', Icons.groups_rounded),
+                _sectionMetric('Pendientes', '${values['pending'] ?? '…'}', Icons.schedule_rounded, color: const Color(0xFFDC2626)),
+                _sectionMetric('Activos', '${values['active'] ?? '…'}', Icons.verified_user_outlined, color: const Color(0xFF15803D)),
+                _sectionMetric('Inactivos', '${values['inactive'] ?? '…'}', Icons.person_off_outlined, color: const Color(0xFFDC2626)),
+              ]);
+            },
+          ),
+        ],
+      );
+
   Widget _driverList() {
     // Se piden 50 filas por vez al servidor, de la más reciente a la más antigua.
     return Builder(
@@ -2688,6 +2839,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       builder: (context) {
 
         return _Records(
+          pageHeader: _driverPageHeader(),
+          listHeader: _driverTableHeader(),
           title: 'Conductores',
           subtitle:
               'Aprobación, estado, licencia, vehículo y control de conductores.',
@@ -2897,6 +3050,218 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     );
   }
 
+  Widget _customerPageHeader() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 10,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Clientes', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: adminDark)),
+                  Text('Gestiona los clientes de Express Delivery', style: TextStyle(color: adminMuted, fontSize: 12)),
+                ],
+              ),
+              if (!_readOnly && adminAccess['role'] == 'super_admin')
+                FilledButton.icon(
+                  onPressed: _createAppUser,
+                  icon: const Icon(Icons.person_add_alt_1),
+                  label: const Text('Nuevo Cliente'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          FutureBuilder<Map<String, dynamic>>(
+            future: _customerDashboard(),
+            builder: (context, snapshot) {
+              final data = snapshot.data ?? const <String, dynamic>{};
+              final noPushCount = (data['without_push'] as num?)?.toInt() ?? 0;
+              final noPushWithTrips =
+                  (data['without_push_with_trips'] as num?)?.toInt() ?? 0;
+              String metric(String key) => data[key]?.toString() ?? '…';
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(spacing: 10, runSpacing: 10, children: [
+                    _sectionMetric('Total Clientes', metric('total'), Icons.people_outline_rounded),
+                    _sectionMetric('Pendientes', metric('pending'), Icons.schedule_rounded, color: const Color(0xFFD97706)),
+                    _sectionMetric('Con Viajes', metric('with_trips'), Icons.location_on_outlined, color: const Color(0xFF15803D)),
+                    _sectionMetric('Nuevos (30 días)', metric('new_30_days'), Icons.star_border_rounded),
+                  ]),
+                  const SizedBox(height: 12),
+                  if (noPushCount > 0)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.notifications_off_outlined, color: Color(0xFFB45309)),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text('$noPushCount clientes no pueden recibir notificaciones. $noPushWithTrips ya realizaron viajes.', style: const TextStyle(fontSize: 12, color: adminDark))),
+                          TextButton(onPressed: () { userStatus = 'push_disabled'; setState(() => revision++); }, child: const Text('Ver lista')),
+                        ],
+                      ),
+                    ),
+                  if (adminAccess['role'] == 'super_admin')
+                    const Card(
+                      margin: EdgeInsets.only(top: 10),
+                      child: ExpansionTile(
+                        leading: Icon(Icons.verified_user_outlined),
+                        title: Text('Configuración de verificación'),
+                        children: [Padding(padding: EdgeInsets.fromLTRB(12, 0, 12, 12), child: AdminPassengerVerificationSettings())],
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      );
+
+  Widget _driverTableHeader() => LayoutBuilder(
+        builder: (context, constraints) => constraints.maxWidth < 760
+            ? const SizedBox.shrink()
+            : _tableHeader([
+                (240.0, 'Conductor'),
+                (0.0, 'Vehículo'),
+                (120.0, 'Ubicación'),
+                (150.0, 'Estado'),
+                (42.0, 'Acciones'),
+              ]),
+      );
+
+  Widget _tableHeader(List<(double, String)> columns) => Container(
+        margin: const EdgeInsets.only(top: 12, bottom: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          border: Border.all(color: const Color(0xFFE7ECF3)),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(children: [
+          for (var i = 0; i < columns.length; i++)
+            columns[i].$1 == 0
+                ? Expanded(child: Text(columns[i].$2, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: adminMuted)))
+                : SizedBox(width: columns[i].$1, child: Text(columns[i].$2, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: adminMuted))),
+        ]),
+      );
+
+  Widget _customerTableHeader() => LayoutBuilder(
+        builder: (context, constraints) => constraints.maxWidth < 1100
+            ? const SizedBox.shrink()
+            : _tableHeader([
+                (250.0, 'Cliente'),
+                (120.0, 'Teléfono'),
+                (75.0, 'Viajes'),
+                (80.0, 'Rating'),
+                (110.0, 'Saldo'),
+                (85.0, 'Push'),
+                (115.0, 'Cuenta'),
+                (110.0, 'Registro'),
+                (42.0, 'Acciones'),
+              ]),
+      );
+
+  Widget _customerRow(Map<String, dynamic> row) {
+    final userId = row['user_id']?.toString() ?? '';
+    final name = row['full_name']?.toString().trim();
+    final displayName = name == null || name.isEmpty
+        ? row['email']?.toString() ?? 'Cliente'
+        : name;
+    final currency = row['currency_code']?.toString() ?? '';
+    final balance = '$currency ${row['balance'] ?? 0}'.trim();
+    final status = friendlyStatus((row['account_status'] ?? 'active').toString());
+    final actions = _readOnly
+        ? const SizedBox.shrink()
+        : PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'edit') {
+                final changed = await showAdminUserEditor(
+                  context,
+                  userId,
+                  channel: _sectionChannel(5),
+                );
+                if (changed && mounted) _refresh();
+                return;
+              }
+              await _accountStatus(userId, value);
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('Ver / editar perfil')),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'active', child: Text('Activar')),
+              PopupMenuItem(value: 'suspended', child: Text('Suspender')),
+              PopupMenuItem(value: 'blocked', child: Text('Bloquear')),
+            ],
+          );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 7),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE7ECF3)),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: LayoutBuilder(builder: (context, constraints) {
+        if (constraints.maxWidth < 1100) {
+          return ListTile(
+            dense: true,
+            isThreeLine: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            leading: const CircleAvatar(
+              radius: 18,
+              backgroundColor: Color(0xFFEAF2FF),
+              child: Icon(Icons.person_rounded, size: 18, color: adminBlue),
+            ),
+            title: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(
+              '${row['phone'] ?? 'Sin teléfono'} · ${row['completed_trips'] ?? 0} viajes · ★ ${row['rating'] ?? '0'} · $balance\n${row['email'] ?? ''} · ${_sectionChannel(5) == 'preview' ? 'Prueba' : 'Producción'} · Push ${row['push_active'] == true ? 'activo' : 'inactivo'}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: actions,
+          );
+        }
+
+        Widget cell(String text, double width, {bool bold = false}) => SizedBox(
+              width: width,
+              child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10, fontWeight: bold ? FontWeight.w800 : FontWeight.w500, color: adminDark)),
+            );
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          child: Row(children: [
+            SizedBox(width: 250, child: Row(children: [
+              const CircleAvatar(radius: 16, backgroundColor: Color(0xFFEAF2FF), child: Icon(Icons.person_rounded, size: 16, color: adminBlue)),
+              const SizedBox(width: 9),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                Text(row['email']?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, color: adminMuted)),
+              ])),
+            ])),
+            cell(row['phone']?.toString() ?? '—', 120),
+            cell(row['completed_trips']?.toString() ?? '0', 75),
+            cell('★ ${row['rating'] ?? 0} (${row['rating_count'] ?? 0})', 80),
+            cell(balance, 110),
+            cell(row['push_active'] == true ? 'Activo' : 'Inactivo', 85),
+            cell('$status · ${_sectionChannel(5) == 'preview' ? 'Prueba' : 'Producción'}', 115),
+            cell(_formatDate(row['created_at']), 110),
+            SizedBox(width: 42, child: actions),
+          ]),
+        );
+      }),
+    );
+  }
+
   Widget _userList() {
     // Los usuarios se piden al servidor de a 50, del más reciente al más
     // antiguo; no se descarga la lista completa.
@@ -2905,132 +3270,20 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
       builder: (context) {
         return Column(
           children: [
-            if (!_readOnly && adminAccess['role'] == 'super_admin')
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                  child: FilledButton.icon(
-                    onPressed: _createAppUser,
-                    icon: const Icon(Icons.person_add_alt_1),
-                    label: const Text('Crear cuenta'),
-                  ),
-                ),
-              ),
-            if (adminAccess['role'] == 'super_admin')
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: AdminPassengerVerificationSettings(),
-              ),
             Expanded(
               child: _Records(
-                title: 'Usuarios',
-                subtitle:
-                    'Pasajeros, conductores y control del estado de las cuentas.',
-                empty: 'Todavía no hay usuarios registrados.',
+                title: 'Clientes',
+                subtitle: 'Clientes de Express Delivery.',
+                pageHeader: _customerPageHeader(),
+                listHeader: _customerTableHeader(),
+                empty: 'Todavía no hay clientes registrados.',
                 rows: const [],
                 pageLoader: _usersPage,
                 countLoader: _usersCount,
-                serverFilters: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _userGeoFilters(),
-                    const SizedBox(height: 8),
-                    _userStatusFilter(),
-                  ],
-                ),
-                showQaFilter: true,
+                serverFilters: _userStatusFilter(),
+                showQaFilter: false,
                 onExport: _exportUsers,
-                item: (row) => Container(
-                  margin: const EdgeInsets.only(bottom: 7),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: const Color(0xFFE7ECF3)),
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 4,
-                      ),
-                      leading: CircleAvatar(
-                        radius: 18,
-                        backgroundColor: const Color(0xFFEAF2FF),
-                        child: Icon(
-                          row['active_mode'] == 'driver'
-                              ? Icons.drive_eta_rounded
-                              : Icons.person_rounded,
-                          size: 18,
-                          color: adminBlue,
-                        ),
-                      ),
-                      title: Text(
-                        row['full_name']?.toString().trim().isNotEmpty == true
-                            ? row['full_name'].toString()
-                            : row['email']?.toString() ?? 'Usuario',
-                      ),
-                      subtitle: Text(
-                        (row['email'] ?? '').toString() +
-                            ' · ' +
-                            friendlyStatus(
-                              (row['active_mode'] ?? 'passenger').toString(),
-                            ) +
-                            ' · ' +
-                            friendlyStatus(
-                              (row['account_status'] ?? 'active').toString(),
-                            ),
-                      ),
-                      trailing: _readOnly
-                          ? null
-                          : PopupMenuButton<String>(
-                              onSelected: (value) async {
-                                if (value == 'edit') {
-                                  final changed = await showAdminUserEditor(
-                                    context,
-                                    row['user_id'].toString(),
-                                    channel: _sectionChannel(5),
-                                  );
-                                  if (changed && mounted) _refresh();
-                                  return;
-                                }
-                                await _accountStatus(
-                                  row['user_id'].toString(),
-                                  value,
-                                );
-                              },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(
-                                  value: 'edit',
-                                  child: ListTile(
-                                    dense: true,
-                                    contentPadding: EdgeInsets.zero,
-                                    leading: Icon(
-                                      Icons.manage_accounts_outlined,
-                                    ),
-                                    title: Text('Ver / editar perfil'),
-                                  ),
-                                ),
-                                PopupMenuDivider(),
-                                PopupMenuItem(
-                                  value: 'active',
-                                  child: Text('Activar'),
-                                ),
-                                PopupMenuItem(
-                                  value: 'suspended',
-                                  child: Text('Suspender'),
-                                ),
-                                PopupMenuItem(
-                                  value: 'blocked',
-                                  child: Text('Bloquear'),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                ),
+                item: _customerRow,
               ),
             ),
           ],
@@ -3039,14 +3292,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     );
   }
 
-  Future<void> _createAppUser() async {
+  Future<void> _createAppUser({String initialType = 'passenger'}) async {
     if (!_scopeReady || adminZoneId == null || adminZoneId!.isEmpty) {
       _showSnack('Elige una zona activa antes de crear la cuenta.');
       return;
     }
     final email = TextEditingController();
     final fullName = TextEditingController();
-    var accountType = 'passenger';
+    var accountType = initialType;
     final create = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -3945,7 +4198,7 @@ class _Navigation extends StatelessWidget {
             ('MÓDULOS', [23, 25, 29, 35, 36, 37]),
             ('FINANZAS', [9, 38, 8, 22, 33]),
             ('ANÁLISIS', [10, 14]),
-            ('COMUNICACIÓN', [15]),
+            ('COMUNICACIÓN', [41, 15]),
             ('CONFIGURACIÓN', [16, 7, 11, 19, 12, 28, 32]),
             ('CUENTAS DE PRUEBA', [20]),
             ('HERRAMIENTAS QA', [21]),
@@ -7189,6 +7442,8 @@ class _Records extends StatefulWidget {
   final Widget Function(Map<String, dynamic>) item;
   final bool showQaFilter;
   final Widget? serverFilters;
+  final Widget? pageHeader;
+  final Widget? listHeader;
 
   /// Exportación del botón «Exportar». Si es null, el botón avisa que aún no
   /// está disponible en esa lista.
@@ -7214,6 +7469,8 @@ class _Records extends StatefulWidget {
     required this.item,
     this.showQaFilter = false,
     this.serverFilters,
+    this.pageHeader,
+    this.listHeader,
     this.onExport,
     this.pageLoader,
     this.countLoader,
@@ -7362,7 +7619,7 @@ class _RecordsState extends State<_Records> {
       child: ListView(
       padding: const EdgeInsets.all(22),
       children: [
-        _Header(title: widget.title, subtitle: widget.subtitle),
+        widget.pageHeader ?? _Header(title: widget.title, subtitle: widget.subtitle),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(10),
@@ -7479,6 +7736,7 @@ class _RecordsState extends State<_Records> {
           ),
         ),
         const SizedBox(height: 12),
+        if (widget.listHeader != null) widget.listHeader!,
         if (visible.isEmpty && _serverMode && _serverLoading)
           const Padding(
             padding: EdgeInsets.all(28),

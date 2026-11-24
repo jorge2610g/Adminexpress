@@ -1,3 +1,10 @@
+## 2026-11-24 · Presentación de Clientes, Conductores y Soporte
+
+- Conductores y Clientes reciben encabezados y métricas propias, filtros de estado y listados tabulares adaptables al ancho. Clientes muestra viajes completados, rating, saldo, estado de push y cuenta; las consultas se limitan al canal y zona elegidos.
+- Soporte ahora tiene entrada lateral independiente, bandeja de conversaciones y filtro Todos / Clientes / Conductores. Notificaciones push, Avisos y En directo permanecen juntos en su sección.
+- Nueva migración de solo lectura en Expressdelivery `20261124155000_admin_customer_list_dashboard.sql`; **pendiente de aplicar**. La interfaz requiere esos RPC para los resúmenes y la lista de clientes.
+- **Estado:** cambios locales en rama de trabajo. No desplegado, sin cambios remotos en Supabase y sin prueba Flutter/visual en navegador.
+
 ## 2026-11-24 · Beneficios Express — trabajo preparado
 
 - La pantalla de Beneficios Express se ajustó a las referencias de Retos, Cupones/Reglas, Fidelidad, Referidos y Grupos MLM. Delivery tiene su propio público y mínimo de pedido; los cupones permiten financiar el descuento desde Empresa, Conductor o ambos al 50 %.

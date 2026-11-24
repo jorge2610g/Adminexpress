@@ -100,6 +100,7 @@ class AdminSupportTicketsTab extends StatefulWidget {
 class _AdminSupportTicketsTabState extends State<AdminSupportTicketsTab> {
   int revision = 0;
   String status = 'open';
+  String roleFilter = 'all';
   String? selectedTicketId;
   bool busy = false;
   final reply = TextEditingController();
@@ -264,7 +265,11 @@ class _AdminSupportTicketsTabState extends State<AdminSupportTicketsTab> {
           );
         }
         final data = snapshot.data ?? const <String, dynamic>{};
-        final tickets = _rows(data['tickets']);
+        final allTickets = _rows(data['tickets']);
+        final tickets = allTickets.where((ticket) {
+          if (roleFilter == 'all') return true;
+          return ticket['role']?.toString() == roleFilter;
+        }).toList();
         final openCount = (data['open_count'] as num?)?.toInt() ?? 0;
         final closedCount = (data['closed_count'] as num?)?.toInt() ?? 0;
         final current = tickets.isEmpty
@@ -274,27 +279,42 @@ class _AdminSupportTicketsTabState extends State<AdminSupportTicketsTab> {
                 orElse: () => tickets.first,
               );
 
-        final header = Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-          child: SegmentedButton<String>(
-            showSelectedIcon: false,
-            segments: [
-              ButtonSegment(
-                value: 'open',
-                label: Text('Abiertas ($openCount)'),
-                icon: const Icon(Icons.chat_bubble_outline_rounded),
-              ),
-              ButtonSegment(
-                value: 'closed',
-                label: Text('Cerradas ($closedCount)'),
-                icon: const Icon(Icons.inventory_2_outlined),
+        final header = Container(
+          width: double.infinity,
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Soporte', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
+              const SizedBox(height: 3),
+              const Text('Conversaciones de clientes y conductores', style: TextStyle(fontSize: 12, color: _muted)),
+              const SizedBox(height: 12),
+              Wrap(spacing: 8, runSpacing: 7, children: [
+                for (final option in const [('all', 'Todos'), ('passenger', 'Clientes'), ('driver', 'Conductores')])
+                  ChoiceChip(
+                    label: Text(option.$2),
+                    selected: roleFilter == option.$1,
+                    onSelected: (_) => setState(() {
+                      roleFilter = option.$1;
+                      selectedTicketId = null;
+                    }),
+                  ),
+              ]),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                showSelectedIcon: false,
+                segments: [
+                  ButtonSegment(value: 'open', label: Text('Abiertas ($openCount)'), icon: const Icon(Icons.chat_bubble_outline_rounded)),
+                  ButtonSegment(value: 'closed', label: Text('Cerradas ($closedCount)'), icon: const Icon(Icons.inventory_2_outlined)),
+                ],
+                selected: {status},
+                onSelectionChanged: (value) => setState(() {
+                  status = value.first;
+                  selectedTicketId = null;
+                }),
               ),
             ],
-            selected: {status},
-            onSelectionChanged: (value) => setState(() {
-              status = value.first;
-              selectedTicketId = null;
-            }),
           ),
         );
 
