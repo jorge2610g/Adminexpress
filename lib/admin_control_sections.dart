@@ -26,6 +26,7 @@ import 'admin_zone_cancellation_fees.dart';
 import 'admin_driver_quick_offers.dart';
 import 'admin_zone_coverage_editor.dart';
 import 'admin_notification_schedules.dart';
+import 'admin_comm_support_avisos.dart';
 import 'core/admin_zone_coverage_label.dart';
 import 'core/admin_zone_passenger_services.dart';
 
@@ -6871,13 +6872,9 @@ class AdminCommunicationsPage extends StatefulWidget {
 class _AdminCommunicationsPageState
     extends State<AdminCommunicationsPage> {
   int revision = 0;
-  String? selectedUserId;
-  String? selectedUserName;
-  final replyController = TextEditingController();
   final announcementTitle = TextEditingController();
   final announcementBody = TextEditingController();
   String audience = 'drivers';
-  bool sendingReply = false;
   bool sendingAnnouncement = false;
   bool loadingCampaignTargets = true;
   List<Map<String, dynamic>> campaignZones = const [];
@@ -6944,58 +6941,9 @@ class _AdminCommunicationsPageState
 
   @override
   void dispose() {
-    replyController.dispose();
     announcementTitle.dispose();
     announcementBody.dispose();
     super.dispose();
-  }
-
-  Future<List<Map<String, dynamic>>> _threads() async {
-    final zoneId = widget.zoneId;
-    if (zoneId == null || zoneId.isEmpty) return const [];
-    final value = await supabase.rpc(
-      'admin_support_threads_scoped',
-      params: {
-        'p_channel': widget.channel,
-        'p_zone_id': zoneId,
-      },
-    );
-    return _list(value);
-  }
-
-  Future<List<Map<String, dynamic>>> _messages(String userId) async {
-    final value = await supabase.rpc(
-      'admin_support_messages_v2',
-      params: {
-        'p_channel': widget.channel,
-        'p_user_id': userId,
-      },
-    );
-    return _list(value);
-  }
-
-  Future<void> _reply() async {
-    final userId = selectedUserId;
-    final text = replyController.text.trim();
-    if (userId == null || text.isEmpty || sendingReply) return;
-
-    setState(() => sendingReply = true);
-    try {
-      await supabase.rpc(
-        'admin_support_reply_v2',
-        params: {
-          'p_channel': widget.channel,
-          'p_user_id': userId,
-          'p_body': text,
-        },
-      );
-      replyController.clear();
-      if (mounted) setState(() => revision++);
-    } catch (e) {
-      if (mounted) _snack(context, e);
-    } finally {
-      if (mounted) setState(() => sendingReply = false);
-    }
   }
 
   Future<Map<String, dynamic>> _estimateAnnouncementAudience() async {
@@ -7068,8 +7016,8 @@ class _AdminCommunicationsPageState
       builder: (dialogContext) => AlertDialog(
         title: Text(
           widget.channel == 'preview'
-              ? 'Enviar aviso · Prueba'
-              : 'Enviar aviso · Producción',
+              ? 'Enviar push · Prueba'
+              : 'Enviar push · Producción',
         ),
         content: Text(
           'Se enviará “' +
@@ -7102,9 +7050,10 @@ class _AdminCommunicationsPageState
     setState(() => sendingAnnouncement = true);
     try {
       final result = await supabase.rpc(
-        'admin_send_announcement_v4',
+        AdminCommRpc.sendPush,
         params: {
           'p_channel': widget.channel,
+          'p_mode': 'push_only',
           'p_title': title,
           'p_body': body,
           'p_audience': audience,
@@ -7121,7 +7070,7 @@ class _AdminCommunicationsPageState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Aviso push enviado a ' +
+            'Notificación push enviada a ' +
                 recipients.toString() +
                 ' destinatarios.',
           ),
@@ -7132,288 +7081,6 @@ class _AdminCommunicationsPageState
     } finally {
       if (mounted) setState(() => sendingAnnouncement = false);
     }
-  }
-
-  Widget _supportTab() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      key: ValueKey('threads-' + revision.toString()),
-      future: _threads(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _Loading(title: 'Cargando soporte');
-        }
-        if (snapshot.hasError) {
-          return _Error(
-            error: snapshot.error,
-            onRetry: () => setState(() => revision++),
-          );
-        }
-
-        final threads = snapshot.data ?? const <Map<String, dynamic>>[];
-        if (threads.isEmpty) {
-          return const Center(
-            child: _Empty(
-              text: 'No hay conversaciones de soporte todavía.',
-            ),
-          );
-        }
-
-        final currentId = selectedUserId ??
-            threads.first['user_id']?.toString();
-        final current = threads.firstWhere(
-          (row) => row['user_id']?.toString() == currentId,
-          orElse: () => threads.first,
-        );
-        final effectiveId = current['user_id']?.toString();
-        if (selectedUserId == null && effectiveId != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && selectedUserId == null) {
-              setState(() {
-                selectedUserId = effectiveId;
-                selectedUserName =
-                    current['full_name']?.toString() ?? 'Usuario Express';
-              });
-            }
-          });
-        }
-
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 850;
-
-            final threadList = ListView(
-              padding: const EdgeInsets.all(12),
-              children: threads.map((row) {
-                final userId = row['user_id']?.toString();
-                final selected = userId == currentId;
-                final unread =
-                    (row['unread_count'] as num?)?.toInt() ?? 0;
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 7),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? const Color(0xFFF4F8FF)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(11),
-                    border: Border.all(
-                      color: selected
-                          ? const Color(0xFFCFE0FF)
-                          : const Color(0xFFE7ECF3),
-                    ),
-                  ),
-                  child: Material(type: MaterialType.transparency, child: ListTile(
-                    dense: true,
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.person_outline_rounded),
-                    ),
-                    title: Text(
-                      row['full_name']?.toString() ?? 'Usuario Express',
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    subtitle: Text(
-                      row['last_message']?.toString() ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: unread > 0
-                        ? CircleAvatar(
-                            radius: 12,
-                            backgroundColor: _blue,
-                            child: Text(
-                              unread.toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          )
-                        : null,
-                    onTap: () => setState(() {
-                      selectedUserId = userId;
-                      selectedUserName =
-                          row['full_name']?.toString() ?? 'Usuario Express';
-                      revision++;
-                    }),
-                  )),
-                );
-              }).toList(),
-            );
-
-            final chat = effectiveId == null
-                ? const Center(child: Text('Selecciona una conversación.'))
-                : FutureBuilder<List<Map<String, dynamic>>>(
-                    key: ValueKey(
-                      'messages-' +
-                          effectiveId +
-                          '-' +
-                          revision.toString(),
-                    ),
-                    future: _messages(effectiveId),
-                    builder: (context, messagesSnapshot) {
-                      if (messagesSnapshot.connectionState ==
-                              ConnectionState.waiting &&
-                          !messagesSnapshot.hasData) {
-                        return const _Loading(
-                          title: 'Cargando conversación',
-                        );
-                      }
-                      if (messagesSnapshot.hasError) {
-                        return _Error(
-                          error: messagesSnapshot.error,
-                          onRetry: () =>
-                              setState(() => revision++),
-                        );
-                      }
-                      final messages = messagesSnapshot.data ??
-                          const <Map<String, dynamic>>[];
-
-                      return Column(
-                        children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(14),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: Color(0xFFE7ECF3),
-                                ),
-                              ),
-                            ),
-                            child: Text(
-                              selectedUserName ??
-                                  current['full_name']?.toString() ??
-                                  'Usuario Express',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: messages.isEmpty
-                                ? const Center(
-                                    child: Text(
-                                      'Sin mensajes.',
-                                      style: TextStyle(color: _muted),
-                                    ),
-                                  )
-                                : ListView.builder(
-                                    padding: const EdgeInsets.all(16),
-                                    itemCount: messages.length,
-                                    itemBuilder: (context, index) {
-                                      final row = messages[index];
-                                      final admin =
-                                          row['sender_role'] == 'admin';
-                                      return Align(
-                                        alignment: admin
-                                            ? Alignment.centerRight
-                                            : Alignment.centerLeft,
-                                        child: Container(
-                                          constraints:
-                                              const BoxConstraints(
-                                            maxWidth: 430,
-                                          ),
-                                          margin: const EdgeInsets.only(
-                                            bottom: 8,
-                                          ),
-                                          padding:
-                                              const EdgeInsets.symmetric(
-                                            horizontal: 13,
-                                            vertical: 9,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: admin
-                                                ? const Color(0xFFEAF2FF)
-                                                : const Color(0xFFF2F4F7),
-                                            borderRadius:
-                                                BorderRadius.circular(14),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                row['body']?.toString() ??
-                                                    '',
-                                              ),
-                                              const SizedBox(height: 3),
-                                              Text(
-                                                _formatDate(
-                                                  row['created_at'],
-                                                ),
-                                                style: const TextStyle(
-                                                  color: _muted,
-                                                  fontSize: 9,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: replyController,
-                                    minLines: 1,
-                                    maxLines: 4,
-                                    decoration: const InputDecoration(
-                                      hintText:
-                                          'Responder desde soporte...',
-                                    ),
-                                    onSubmitted: (_) => _reply(),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                IconButton.filled(
-                                  onPressed:
-                                      sendingReply ? null : _reply,
-                                  icon: sendingReply
-                                      ? const SizedBox.square(
-                                          dimension: 18,
-                                          child:
-                                              CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Icon(Icons.send_rounded),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-
-            if (compact) {
-              return Column(
-                children: [
-                  SizedBox(height: 210, child: threadList),
-                  const Divider(height: 1),
-                  Expanded(child: chat),
-                ],
-              );
-            }
-
-            return Row(
-              children: [
-                SizedBox(width: 330, child: threadList),
-                const VerticalDivider(width: 1),
-                Expanded(child: chat),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 
   String? _campaignZoneName() {
@@ -7430,9 +7097,9 @@ class _AdminCommunicationsPageState
       padding: const EdgeInsets.all(22),
       children: [
         const _Header(
-          title: 'Enviar avisos',
+          title: 'Notificaciones push',
           subtitle:
-              'Estos son los únicos mensajes que aparecen en “Avisos” dentro de la app.',
+              'Solo notificación push: llega al teléfono, pero no queda guardada en “Avisos”. Para un comunicado que el usuario pueda abrir cuando quiera, usa la pestaña Avisos.',
         ),
         const SizedBox(height: 18),
         Container(
@@ -7597,7 +7264,7 @@ class _AdminCommunicationsPageState
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Este aviso se guarda en la bandeja de la app y también se despacha como notificación push.',
+                        'Solo se envía la notificación push. No aparece en el menú Avisos de la app.',
                         style: TextStyle(
                           color: _muted,
                           fontSize: 11,
@@ -7639,7 +7306,7 @@ class _AdminCommunicationsPageState
                         ),
                       )
                     : const Icon(Icons.campaign_rounded),
-                label: const Text('Enviar aviso'),
+                label: const Text('Enviar push'),
               ),
             ],
           ),
@@ -7788,23 +7455,8 @@ class _AdminCommunicationsPageState
 
   @override
   Widget build(BuildContext context) {
-    if (widget.operatorOnly) {
-      // Soporte usa RPC centrales; no mostrarlo hasta aislar su lectura/escritura.
-      return Column(children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(22, 20, 22, 14),
-          child: AdminHero(
-            icon: Icons.notifications_active_rounded,
-            title: 'Notificaciones de mi zona',
-            subtitle: 'Avisos dirigidos exclusivamente a los usuarios de la zona asignada.',
-          ),
-        ),
-        Expanded(child: _announcementsTab()),
-      ]);
-    }
-
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Column(
         children: [
           const Padding(
@@ -7812,7 +7464,8 @@ class _AdminCommunicationsPageState
             child: AdminHero(
               icon: Icons.notifications_active_rounded,
               title: 'Notificaciones / Avisos',
-              subtitle: 'Soporte a usuarios y avisos enviados a pasajeros y conductores.',
+              subtitle:
+                  'Soporte a usuarios, notificaciones push y avisos de la empresa.',
             ),
           ),
           const Material(
@@ -7824,6 +7477,10 @@ class _AdminCommunicationsPageState
                   text: 'Soporte',
                 ),
                 Tab(
+                  icon: Icon(Icons.notifications_active_outlined),
+                  text: 'Notificaciones push',
+                ),
+                Tab(
                   icon: Icon(Icons.campaign_outlined),
                   text: 'Avisos',
                 ),
@@ -7833,8 +7490,17 @@ class _AdminCommunicationsPageState
           Expanded(
             child: TabBarView(
               children: [
-                _supportTab(),
+                AdminSupportTicketsTab(
+                  channel: widget.channel,
+                  zoneId: widget.zoneId,
+                ),
                 _announcementsTab(),
+                AdminAvisosTab(
+                  channel: widget.channel,
+                  zoneId: widget.zoneId,
+                  zoneName: _campaignZoneName(),
+                  partners: widget.operatorOnly ? const [] : campaignPartners,
+                ),
               ],
             ),
           ),
