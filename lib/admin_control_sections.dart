@@ -7457,7 +7457,7 @@ class _AdminCommunicationsPageState
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 3,
       child: Column(
         children: [
           const Padding(
@@ -7466,17 +7466,13 @@ class _AdminCommunicationsPageState
               icon: Icons.notifications_active_rounded,
               title: 'Notificaciones / Avisos',
               subtitle:
-                  'Soporte a usuarios, notificaciones push y avisos de la empresa.',
+                  'Notificaciones push, avisos de la empresa y reuniones en directo.',
             ),
           ),
           const Material(
             color: Colors.white,
             child: TabBar(
               tabs: [
-                Tab(
-                  icon: Icon(Icons.support_agent_rounded),
-                  text: 'Soporte',
-                ),
                 Tab(
                   icon: Icon(Icons.notifications_active_outlined),
                   text: 'Notificaciones push',
@@ -7495,10 +7491,6 @@ class _AdminCommunicationsPageState
           Expanded(
             child: TabBarView(
               children: [
-                AdminSupportTicketsTab(
-                  channel: widget.channel,
-                  zoneId: widget.zoneId,
-                ),
                 _announcementsTab(),
                 AdminAvisosTab(
                   channel: widget.channel,

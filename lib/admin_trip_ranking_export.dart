@@ -346,8 +346,8 @@ String adminDriversFileName({String? status, required DateTime day}) {
   return 'conductores-$label-${day.year}-${two(day.month)}-${two(day.day)}.csv';
 }
 
-/// Nombre del archivo de usuarios, p. ej. `usuarios-2026-11-24.csv`.
+/// Nombre del archivo de clientes, p. ej. `clientes-2026-11-24.csv`.
 String adminUsersFileName({required DateTime day}) {
   String two(int n) => n.toString().padLeft(2, '0');
-  return 'usuarios-${day.year}-${two(day.month)}-${two(day.day)}.csv';
+  return 'clientes-${day.year}-${two(day.month)}-${two(day.day)}.csv';
 }
