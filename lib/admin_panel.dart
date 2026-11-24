@@ -849,32 +849,97 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     return (value as num?)?.toInt() ?? 0;
   }
 
-  /// Descarga el ranking de viajes completados de la zona activa: conductores
-  /// (`drivers: true`) o pasajeros. Usa todas las filas, no solo la página visible.
-  Future<void> _exportCompletedTripRanking({required bool drivers}) async {
+  /// Pide todas las páginas (500 por vez, hasta 20 000 filas) de una lista del servidor.
+  Future<List<Map<String, dynamic>>> _fetchAllPages(
+    String rpc,
+    Map<String, dynamic> params,
+  ) async {
+    const pageSize = 500;
+    const maxRows = 20000;
+    final rows = <Map<String, dynamic>>[];
+    for (var offset = 0; offset < maxRows; offset += pageSize) {
+      final value = await supabase.rpc(
+        rpc,
+        params: {...params, 'p_limit': pageSize, 'p_offset': offset},
+      );
+      final page = _list(value);
+      rows.addAll(page);
+      if (page.length < pageSize) break;
+    }
+    return rows;
+  }
+
+  /// Descarga TODOS los conductores de la zona activa con todos sus datos, sin importar el filtro de
+  /// estado de la pantalla (la columna «Aprobación» permite filtrar en la hoja de cálculo).
+  Future<void> _exportDrivers() async {
     final messenger = ScaffoldMessenger.of(context);
     if (!_scopeReady) return;
     try {
-      final value = await supabase.rpc(
-        'admin_completed_trip_ranking_v1',
-        params: {
-          'p_channel': _sectionChannel(drivers ? 4 : 5),
-          'p_zone_id': adminZoneId,
-          'p_role': drivers ? 'driver' : 'passenger',
-        },
-      );
-      final rows = _list(value);
+      final rows = await _fetchAllPages('admin_driver_export_v1', {
+        'p_channel': _sectionChannel(4),
+        'p_zone_id': adminZoneId,
+        'p_search': null,
+        'p_status': null,
+      });
       if (rows.isEmpty) {
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Todavía no hay viajes completados para exportar.'),
-          ),
+          const SnackBar(content: Text('No hay conductores para exportar.')),
         );
         return;
       }
       adminDownloadTextFile(
-        adminTripRankingFileName(drivers: drivers, day: DateTime.now()),
-        adminTripRankingCsv(rows),
+        adminDriversFileName(day: DateTime.now()),
+        adminDriversExportCsv(rows),
+      );
+      messenger.showSnackBar(
+        SnackBar(content: Text('Se exportaron ${rows.length} conductores.')),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo generar el archivo. Intenta de nuevo.'),
+        ),
+      );
+    }
+  }
+
+  /// Descarga TODOS los usuarios (pasajeros y conductores) de la zona activa, sin importar el filtro
+  /// de estado de la pantalla, con sus viajes completados como pasajero y como conductor.
+  Future<void> _exportUsers() async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (!_scopeReady) return;
+    try {
+      final channel = _sectionChannel(5);
+      final users = await _fetchAllPages('admin_user_list_v5', {
+        'p_channel': channel,
+        'p_zone_id': adminZoneId,
+        'p_search': null,
+        'p_status': null,
+      });
+      if (users.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('No hay usuarios para exportar.')),
+        );
+        return;
+      }
+      final passengerRows = _list(await supabase.rpc(
+        'admin_completed_trip_ranking_v1',
+        params: {'p_channel': channel, 'p_zone_id': adminZoneId, 'p_role': 'passenger'},
+      ));
+      final driverRows = _list(await supabase.rpc(
+        'admin_completed_trip_ranking_v1',
+        params: {'p_channel': channel, 'p_zone_id': adminZoneId, 'p_role': 'driver'},
+      ));
+      adminDownloadTextFile(
+        adminUsersFileName(day: DateTime.now()),
+        adminUsersExportCsv(
+          users,
+          passengerRanking: adminRankingById(passengerRows),
+          driverRanking: adminRankingById(driverRows),
+        ),
+      );
+      messenger.showSnackBar(
+        SnackBar(content: Text('Se exportaron ${users.length} usuarios.')),
       );
     } catch (_) {
       messenger.showSnackBar(
@@ -2624,7 +2689,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           pageLoader: _driversPage,
           countLoader: _driversCount,
           showQaFilter: false,
-          onExport: () => _exportCompletedTripRanking(drivers: true),
+          onExport: _exportDrivers,
           serverFilters: _driverStatusFilter(),
           item: (row) {
             final status = (row['approval_status'] ?? 'pending').toString();
@@ -2866,7 +2931,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                   ],
                 ),
                 showQaFilter: true,
-                onExport: () => _exportCompletedTripRanking(drivers: false),
+                onExport: _exportUsers,
                 item: (row) => Container(
                   margin: const EdgeInsets.only(bottom: 7),
                   decoration: BoxDecoration(

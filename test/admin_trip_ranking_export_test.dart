@@ -60,12 +60,14 @@ void main() {
         'ranking-usuarios-2026-11-05.csv');
   });
 
-  test('el botón Exportar de conductores y usuarios llama a la RPC del ranking', () {
+  test('el botón Exportar de conductores y usuarios exporta todos los datos', () {
     final source = File('lib/admin_panel.dart').readAsStringSync();
     expect(source, contains("'admin_completed_trip_ranking_v1'"));
-    expect(source, contains("onExport: () => _exportCompletedTripRanking(drivers: true)"));
-    expect(source, contains("onExport: () => _exportCompletedTripRanking(drivers: false)"));
-    expect(source, contains("'p_role': drivers ? 'driver' : 'passenger'"));
+    expect(source, contains("'admin_driver_export_v1'"));
+    expect(source, contains('onExport: _exportDrivers,'));
+    expect(source, contains('onExport: _exportUsers,'));
+    expect(source, contains("'p_role': 'passenger'"));
+    expect(source, contains("'p_role': 'driver'"));
   });
 
   test('la migración solo lee y no se expone a anónimos', () {
@@ -129,5 +131,132 @@ void main() {
     expect(source, contains("label: 'Completados'"));
     expect(source, contains("label: 'Cancelados'"));
     expect(source, contains("'admin_trip_list_v4'"));
+  });
+
+  group('exportación completa de conductores y usuarios', () {
+    final driver = <String, dynamic>{
+      'user_id': '8e6c652c-3fb3-4a24-9809-a2cc500bbe5a',
+      'full_name': 'Jorge Luis',
+      'email': 'jorge@correo.cl',
+      'phone': '+56982807639',
+      'phone_verified_at': '2026-10-01T12:00:00Z',
+      'account_status': 'active',
+      'approval_status': 'approved',
+      'online_status': 'offline',
+      'created_at': '2026-10-01T12:00:00Z',
+      'license_number': 'B-123',
+      'vehicle_type': 'moto',
+      'vehicle_brand': 'Honda',
+      'vehicle_model': 'CB',
+      'vehicle_color': 'Rojo',
+      'vehicle_plate': 'ABCD12',
+      'vehicle_year': 2022,
+      'vehicle_summary': 'Honda CB rojo',
+      'city': 'Iquique',
+      'zone_name': 'Iquique',
+      'country': 'Chile',
+      'currency_code': 'CLP',
+      'rating': 4.9,
+      'completed_trips': 19,
+      'cancelled_trips': 2,
+      'first_completed_at': '2026-10-05T10:00:00Z',
+      'last_completed_at': '2026-11-23T20:00:00Z',
+      'accepted_payment_methods': 'cash, qr',
+      'subscription_status': 'active',
+      'integrity_warnings': 1,
+      'integrity_suspensions': 0,
+      'user_id_dummy': null,
+    };
+
+    test('conductores: una columna por dato y una fila por conductor', () {
+      final csv = adminDriversExportCsv([driver, {'user_id': 'x', 'full_name': ''}]);
+      final lines = csv.trim().split('\r\n');
+      expect(csv.startsWith('\uFEFF'), isTrue);
+      expect(lines.length, 3);
+      for (final line in lines) {
+        expect(line.split(';').length, adminDriversExportHeaders.length);
+      }
+      expect(lines.first, contains('Placa'));
+      expect(lines.first, contains('Correo'));
+      expect(lines[1], contains('Jorge Luis;jorge@correo.cl; +56982807639;Sí;Activa;Aprobado;Desconectado'));
+      expect(lines[1], contains('ABCD12'));
+      expect(lines[1], contains('Honda'));
+      expect(lines[1], contains('4.9;19;2;'));
+      expect(lines[1], contains('Activa;'));
+      expect(lines[2], startsWith('Sin nombre;'));
+    });
+
+    test('las fechas salen como texto para que Excel no muestre ##########', () {
+      final text = adminCsvDateText('2026-11-23T20:00:00Z');
+      expect(text.endsWith(' '), isTrue);
+      expect(text.trim(), matches(RegExp(r'^\d{2}/\d{2}/\d{4} \d{2}:\d{2}$')));
+      expect(adminCsvDateText(null), '');
+      expect(adminCsvDateText('no es fecha'), '');
+    });
+
+    test('usuarios: viajes como pasajero y como conductor desde los rankings', () {
+      final users = <Map<String, dynamic>>[
+        {
+          'user_id': 'u1',
+          'full_name': 'Ana',
+          'email': 'ana@x.cl',
+          'phone': '+56911111111',
+          'active_mode': 'passenger',
+          'account_status': 'active',
+          'zone_name': 'Iquique',
+          'created_at': '2026-11-01T10:00:00Z',
+        },
+        {'user_id': 'u2', 'full_name': 'Luis', 'driver_status': 'approved'},
+      ];
+      final csv = adminUsersExportCsv(
+        users,
+        passengerRanking: adminRankingById([
+          {'user_id': 'u1', 'completed_trips': 7, 'first_completed_at': '2026-11-02T10:00:00Z', 'last_completed_at': '2026-11-20T10:00:00Z'},
+        ]),
+        driverRanking: adminRankingById([
+          {'user_id': 'u2', 'completed_trips': 12},
+        ]),
+      );
+      final lines = csv.trim().split('\r\n');
+      expect(lines.length, 3);
+      for (final line in lines) {
+        expect(line.split(';').length, adminUsersExportHeaders.length);
+      }
+      expect(lines[1], contains('Ana;ana@x.cl; +56911111111;Pasajero;Activa'));
+      expect(lines[1], contains(';7;'));
+      expect(lines[2], contains('Luis;'));
+      expect(lines[2], contains('Aprobado'));
+      expect(lines[2], contains(';0;;;12;u2'));
+    });
+
+    test('un nombre que parece fórmula se neutraliza', () {
+      final csv = adminDriversExportCsv([{'user_id': 'x', 'full_name': '=HYPERLINK("x")'}]);
+      expect(csv.split('\r\n')[1], startsWith("\"'=HYPERLINK(\"\"x\"\")\""));
+    });
+
+    test('nombres de archivo', () {
+      final day = DateTime(2026, 11, 24);
+      expect(adminDriversFileName(day: day), 'conductores-todos-2026-11-24.csv');
+      expect(adminDriversFileName(status: 'approved', day: day), 'conductores-aprobados-2026-11-24.csv');
+      expect(adminUsersFileName(day: day), 'usuarios-2026-11-24.csv');
+    });
+
+    test('un teléfono válido conserva el + como texto y otros valores se neutralizan', () {
+      final csv = adminDriversExportCsv([
+        {'user_id': 'x', 'full_name': 'A', 'phone': '+56 9 8280 7639'},
+        {'user_id': 'y', 'full_name': 'B', 'phone': '=1+1'},
+      ]);
+      final lines = csv.split('\r\n');
+      expect(lines[1], contains('; +56 9 8280 7639;'));
+      expect(lines[2], contains(";'=1+1;"));
+    });
+
+    test('el panel exporta todo, no solo la página ni el filtro', () {
+      final source = File('lib/admin_panel.dart').readAsStringSync();
+      expect(source, contains("'admin_driver_export_v1'"));
+      expect(source, contains('onExport: _exportDrivers,'));
+      expect(source, contains('onExport: _exportUsers,'));
+      expect(source, contains("'admin_completed_trip_ranking_v1'"));
+    });
   });
 }
