@@ -3,10 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'core/admin_friendly_error.dart';
-import 'core/admin_dropdown_field.dart';
 
 import 'core/supabase_client.dart';
-import 'admin_image_upload_field.dart';
+import 'admin_restaurant_editor.dart';
 import 'admin_marketplace_demos.dart';
 import 'admin_restaurant_panel_access.dart';
 import 'admin_marketplace_requirements.dart';
@@ -1138,224 +1137,23 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
     }
   }
 
+  /// Editor completo del restaurante (datos, fotos, ubicación, horarios, accesos y tarifas).
   Future<void> _editMerchant(
     Map<String, dynamic>? row,
     List<Map<String, dynamic>> categories,
   ) async {
     final zones = await _zones();
     if (!mounted) return;
-
-    String? zoneId = row?['zone_id']?.toString() ?? widget.zoneId;
-    String categoryKey = row?['category_key']?.toString() ??
-        (categories.isEmpty
-            ? ''
-            : categories.first['category_key']?.toString() ?? '');
-    final name = TextEditingController(text: row?['name']?.toString() ?? '');
-    final description = TextEditingController(
-      text: row?['description']?.toString() ?? '',
-    );
-    final image = TextEditingController(
-      text: row?['image_url']?.toString() ?? '',
-    );
-    final rating = TextEditingController(
-      text: row?['rating']?.toString() ?? '5',
-    );
-    final etaMin = TextEditingController(
-      text: row?['eta_min_minutes']?.toString() ?? '15',
-    );
-    final etaMax = TextEditingController(
-      text: row?['eta_max_minutes']?.toString() ?? '40',
-    );
-    final fee = TextEditingController(
-      text: row?['delivery_fee']?.toString() ?? '0',
-    );
-    final order = TextEditingController(
-      text: row?['sort_order']?.toString() ?? '100',
-    );
-    bool active = row?['active'] != false;
-    bool visible = row == null ? true : row['production_visible'] == true;
-
-    final save = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setLocal) => AlertDialog(
-          title: Text(row == null ? 'Nuevo comercio' : 'Editar comercio'),
-          content: SizedBox(
-            width: 600,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  AdminDropdownField<String?>(
-                    value: zoneId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Zona'),
-                    items: [
-                      ...zones.map(
-                        (z) => DropdownMenuItem<String?>(
-                          value: z['id']?.toString(),
-                          child: Text(
-                            (z['name'] ?? 'Zona').toString() +
-                                ' · ' +
-                                (z['city'] ?? '').toString(),
-                          ),
-                        ),
-                      ),
-                    ],
-                    onChanged: (value) => setLocal(() => zoneId = value),
-                  ),
-                  const SizedBox(height: 10),
-                  AdminDropdownField<String>(
-                    value: categoryKey.isEmpty ? null : categoryKey,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Categoría'),
-                    items: categories
-                        .map(
-                          (c) => DropdownMenuItem<String>(
-                            value: c['category_key']?.toString(),
-                            child: Text(c['name']?.toString() ?? 'Categoría'),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) =>
-                        setLocal(() => categoryKey = value ?? ''),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: name,
-                    decoration: const InputDecoration(labelText: 'Nombre'),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: description,
-                    decoration: const InputDecoration(labelText: 'Descripción'),
-                  ),
-                  const SizedBox(height: 10),
-                  AdminImageUploadField(
-                    controller: image,
-                    label: 'Imagen del comercio',
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: rating,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Calificación',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: fee,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Costo envío',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: etaMin,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'ETA mínimo',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: etaMax,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'ETA máximo',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: order,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: 'Orden'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: active,
-                    onChanged: (value) => setLocal(() => active = value),
-                    title: const Text('Comercio activo'),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: visible,
-                    onChanged: (value) => setLocal(() => visible = value),
-                    title: const Text('Disponible para los usuarios'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Guardar'),
-            ),
-          ],
-        ),
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => AdminRestaurantEditorPage(
+        merchant: row,
+        categories: categories,
+        zones: zones,
+        defaultZoneId: widget.zoneId,
+        onEditServices: _editCourier,
       ),
-    );
-
-    if (save == true) {
-      try {
-        await supabase.rpc(
-          'admin_marketplace_upsert_merchant',
-          params: {
-            'p_id': row?['id'],
-            'p_zone_id': zoneId,
-            'p_category_key': categoryKey,
-            'p_name': name.text.trim(),
-            'p_description': description.text.trim(),
-            'p_image_url': image.text.trim(),
-            'p_active': active,
-            'p_preview_visible': visible,
-            'p_production_visible': visible,
-            'p_rating': double.tryParse(rating.text.trim()) ?? 5,
-            'p_eta_min_minutes': int.tryParse(etaMin.text.trim()) ?? 15,
-            'p_eta_max_minutes': int.tryParse(etaMax.text.trim()) ?? 40,
-            'p_delivery_fee': double.tryParse(fee.text.trim()) ?? 0,
-            'p_sort_order': int.tryParse(order.text.trim()) ?? 100,
-          },
-        );
-        _refresh();
-        _snack('Comercio guardado.');
-      } catch (e) {
-        _snack(e);
-      }
-    }
-
-    name.dispose();
-    description.dispose();
-    image.dispose();
-    rating.dispose();
-    etaMin.dispose();
-    etaMax.dispose();
-    fee.dispose();
-    order.dispose();
+    ));
+    if (mounted) _refresh();
   }
 
   Future<void> _openProducts(Map<String, dynamic> merchant) =>
@@ -1704,7 +1502,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                                 itemBuilder: (_) => [
                                   const PopupMenuItem(
                                     value: 'edit',
-                                    child: Text('Datos y visibilidad en la app'),
+                                    child: Text('Editar restaurante (todos los datos)'),
                                   ),
                                   const PopupMenuItem(
                                     value: 'courier',
