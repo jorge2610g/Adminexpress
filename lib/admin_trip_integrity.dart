@@ -288,10 +288,15 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
   Future<void> _review(Map<String, dynamic> flag, String decision) async {
     final controller = TextEditingController();
     final confirm = decision == 'confirmed';
+    final undo = !confirm && flag['review_status'] == 'confirmed';
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(confirm ? 'Confirmar irregularidad' : 'Descartar aviso'),
+        title: Text(confirm
+            ? 'Confirmar irregularidad'
+            : undo
+                ? 'Corregir: el viaje sí fue normal'
+                : 'Descartar aviso'),
         content: SizedBox(
           width: 420,
           child: Column(
@@ -300,7 +305,9 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
             children: [
               Text(confirm
                   ? 'El viaje queda confirmado como irregular y no suma al campeonato.'
-                  : 'El viaje queda como normal y vuelve a sumar al campeonato.'),
+                  : undo
+                      ? 'Se deshace la confirmación: el viaje queda como normal, vuelve a sumar al campeonato y se revierte el aviso o la sanción que generó (si se suspendió al conductor, se levanta y se le avisa).'
+                      : 'El viaje queda como normal y vuelve a sumar al campeonato.'),
               const SizedBox(height: 12),
               TextField(
                 controller: controller,
@@ -316,7 +323,7 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
               child: const Text('Cancelar')),
           FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text(confirm ? 'Confirmar' : 'Descartar')),
+              child: Text(confirm ? 'Confirmar' : undo ? 'Sí, descartar' : 'Descartar')),
         ],
       ),
     );
@@ -330,7 +337,11 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
       if (!mounted) return;
       setState(_reload);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(confirm ? 'Irregularidad confirmada.' : 'Aviso descartado.')));
+          content: Text(confirm
+              ? 'Irregularidad confirmada.'
+              : undo
+                  ? 'Confirmación deshecha: el viaje quedó como normal.'
+                  : 'Aviso descartado.')));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -374,23 +385,30 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
     );
   }
 
+  /// Redondea a 2 decimales y quita ceros sobrantes (3.1290999999 → 3.13).
+  static String _n(Object? v) {
+    final d = v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '');
+    if (d == null) return v?.toString() ?? '—';
+    return d.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
+  }
+
   Widget _metricLine(Map<String, dynamic> m) {
     final parts = <String>[];
     if (m['minutos_reales'] != null) {
-      parts.add('Duró ${m['minutos_reales']} min (estimado ${m['minutos_estimados'] ?? '—'} min)');
+      parts.add('Duró ${_n(m['minutos_reales'])} min (estimado ${m['minutos_estimados'] ?? '—'} min)');
     }
     if (m['km_recorridos'] != null && m['sin_recorrido'] != true) {
-      parts.add('Recorrió ${m['km_recorridos']} km (ruta ${m['km_ruta'] ?? '—'} km)');
+      parts.add('Recorrió ${_n(m['km_recorridos'])} km (ruta ${_n(m['km_ruta'])} km)');
     }
     if (m['metros_fin_vs_destino'] != null && m['sin_recorrido'] != true) {
       parts.add('Terminó a ${m['metros_fin_vs_destino']} m del destino');
     }
     if (m['velocidad_maxima_kmh'] != null && (m['velocidad_maxima_kmh'] as num) > 0) {
-      parts.add('Velocidad máx. ${m['velocidad_maxima_kmh']} km/h');
+      parts.add('Velocidad máx. ${_n(m['velocidad_maxima_kmh'])} km/h');
     }
     if (m['velocidad_implicita_kmh'] != null) {
-      parts.add('Velocidad implícita ${m['velocidad_implicita_kmh']} km/h '
-          '(${m['km_ruta'] ?? '—'} km en ${m['minutos_reales']} min)');
+      parts.add('Velocidad implícita ${_n(m['velocidad_implicita_kmh'])} km/h '
+          '(${_n(m['km_ruta'])} km en ${_n(m['minutos_reales'])} min)');
     }
     if (m['sin_recorrido'] == true) {
       parts.add('Sin recorrido GPS guardado');
@@ -552,6 +570,11 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
                   icon: const Icon(Icons.gpp_bad_outlined),
                   label: const Text('Confirmar irregularidad')),
             ],
+            if (widget.canEdit && f['review_status'] == 'confirmed')
+              OutlinedButton.icon(
+                  onPressed: () => _review(f, 'cleared'),
+                  icon: const Icon(Icons.undo),
+                  label: const Text('Descartar (fue un error)')),
           ]),
         ]),
       ),
