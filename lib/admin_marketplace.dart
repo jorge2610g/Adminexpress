@@ -1000,6 +1000,107 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
         .toList();
   }
 
+  /// «Solicitar repartidor»: qué ve el restaurante y cómo se calcula el delivery.
+  Future<void> _editCourier(Map<String, dynamic> row) async {
+    var mode = row['courier_mode']?.toString() ?? 'menu';
+    var pricing = row['courier_pricing']?.toString() ?? 'zone';
+    final fare = TextEditingController(
+        text: row['courier_flat_fare'] == null
+            ? ''
+            : (double.tryParse(row['courier_flat_fare'].toString()) ?? 0)
+                .toStringAsFixed(2)
+                .replaceFirst(RegExp(r'\.?0+$'), ''));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setLocal) => AlertDialog(
+          title: Text('Solicitar repartidor · ${row['name'] ?? 'Comercio'}'),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Qué ve el restaurante en su portal'),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: mode,
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'menu', child: Text('Solo pedidos con menú')),
+                      DropdownMenuItem(
+                          value: 'courier', child: Text('Solo solicitar repartidor')),
+                      DropdownMenuItem(
+                          value: 'both', child: Text('Ambos')),
+                    ],
+                    onChanged: (v) => setLocal(() => mode = v ?? 'menu'),
+                  ),
+                  if (mode == 'courier')
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text(
+                          'Con «Solo solicitar repartidor» el restaurante deja de aparecer en la app de los clientes y no usa menú ni comisión.',
+                          style: TextStyle(fontSize: 12)),
+                    ),
+                  const SizedBox(height: 16),
+                  const Text('Cómo se calcula el delivery'),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: pricing,
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'zone',
+                          child: Text('Tarifa de Express por distancia')),
+                      DropdownMenuItem(
+                          value: 'flat',
+                          child: Text('Tarifa fija de este restaurante')),
+                    ],
+                    onChanged: (v) => setLocal(() => pricing = v ?? 'zone'),
+                  ),
+                  if (pricing == 'flat') ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: fare,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                          labelText: 'Delivery fijo (en la moneda de la zona)',
+                          helperText: 'Se cobra igual para cualquier destino.'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar')),
+            FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Guardar')),
+          ],
+        ),
+      ),
+    );
+    final flat = double.tryParse(fare.text.trim().replaceAll(',', '.'));
+    fare.dispose();
+    if (ok != true || !mounted) return;
+    try {
+      await supabase.rpc('admin_marketplace_set_courier_settings', params: {
+        'p_merchant_id': row['id'],
+        'p_mode': mode,
+        'p_pricing': pricing,
+        'p_flat_fare': flat,
+      });
+      if (!mounted) return;
+      _snack('Configuración guardada.');
+      _refresh();
+    } catch (error) {
+      if (mounted) _snack('No se pudo guardar: ${friendlyError(error)}');
+    }
+  }
+
   Future<void> _editMerchant(
     Map<String, dynamic>? row,
     List<Map<String, dynamic>> categories,
@@ -1538,6 +1639,15 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                           chips: [
                             _tag('Activo', row['active'] == true),
                             _tag('Disponible', row['production_visible'] == true),
+                            _tag(
+                              switch (row['courier_mode']?.toString()) {
+                                'courier' => 'Solo repartidor',
+                                'both' => 'Menú + repartidor',
+                                _ => 'Solo menú',
+                              },
+                              row['courier_mode'] == 'courier' ||
+                                  row['courier_mode'] == 'both',
+                            ),
                           ],
                           onTap: () => _openProducts(row),
                           trailing: PopupMenuButton<String>(
@@ -1546,6 +1656,8 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                                 _editMerchant(row, categories);
                               } else if (value == 'support') {
                                 _openSupport(row);
+                              } else if (value == 'courier') {
+                                _editCourier(row);
                               } else {
                                 _openProducts(row);
                               }
@@ -1558,6 +1670,10 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                               PopupMenuItem(
                                 value: 'products',
                                 child: Text('Productos'),
+                              ),
+                              PopupMenuItem(
+                                value: 'courier',
+                                child: Text('Solicitar repartidor'),
                               ),
                               PopupMenuItem(
                                 value: 'support',
