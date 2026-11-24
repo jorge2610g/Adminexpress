@@ -45,15 +45,16 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   late Future<Map<String, dynamic>> _referralDashboardFuture;
   String _category = 'coupon';
   String _couponTab = 'coupons';
-  // Open the active business model first: driver referrals earn a percentage
-  // from each approved plan payment, not a trip-count reward.
-  String _referralTab = 'mlm';
+  // Start with program configuration, followed by referral history and MLM.
+  String _referralTab = 'program';
   String _discount = 'fixed';
   String _filter = 'all';
   String _referralFilter = 'all';
   String _referralTypeFilter = 'all';
   String _serviceMode = 'transport';
   String _serviceType = 'all';
+  String _discountAbsorber = 'company';
+  String _challengeRewardType = 'commission_free';
   String _audience = 'passengers';
   String _targetAudience = 'all';
   String _rewardDestination = 'wallet';
@@ -67,8 +68,11 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   bool _sameDayCredits = false;
   bool _lifetime = true;
   bool _exclusive = false;
+  bool _allChallengeZones = true;
   bool _enabled = false;
   bool _saving = false;
+  final Set<String> _compatibleChallengeIds = <String>{};
+  List<Map<String, dynamic>> _challengeRows = <Map<String, dynamic>>[];
   DateTime _startsAt = DateTime.now();
   DateTime? _endsAt;
 
@@ -94,7 +98,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   final _maxActivations = TextEditingController();
   final _rewardType = TextEditingController(text: 'fixed');
   final _referralMinimumTrips = TextEditingController();
-  final _compatibleChallenges = TextEditingController();
+  final _challengeFreeTrips = TextEditingController();
 
   String get _programType => switch (_category) {
         'coupon' => _couponTab == 'rules' ? 'activation' : 'coupon',
@@ -134,6 +138,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
 
   String? _editingId;
   String? _zoneLabel;
+  String get _currencyLabel => widget.countryCode == 'BO' ? 'BOB' : 'CLP';
 
   @override
   void initState() {
@@ -212,7 +217,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       _maxActivations,
       _rewardType,
       _referralMinimumTrips,
-      _compatibleChallenges,
+      _challengeFreeTrips,
     ]) {
       controller.dispose();
     }
@@ -258,6 +263,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
 
   void _clear() {
     _editingId = null;
+    _compatibleChallengeIds.clear();
     for (final controller in [
       _name,
       _description,
@@ -280,7 +286,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       _triggerValue,
       _maxActivations,
       _referralMinimumTrips,
-      _compatibleChallenges,
+      _challengeFreeTrips,
     ]) {
       controller.clear();
     }
@@ -288,9 +294,11 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     _discount = 'fixed';
     _serviceMode = 'transport';
     _serviceType = 'all';
+    _discountAbsorber = 'company';
+    _challengeRewardType = 'commission_free';
     _audience = 'passengers';
     _targetAudience = 'all';
-    _rewardDestination = 'coupon';
+    _rewardDestination = _programType == 'activation' ? 'wallet' : 'coupon';
     _referrerType = 'fixed';
     _referredType = 'fixed';
     _referrerDestination = 'wallet';
@@ -301,6 +309,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     _sameDayCredits = false;
     _lifetime = true;
     _exclusive = false;
+    _allChallengeZones = true;
     _enabled = false;
     _startsAt = DateTime.now();
     _endsAt = null;
@@ -318,7 +327,8 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     _maxDiscount.text = config['max_discount']?.toString() ?? '';
     _minFare.text = config['min_fare']?.toString() ?? '';
     _threshold.text = config['trip_threshold']?.toString() ?? '';
-    _leaderPercent.text = config['plan_payment_percent']?.toString() ?? '';
+    _leaderPercent.text = config['company_commission_percent']?.toString() ??
+        config['plan_payment_percent']?.toString() ?? '';
     _benefitMonths.text = config['benefit_months']?.toString() ?? '';
     _driverNoCommission.text = config['driver_no_commission_trips']?.toString() ?? '';
     _dailyDriverCap.text = config['max_credits_per_driver_day']?.toString() ?? '';
@@ -333,29 +343,45 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     _maxActivations.text = config['max_activations']?.toString() ?? '';
     _rewardType.text = config['reward_type']?.toString() ?? 'fixed';
     _referralMinimumTrips.text = config['min_paid_trips']?.toString() ?? '';
-    _compatibleChallenges.text = config['compatible_programs']?.toString() ?? '';
+    final compatible = config['compatible_programs'];
+    final compatibleValues = compatible is List
+        ? compatible.map((value) => value.toString()).toList()
+        : compatible == null
+            ? <String>[]
+            : compatible.toString().split(',').map((value) => value.trim()).toList();
+    _compatibleChallengeIds
+      ..clear()
+      ..addAll(compatibleValues.map((value) {
+        final match = _challengeRows.where((row) =>
+            row['id']?.toString() == value || row['name']?.toString() == value);
+        return match.isEmpty ? value : match.first['id'].toString();
+      }));
     _discount = config['discount_type']?.toString() ?? 'fixed';
     _serviceMode = config['service_mode']?.toString() ?? 'transport';
     _serviceType = config['service_type']?.toString() ?? 'all';
+    _discountAbsorber = config['discount_absorber']?.toString() ?? 'company';
+    _challengeFreeTrips.text = config['commission_free_trips']?.toString() ?? '';
+    _challengeRewardType = config['reward_type']?.toString() ??
+        (config.containsKey('commission_free_trips') ? 'commission_free' : 'wallet');
     _audience = _programType == 'driver_challenge'
         ? (const {'drivers', 'all'}.contains(config['audience']) ? config['audience'].toString() : 'drivers')
         : const {'coupon', 'activation', 'loyalty'}.contains(_programType)
             ? 'passengers'
             : config['audience']?.toString() ?? 'passengers';
     _targetAudience = config['target_audience']?.toString() ?? 'all';
-    _rewardDestination = _programType == 'activation' || _programType == 'loyalty'
-        ? 'coupon'
-        : config['reward_destination']?.toString() ?? 'wallet';
-    _referrerType = config['referrer_reward_type']?.toString() ?? 'fixed';
-    _referredType = config['referred_reward_type']?.toString() ?? 'fixed';
-    _referrerDestination = config['referrer_destination']?.toString() ?? 'wallet';
-    _referredDestination = config['referred_destination']?.toString() ?? 'wallet';
+    _rewardDestination = config['reward_destination']?.toString() ??
+        (_programType == 'activation' ? 'wallet' : 'coupon');
+    _referrerType = 'fixed';
+    _referredType = 'fixed';
+    _referrerDestination = 'wallet';
+    _referredDestination = 'wallet';
     _trigger = config['trigger_type']?.toString() ?? 'first_trip';
     _period = config['period']?.toString() ?? 'weekly';
     _firstRide = config['first_ride_only'] == true;
     _sameDayCredits = config['commission_start_same_day'] == true;
     _lifetime = config['lifetime'] != false;
     _exclusive = config['exclusive'] == true;
+    _allChallengeZones = config['zone_scope'] == 'all';
     _enabled = item['state'] == 'active';
     _startsAt = DateTime.tryParse(item['starts_at']?.toString() ?? '') ?? DateTime.now();
     _endsAt = DateTime.tryParse(item['ends_at']?.toString() ?? '');
@@ -363,20 +389,21 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
 
   Map<String, dynamic> _buildConfig() {
     final config = <String, dynamic>{
-      'service_mode': _programType == 'coupon' ? 'transport' : _serviceMode,
+      'service_mode': _serviceMode,
       'service_type': _serviceType,
       'audience': _programType == 'driver_challenge'
           ? (_audience == 'all' ? 'all' : 'drivers')
           : const {'coupon', 'activation', 'loyalty'}.contains(_programType)
-              ? 'passengers'
+              ? (_programType == 'coupon' && _serviceMode == 'delivery' ? 'clients' : 'passengers')
               : _audience,
       'target_audience': _targetAudience,
-      'discount_absorber': 'company',
-      'value': double.tryParse(_value.text.trim()),
-      'reward_type': _rewardType.text.trim(),
-      'reward_destination': _programType == 'activation' || _programType == 'loyalty'
-          ? 'coupon'
-          : _rewardDestination,
+      'discount_absorber': _discountAbsorber,
+      'value': _programType == 'driver_challenge' && _challengeRewardType == 'commission_free'
+          ? int.tryParse(_challengeFreeTrips.text.trim())?.toDouble()
+          : double.tryParse(_value.text.trim()),
+      'reward_type': _programType == 'driver_challenge' ? _challengeRewardType : _rewardType.text.trim(),
+      'commission_free_trips': int.tryParse(_challengeFreeTrips.text.trim()),
+      'reward_destination': _rewardDestination,
       'referrer_reward_type': _referrerType,
       'referred_reward_type': _referredType,
       'referrer_destination': _referrerDestination,
@@ -388,7 +415,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       'code': _code.text.trim().toUpperCase(),
       'max_discount': double.tryParse(_maxDiscount.text.trim()),
       'min_fare': double.tryParse(_minFare.text.trim()),
-      'first_ride_only': _firstRide,
+      'first_ride_only': _serviceMode == 'delivery' ? false : _firstRide,
       'max_total_uses': int.tryParse(_maxTotalUses.text.trim()),
       'uses_per_user': int.tryParse(_usesPerUser.text.trim()),
       'trip_threshold': int.tryParse(_threshold.text.trim()),
@@ -404,17 +431,14 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       'min_paid_trips': int.tryParse(_referralMinimumTrips.text.trim()),
       'max_referrals_per_user': int.tryParse(_maxReferrals.text.trim()),
       'plan_payment_percent': double.tryParse(_leaderPercent.text.trim()),
+      'commission_basis': 'company_trip',
+      'company_commission_percent': double.tryParse(_leaderPercent.text.trim()),
       'benefit_months': int.tryParse(_benefitMonths.text.trim()),
       'lifetime': _lifetime,
       'period': _period,
       'exclusive': _exclusive,
-      'compatible_programs': _compatibleChallenges.text
-          .split(',')
-          .map((value) => value.trim())
-          .where((value) => value.isNotEmpty)
-          .toList(),
-      // Passenger referrals are intentionally not configured as wallet cash.
-      'passenger_referral_reward': 'coupon',
+      'zone_scope': _programType == 'driver_challenge' && _allChallengeZones ? 'all' : 'selected',
+      'compatible_programs': _compatibleChallengeIds.toList(),
     }..removeWhere((key, value) => value == null || value == '');
     return config;
   }
@@ -422,7 +446,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   Future<void> _save([BuildContext? dialogContext]) async {
     final defaultProgramName = switch (_programType) {
       'referral' => 'Programa de referidos de conductores',
-      'referral_commission' => 'MLM de pagos de plan',
+      'referral_commission' => 'Grupos MLM — comisión por referidos',
       _ => '',
     };
     final programName = _name.text.trim().isNotEmpty
@@ -444,20 +468,28 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     }
     if (_programType == 'activation' &&
         (_trigger != 'first_trip' || _audience != 'passengers' ||
-            (double.tryParse(_value.text.trim()) ?? 0) <= 0)) {
+            (double.tryParse(_value.text.trim()) ?? 0) <= 0 ||
+            (_rewardType.text == 'coupon' && _rewardDestination != 'coupon'))) {
       _showMessage('La bienvenida requiere primer viaje, pasajeros y un cupón válido.');
       return;
     }
     if (_programType == 'referral_commission' &&
         (double.tryParse(_leaderPercent.text.trim()) ?? 0) <= 0) {
-      _showMessage('Indica el porcentaje del pago de plan.');
+      _showMessage('Indica el porcentaje de la comisión de Express.');
+      return;
+    }
+    if (_programType == 'referral' &&
+        ((double.tryParse(_referrerReward.text.trim()) ?? 0) <= 0 ||
+            (double.tryParse(_referredReward.text.trim()) ?? 0) <= 0 ||
+            (int.tryParse(_referralMinimumTrips.text.trim()) ?? -1) < 0)) {
+      _showMessage('Completa ambas recompensas y una cantidad válida de viajes mínimos.');
       return;
     }
 
     setState(() => _saving = true);
     try {
       final state = _enabled && const {
-        'coupon', 'activation', 'loyalty', 'driver_challenge', 'referral_commission'
+        'coupon', 'activation', 'loyalty', 'driver_challenge', 'referral', 'referral_commission'
       }.contains(_programType) ? 'active' : 'draft';
       await supabase.rpc(
         'admin_benefit_program_save',
@@ -482,7 +514,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       setState(_reload);
       _showMessage(
         _programType == 'referral_commission' && _enabled
-            ? 'MLM activo: se acreditará el porcentaje de cada pago de plan confirmado.'
+            ? 'Configuración MLM guardada.'
             : state == 'active'
                 ? 'Campaña activa. Los beneficios se liquidan al completar un viaje pagado.'
                 : 'Guardado como borrador. No aplica descuentos ni premios todavía.',
@@ -547,7 +579,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
                     ..._editorFields(),
                     const SizedBox(height: 8),
                     if (_programType == 'referral')
-                      _infoBox('Los referidos de conductores por pago de plan se configuran en Grupos MLM.'),
+                      _infoBox('Configura el porcentaje recurrente del líder en Grupos MLM.'),
                     if (_programType == 'activation' || _programType == 'loyalty' || _programType == 'driver_challenge')
                       _infoBox('Las recompensas se aplican al completar viajes pagados y se liquidan dentro de la app.'),
                     if (const {'coupon', 'activation', 'loyalty', 'driver_challenge'}.contains(_programType))
@@ -562,7 +594,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Programa activo'),
-                        subtitle: const Text('La recompensa va a la billetera del conductor que refiere y se genera solo por pagos de plan confirmados.'),
+                        subtitle: const Text('La recompensa va a la billetera del conductor líder según las reglas del programa.'),
                         value: _enabled,
                         onChanged: (value) => _refreshEditor(() => _enabled = value),
                       ),
@@ -612,7 +644,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         'activation' => 'Define el disparador y la recompensa automática.',
         'loyalty' => 'Cada N viajes pagados, el siguiente viaje del pasajero es gratis.',
         'referral' => 'Programa de referidos de conductores; la recompensa se usa dentro de la app.',
-        'referral_commission' => 'El líder recibe un porcentaje de cada pago de plan confirmado.',
+        'referral_commission' => 'El líder recibe una parte de la comisión de Express por sus referidos.',
         'driver_challenge' => 'Incentivo para conductores por metas de viajes.',
         _ => 'Configura el beneficio.',
       };
@@ -646,32 +678,38 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         fields.addAll([
           _twoColumns([
             _dropdown('Tipo de descuento', _discount, const {'fixed': 'Monto fijo', 'percent': 'Porcentaje'}, (value) => _refreshEditor(() => _discount = value)),
-            _textField(_discount == 'percent' ? 'Porcentaje *' : 'Monto (Bs) *', _value, keyboard: const TextInputType.numberWithOptions(decimal: true)),
+            _textField(_discount == 'percent' ? 'Porcentaje *' : 'Monto ($_currencyLabel) *', _value, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
           _twoColumns([
-            _textField('Máximo de descuento (Bs)', _maxDiscount, hint: 'Sin límite', keyboard: const TextInputType.numberWithOptions(decimal: true)),
-            _segmentedField('Servicio', _programType == 'coupon' ? 'transport' : _serviceMode, _programType == 'coupon' ? const {'transport': 'Transporte'} : const {'transport': 'Transporte', 'delivery': 'Delivery'}, (value) => _refreshEditor(() => _serviceMode = value)),
+            _textField('Máximo de descuento ($_currencyLabel)', _maxDiscount, hint: 'Sin límite', keyboard: const TextInputType.numberWithOptions(decimal: true)),
+            _segmentedField('Servicio', _serviceMode, const {'transport': 'Transporte', 'delivery': 'Delivery'}, (value) => _refreshEditor(() => _serviceMode = value)),
           ]),
-          _dropdown('Tipos de servicio', _serviceType, const {'all': 'Todos los servicios', 'economy': 'Económico', 'comfort': 'Confort', 'moto': 'Moto', 'motocar': 'Motocar'}, (value) => _refreshEditor(() => _serviceType = value)),
-          _textField('Monto mínimo de viaje (Bs)', _minFare, hint: 'Sin mínimo', keyboard: const TextInputType.numberWithOptions(decimal: true)),
-          _programType == 'driver_challenge'
-              ? _dropdown('Audiencia', 'drivers', const {'drivers': 'Conductores'}, (_) => _refreshEditor(() => _audience = 'drivers'))
-              : _dropdown('Audiencia', 'passengers', const {'passengers': 'Pasajeros'}, (_) => _refreshEditor(() => _audience = 'passengers')),
+          if (_serviceMode == 'transport')
+            _dropdown('Tipos de servicio', _serviceType, const {'all': 'Todos los servicios', 'economy': 'Económico', 'comfort': 'Confort', 'moto': 'Moto', 'motocar': 'Motocar'}, (value) => _refreshEditor(() => _serviceType = value)),
+          _textField(_serviceMode == 'delivery' ? 'Monto mínimo de pedido ($_currencyLabel)' : 'Monto mínimo de viaje ($_currencyLabel)', _minFare, hint: 'Sin mínimo', keyboard: const TextInputType.numberWithOptions(decimal: true)),
+          _dropdown('Audiencia', _serviceMode == 'delivery' ? 'clients' : 'passengers',
+              _serviceMode == 'delivery' ? const {'clients': 'Clientes de Delivery'} : const {'passengers': 'Pasajeros'},
+              (value) => _refreshEditor(() => _audience = value)),
           _twoColumns([
             _dropdown('Audiencia objetivo', _targetAudience, const {'all': 'Todos los usuarios', 'new': 'Usuarios nuevos', 'returning': 'Usuarios frecuentes'}, (value) => _refreshEditor(() => _targetAudience = value)),
-            _dropdown('Quién cubre el descuento', 'company', const {'company': 'Express · crédito al conductor'}, (_) {}),
+            _dropdown('Quién absorbe el descuento', _discountAbsorber, const {
+              'company': 'Empresa',
+              'driver': 'Conductor',
+              'split': 'Distribuido (50 % empresa · 50 % conductor)',
+            }, (value) => _refreshEditor(() => _discountAbsorber = value)),
           ]),
           _twoColumns([
             _textField('Usos totales máximos', _maxTotalUses, hint: 'Ilimitado', keyboard: TextInputType.number),
             _textField('Usos por usuario', _usesPerUser, hint: '1', keyboard: TextInputType.number),
           ]),
           _dateFields(),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Solo primer viaje'),
-            value: _firstRide,
-            onChanged: (value) => _refreshEditor(() => _firstRide = value),
-          ),
+          if (_serviceMode == 'transport')
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Solo primer viaje'),
+              value: _firstRide,
+              onChanged: (value) => _refreshEditor(() => _firstRide = value),
+            ),
         ]);
       case 'activation':
         fields.addAll([
@@ -680,11 +718,14 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             _textField('Valor (opcional)', _triggerValue, hint: 'Opcional', keyboard: TextInputType.number),
           ]),
           _twoColumns([
-            _dropdown('Tipo de recompensa', _rewardType.text, const {'fixed': 'Monto fijo (Bs)', 'percent': 'Porcentaje', 'coupon': 'Cupón de viaje'}, (value) => _refreshEditor(() => _rewardType.text = value)),
+            _dropdown('Tipo de recompensa', _rewardType.text, {'fixed': 'Monto fijo ($_currencyLabel)', 'percent': 'Porcentaje', 'coupon': 'Cupón de viaje'}, (value) => _refreshEditor(() => _rewardType.text = value)),
             _textField('Valor de recompensa', _value, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
           _twoColumns([
-            _dropdown('Destino de recompensa', 'coupon', const {'coupon': 'Cupón de viaje'}, (_) {}),
+            _dropdown('Destino de recompensa', _rewardDestination, const {
+              'wallet': 'Billetera',
+              'coupon': 'Cupón de viaje',
+            }, (value) => _refreshEditor(() => _rewardDestination = value)),
             _dropdown('Audiencia objetivo', _audience, const {'passengers': 'Pasajeros'}, (_) => _refreshEditor(() => _audience = 'passengers')),
           ]),
           _textField('Máximo de activaciones (opcional)', _maxActivations, hint: 'Sin límite', keyboard: TextInputType.number),
@@ -694,13 +735,24 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         fields.addAll([
           _twoColumns([
             _textField('Umbral N (viajes pagados)', _threshold, hint: '5', keyboard: TextInputType.number),
-            _textField('Tope del viaje gratis (Bs)', _maxDiscount, hint: 'Sin límite', keyboard: const TextInputType.numberWithOptions(decimal: true)),
+            _textField('Tope del viaje gratis ($_currencyLabel)', _maxDiscount, hint: 'Sin límite', keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
           _twoColumns([
             _textField('Máx. premios por cliente', _maxPerCustomer, hint: 'Sin límite', keyboard: TextInputType.number),
             _textField('Máx. premios totales', _maxTotalRewards, hint: 'Sin límite', keyboard: TextInputType.number),
           ]),
-          _infoBox('Cada N viajes pagados, el pasajero recibe un cupón para su próximo viaje gratis. El valor cubierto se acredita a la billetera interna del conductor.'),
+          _twoColumns([
+            _textField('N.º de viajes sin comisión (conductor)', _driverNoCommission, hint: '0', keyboard: TextInputType.number),
+            _textField('Máx. créditos al conductor por día', _dailyDriverCap, hint: 'Sin límite', keyboard: TextInputType.number),
+          ]),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Los viajes sin comisión comienzan el mismo día'),
+            subtitle: const Text('Apagado: comienzan al día siguiente del viaje premiado.'),
+            value: _sameDayCredits,
+            onChanged: (value) => _refreshEditor(() => _sameDayCredits = value),
+          ),
+          _infoBox('Cada N viajes pagados, el pasajero recibe un cupón para su siguiente viaje. El conductor puede recibir viajes sin comisión según esta configuración.'),
           _dateFields(),
         ]);
       case 'referral':
@@ -708,17 +760,18 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           const Text('Recompensa para quien refiere', style: TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           _twoColumns([
-            _dropdown('Tipo de recompensa', _rewardType.text, const {'fixed': 'Monto fijo', 'percent': 'Porcentaje', 'coupon': 'Cupón'}, (value) => _refreshEditor(() => _rewardType.text = value)),
-            _textField('Valor (Bs)', _referrerReward, keyboard: const TextInputType.numberWithOptions(decimal: true)),
+            _dropdown('Tipo de recompensa', _referrerType, const {'fixed': 'Monto fijo'}, (value) => _refreshEditor(() => _referrerType = value)),
+            _textField('Valor ($_currencyLabel)', _referrerReward, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
-          _dropdown('Destino', _rewardDestination, const {'wallet': 'Billetera interna', 'coupon': 'Cupón'}, (value) => _refreshEditor(() => _rewardDestination = value)),
+          _dropdown('Destino', _referrerDestination, const {'wallet': 'Monedero'}, (value) => _refreshEditor(() => _referrerDestination = value)),
           const SizedBox(height: 14),
           const Text('Recompensa para el conductor referido', style: TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           _twoColumns([
-            _dropdown('Tipo de recompensa', _rewardType.text, const {'fixed': 'Monto fijo', 'percent': 'Porcentaje', 'coupon': 'Cupón'}, (value) => _refreshEditor(() => _rewardType.text = value)),
-            _textField('Valor (Bs)', _referredReward, keyboard: const TextInputType.numberWithOptions(decimal: true)),
+            _dropdown('Tipo de recompensa', _referredType, const {'fixed': 'Monto fijo'}, (value) => _refreshEditor(() => _referredType = value)),
+            _textField('Valor ($_currencyLabel)', _referredReward, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
+          _dropdown('Destino', _referredDestination, const {'wallet': 'Monedero'}, (value) => _refreshEditor(() => _referredDestination = value)),
           _twoColumns([
             _textField('Viajes mínimos para activar', _referralMinimumTrips, keyboard: TextInputType.number),
             _textField('Máximo de referidos por usuario', _maxReferrals, hint: 'Sin límite', keyboard: TextInputType.number),
@@ -727,7 +780,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         ]);
       case 'referral_commission':
         fields.addAll([
-          _textField('Porcentaje del pago de plan', _leaderPercent, hint: 'Ej.: 1', keyboard: const TextInputType.numberWithOptions(decimal: true)),
+          _textField('Porcentaje de la comisión de Express por viaje', _leaderPercent, hint: 'Ej.: 1', keyboard: const TextInputType.numberWithOptions(decimal: true)),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Beneficio de por vida'),
@@ -735,7 +788,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             onChanged: (value) => _refreshEditor(() => _lifetime = value),
           ),
           if (!_lifetime) _textField('Vigencia del beneficio (meses)', _benefitMonths, keyboard: TextInputType.number),
-          _infoBox('El crédito va a la billetera interna del conductor que refirió, únicamente por cada pago de plan confirmado en Bolivia.'),
+          _infoBox('El líder recibe el porcentaje configurado de la comisión de Express por cada viaje completado y pagado de sus conductores referidos.'),
         ]);
       case 'driver_challenge':
         fields.addAll([
@@ -745,20 +798,51 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           ]),
           _dateFields(),
           _twoColumns([
-            _dropdown('Tipo de recompensa', 'wallet', const {'wallet': 'Bono en billetera interna'}, (_) {}),
-            _textField('Monto del bono (Bs)', _value, keyboard: const TextInputType.numberWithOptions(decimal: true)),
+            _dropdown('Tipo de recompensa', _challengeRewardType, const {
+              'commission_free': 'Viajes sin comisión',
+              'wallet': 'Bono en billetera interna',
+            }, (value) => _refreshEditor(() => _challengeRewardType = value)),
+            _challengeRewardType == 'commission_free'
+                ? _textField('Número de viajes sin comisión', _challengeFreeTrips, hint: 'Ej.: 100', keyboard: TextInputType.number)
+                : _textField('Monto del bono ($_currencyLabel)', _value, keyboard: const TextInputType.numberWithOptions(decimal: true)),
           ]),
           _dropdown('Dirigido a', _audience, const {'drivers': 'Conductores', 'all': 'Todos los usuarios'}, (value) => _refreshEditor(() => _audience = value)),
-          _infoBox(
-            'Zona: ${widget.zoneId == null ? 'Selecciona una zona' : (_zoneLabel ?? 'Zona seleccionada')}',
-          ),
+          _dropdown('Zona', _allChallengeZones ? 'all' : 'selected', const {
+            'all': 'Toda la app (todas las zonas)',
+            'selected': 'Solo esta zona',
+          }, (value) => _refreshEditor(() => _allChallengeZones = value == 'all')),
+          if (!_allChallengeZones)
+            _infoBox('Zona seleccionada: ${_zoneLabel ?? 'zona actual'}'),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Reto exclusivo (el conductor no puede inscribirse a otros retos)'),
             value: _exclusive,
             onChanged: (value) => _refreshEditor(() => _exclusive = value),
           ),
-          _textField('Compatible con (opcional)', _compatibleChallenges, hint: 'Nombres separados por coma'),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 6),
+            child: Text('Compatible con (opcional)', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+          if (_challengeRows.isEmpty)
+            _infoBox('No hay otros retos disponibles para combinar en esta zona y entorno.')
+          else
+            ..._challengeRows.where((challenge) => challenge['id']?.toString() != _editingId).map((challenge) {
+              final id = challenge['id']?.toString() ?? '';
+              final name = challenge['name']?.toString() ?? 'Reto';
+              return CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                value: _compatibleChallengeIds.contains(id),
+                title: Text(name),
+                onChanged: (selected) => _refreshEditor(() {
+                  if (selected == true) {
+                    _compatibleChallengeIds.add(id);
+                  } else {
+                    _compatibleChallengeIds.remove(id);
+                  }
+                }),
+              );
+            }),
         ]);
     }
     return fields;
@@ -909,6 +993,9 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           return Center(child: Text('No se pudieron cargar los programas: ${friendlyError(snapshot.error)}'));
         }
         final rows = snapshot.data ?? const <Map<String, dynamic>>[];
+        if (_programType == 'driver_challenge') {
+          _challengeRows = rows;
+        }
         final visibleRows = rows.where(_matchesFilter).toList();
         final inlineReferralSettings = _category == 'referral' && _referralTab != 'referrals';
         if (inlineReferralSettings && rows.isNotEmpty && _editingId != rows.first['id']?.toString()) {
@@ -931,13 +1018,19 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             if (_category == 'coupon') ...[
               const SizedBox(height: 10),
               _subTabs({'coupons': 'Cupones', 'rules': 'Reglas de Activación'}, _couponTab, (value) {
-                setState(() { _clear(); _couponTab = value; _filter = 'all'; _reload(); });
+              setState(() {
+                _couponTab = value;
+                _clear();
+                _rewardDestination = value == 'rules' ? 'wallet' : 'coupon';
+                _filter = 'all';
+                _reload();
+              });
               }),
             ],
             if (_category == 'referral') ...[
               const SizedBox(height: 10),
               _subTabs({'program': 'Programa', 'referrals': 'Referidos', 'mlm': 'Grupos MLM'}, _referralTab, (value) {
-                setState(() { _clear(); _referralTab = value; _filter = 'all'; _reload(); });
+                setState(() { _referralTab = value; _clear(); _filter = 'all'; _reload(); });
               }),
             ],
             const SizedBox(height: 16),
@@ -981,8 +1074,8 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
                 side: BorderSide(color: selected ? _adminBlue : _line),
               ),
               onPressed: () => setState(() {
-                _clear();
                 _category = item.$1;
+                _clear();
                 _filter = 'all';
                 _reload();
               }),
@@ -1005,35 +1098,47 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   Widget _metrics(List<Map<String, dynamic>> rows) {
     final active = rows.where((row) => row['state'] == 'active').length;
     final drafts = rows.where((row) => row['state'] == 'draft').length;
+    final uses = _sumConfig(rows, 'uses');
+    final discountTotal = _sumConfigAmount(rows, 'discount_total');
+    final activations = _sumConfig(rows, 'activations');
+    final participants = _sumConfig(rows, 'participants');
+    final awards = _sumConfig(rows, 'awards');
+    final redeemed = _sumConfig(rows, 'redeemed');
+    final driverCredits = _sumConfigAmount(rows, 'driver_credits');
+    final challengeParticipants = _sumConfig(rows, 'challenge_participants');
+    final challengeAwards = _sumConfig(rows, 'challenge_awards');
+    final challengeSuccess = challengeParticipants == 0
+        ? 0
+        : (challengeAwards * 100 / challengeParticipants).clamp(0, 100);
     final items = switch (_programType) {
       'coupon' => <(String, String, IconData)>[
           ('Total Cupones', '${rows.length}', Icons.local_offer_outlined),
           ('Activos', '$active', Icons.confirmation_num_outlined),
-          ('Canjes Totales', '—', Icons.people_outline),
-          ('Descuento Total', '—', Icons.payments_outlined),
+          ('Canjes Totales', '$uses', Icons.people_outline),
+          ('Descuento Total', _metricNumber(discountTotal), Icons.payments_outlined),
         ],
       'activation' => <(String, String, IconData)>[
           ('Total Reglas', '${rows.length}', Icons.bolt_outlined),
           ('Reglas Activas', '$active', Icons.track_changes_outlined),
-          ('Total Activaciones', '—', Icons.trending_up_rounded),
+          ('Total Activaciones', '$activations', Icons.trending_up_rounded),
         ],
       'loyalty' => <(String, String, IconData)>[
           ('Total Campañas', '${rows.length}', Icons.card_giftcard_outlined),
-          ('Clientes Participando', '—', Icons.people_outline),
-          ('Premios Otorgados', '—', Icons.emoji_events_outlined),
-          ('Créditos a Conductores', '—', Icons.directions_car_outlined),
+          ('Clientes Participando', '$participants', Icons.people_outline),
+          ('Premios Otorgados', '$awards', Icons.emoji_events_outlined),
+          ('Créditos a Conductores', _metricNumber(driverCredits), Icons.directions_car_outlined),
         ],
       'referral' || 'referral_commission' => <(String, String, IconData)>[
-          ('Total Referidos', '—', Icons.people_alt_outlined),
-          ('Pendientes', '—', Icons.schedule_outlined),
-          ('Activados', '—', Icons.check_circle_outline),
-          ('Tasa Conversión', '—', Icons.trending_up_rounded),
+          ('Total Referidos', '${_sumConfig(rows, 'referrals')}', Icons.people_alt_outlined),
+          ('Pendientes', '${_sumConfig(rows, 'pending_referrals')}', Icons.schedule_outlined),
+          ('Activados', '${_sumConfig(rows, 'activated_referrals')}', Icons.check_circle_outline),
+          ('Tasa Conversión', '${_sumConfig(rows, 'referral_conversion').toStringAsFixed(0)}%', Icons.trending_up_rounded),
         ],
       'driver_challenge' => <(String, String, IconData)>[
           ('Total Retos', '${rows.length}', Icons.flag_outlined),
-          ('Inscripciones del periodo', '—', Icons.people_outline),
-          ('Completados', '—', Icons.emoji_events_outlined),
-          ('Tasa de Éxito', '—', Icons.trending_up_rounded),
+          ('Inscripciones del período', '$challengeParticipants', Icons.people_outline),
+          ('Retos completados', '$challengeAwards', Icons.emoji_events_outlined),
+          ('Tasa de éxito', '${challengeSuccess.toStringAsFixed(0)}%', Icons.trending_up_rounded),
         ],
       _ => <(String, String, IconData)>[],
     };
@@ -1060,13 +1165,31 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     );
   }
 
+  int _sumConfig(List<Map<String, dynamic>> rows, String key) {
+    return rows.fold<int>(0, (total, row) {
+      final config = row['config'];
+      final value = config is Map ? config[key] : null;
+      return total + (value is num ? value.toInt() : int.tryParse('$value') ?? 0);
+    });
+  }
+
+  double _sumConfigAmount(List<Map<String, dynamic>> rows, String key) {
+    return rows.fold<double>(0, (total, row) {
+      final config = row['config'];
+      final value = config is Map ? config[key] : null;
+      return total + (value is num ? value.toDouble() : double.tryParse('$value') ?? 0);
+    });
+  }
+
+  String _metricNumber(double value) => value.toStringAsFixed(value % 1 == 0 ? 0 : 2);
+
   List<String> get _tableHeaders => switch (_programType) {
         'coupon' => const ['Código', 'Módulo', 'Tipo', 'Valor', 'Usos', 'Vigencia', 'Audiencia', 'Estado', 'Acciones'],
         'activation' => const ['Nombre', 'Disparador', 'Recompensa', 'Audiencia', 'Activaciones', 'Estado', 'Acciones'],
         'loyalty' => const ['Nombre', 'Umbral', 'Premio conductor', 'Participando', 'Otorgados', 'Cobrados', 'Créditos', 'Estado', 'Acciones'],
         'referral' => const ['Programa', 'Premio quien refiere', 'Premio referido', 'Condición', 'Estado', 'Acciones'],
-        'referral_commission' => const ['Programa MLM', 'Porcentaje del plan', 'Vigencia', 'Estado', 'Acciones'],
-        'driver_challenge' => const ['Nombre', 'Meta', 'Período', 'Recompensa', 'Inscritos', 'Completados', 'Estado', 'Acciones'],
+        'referral_commission' => const ['Programa MLM', '% comisión Express', 'Vigencia', 'Estado', 'Acciones'],
+        'driver_challenge' => const ['Nombre', 'Meta', 'Período', 'Recompensa', 'Inscritos (período)', 'Completados', 'Estado', 'Acciones'],
         _ => const ['Nombre', 'Estado', 'Acciones'],
       };
 
@@ -1106,14 +1229,17 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           '${config['min_paid_trips'] ?? 0} viajes pagados', state, actions,
         ],
       'referral_commission' => [
-          row['name']?.toString() ?? 'MLM de pagos de plan',
-          '${config['plan_payment_percent'] ?? '—'}%',
+          row['name']?.toString() ?? 'Grupos MLM',
+          '${config['company_commission_percent'] ?? config['plan_payment_percent'] ?? '—'}%',
           config['lifetime'] == true ? 'De por vida' : '${config['benefit_months'] ?? '—'} meses', state, actions,
         ],
       'driver_challenge' => [
           row['name']?.toString() ?? '—', '${config['trip_goal'] ?? '—'} viajes',
-          config['period']?.toString() ?? '—', '${config['reward_type'] ?? 'Billetera'} ${config['value'] ?? '—'}',
-          '${config['participants'] ?? 0}', '${config['completed'] ?? 0}', state, actions,
+          config['period']?.toString() ?? '—',
+          config['reward_type'] == 'commission_free'
+              ? '${config['commission_free_trips'] ?? config['value'] ?? 0} viajes sin comisión'
+              : 'Billetera ${config['value'] ?? '—'}',
+          '${config['challenge_participants'] ?? 0}', '${config['challenge_awards'] ?? 0}', state, actions,
         ],
       _ => [row['name']?.toString() ?? '—', state, actions],
     };
@@ -1214,26 +1340,37 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         child: Padding(
           padding: const EdgeInsets.all(22),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Programa de referidos de conductores', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            const Text(
-              'La comisión vigente se calcula como un porcentaje de cada pago de plan aprobado por el conductor referido. No depende de viajes mínimos ni genera un bono fijo por viaje.',
-              style: TextStyle(color: _muted),
+            const Text('Configuración del Programa', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            const Text('Define las recompensas y condiciones para quien invita y para el referido.', style: TextStyle(color: _muted)),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Programa activo'),
+              value: _enabled,
+              onChanged: (value) => setState(() => _enabled = value),
             ),
-            const SizedBox(height: 18),
-            _infoBox('Configura el porcentaje, la vigencia y la activación en Grupos MLM. La comisión se acredita en la billetera interna del conductor que refirió.'),
+            const Text('Recompensa para quien refiere', style: TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            _twoColumns([
+              _dropdown('Tipo de recompensa', _referrerType, const {'fixed': 'Monto fijo'}, (value) => setState(() => _referrerType = value)),
+              _textField('Valor', _referrerReward, keyboard: const TextInputType.numberWithOptions(decimal: true)),
+            ]),
+            _dropdown('Destino', _referrerDestination, const {'wallet': 'Monedero'}, (value) => setState(() => _referrerDestination = value)),
+            const Text('Recompensa para el referido', style: TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            _twoColumns([
+              _dropdown('Tipo de recompensa', _referredType, const {'fixed': 'Monto fijo'}, (value) => setState(() => _referredType = value)),
+              _textField('Valor', _referredReward, keyboard: const TextInputType.numberWithOptions(decimal: true)),
+            ]),
+            _dropdown('Destino', _referredDestination, const {'wallet': 'Monedero'}, (value) => setState(() => _referredDestination = value)),
+            _twoColumns([
+              _textField('Viajes pagados mínimos para activar', _referralMinimumTrips, hint: '0', keyboard: TextInputType.number),
+              _textField('Máximo de referidos por usuario', _maxReferrals, hint: 'Sin límite', keyboard: TextInputType.number),
+            ]),
+            _infoBox('La moneda y la zona se determinan por la zona seleccionada arriba. No cambia el entorno de datos de la cuenta.'),
             Align(
               alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                onPressed: () => setState(() {
-                  _clear();
-                  _referralTab = 'mlm';
-                  _filter = 'all';
-                  _reload();
-                }),
-                icon: const Icon(Icons.account_tree_outlined),
-                label: const Text('Configurar comisión del plan'),
-              ),
+              child: FilledButton.icon(onPressed: _saving ? null : _save, icon: const Icon(Icons.save_outlined), label: const Text('Guardar configuración')),
             ),
           ]),
         ),
@@ -1245,24 +1382,24 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         child: Padding(
           padding: const EdgeInsets.all(22),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Grupos MLM — Comisión por pagos de plan', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-            const Text('El conductor que refiere recibe un porcentaje de cada pago de plan confirmado por el conductor referido.', style: TextStyle(color: _muted)),
+            const Text('Grupos MLM — Comisión recurrente por referidos', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            const Text('El líder recibe el porcentaje configurado de la comisión de Express por cada viaje completado de sus conductores referidos. La comisión sale del corte de la empresa, no del conductor referido.', style: TextStyle(color: _muted)),
             const SizedBox(height: 20),
             _twoColumns([
-              _textField('Porcentaje del pago de plan', _leaderPercent, hint: 'Ej.: 1', keyboard: const TextInputType.numberWithOptions(decimal: true)),
+              _textField('Porcentaje de la comisión de la empresa', _leaderPercent, hint: 'Ej.: 1', keyboard: const TextInputType.numberWithOptions(decimal: true)),
               if (!_lifetime) _textField('Vigencia del beneficio (meses)', _benefitMonths, keyboard: TextInputType.number),
             ]),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Beneficio de por vida'),
-              subtitle: const Text('Si está activo, el beneficio no vence mientras el referido siga pagando planes.'),
+              subtitle: const Text('Si está activo, el beneficio no vence mientras el conductor referido complete viajes.'),
               value: _lifetime,
               onChanged: (value) => setState(() => _lifetime = value),
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Programa activo'),
-              subtitle: const Text('Aplica a conductores de Bolivia y acredita la comisión en la billetera interna.'),
+              subtitle: const Text('Acredita la recompensa al líder en la billetera interna cuando se paga un viaje elegible.'),
               value: _enabled,
               onChanged: (value) => setState(() => _enabled = value),
             ),
@@ -1306,6 +1443,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           final pending = _intValue(stats['pending']);
           final activated = _intValue(stats['activated']);
           final conversion = _numberValue(stats['conversion_percent']);
+          final currency = dashboard['currency']?.toString() ?? 'BOB';
           return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Wrap(spacing: 12, runSpacing: 12, children: [
               _referralMetric('Total Referidos', '$total', Icons.people_alt_outlined, _adminBlue),
@@ -1354,7 +1492,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
               ),
             ),
             const SizedBox(height: 16),
-            _referralHistory(referrals),
+            _referralHistory(referrals, currency),
           ]);
         },
       );
@@ -1379,14 +1517,14 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         ),
       );
 
-  Widget _referralHistory(List<Map<String, dynamic>> referrals) => Card(
+  Widget _referralHistory(List<Map<String, dynamic>> referrals, String currency) => Card(
         elevation: 0,
         shape: RoundedRectangleBorder(side: const BorderSide(color: _line), borderRadius: BorderRadius.circular(14)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('Lista de Referidos', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: _ink)),
-            const Text('Historial de conductores y comisiones acreditadas por pagos de plan.', style: TextStyle(color: _muted, fontSize: 12)),
+            const Text('Historial de conductores, viajes y recompensas acreditadas.', style: TextStyle(color: _muted, fontSize: 12)),
             const SizedBox(height: 14),
             if (referrals.isEmpty)
               const Padding(
@@ -1408,9 +1546,9 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
                     DataColumn(label: Text('Código')),
                     DataColumn(label: Text('Conductor referido')),
                     DataColumn(label: Text('Estado')),
-                    DataColumn(label: Text('Pagos de plan')),
-                    DataColumn(label: Text('Comisión acreditada')),
-                    DataColumn(label: Text('Último pago')),
+                    DataColumn(label: Text('Movimientos')),
+                    DataColumn(label: Text('Recompensa acreditada')),
+                    DataColumn(label: Text('Última actividad')),
                   ],
                   rows: referrals.where((row) => _referralTypeFilter == 'all' || _referralTypeFilter == 'driver').map((row) {
                     final state = row['state']?.toString() ?? 'pending';
@@ -1420,14 +1558,14 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
                       'closed' => 'Cerrado',
                       _ => 'Pendiente',
                     };
-                    final lastPayment = DateTime.tryParse(row['last_payment_at']?.toString() ?? '');
+                    final lastPayment = DateTime.tryParse(row['last_activity_at']?.toString() ?? '');
                     return DataRow(cells: [
                       DataCell(Text(row['referrer_name']?.toString() ?? '—')),
                       DataCell(Text(row['referral_code']?.toString() ?? '—')),
                       DataCell(Text(row['referred_name']?.toString() ?? '—')),
                       DataCell(Text(status)),
-                      DataCell(Text('${_intValue(row['plan_payment_count'])}')),
-                      DataCell(Text('Bs ${_numberValue(row['commission_total']).toStringAsFixed(2)}')),
+                      DataCell(Text('${_intValue(row['activity_count'])}')),
+                      DataCell(Text('$currency ${_numberValue(row['commission_total']).toStringAsFixed(2)}')),
                       DataCell(Text(lastPayment == null ? '—' : _formatDate(lastPayment))),
                     ]);
                   }).toList(),
@@ -1464,7 +1602,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         'activation' => 'Recompensas automáticas basadas en acciones de usuarios.',
         'loyalty' => 'Premia a tus pasajeros frecuentes y conductores.',
         'referral' => 'Referidos de conductores y sus recompensas dentro de Express.',
-        'referral_commission' => 'Porcentaje de cada pago de plan confirmado en Bolivia.',
+        'referral_commission' => 'Porcentaje de la comisión de Express por los viajes de los conductores referidos.',
         'driver_challenge' => 'Administra las metas y recompensas para conductores.',
         _ => '',
       };
@@ -1496,6 +1634,7 @@ String _audienceLabel(Object? audience, String fallback) {
   return switch (audience?.toString() ?? '') {
     'drivers' => 'Conductores',
     'passengers' => 'Pasajeros',
+    'clients' => 'Clientes de Delivery',
     'all' => 'Todos los usuarios',
     _ => fallback,
   };

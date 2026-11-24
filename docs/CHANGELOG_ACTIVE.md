@@ -1,3 +1,9 @@
+## 2026-11-24 · Beneficios Express — trabajo preparado
+
+- La pantalla de Beneficios Express se ajustó a las referencias de Retos, Cupones/Reglas, Fidelidad, Referidos y Grupos MLM. Delivery tiene su propio público y mínimo de pedido; los cupones permiten financiar el descuento desde Empresa, Conductor o ambos al 50 %.
+- La implementación compartida de Express incorpora inscripción explícita a retos, verificación de exclusividad/compatibilidad, progreso por viajes pagados, recompensas sin comisión y referidos de conductores por viajes. Las migraciones coordinadas están en `Expressdelivery/supabase/migrations/20261124151000` a `20261124154000`.
+- **Estado:** código en ramas locales de trabajo; migraciones aún no aplicadas a Supabase; panel no publicado. No se activó ningún programa. La validación visual y el QA de Preview/Producción están pendientes.
+
 ## 2026-10-21 · Builds Admin prepara la candidata Android unificada 1.6.3+142
 
 - Corrige la tarjeta de Builds que seguía fijada en 1.6.2/build 140 y ofrecía una solicitud separada AAB-only build 141. El panel ahora permite crear solo la candidata oficial APK+AAB 1.6.3+142 mediante `admin_queue_single_app_candidate`, valida que Google Play indique el siguiente código 142 y muestra el UUID devuelto.
