@@ -479,7 +479,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Cuentas de prueba', Icons.science_rounded),
     ('Prueba de carga', Icons.speed_rounded),
     ('Suscripciones', Icons.workspace_premium_rounded),
-    ('Delivery', Icons.storefront_rounded),
+    ('Restaurantes y Delivery', Icons.storefront_rounded),
     ('Delivery Fase 2 / Express Plus', Icons.delivery_dining_rounded),
     ('Prioridad conductores', Icons.workspace_premium_outlined),
     ('Pedidos Delivery', Icons.receipt_long_rounded),
@@ -3821,7 +3821,7 @@ class _Navigation extends StatelessWidget {
         : const <(String, List<int>)>[
             ('GENERAL', [0]),
             ('OPERACIONES', [1, 2, 39, 13, 4, 5, 6]),
-            ('MÓDULOS', [23, 25, 29, 30, 34, 35, 36, 37]),
+            ('MÓDULOS', [23, 25, 29, 35, 36, 37]),
             ('FINANZAS', [9, 38, 8, 22, 33]),
             ('ANÁLISIS', [10, 14]),
             ('COMUNICACIÓN', [15]),

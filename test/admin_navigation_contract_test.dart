@@ -44,7 +44,7 @@ void main() {
     expect(environmentIndices, contains(35));
   });
 
-  test('el menú conserva la fusión de Delivery y agrega solo Beneficios', () {
+  test('el menú fusiona Restaurantes con Delivery y conserva Beneficios', () {
     final moduleGroup = RegExp(r"\('MÓDULOS', \[([^\]]+)\]\)")
         .firstMatch(panel);
     expect(moduleGroup, isNotNull);
@@ -53,9 +53,12 @@ void main() {
         .map((match) => int.parse(match.group(0)!))
         .toList();
 
-    expect(indices, [23, 25, 29, 30, 34, 35, 36, 37]);
+    // «Restaurantes y Delivery» (23) reúne lo de Restaurantes (30) y Requisitos (34).
+    expect(indices, [23, 25, 29, 35, 36, 37]);
     expect(indices, isNot(contains(24)));
     expect(indices, isNot(contains(26)));
+    expect(indices, isNot(contains(30)));
+    expect(indices, isNot(contains(34)));
   });
 
   test('Billeteras aparece en el menú, dentro de Finanzas', () {

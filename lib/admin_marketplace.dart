@@ -21,12 +21,21 @@ class AdminMarketplacePage extends StatefulWidget {
   final String? zoneId;
   final bool showMerchants;
 
+  /// Muestra categorías y banners (se puede ocultar para no repetirlos en otra pestaña).
+  final bool showPromos;
+
+  /// Acciones extra por restaurante (se agregan al menú de cada tarjeta).
+  final List<({String label, void Function(Map<String, dynamic> merchant) onTap})>
+      merchantActions;
+
   const AdminMarketplacePage({
     super.key,
     this.channel = 'production',
     this.countryCode,
     this.zoneId,
     this.showMerchants = true,
+    this.showPromos = true,
+    this.merchantActions = const [],
   });
 
   @override
@@ -1537,6 +1546,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                   ),
                 ),
               if (widget.showMerchants) const SizedBox(height: 22),
+              if (widget.showPromos) ...[
               _section(
                 'Categorías',
                 'Orden, icono y disponibilidad compartidos.',
@@ -1577,6 +1587,7 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                     .toList(),
               ),
               const SizedBox(height: 26),
+              ],
               if (widget.showMerchants &&
                   widget.channel == 'preview' &&
                   widget.zoneId != null &&
@@ -1631,19 +1642,28 @@ class _AdminMarketplacePageState extends State<AdminMarketplacePage> {
                                 onSelected: (value) {
                                   if (value == 'courier') {
                                     _editCourier(row);
+                                  } else if (value.startsWith('x')) {
+                                    widget
+                                        .merchantActions[int.parse(value.substring(1))]
+                                        .onTap(row);
                                   } else {
                                     _editMerchant(row, categories);
                                   }
                                 },
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(
+                                itemBuilder: (_) => [
+                                  const PopupMenuItem(
                                     value: 'edit',
                                     child: Text('Datos y visibilidad en la app'),
                                   ),
-                                  PopupMenuItem(
+                                  const PopupMenuItem(
                                     value: 'courier',
                                     child: Text('Solicitar repartidor'),
                                   ),
+                                  for (var i = 0; i < widget.merchantActions.length; i++)
+                                    PopupMenuItem(
+                                      value: 'x$i',
+                                      child: Text(widget.merchantActions[i].label),
+                                    ),
                                 ],
                               ),
                             ],
