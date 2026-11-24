@@ -96,16 +96,21 @@ jobs:
           set -euo pipefail
           RAW_VERSION="$(grep '^version:' pubspec.yaml | awk '{print $2}')"
           BUILD_NUMBER="${RAW_VERSION##*+}"
-          python3 - "$BUILD_NUMBER" <<'PY'
+          python3 - "$BUILD_NUMBER" "$GITHUB_SHA" <<'PY'
           from pathlib import Path
+          import re
           import sys
 
-          build = sys.argv[1]
+          build, commit = sys.argv[1:]
+          assert re.fullmatch(r"[0-9a-f]{40}", commit), "Git commit SHA is invalid"
+          cache_buster = commit[:12]
           index_path = Path('build/web/index.html')
           index = index_path.read_text()
           old_script = 'src="flutter_bootstrap.js"'
           assert old_script in index, 'Flutter bootstrap script was not found in index.html'
-          index_path.write_text(index.replace(old_script, f'src="flutter_bootstrap.js?v={build}"', 1))
+          index_path.write_text(
+              index.replace(old_script, f'src="flutter_bootstrap.js?v={cache_buster}"', 1)
+          )
 
           bootstrap_path = Path('build/web/flutter_bootstrap.js')
           bootstrap = bootstrap_path.read_text()
@@ -113,11 +118,11 @@ jobs:
           assert loader_call in bootstrap, 'Flutter loader call was not found in bootstrap script'
           version_entrypoint = (
               f"_flutter.buildConfig.builds.forEach((build) => {{ "
-              f"build.mainJsPath = `main.dart.js?v={build}`; }});\n"
+              f"build.mainJsPath = `main.dart.js?v={cache_buster}`; }});\n"
           )
           bootstrap_path.write_text(bootstrap.replace(loader_call, version_entrypoint + loader_call, 1))
-          assert f'flutter_bootstrap.js?v={build}' in index_path.read_text()
-          assert f'main.dart.js?v={build}' in bootstrap_path.read_text()
+          assert f'flutter_bootstrap.js?v={cache_buster}' in index_path.read_text()
+          assert f'main.dart.js?v={cache_buster}' in bootstrap_path.read_text()
           PY
 
       - name: Write central version marker
