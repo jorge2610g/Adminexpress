@@ -6,9 +6,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'core/supabase_client.dart';
 import 'admin_marketplace.dart';
-import 'admin_marketplace_demos.dart';
 import 'admin_marketplace_phase2.dart';
+import 'admin_restaurant_panel_access.dart';
 import 'admin_delivery_settlements.dart';
+import 'admin_delivery_dashboard.dart';
 
 /// Admin central: a single Delivery menu, shared merchant IDs, scoped by zone
 /// and the authenticated account's runtime. No writes happen on page load.
@@ -37,7 +38,6 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
   int selectedTab = 0;
   String statusFilter = 'all';
   final search = TextEditingController();
-  late Future<Map<String, dynamic>> businesses;
   int revision = 0;
 
   @override
@@ -63,49 +63,11 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
   }
 
   void _refresh() {
-    businesses = _loadBusinesses();
     revision++;
   }
 
-  Future<Map<String, dynamic>> _loadBusinesses() async {
-    if ((widget.zoneId ?? '').isEmpty ||
-        (widget.countryCode ?? '').isEmpty) {
-      return {'merchants': <dynamic>[]};
-    }
-    final data = await supabase.rpc('admin_marketplace_state_scoped', params: {
-      'p_country_code': widget.countryCode,
-      'p_zone_id': widget.zoneId,
-    });
-    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
-  }
-
-  List<Map<String, dynamic>> _rows(Object? raw) {
-    if (raw is! List) return [];
-    return raw.whereType<Map>()
-        .map((m) => Map<String, dynamic>.from(m)).toList();
-  }
-
-  bool _visible(Map<String, dynamic> row) =>
-      row['production_visible'] == true;
-
-  String _merchantStatus(Map<String, dynamic> row) {
-    if (row['active'] != true) return 'inactive';
-    return _visible(row) ? 'active' : 'pending';
-  }
-
-  String _statusLabel(String status) => switch (status) {
-    'active' => 'Activo',
-    'pending' => 'Pendiente de publicar',
-    'inactive' => 'Inactivo',
-    _ => 'Todos',
-  };
-
-  void _openProducts(Map<String, dynamic> merchant) async {
-    await Navigator.push(context, MaterialPageRoute(
-      builder: (_) => AdminMerchantCatalogPage(merchant: merchant),
-    ));
-    if (mounted) setState(_refresh);
-  }
+  void _openProducts(Map<String, dynamic> merchant) =>
+      goToRestaurantPanel(context, merchant);
 
   Future<void> _openMerchant(Map<String, dynamic> merchant) async {
     await showDialog<void>(context: context, builder: (_) =>
@@ -132,214 +94,11 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
     ));
   }
 
-  Widget _metric(String label, int count, IconData icon, Color accent) =>
-      Card(child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-        child: Row(children: [
-          Icon(icon, color: accent, size: 23),
-          const SizedBox(width: 9),
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11,
-                  color: Color(0xFF64748B))),
-              Text(count.toString(),
-                style: const TextStyle(fontSize: 21,
-                  fontWeight: FontWeight.w900)),
-            ],
-          )),
-        ]),
-      ));
-
-  Widget _merchantCard(Map<String, dynamic> merchant) {
-    final status = _merchantStatus(merchant);
-    final color = status == 'active' ? const Color(0xFF15803D)
-      : status == 'pending' ? const Color(0xFFB45309)
-      : const Color(0xFF64748B);
-    return Card(child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Container(
-              width: 38, height: 38,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF2FF),
-                borderRadius: BorderRadius.circular(9)),
-              child: const Icon(Icons.storefront,
-                color: Color(0xFF2563EB)),
-            ),
-            const Spacer(),
-            Flexible(child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8, vertical: 5),
-              decoration: BoxDecoration(
-                color: status == 'active' ? const Color(0xFFDCFCE7)
-                  : status == 'pending' ? const Color(0xFFFEF3C7)
-                  : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(7)),
-              child: Text(_statusLabel(status), maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: color, fontSize: 10,
-                  fontWeight: FontWeight.w800)),
-            )),
-          ]),
-          const SizedBox(height: 10),
-          Text(merchant['name']?.toString() ?? 'Comercio',
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14,
-              fontWeight: FontWeight.w900)),
-          const SizedBox(height: 3),
-          Text(friendlyCategory(merchant['category_key']?.toString() ?? 'Sin categoría'),
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11,
-              color: Color(0xFF64748B))),
-          const Spacer(),
-          Row(children: [
-            Expanded(child: OutlinedButton(
-              onPressed: () => _openMerchant(merchant),
-              child: const Text('Configurar',
-                maxLines: 1, overflow: TextOverflow.ellipsis),
-            )),
-            const SizedBox(width: 7),
-            Expanded(child: FilledButton(
-              onPressed: () => _previewMerchant(merchant),
-              child: const Text('Vista del local',
-                maxLines: 1, overflow: TextOverflow.ellipsis),
-            )),
-          ]),
-        ]),
-    ));
-  }
-
-  Widget _businesses() => FutureBuilder<Map<String, dynamic>>(
-    future: businesses,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      if (snapshot.hasError) {
-        return Center(child: Column(mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('No se pudieron cargar los negocios.'),
-            TextButton(onPressed: () => setState(_refresh),
-              child: const Text('Reintentar')),
-          ]));
-      }
-      final all = _rows(snapshot.data?['merchants'])
-          .toList();
-      final needle = search.text.trim().toLowerCase();
-      final filtered = all.where((row) {
-        final matchText = needle.isEmpty ||
-          (row['name'] ?? '').toString().toLowerCase().contains(needle) ||
-          (row['category_key'] ?? '').toString().toLowerCase().contains(needle);
-        return matchText &&
-          (statusFilter == 'all' || _merchantStatus(row) == statusFilter);
-      }).toList();
-      final pending = all.where((r) => _merchantStatus(r) == 'pending').length;
-      final active = all.where((r) => _merchantStatus(r) == 'active').length;
-      final inactive = all.where((r) => _merchantStatus(r) == 'inactive').length;
-      return LayoutBuilder(builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final compact = width < 560;
-        final cols = width >= 1160 ? 4 : width >= 800 ? 3
-            : width >= 530 ? 2 : 1;
-        return ListView(
-          padding: EdgeInsets.all(compact ? 12 : 18),
-          children: [
-            Text('Negocios de la zona',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w900)),
-            const SizedBox(height: 4),
-            Text(
-              widget.channel == 'preview'
-                  ? 'Negocios de prueba de la zona, incluidos los demos. Solo se ven en Prueba.'
-                  : 'Negocios publicados para clientes en esta zona.',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-            const SizedBox(height: 13),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: width >= 760 ? 4 : 2,
-              mainAxisExtent: 75,
-              mainAxisSpacing: 9, crossAxisSpacing: 9,
-              children: [
-                _metric('Locales', all.length, Icons.storefront_outlined,
-                  const Color(0xFF2563EB)),
-                _metric('Activos', active, Icons.check_circle_outline,
-                  const Color(0xFF15803D)),
-                _metric('Pendientes', pending, Icons.schedule_outlined,
-                  const Color(0xFFB45309)),
-                _metric('Inactivos', inactive, Icons.pause_circle_outline,
-                  const Color(0xFF64748B)),
-              ],
-            ),
-            const SizedBox(height: 15),
-            Wrap(spacing: 9, runSpacing: 9,
-              crossAxisAlignment: WrapCrossAlignment.center, children: [
-                SizedBox(width: compact ? width - 24 : 300,
-                  child: TextField(
-                    controller: search,
-                    decoration: const InputDecoration(
-                      hintText: 'Buscar negocio o categoría',
-                      prefixIcon: Icon(Icons.search)),
-                    onChanged: (_) => setState(() {}),
-                  )),
-                for (final status in ['all', 'active', 'pending', 'inactive'])
-                  ChoiceChip(
-                    label: Text(status == 'all'
-                      ? 'Todos (' + all.length.toString() + ')'
-                      : _statusLabel(status)),
-                    selected: statusFilter == status,
-                    onSelected: (_) => setState(() => statusFilter = status),
-                  ),
-                IconButton(
-                  tooltip: 'Actualizar',
-                  onPressed: () => setState(_refresh),
-                  icon: const Icon(Icons.refresh_rounded)),
-              ]),
-            const SizedBox(height: 14),
-            if (filtered.isEmpty)
-              const Card(child: Padding(
-                padding: EdgeInsets.all(22),
-                child: Text('No hay locales con los filtros seleccionados.'),
-              )),
-            if (filtered.isNotEmpty)
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: filtered.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: cols,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  mainAxisExtent: 189,
-                ),
-                itemBuilder: (context, index) =>
-                    _merchantCard(filtered[index]),
-              ),
-            const SizedBox(height: 22),
-            // Los negocios demo solo se crean y prueban en Prueba.
-            if (!widget.readOnly &&
-                widget.channel == 'preview' &&
-                (widget.zoneId ?? '').isNotEmpty)
-              AdminMarketplaceDemoSection(
-                zoneId: widget.zoneId!,
-                channel: widget.channel,
-                onOpenProducts: _openProducts,
-              ),
-          ],
-        );
-      });
-    },
-  );
-
   @override
   Widget build(BuildContext context) {
     final choices = <(String, IconData)>[
-      ('Negocios', Icons.storefront),
+      ('Resumen', Icons.dashboard_outlined),
+      ('Restaurantes', Icons.storefront),
       ('Banners y categorías', Icons.campaign),
       ('Tarifas y Plus', Icons.local_shipping),
       ('Pedidos', Icons.receipt_long),
@@ -347,27 +106,43 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
       ('Liquidaciones', Icons.account_balance_wallet),
     ];
     Widget page = switch (selectedTab) {
-      0 => _businesses(),
+      0 => AdminDeliveryDashboard(
+        key: ValueKey('summary-${widget.channel}-${widget.zoneId}'),
+        channel: widget.channel,
+        zoneId: widget.zoneId,
+        onOpenTab: (tab) => setState(() => selectedTab = tab),
+      ),
       1 => AdminMarketplacePage(
+        key: ValueKey('restaurants-${widget.channel}-${widget.zoneId}'),
+        channel: widget.channel,
+        zoneId: widget.zoneId,
+        countryCode: widget.countryCode,
+        showPromos: false,
+        merchantActions: [
+          (label: 'Promociones y destacados', onTap: _openMerchant),
+          (label: 'Vista del local (como la ve el cliente)', onTap: _previewMerchant),
+        ],
+      ),
+      2 => AdminMarketplacePage(
         key: ValueKey('promos-${widget.channel}-${widget.zoneId}'),
         channel: widget.channel,
         zoneId: widget.zoneId,
         countryCode: widget.countryCode,
         showMerchants: false,
       ),
-      2 => AdminMarketplacePhase2Page(
+      3 => AdminMarketplacePhase2Page(
         key: ValueKey('logistics-${widget.channel}-${widget.zoneId}'),
         channel: widget.channel, zoneId: widget.zoneId,
         countryCode: widget.countryCode,
       ),
-      3 => AdminMarketplacePhase2Page(
+      4 => AdminMarketplacePhase2Page(
         key: ValueKey('orders-${widget.channel}-${widget.zoneId}'),
         ordersOnly: true, channel: widget.channel,
         zoneId: widget.zoneId, countryCode: widget.countryCode,
       ),
-      4 => widget.buildDirectDeliveries?.call() ??
+      5 => widget.buildDirectDeliveries?.call() ??
           const Center(child: Text('Envíos no disponibles para esta cuenta.')),
-      5 => AdminDeliverySettlementsPage(
+      6 => AdminDeliverySettlementsPage(
         key: ValueKey('settlements-${widget.channel}-${widget.zoneId}'),
         channel: widget.channel, zoneId: widget.zoneId,
       ),
@@ -649,7 +424,7 @@ class _UnifiedMerchantDialogState extends State<_UnifiedMerchantDialog> {
           Wrap(spacing: 10, runSpacing: 9, children: [
             OutlinedButton.icon(onPressed: widget.readOnly ? null : widget.openProducts,
               icon: const Icon(Icons.restaurant_menu),
-              label: const Text('Editar menú y productos')),
+              label: const Text('Ir al panel del restaurante')),
             OutlinedButton.icon(
               onPressed: widget.readOnly || busy ? null :
                 () => _bannerForMerchant(row),

@@ -209,7 +209,7 @@ class _AdminMarketplaceDemoSectionState extends State<AdminMarketplaceDemoSectio
                     '${widget.channel=='production'?'Oculto a clientes':'Solo en Prueba'}'),
                   trailing:Row(mainAxisSize:MainAxisSize.min,children:[
                     IconButton(
-                      tooltip:'Ver productos',
+                      tooltip:'Ir al panel del restaurante',
                       onPressed:()=>widget.onOpenProducts({
                         'id':r['merchant_id'],'name':r['name'],
                         'preview_visible':r['preview_visible'],
