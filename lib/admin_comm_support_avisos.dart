@@ -1015,6 +1015,7 @@ class _AvisoEditorDialogState extends State<_AvisoEditorDialog> {
   late final TextEditingController title;
   late final TextEditingController body;
   String imageUrl = '';
+  final List<(TextEditingController, TextEditingController)> buttons = [];
   Uint8List? pickedBytes;
   String pickedName = '';
   late final TextEditingController days;
@@ -1044,6 +1045,15 @@ class _AvisoEditorDialogState extends State<_AvisoEditorDialog> {
           ? '0'
           : expires.difference(DateTime.now()).inDays.clamp(1, 3650).toString();
     }
+    final saved = a?['buttons'];
+    if (saved is List) {
+      for (final b in saved.whereType<Map>()) {
+        buttons.add((
+          TextEditingController(text: b['label']?.toString() ?? ''),
+          TextEditingController(text: b['url']?.toString() ?? ''),
+        ));
+      }
+    }
     days = TextEditingController(text: initialDays);
     sendPush = !editing;
   }
@@ -1053,6 +1063,10 @@ class _AvisoEditorDialogState extends State<_AvisoEditorDialog> {
     title.dispose();
     body.dispose();
     days.dispose();
+    for (final b in buttons) {
+      b.$1.dispose();
+      b.$2.dispose();
+    }
     super.dispose();
   }
 
@@ -1126,6 +1140,11 @@ class _AvisoEditorDialogState extends State<_AvisoEditorDialog> {
           'p_publish_at': null,
           'p_expires_at': expires,
           'p_status': widget.aviso?['status'] ?? 'published',
+          'p_buttons': [
+            for (final b in buttons)
+              if (b.$1.text.trim().isNotEmpty || b.$2.text.trim().isNotEmpty)
+                {'label': b.$1.text.trim(), 'url': b.$2.text.trim()},
+          ],
         },
       );
       final id = _row(result)['id'];
@@ -1253,6 +1272,60 @@ class _AvisoEditorDialogState extends State<_AvisoEditorDialog> {
                     ),
                 ],
               ),
+              const SizedBox(height: 10),
+              const Text(
+                'Botones con enlace (opcional, máximo 3)',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+              ),
+              for (var i = 0; i < buttons.length; i++)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: buttons[i].$1,
+                        maxLength: 30,
+                        decoration: const InputDecoration(
+                          labelText: 'Texto',
+                          hintText: 'Ver ubicación',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 3,
+                      child: TextField(
+                        controller: buttons[i].$2,
+                        keyboardType: TextInputType.url,
+                        decoration: const InputDecoration(
+                          labelText: 'Enlace https://',
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Quitar botón',
+                      onPressed: () => setState(() {
+                        final b = buttons.removeAt(i);
+                        b.$1.dispose();
+                        b.$2.dispose();
+                      }),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              if (buttons.length < 3)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => setState(() => buttons.add((
+                          TextEditingController(),
+                          TextEditingController(),
+                        ))),
+                    icon: const Icon(Icons.add_link_rounded),
+                    label: const Text('Añadir botón'),
+                  ),
+                ),
               const SizedBox(height: 10),
               AdminDropdownField<String>(
                 initialValue: audience,
