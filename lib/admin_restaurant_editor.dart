@@ -593,155 +593,191 @@ class _AdminRestaurantEditorPageState extends State<AdminRestaurantEditorPage> {
     ]);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isNew = _id == null;
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
-      appBar: AppBar(
-        title: Text(isNew ? 'Nuevo restaurante' : 'Editar · ${_name.text}'),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1D2433),
-        elevation: 0,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: FilledButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.save_outlined),
-              label: const Text('Guardar cambios'),
+  Widget _tabPage(Widget section) => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 860),
+              child: section,
             ),
           ),
         ],
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final isNew = _id == null;
+    final tabs = <(String, IconData, Widget)>[
+      (
+        'Datos',
+        Icons.storefront_outlined,
+        _section('Datos del restaurante', [
+          DropdownButtonFormField<String>(
+            initialValue: widget.zones.any((z) => z['id']?.toString() == _zoneId) ? _zoneId : null,
+            decoration: const InputDecoration(labelText: 'Zona'),
+            items: [
+              for (final z in widget.zones)
+                DropdownMenuItem(
+                    value: z['id']?.toString(),
+                    child: Text('${z['name'] ?? z['zone_key'] ?? 'Zona'}')),
+            ],
+            onChanged: (v) => setState(() => _zoneId = v),
+          ),
+          _gap(),
+          DropdownButtonFormField<String>(
+            initialValue: widget.categories.any((c) => c['category_key']?.toString() == _categoryKey)
+                ? _categoryKey
+                : null,
+            decoration: const InputDecoration(labelText: 'Categoría'),
+            items: [
+              for (final c in widget.categories)
+                DropdownMenuItem(
+                    value: c['category_key']?.toString(), child: Text(c['name']?.toString() ?? '')),
+            ],
+            onChanged: (v) => setState(() => _categoryKey = v ?? ''),
+          ),
+          _gap(),
+          TextField(controller: _name, decoration: const InputDecoration(labelText: 'Nombre')),
+          _gap(),
+          TextField(
+              controller: _description,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Descripción')),
+          _gap(),
+          TextField(
+              controller: _tags,
+              decoration: const InputDecoration(
+                  labelText: 'Etiquetas', helperText: 'Separadas por coma: pizza, familiar')),
+          _gap(),
+          TextField(
+              controller: _order,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                  labelText: 'Orden en la lista', helperText: 'Menor número aparece primero')),
+          SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _active,
+              onChanged: (v) => setState(() => _active = v),
+              title: const Text('Restaurante activo')),
+          SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _visible,
+              onChanged: (v) => setState(() => _visible = v),
+              title: const Text('Disponible para los clientes en la app')),
+          SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _sponsored,
+              onChanged: (v) => setState(() => _sponsored = v),
+              title: const Text('Destacado (patrocinado)')),
+        ]),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(padding: const EdgeInsets.all(16), children: [
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 860),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    _section('Datos del restaurante', [
-                      DropdownButtonFormField<String>(
-                        initialValue: widget.zones.any((z) => z['id']?.toString() == _zoneId)
-                            ? _zoneId
-                            : null,
-                        decoration: const InputDecoration(labelText: 'Zona'),
-                        items: [
-                          for (final z in widget.zones)
-                            DropdownMenuItem(
-                                value: z['id']?.toString(),
-                                child: Text('${z['name'] ?? z['zone_key'] ?? 'Zona'}')),
-                        ],
-                        onChanged: (v) => setState(() => _zoneId = v),
-                      ),
-                      _gap(),
-                      DropdownButtonFormField<String>(
-                        initialValue: widget.categories.any((c) => c['category_key']?.toString() == _categoryKey)
-                            ? _categoryKey
-                            : null,
-                        decoration: const InputDecoration(labelText: 'Categoría'),
-                        items: [
-                          for (final c in widget.categories)
-                            DropdownMenuItem(
-                                value: c['category_key']?.toString(),
-                                child: Text(c['name']?.toString() ?? '')),
-                        ],
-                        onChanged: (v) => setState(() => _categoryKey = v ?? ''),
-                      ),
-                      _gap(),
-                      TextField(controller: _name, decoration: const InputDecoration(labelText: 'Nombre')),
-                      _gap(),
-                      TextField(
-                          controller: _description,
-                          maxLines: 3,
-                          decoration: const InputDecoration(labelText: 'Descripción')),
-                      _gap(),
-                      TextField(
-                          controller: _tags,
-                          decoration: const InputDecoration(
-                              labelText: 'Etiquetas', helperText: 'Separadas por coma: pizza, familiar')),
-                      _gap(),
-                      TextField(
-                          controller: _order,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                              labelText: 'Orden en la lista', helperText: 'Menor número aparece primero')),
-                      SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          value: _active,
-                          onChanged: (v) => setState(() => _active = v),
-                          title: const Text('Restaurante activo')),
-                      SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          value: _visible,
-                          onChanged: (v) => setState(() => _visible = v),
-                          title: const Text('Disponible para los clientes en la app')),
-                      SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          value: _sponsored,
-                          onChanged: (v) => setState(() => _sponsored = v),
-                          title: const Text('Destacado (patrocinado)')),
-                    ]),
-                    _section('Fotos', [
-                      AdminImageUploadField(controller: _logo, label: 'Logo'),
-                      _gap(16),
-                      AdminImageUploadField(controller: _cover, label: 'Portada'),
-                    ], hint: 'Se eligen de la galería y se suben solas.'),
-                    _section('Ubicación', [_mapEditor()],
-                        hint: 'De aquí sale el punto de recogida de los repartidores.'),
-                    _section('Horarios', [_hoursEditor()],
-                        hint: 'Los clientes ven estos horarios. Un día sin tramos aparece cerrado.'),
-                    _section('Pedidos y envío', [
-                      Row(children: [
-                        Expanded(
-                            child: TextField(
-                                controller: _minimum,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(labelText: 'Pedido mínimo'))),
-                        const SizedBox(width: 12),
-                        Expanded(
-                            child: TextField(
-                                controller: _etaMin,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(labelText: 'Preparación mín. (min)'))),
-                        const SizedBox(width: 12),
-                        Expanded(
-                            child: TextField(
-                                controller: _etaMax,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(labelText: 'Preparación máx. (min)'))),
-                      ]),
-                      _gap(),
-                      TextField(
-                          controller: _fee,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                              labelText: 'Costo de envío que se muestra',
-                              helperText: 'Lo que se cobra de verdad se configura en «Servicios y tarifas».')),
-                      _gap(),
-                      TextField(
-                          controller: _transfer,
-                          maxLines: 3,
-                          decoration: const InputDecoration(
-                              labelText: 'Datos para pagos por transferencia',
-                              hintText: 'Banco, cuenta, titular…')),
-                      SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          value: _openOverride,
-                          onChanged: (v) => setState(() => _openOverride = v),
-                          title: const Text('Recibiendo pedidos ahora')),
-                    ]),
-                    _section('Cuentas de acceso y servicios', [_accessSection()],
-                        hint: 'Quién entra al portal del restaurante y qué servicios tiene.'),
-                    const SizedBox(height: 40),
-                  ]),
-                ),
+      (
+        'Fotos',
+        Icons.photo_library_outlined,
+        _section('Fotos', [
+          AdminImageUploadField(controller: _logo, label: 'Logo'),
+          _gap(16),
+          AdminImageUploadField(controller: _cover, label: 'Portada'),
+        ], hint: 'Se eligen de la galería y se suben solas.'),
+      ),
+      (
+        'Ubicación',
+        Icons.place_outlined,
+        _section('Ubicación', [_mapEditor()],
+            hint: 'De aquí sale el punto de recogida de los repartidores.'),
+      ),
+      (
+        'Horarios',
+        Icons.schedule_outlined,
+        _section('Horarios', [_hoursEditor()],
+            hint: 'Los clientes ven estos horarios. Un día sin tramos aparece cerrado.'),
+      ),
+      (
+        'Pedidos y envío',
+        Icons.receipt_long_outlined,
+        _section('Pedidos y envío', [
+          Row(children: [
+            Expanded(
+                child: TextField(
+                    controller: _minimum,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Pedido mínimo'))),
+            const SizedBox(width: 12),
+            Expanded(
+                child: TextField(
+                    controller: _etaMin,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Preparación mín. (min)'))),
+            const SizedBox(width: 12),
+            Expanded(
+                child: TextField(
+                    controller: _etaMax,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Preparación máx. (min)'))),
+          ]),
+          _gap(),
+          TextField(
+              controller: _fee,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                  labelText: 'Costo de envío que se muestra',
+                  helperText: 'Lo que se cobra de verdad se configura en «Servicios y tarifas».')),
+          _gap(),
+          TextField(
+              controller: _transfer,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                  labelText: 'Datos para pagos por transferencia', hintText: 'Banco, cuenta, titular…')),
+          SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _openOverride,
+              onChanged: (v) => setState(() => _openOverride = v),
+              title: const Text('Recibiendo pedidos ahora')),
+        ]),
+      ),
+      (
+        'Credenciales',
+        Icons.key_outlined,
+        _section('Cuentas de acceso y servicios', [_accessSection()],
+            hint: 'Quién entra al portal del restaurante y qué servicios tiene.'),
+      ),
+    ];
+    return DefaultTabController(
+      length: tabs.length,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F6FA),
+        appBar: AppBar(
+          title: Text(isNew ? 'Nuevo restaurante' : 'Editar · ${_name.text}'),
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF1D2433),
+          elevation: 0,
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: FilledButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.save_outlined),
+                label: const Text('Guardar cambios'),
               ),
-            ]),
+            ),
+          ],
+          bottom: TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: [for (final t in tabs) Tab(icon: Icon(t.$2, size: 20), text: t.$1)],
+          ),
+        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                physics: const NeverScrollableScrollPhysics(),
+                children: [for (final t in tabs) _tabPage(t.$3)],
+              ),
+      ),
     );
   }
 }
