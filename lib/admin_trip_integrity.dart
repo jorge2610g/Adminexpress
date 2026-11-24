@@ -289,11 +289,13 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
     final controller = TextEditingController();
     final confirm = decision == 'confirmed';
     final undo = !confirm && flag['review_status'] == 'confirmed';
+    // Volver a confirmar una irregularidad que se había descartado.
+    final redo = confirm && flag['review_status'] == 'cleared';
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(confirm
-            ? 'Confirmar irregularidad'
+            ? (redo ? 'Volver a confirmar la irregularidad' : 'Confirmar irregularidad')
             : undo
                 ? 'Corregir: el viaje sí fue normal'
                 : 'Descartar aviso'),
@@ -304,7 +306,9 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(confirm
-                  ? 'El viaje queda confirmado como irregular y no suma al campeonato.'
+                  ? (redo
+                      ? 'El viaje vuelve a quedar confirmado como irregular y no suma al campeonato. Si al descartarlo se había levantado una advertencia, vuelve a contarse. Una suspensión no se reaplica sola: si corresponde, aplícala desde las acciones del conductor.'
+                      : 'El viaje queda confirmado como irregular y no suma al campeonato.')
                   : undo
                       ? 'Se deshace la confirmación: el viaje queda como normal, vuelve a sumar al campeonato y se revierte el aviso o la sanción que generó (si se suspendió al conductor, se levanta y se le avisa).'
                       : 'El viaje queda como normal y vuelve a sumar al campeonato.'),
@@ -323,7 +327,11 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
               child: const Text('Cancelar')),
           FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text(confirm ? 'Confirmar' : undo ? 'Sí, descartar' : 'Descartar')),
+              child: Text(confirm
+                  ? (redo ? 'Sí, confirmar' : 'Confirmar')
+                  : undo
+                      ? 'Sí, descartar'
+                      : 'Descartar')),
         ],
       ),
     );
@@ -338,7 +346,7 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
       setState(_reload);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(confirm
-              ? 'Irregularidad confirmada.'
+              ? (redo ? 'Irregularidad confirmada de nuevo.' : 'Irregularidad confirmada.')
               : undo
                   ? 'Confirmación deshecha: el viaje quedó como normal.'
                   : 'Aviso descartado.')));
@@ -575,6 +583,11 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
                   onPressed: () => _review(f, 'cleared'),
                   icon: const Icon(Icons.undo),
                   label: const Text('Descartar (fue un error)')),
+            if (widget.canEdit && f['review_status'] == 'cleared')
+              FilledButton.icon(
+                  onPressed: () => _review(f, 'confirmed'),
+                  icon: const Icon(Icons.gpp_bad_outlined),
+                  label: const Text('Volver a confirmar')),
           ]),
         ]),
       ),
