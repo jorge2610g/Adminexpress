@@ -26,6 +26,7 @@ import 'admin_csv_download.dart';
 import 'admin_trip_ranking_export.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
+import 'admin_driver_requests.dart';
 import 'admin_landing_banners.dart';
 import 'admin_debt_management.dart';
 import 'admin_wallets.dart';
@@ -294,7 +295,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
   static const Set<int> _environmentFilteredSections = <int>{
     0, 1, 2, 3, 4, 5, 6, 9, 13, 15, 18, 21, 22, 23, 24, 25, 26, 29, 30,
-    31, 33, 35, 36, 39,
+    31, 33, 35, 36, 39, 40,
   };
 
   String _sectionChannel(int sectionIndex) {
@@ -380,6 +381,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     36: 'passenger_ads',
     38: 'payments',
     39: 'trips',
+    40: 'drivers',
   };
 
   bool _sectionAllowed(int index) {
@@ -496,6 +498,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Asesores de ventas', Icons.badge_rounded),
     ('Billeteras', Icons.account_balance_wallet_rounded),
     ('Viajes sospechosos', Icons.policy_outlined),
+    ('Solicitudes de conductores', Icons.how_to_reg_rounded),
   ];
 
   Future<bool> _authorized() async {
@@ -2167,6 +2170,12 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           channel: _sectionChannel(22),
           countryCode: adminCountryCode,
           zoneId: adminZoneId,
+        );
+      case 40:
+        return AdminDriverRequestsPage(
+          channel: _sectionChannel(40),
+          zoneId: adminZoneId,
+          canEdit: _can('drivers.work_permissions'),
         );
       case 39:
         return AdminTripIntegrityPage(
@@ -3932,7 +3941,7 @@ class _Navigation extends StatelessWidget {
           ]
         : const <(String, List<int>)>[
             ('GENERAL', [0]),
-            ('OPERACIONES', [1, 2, 39, 13, 4, 5, 6]),
+            ('OPERACIONES', [1, 2, 39, 13, 4, 40, 5, 6]),
             ('MÓDULOS', [23, 25, 29, 35, 36, 37]),
             ('FINANZAS', [9, 38, 8, 22, 33]),
             ('ANÁLISIS', [10, 14]),
