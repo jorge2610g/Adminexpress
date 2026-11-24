@@ -174,6 +174,73 @@ class _AdminDriverRequestsPageState extends State<AdminDriverRequestsPage> {
     }
   }
 
+  Future<void> _showDriverHistory(
+    String driverName,
+    List<Map<String, dynamic>> requests,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        final screen = MediaQuery.sizeOf(dialogContext);
+        final inset = screen.width < 600 ? 8.0 : 24.0;
+        return Dialog(
+          insetPadding: EdgeInsets.symmetric(horizontal: inset, vertical: 12),
+          child: SizedBox(
+            width: screen.width < 808 ? screen.width - inset * 2 : 760,
+            height: (screen.height - 24).clamp(240.0, 900.0),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 12, 14),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Cambios de $driverName',
+                          style: const TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Cerrar',
+                        onPressed: () => Navigator.pop(dialogContext),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: requests.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) => _HistoryRequestCard(
+                      row: requests[index],
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Cerrar'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -224,6 +291,31 @@ class _AdminDriverRequestsPageState extends State<AdminDriverRequestsPage> {
                 ),
               );
             }
+            if (tab == 'history') {
+              final byDriver = <String, List<Map<String, dynamic>>>{};
+              for (final row in rows) {
+                final driverId =
+                    row['driver_id']?.toString() ?? row['id'].toString();
+                byDriver.putIfAbsent(driverId, () => []).add(row);
+              }
+              return Column(
+                children: [
+                  for (final entry in byDriver.entries)
+                    _DriverHistoryCard(
+                      key: ValueKey('driver-history-${entry.key}'),
+                      driverName:
+                          entry.value.first['driver_name']?.toString() ??
+                              'Conductor',
+                      changeCount: entry.value.length,
+                      onView: () => _showDriverHistory(
+                        entry.value.first['driver_name']?.toString() ??
+                            'Conductor',
+                        entry.value,
+                      ),
+                    ),
+                ],
+              );
+            }
             return Column(
               children: [
                 for (final row in rows)
@@ -241,6 +333,135 @@ class _AdminDriverRequestsPageState extends State<AdminDriverRequestsPage> {
           },
         ),
       ],
+    );
+  }
+}
+
+class _DriverHistoryCard extends StatelessWidget {
+  final String driverName;
+  final int changeCount;
+  final VoidCallback onView;
+
+  const _DriverHistoryCard({
+    super.key,
+    required this.driverName,
+    required this.changeCount,
+    required this.onView,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _line),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              driverName,
+              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+            ),
+          ),
+          Text(
+            '$changeCount ${changeCount == 1 ? 'cambio' : 'cambios'}',
+            style: const TextStyle(color: _muted, fontSize: 13),
+          ),
+          const SizedBox(width: 12),
+          OutlinedButton.icon(
+            onPressed: onView,
+            icon: const Icon(Icons.visibility_outlined, size: 18),
+            label: const Text('Ver cambios'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryRequestCard extends StatelessWidget {
+  final Map<String, dynamic> row;
+
+  const _HistoryRequestCard({required this.row});
+
+  @override
+  Widget build(BuildContext context) {
+    final status = row['status']?.toString() ?? '';
+    final approved = status == 'approved';
+    final kind = row['request_kind']?.toString();
+    final title = kind == 'service'
+        ? 'Autorización: '
+            '${AdminDriverRequestsRpc.serviceLabels[row['service_key']?.toString()] ?? row['service_key'] ?? ''}'
+        : AdminDriverRequestsRpc.title(row);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        border: Border.all(color: _line),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: _blue,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                approved ? 'Aprobado' : 'Rechazado',
+                style: TextStyle(
+                  color: approved
+                      ? const Color(0xFF15803D)
+                      : const Color(0xFFB42318),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          if (kind == 'name' || kind == 'phone') ...[
+            const SizedBox(height: 6),
+            Text(
+              'Antes: ${row['old_value'] ?? '—'}',
+              style: const TextStyle(color: _muted),
+            ),
+            Text(
+              'Ahora: ${row['new_value'] ?? '—'}',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ],
+          if (kind == 'photo')
+            _RequestPhoto(path: row['new_photo_path']?.toString() ?? ''),
+          const SizedBox(height: 6),
+          Text(
+            'Solicitado ${_fmt(row['created_at'])}'
+            '${row['reviewed_at'] == null ? '' : ' · Revisado ${_fmt(row['reviewed_at'])}'}'
+            '${(row['reviewed_by_name'] ?? '').toString().isEmpty ? '' : ' por ${row['reviewed_by_name']}'}',
+            style: const TextStyle(color: _muted, fontSize: 11),
+          ),
+          if ((row['reject_reason'] ?? '').toString().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Motivo: ${row['reject_reason']}',
+              style: const TextStyle(color: _muted, fontSize: 12),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
