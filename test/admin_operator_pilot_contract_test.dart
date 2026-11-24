@@ -10,7 +10,7 @@ void main() {
     expect(panel, contains("if (_zoneScoped)"));
     expect(panel, contains('section = available.first;'));
     expect(panel, contains("index == 23 && adminAccess['role'] == 'operator'"));
-    expect(panel, contains("trailing: (_readOnly || adminAccess['role'] == 'operator')"));
+    expect(panel, contains("trailing: !canResolve"));
   });
 
   test('alta protegida y limpieza de cuentas ante error', () {

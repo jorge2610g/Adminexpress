@@ -3171,7 +3171,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   Widget _security() {
-    final canResolve = !_readOnly && adminAccess['role'] != 'operator';
+    final canResolve = _can('safety_sos.resolve');
     return _SecurityAlertsView(
       revision: revision,
       loadAlerts: _emergenciesList,
@@ -3193,8 +3193,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           subtitle: Text(
             '${(row['status'] ?? 'open').toString()} · ${_formatDate(row['created_at'])}',
           ),
-          // Operadores pueden revisar SOS de su zona, pero resolver es exclusivo del admin central.
-          trailing: (_readOnly || adminAccess['role'] == 'operator')
+          // Resolver depende del permiso `safety_sos.resolve` (el administrador completo siempre puede).
+          trailing: !canResolve
               ? null
               : FilledButton.icon(
                   onPressed: () => _resolveEmergency(row['id'].toString()),
@@ -3209,7 +3209,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   /// Abre el detalle de una alerta. Solo se resuelve desde el popup si el
   /// usuario es admin central y el panel no está en solo lectura.
   void _openEmergencyDetail(String emergencyId) {
-    final canResolve = !_readOnly && adminAccess['role'] != 'operator';
+    final canResolve = _can('safety_sos.resolve');
     showDialog<void>(
       context: context,
       builder: (dialogContext) => _EmergencyDetailDialog(
