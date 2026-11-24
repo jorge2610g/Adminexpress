@@ -2,14 +2,15 @@
 
 - Conductores y Clientes reciben encabezados y métricas propias, filtros de estado y listados tabulares adaptables al ancho. Clientes muestra viajes completados, rating, saldo, estado de push y cuenta; las consultas se limitan al canal y zona elegidos.
 - Soporte ahora tiene entrada lateral independiente, bandeja de conversaciones y filtro Todos / Clientes / Conductores. Notificaciones push, Avisos y En directo permanecen juntos en su sección.
-- Nueva migración de solo lectura en Expressdelivery `20261124155000_admin_customer_list_dashboard.sql`; **pendiente de aplicar**. La interfaz requiere esos RPC para los resúmenes y la lista de clientes.
-- **Estado:** cambios locales en rama de trabajo. No desplegado, sin cambios remotos en Supabase y sin prueba Flutter/visual en navegador.
+- Nueva migración de solo lectura en Expressdelivery `20261124155000_admin_customer_list_dashboard.sql`; aplicada a Supabase (registro `20261124234041`). La interfaz requiere esos RPC para los resúmenes y la lista de clientes.
+- **Estado:** código en PR #216; CI en ejecución. La web aún no está publicada y no se afirma QA visual en navegador.
 
 ## 2026-11-24 · Beneficios Express — trabajo preparado
 
 - La pantalla de Beneficios Express se ajustó a las referencias de Retos, Cupones/Reglas, Fidelidad, Referidos y Grupos MLM. Delivery tiene su propio público y mínimo de pedido; los cupones permiten financiar el descuento desde Empresa, Conductor o ambos al 50 %.
 - La implementación compartida de Express incorpora inscripción explícita a retos, verificación de exclusividad/compatibilidad, progreso por viajes pagados, recompensas sin comisión y referidos de conductores por viajes. Las migraciones coordinadas están en `Expressdelivery/supabase/migrations/20261124151000` a `20261124154000`.
-- **Estado:** código en ramas locales de trabajo; migraciones aún no aplicadas a Supabase; panel no publicado. No se activó ningún programa. La validación visual y el QA de Preview/Producción están pendientes.
+- Migraciones `benefits_delivery_coupon_funding`, `benefit_driver_commission_free_credits`, `benefit_referral_trip_rewards` y `benefit_driver_challenge_enrollment` aplicadas a Supabase el 2026-11-24 (registros `20261124234037`–`20261124234040`). No se activó ningún programa.
+- **Estado:** código en PR #216 (Adminexpress) y PR #515 (Expressdelivery), checks en ejecución; las webs aún no están publicadas. QA visual y E2E con cuenta Preview pendientes.
 
 ## 2026-10-21 · Builds Admin prepara la candidata Android unificada 1.6.3+142
 

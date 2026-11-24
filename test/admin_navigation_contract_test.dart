@@ -18,7 +18,7 @@ void main() {
         .map((match) => match.group(1)!)
         .toList();
 
-    expect(labels, hasLength(41));
+    expect(labels, hasLength(42));
     expect(labels[24], 'Delivery Fase 2 / Express Plus');
     expect(labels[35], 'Beneficios Express');
     expect(labels[36], 'Publicidad de pasajeros');
@@ -26,6 +26,7 @@ void main() {
     expect(labels[38], 'Billeteras');
     expect(labels[39], 'Viajes sospechosos');
     expect(labels[40], 'Solicitudes de conductores');
+    expect(labels[41], 'Soporte');
     expect(panel, contains("39: 'trips'"));
     expect(panel, contains("35: 'benefits'"));
     expect(panel, contains("if (index == 35 && adminAccess['role'] == 'super_admin')"));
