@@ -175,12 +175,9 @@ void main() {
       );
     });
 
-    test('Resolver solo aparece para el admin central', () {
-      expect(
-        security,
-        contains("final canResolve = !_readOnly && adminAccess['role'] != 'operator';"),
-      );
-      expect(security, contains("trailing: (_readOnly || adminAccess['role'] == 'operator')"));
+    test('Resolver depende del permiso safety_sos.resolve', () {
+      expect(security, contains("final canResolve = _can('safety_sos.resolve');"));
+      expect(security, contains('trailing: !canResolve'));
       expect(dialog, contains('if (widget.canResolve)'));
     });
   });
