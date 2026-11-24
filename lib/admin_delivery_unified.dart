@@ -149,8 +149,39 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
       _ => const Center(child: Text('Sección no disponible.')),
     };
 
+    // En el teléfono la cabecera grande y las pestañas en cuadrícula dejaban poca pantalla
+    // para el contenido: se oculta la cabecera y las pestañas van en una sola fila deslizable.
+    final narrow = MediaQuery.of(context).size.width < 700;
+    final mobileTabs = Material(
+      color: Colors.white,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        child: Row(children: [
+          for (var i = 0; i < choices.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                avatar: Icon(choices[i].$2,
+                    size: 16,
+                    color: i == selectedTab ? Colors.white : const Color(0xFF475569)),
+                label: Text(choices[i].$1),
+                selected: i == selectedTab,
+                showCheckmark: false,
+                selectedColor: const Color(0xFF2563EB),
+                labelStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: i == selectedTab ? Colors.white : const Color(0xFF334155)),
+                onSelected: (_) => setState(() => selectedTab = i),
+              ),
+            ),
+        ]),
+      ),
+    );
     return Column(children: [
-      Padding(
+      if (narrow) mobileTabs,
+      if (!narrow) Padding(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
         child: AdminHero(
           icon: Icons.local_shipping_rounded,
@@ -168,7 +199,7 @@ class _AdminDeliveryUnifiedPageState extends State<AdminDeliveryUnifiedPage> {
           ),
         ),
       ),
-      Material(color: Colors.white, child: Padding(
+      if (!narrow) Material(color: Colors.white, child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start,
           children: [

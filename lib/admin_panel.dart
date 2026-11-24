@@ -1565,6 +1565,49 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     );
   }
 
+  bool _filtersOpen = false;
+
+  /// En el teléfono los filtros de datos y de zona ocupaban media pantalla fija y dejaban
+  /// poco espacio para el contenido. Aquí se resumen en una línea que se abre al tocarla.
+  Widget _compactFilters() {
+    final hasEnvironment = _environmentFilteredSections.contains(section);
+    final hasScope = _requiresZoneScope(section);
+    if (!hasEnvironment && !hasScope) return const SizedBox.shrink();
+    final channel = _sectionChannel(section);
+    final summary = [
+      if (hasEnvironment) (channel == 'preview' ? 'Prueba' : 'Producción'),
+      if (hasScope && (adminCountryCode ?? '').isNotEmpty) adminCountryCode!,
+    ].join(' · ');
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Material(
+        color: const Color(0xFFF1F4FA),
+        child: InkWell(
+          onTap: () => setState(() => _filtersOpen = !_filtersOpen),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            child: Row(children: [
+              const Icon(Icons.filter_alt_outlined, size: 18, color: adminBlue),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  summary.isEmpty ? 'Filtros' : 'Filtros · $summary',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w800, color: adminDark),
+                ),
+              ),
+              Icon(_filtersOpen ? Icons.expand_less : Icons.expand_more,
+                  color: adminBlue),
+            ]),
+          ),
+        ),
+      ),
+      if (_filtersOpen) ...[
+        _sectionEnvironmentFilter(),
+        if (hasScope) _globalGeoScopeSwitcher(),
+      ],
+    ]);
+  }
+
   /// Per-section data filter. Shared configuration pages deliberately do not
   /// expose a Preview/Production selector.
   Widget _sectionEnvironmentFilter() {
@@ -1831,9 +1874,13 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
                               onExit: widget.onExit,
                               showNewTrip: !_readOnly && _sectionAllowed(13),
                             ),
-                          _sectionEnvironmentFilter(),
-                          if (_requiresZoneScope(section))
-                            _globalGeoScopeSwitcher(),
+                          if (compact)
+                            _compactFilters()
+                          else ...[
+                            _sectionEnvironmentFilter(),
+                            if (_requiresZoneScope(section))
+                              _globalGeoScopeSwitcher(),
+                          ],
                           Expanded(
                             child: KeyedSubtree(
                               key: ValueKey(
