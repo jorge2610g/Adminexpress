@@ -27,6 +27,7 @@ import 'admin_driver_quick_offers.dart';
 import 'admin_zone_coverage_editor.dart';
 import 'admin_notification_schedules.dart';
 import 'admin_comm_support_avisos.dart';
+import 'admin_live_meeting.dart';
 import 'core/admin_zone_coverage_label.dart';
 import 'core/admin_zone_passenger_services.dart';
 
@@ -7456,7 +7457,7 @@ class _AdminCommunicationsPageState
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Column(
         children: [
           const Padding(
@@ -7484,6 +7485,10 @@ class _AdminCommunicationsPageState
                   icon: Icon(Icons.campaign_outlined),
                   text: 'Avisos',
                 ),
+                Tab(
+                  icon: Icon(Icons.sensors_rounded),
+                  text: 'En directo',
+                ),
               ],
             ),
           ),
@@ -7500,6 +7505,12 @@ class _AdminCommunicationsPageState
                   zoneId: widget.zoneId,
                   zoneName: _campaignZoneName(),
                   partners: widget.operatorOnly ? const [] : campaignPartners,
+                ),
+                AdminLiveMeetingTab(
+                  channel: widget.channel,
+                  zoneId: widget.zoneId,
+                  zoneName: _campaignZoneName(),
+                  operatorOnly: widget.operatorOnly,
                 ),
               ],
             ),
