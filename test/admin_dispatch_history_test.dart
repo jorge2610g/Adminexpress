@@ -16,6 +16,22 @@ void main() {
     expect(AdminDispatchRpc.percent(0, 0), '—');
   });
 
+  test('alertas del resumen', () {
+    // 7 días reales de Trinidad: 44 de 103 concretadas, 125 de 193 sin respuesta, 12 sin notificados.
+    final alerts = AdminDispatchRpc.alerts({
+      'requests': 103, 'concretadas': 44, 'sin_notificados': 12,
+      'notificaciones': 193, 'ignoradas': 125,
+    });
+    expect(alerts.length, 3);
+    expect(alerts.first, contains('43%'));
+    // Con pocas solicitudes o buen servicio no hay alertas.
+    expect(AdminDispatchRpc.alerts({'requests': 3, 'concretadas': 0, 'notificaciones': 4}), isEmpty);
+    expect(
+      AdminDispatchRpc.alerts({'requests': 20, 'concretadas': 15, 'notificaciones': 30, 'ignoradas': 5}),
+      isEmpty,
+    );
+  });
+
   test('resultados en español', () {
     expect(AdminDispatchRpc.outcomeLabel('vio_y_no_respondio'), 'La vio y no respondió');
     expect(AdminDispatchRpc.outcomeLabel('no_la_abrio'), 'No la abrió');
