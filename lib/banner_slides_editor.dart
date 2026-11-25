@@ -25,13 +25,17 @@ class BannerSlidesEditor extends StatelessWidget {
   final ValueChanged<String> onError;
   final bool enabled;
   final String defaultLink;
+  final double imageAspectRatio;
+  final String imageSizeLabel;
   const BannerSlidesEditor(
       {super.key,
       required this.slides,
       required this.onChanged,
       required this.onError,
       this.enabled = true,
-      this.defaultLink = ''});
+      this.defaultLink = '',
+      this.imageAspectRatio = 3.2,
+      this.imageSizeLabel = '1280 × 400 px'});
 
   @override
   Widget build(BuildContext context) => Column(
@@ -42,6 +46,10 @@ class BannerSlidesEditor extends StatelessWidget {
           const SizedBox(height: 4),
           const Text(
               'Combina imágenes y videos. Cada pieza tiene su propio enlace.'),
+          Text(
+            'Medida recomendada para esta posición: $imageSizeLabel. '
+            'Si la imagen tiene otra medida, se amplía y recorta para llenar el marco.',
+          ),
           const SizedBox(height: 10),
           for (var i = 0; i < slides.length; i++)
             Card(
@@ -85,24 +93,33 @@ class BannerSlidesEditor extends StatelessWidget {
                                 },
                           icon: const Icon(Icons.delete_outline_rounded)),
                     ]),
-                    SizedBox(
-                      height: 110,
-                      width: double.infinity,
-                      child: slides[i].mediaType == 'video'
-                          ? const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.play_circle_outline, size: 42),
-                                Text('Video · se reproducirá en bucle'),
-                              ],
-                            )
-                          : slides[i].bytes != null
-                              ? Image.memory(slides[i].bytes!,
-                                  fit: BoxFit.contain)
-                              : Image.network(slides[i].imageUrl,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) =>
-                                      const Icon(Icons.image_outlined)),
+                    AspectRatio(
+                      aspectRatio: imageAspectRatio,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: ColoredBox(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          child: slides[i].mediaType == 'video'
+                              ? const Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.play_circle_outline, size: 42),
+                                      Text('Video · se reproducirá en bucle'),
+                                    ],
+                                  ),
+                                )
+                              : slides[i].bytes != null
+                                  ? Image.memory(slides[i].bytes!,
+                                      fit: BoxFit.cover)
+                                  : Image.network(slides[i].imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          const Icon(Icons.image_outlined)),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     TextFormField(

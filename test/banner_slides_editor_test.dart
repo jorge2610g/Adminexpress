@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../lib/banner_placement_dimensions.dart';
 import '../lib/banner_slides_editor.dart';
 
 void main() {
+  test('recomienda medidas y marco según la posición', () {
+    expect(bannerRecommendedDimensions('popup'), '1080 × 1920 px');
+    expect(bannerFrameAspectRatio('popup'), 9 / 16);
+    expect(bannerRecommendedDimensions('map_home'), '1280 × 400 px');
+    expect(bannerFrameAspectRatio('map_home'), 3.2);
+  });
+
   testWidgets('permite reordenar, cambiar enlace y quitar slides',
       (tester) async {
     final slides = [
@@ -25,6 +33,12 @@ void main() {
         ),
       ),
     ));
+
+    expect(find.textContaining('1280 × 400 px'), findsOneWidget);
+    expect(
+      tester.widget<AspectRatio>(find.byType(AspectRatio).first).aspectRatio,
+      3.2,
+    );
 
     await tester.tap(find.byTooltip('Subir imagen de posición').last);
     await tester.pumpAndSettle();
