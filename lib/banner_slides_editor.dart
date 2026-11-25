@@ -1,6 +1,21 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+Future<bool> isBannerImage1280x400(Uint8List bytes) async {
+  final codec = await ui.instantiateImageCodec(bytes);
+  try {
+    final frame = await codec.getNextFrame();
+    try {
+      return frame.image.width == 1280 && frame.image.height == 400;
+    } finally {
+      frame.image.dispose();
+    }
+  } finally {
+    codec.dispose();
+  }
+}
 
 class BannerSlideDraft {
   String imageUrl;
@@ -41,7 +56,8 @@ class BannerSlidesEditor extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           const Text(
-              'Combina imágenes y videos. Cada pieza tiene su propio enlace.'),
+              'Combina imágenes y videos. Cada pieza tiene su propio enlace. '
+              'Las imágenes deben medir exactamente 1280 × 400 px.'),
           const SizedBox(height: 10),
           for (var i = 0; i < slides.length; i++)
             Card(
@@ -85,24 +101,33 @@ class BannerSlidesEditor extends StatelessWidget {
                                 },
                           icon: const Icon(Icons.delete_outline_rounded)),
                     ]),
-                    SizedBox(
-                      height: 110,
-                      width: double.infinity,
-                      child: slides[i].mediaType == 'video'
-                          ? const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.play_circle_outline, size: 42),
-                                Text('Video · se reproducirá en bucle'),
-                              ],
-                            )
-                          : slides[i].bytes != null
-                              ? Image.memory(slides[i].bytes!,
-                                  fit: BoxFit.contain)
-                              : Image.network(slides[i].imageUrl,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) =>
-                                      const Icon(Icons.image_outlined)),
+                    AspectRatio(
+                      aspectRatio: 3.2,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: ColoredBox(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          child: slides[i].mediaType == 'video'
+                              ? const Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.play_circle_outline, size: 42),
+                                      Text('Video · se reproducirá en bucle'),
+                                    ],
+                                  ),
+                                )
+                              : slides[i].bytes != null
+                                  ? Image.memory(slides[i].bytes!,
+                                      fit: BoxFit.cover)
+                                  : Image.network(slides[i].imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          const Icon(Icons.image_outlined)),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     TextFormField(
@@ -132,6 +157,15 @@ class BannerSlidesEditor extends StatelessWidget {
                       final picked = <BannerSlideDraft>[];
                       for (final file in files) {
                         final bytes = await file.readAsBytes();
+                        if (!await isBannerImage1280x400(bytes)) {
+                          if (context.mounted) {
+                            onError(
+                              '${file.name}: la imagen debe medir exactamente '
+                              '1280 × 400 px. Ajusta el archivo y vuelve a subirlo.',
+                            );
+                          }
+                          return;
+                        }
                         if (bytes.lengthInBytes > 5 * 1024 * 1024) {
                           if (context.mounted)
                             onError(
