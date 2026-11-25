@@ -38,6 +38,20 @@ const Map<String, String> _statusLabels = {
   'under_review': 'En revisión',
   'driver_selected': 'Conductor asignado',
   'delivered': 'Entregado',
+  'driver_arriving': 'Conductor en camino',
+  'driver_waiting': 'Conductor esperando al pasajero',
+  'driver_arrived': 'Conductor llegó',
+  'searching': 'Buscando conductor',
+  'unpaid': 'Sin pagar',
+  'refunded': 'Reembolsado',
+  'partial': 'Pago parcial',
+  'not_requested': 'No solicitado',
+  'payment_requested': 'Cobro solicitado',
+  'scheduled': 'Programado',
+  'declined': 'Rechazada',
+  'confirmed': 'Confirmado',
+  'dismissed': 'Descartado',
+  'closed': 'Cerrado',
 };
 
 String friendlyStatus(String raw) =>
@@ -164,3 +178,38 @@ const Map<String, String> _dispatchLabels = {
 /// Modo de despacho de viajes, en el lenguaje de la operación.
 String friendlyDispatch(String raw) =>
     _dispatchLabels[raw.trim().toLowerCase()] ?? raw;
+
+
+const Map<String, String> _paymentMethodLabels = {
+  'cash': 'Efectivo',
+  'wallet': 'Billetera Express',
+  'card': 'Tarjeta',
+  'qr': 'QR',
+  'transfer': 'Transferencia',
+  'bank_transfer': 'Transferencia bancaria',
+};
+
+/// Método de pago en español; una clave desconocida se devuelve tal cual.
+String friendlyPaymentMethod(String raw) =>
+    _paymentMethodLabels[raw.trim().toLowerCase()] ?? raw;
+
+const Map<String, String> _pricingModeLabels = {
+  'offer': 'Oferta del pasajero',
+  'fixed': 'Precio fijo',
+  'metered': 'Por distancia y tiempo',
+  'auction': 'Subasta',
+  'negotiated': 'Negociado',
+};
+
+String friendlyPricingMode(String raw) =>
+    _pricingModeLabels[raw.trim().toLowerCase()] ?? raw;
+
+const Map<String, String> _demandLabels = {
+  'low': 'Baja',
+  'normal': 'Normal',
+  'high': 'Alta',
+  'very_high': 'Muy alta',
+};
+
+String friendlyDemand(String raw) =>
+    _demandLabels[raw.trim().toLowerCase()] ?? raw;

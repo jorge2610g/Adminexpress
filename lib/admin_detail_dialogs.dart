@@ -2371,7 +2371,7 @@ class _DriverEditorDialogState extends State<_DriverEditorDialog> {
                         icon: Icons.insights_rounded,
                         child: _InfoGrid([
                           ('Calificación', '${_text(rating['average'], '0')} / 5 · ${_text(rating['count'], '0')} evaluaciones'),
-                          ('Suscripción', subscription.isEmpty ? 'Sin suscripción' : '${_text(subscription['plan_name'])} · ${_text(subscription['status'])}'),
+                          ('Suscripción', subscription.isEmpty ? 'Sin suscripción' : '${_text(subscription['plan_name'])} · ${friendlyStatus(_text(subscription['status']))}'),
                           ('Vence suscripción', _date(subscription['expires_at'])),
                           ('Cuenta', qa.isEmpty ? 'Cuenta real' : '${_text(qa['group_name'])} · ${_text(qa['role'])}'),
                           ('Empresa / sindicato', partner.isEmpty ? 'Sin organización' : _text(partner['name'])),
@@ -3055,10 +3055,10 @@ class _TripDetailDialogState extends State<_TripDetailDialog> {
                       _InfoGrid([
                         ('Tarifa propuesta', _money(request['proposed_fare'], currency)),
                         ('Tarifa final', _money(trip['final_fare'], currency)),
-                        ('Método solicitado', _text(request['payment_method'])),
-                        ('Estado de pago', _text(trip['payment_status'])),
-                        ('Modo de precio', _text(request['pricing_mode'])),
-                        ('Demanda', '${_text(request['demand_level'])} · x${_text(request['demand_multiplier'], '1')}'),
+                        ('Método solicitado', friendlyPaymentMethod(_text(request['payment_method']))),
+                        ('Estado de pago', friendlyStatus(_text(trip['payment_status']))),
+                        ('Modo de precio', friendlyPricingMode(_text(request['pricing_mode']))),
+                        ('Demanda', '${friendlyDemand(_text(request['demand_level']))} · x${_text(request['demand_multiplier'], '1')}'),
                       ]),
                       if (payments.isNotEmpty) ...[
                         const Divider(height: 24),
@@ -3070,11 +3070,11 @@ class _TripDetailDialogState extends State<_TripDetailDialog> {
                             title: Text(
                               _money(p['amount'], _text(p['currency'], currency)) +
                                   ' · ' +
-                                  _text(p['method']),
+                                  friendlyPaymentMethod(_text(p['method'])),
                               style: const TextStyle(fontWeight: FontWeight.w800),
                             ),
                             subtitle: Text(
-                              _text(p['status']) +
+                              friendlyStatus(_text(p['status'])) +
                                   ' · comisión ' +
                                   _money(p['commission_amount'], _text(p['currency'], currency)) +
                                   ' · ' +
@@ -3096,7 +3096,7 @@ class _TripDetailDialogState extends State<_TripDetailDialog> {
                               children: [
                                 Expanded(child: Text(_text(m['reference']))),
                                 Text(
-                                  '${m['amount']} · ${_text(m['status'])}',
+                                  '${m['amount']} · ${friendlyStatus(_text(m['status']))}',
                                   style: const TextStyle(fontWeight: FontWeight.w800),
                                 ),
                               ],
@@ -3111,7 +3111,7 @@ class _TripDetailDialogState extends State<_TripDetailDialog> {
                   title: 'Fechas y estado',
                   icon: Icons.schedule_rounded,
                   child: _InfoGrid([
-                    ('Estado actual', _text(trip['status'])),
+                    ('Estado actual', friendlyStatus(_text(trip['status']))),
                     ('Creado', _date(trip['created_at'])),
                     ('Programado', _date(request['scheduled_for'])),
                     ('Completado', _date(trip['completed_at'])),
@@ -3131,7 +3131,7 @@ class _TripDetailDialogState extends State<_TripDetailDialog> {
                               contentPadding: EdgeInsets.zero,
                               leading: const Icon(Icons.circle, size: 10, color: _detailBlue),
                               title: Text(
-                                _text(h['status']),
+                                friendlyStatus(_text(h['status'])),
                                 style: const TextStyle(fontWeight: FontWeight.w800),
                               ),
                               subtitle: Text(
