@@ -19,6 +19,34 @@ class AdminDispatchRpc {
   static const stats = 'admin_dispatch_driver_stats_v1';
   static const summary = 'admin_dispatch_summary_v1';
 
+  /// Alertas del periodo. Umbrales: menos de 50 % de solicitudes concretadas (con al menos 5 solicitudes),
+  /// solicitudes sin ningún conductor notificado, o más de 60 % de notificaciones vistas sin respuesta.
+  static List<String> alerts(Map<String, dynamic> totals) {
+    int n(String k) => (totals[k] as num?)?.toInt() ?? 0;
+    final requests = n('requests');
+    final notifs = n('notificaciones');
+    final out = <String>[];
+    if (requests >= 5 && n('concretadas') * 100 < requests * 50) {
+      out.add(
+        'Solo ${percent(n('concretadas'), requests)} de las solicitudes terminó en viaje '
+        '(${n('concretadas')} de $requests). Los usuarios piden y no se concreta.',
+      );
+    }
+    if (n('sin_notificados') > 0) {
+      out.add(
+        '${n('sin_notificados')} solicitud(es) no notificaron a ningún conductor: '
+        'no había conductores disponibles que cumplieran las condiciones.',
+      );
+    }
+    if (notifs >= 10 && n('ignoradas') * 100 > notifs * 60) {
+      out.add(
+        '${percent(n('ignoradas'), notifs)} de las notificaciones fueron vistas y no respondidas: '
+        'los conductores las ven pero no las toman.',
+      );
+    }
+    return out;
+  }
+
   /// Porcentaje entero de [part] sobre [total]; «—» si no hay total.
   static String percent(num part, num total) =>
       total <= 0 ? '—' : '${(part * 100 / total).round()}%';
@@ -247,6 +275,32 @@ class _SummaryTabState extends State<_SummaryTab> {
                   _Kpi('No la abrieron', '${n('sin_abrir')}', _muted),
                 ]),
                 const SizedBox(height: 16),
+                for (final alert in AdminDispatchRpc.alerts(t))
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _red.withValues(alpha: 0.08),
+                      border: Border.all(color: _red.withValues(alpha: 0.4)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.warning_amber_rounded,
+                            color: _red, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(alert,
+                              style: const TextStyle(
+                                  color: _red,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13)),
+                        ),
+                      ],
+                    ),
+                  ),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
