@@ -676,8 +676,9 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Text('Express $version · build '
                     '${publishedRelease['build_number']}. '
-                    'El aviso se enviará como notificación y en la bandeja de la aplicación. '
-                    'No actualiza los teléfonos por sí solo.'),
+                    'Se enviará una notificación «Nueva actualización» solo a quienes necesitan actualizar. '
+                    'Al tocarla, la app abre Google Play si tiene una versión anterior; si ya está al día, '
+                    'solo abre la app. No actualiza los teléfonos por sí sola.'),
                   const SizedBox(height: 14),
                   AdminDropdownField<String>(
                     initialValue: audience,
@@ -708,12 +709,12 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                   ),
                   FutureBuilder<dynamic>(
                     key: ValueKey('estimate-$audience-${scopedZone ?? 'global'}'),
-                    future: supabase.rpc('admin_push_audience_estimate_v2',
+                    future: supabase.rpc('admin_app_update_audience_v1',
                       params: {
                         'p_channel': 'production',
+                        'p_build_number': publishedRelease['build_number'],
                         'p_audience': audience,
                         'p_zone_id': scopedZone,
-                        'p_partner_id': null,
                       }),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) return const LinearProgressIndicator();
@@ -722,8 +723,12 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
                           : <String, dynamic>{};
                       return Padding(
                         padding: const EdgeInsets.only(top: 12),
-                        child: Text('Destinatarios: ${estimate['recipients'] ?? '—'}'
-                          ' · Push activo: ${estimate['push_enabled'] ?? '—'}'),
+                        child: Text(
+                          'Usuarios Android: ${estimate['total'] ?? '—'}\n'
+                          'Ya actualizados (no recibirán): ${estimate['updated'] ?? '—'}\n'
+                          'Con versión anterior: ${estimate['outdated'] ?? '—'}\n'
+                          'Sin versión registrada (recibirán, aún no informan su versión): ${estimate['unknown'] ?? '—'}\n'
+                          'Recibirán el aviso: ${estimate['will_receive'] ?? '—'}'),
                       );
                     },
                   ),
@@ -748,22 +753,15 @@ class _AdminSingleAppReleasePageState extends State<AdminSingleAppReleasePage> {
       ),
     );
     if (selected == null) return;
-    final title = 'Actualización disponible: Express $version';
-    final body = 'Ya está disponible la nueva versión de Express '
-        '(build ${publishedRelease['build_number']}). '
-        'Actualiza desde Google Play: '
-        'https://play.google.com/store/apps/details?id=com.express.usuario1';
-    // Reuse the audited channel-aware campaign RPC. Nothing is sent until
-    // the operator confirms this dialog.
-    await _call('admin_send_announcement_v4', {
+    // Solo se envía a quienes necesitan actualizar (versión anterior o sin versión registrada).
+    // Nada se envía hasta confirmar este diálogo.
+    await _call('admin_send_app_update_push_v1', {
       'p_channel': 'production',
-      'p_title': title,
-      'p_body': body,
+      'p_build_number': publishedRelease['build_number'],
       'p_audience': selected['audience'],
       'p_zone_id': selected['zone_id'],
-      'p_partner_id': null,
-    }, 'Campaña de actualización creada para la audiencia seleccionada. '
-       'Verifica las entregas FCM en Notificaciones / Avisos.');
+    }, 'Aviso de actualización enviado a quienes necesitan actualizar. '
+       'Verifica las entregas en Notificaciones / Avisos.');
   }
 
   Future<void> _open(String? value) async {
