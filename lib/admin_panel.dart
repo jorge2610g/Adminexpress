@@ -27,6 +27,7 @@ import 'admin_trip_ranking_export.dart';
 import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
 import 'admin_comm_support_avisos.dart';
+import 'admin_dispatch_history.dart';
 import 'admin_driver_requests.dart';
 import 'admin_landing_banners.dart';
 import 'admin_debt_management.dart';
@@ -2156,10 +2157,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 13:
-        return AdminDispatchPage(
+        return AdminDispatchHub(
           channel: _sectionChannel(13),
-          countryCode: adminCountryCode,
           zoneId: adminZoneId,
+          manual: AdminDispatchPage(
+            channel: _sectionChannel(13),
+            countryCode: adminCountryCode,
+            zoneId: adminZoneId,
+          ),
         );
       case 14:
         return AdminEnvironmentAuditPage(
