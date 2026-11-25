@@ -327,8 +327,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     _maxDiscount.text = config['max_discount']?.toString() ?? '';
     _minFare.text = config['min_fare']?.toString() ?? '';
     _threshold.text = config['trip_threshold']?.toString() ?? '';
-    _leaderPercent.text = config['company_commission_percent']?.toString() ??
-        config['plan_payment_percent']?.toString() ?? '';
+    _leaderPercent.text = config['plan_payment_percent']?.toString() ?? '';
     _benefitMonths.text = config['benefit_months']?.toString() ?? '';
     _driverNoCommission.text = config['driver_no_commission_trips']?.toString() ?? '';
     _dailyDriverCap.text = config['max_credits_per_driver_day']?.toString() ?? '';
@@ -431,8 +430,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       'min_paid_trips': int.tryParse(_referralMinimumTrips.text.trim()),
       'max_referrals_per_user': int.tryParse(_maxReferrals.text.trim()),
       'plan_payment_percent': double.tryParse(_leaderPercent.text.trim()),
-      'commission_basis': 'company_trip',
-      'company_commission_percent': double.tryParse(_leaderPercent.text.trim()),
+      'commission_basis': 'plan_payment',
       'benefit_months': int.tryParse(_benefitMonths.text.trim()),
       'lifetime': _lifetime,
       'period': _period,
@@ -446,7 +444,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
   Future<void> _save([BuildContext? dialogContext]) async {
     final defaultProgramName = switch (_programType) {
       'referral' => 'Programa de referidos de conductores',
-      'referral_commission' => 'Grupos MLM — comisión por referidos',
+      'referral_commission' => 'MLM de pagos de plan',
       _ => '',
     };
     final programName = _name.text.trim().isNotEmpty
@@ -475,7 +473,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     }
     if (_programType == 'referral_commission' &&
         (double.tryParse(_leaderPercent.text.trim()) ?? 0) <= 0) {
-      _showMessage('Indica el porcentaje de la comisión de Express.');
+      _showMessage('Indica el porcentaje del pago de plan.');
       return;
     }
     if (_programType == 'referral' &&
@@ -514,7 +512,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
       setState(_reload);
       _showMessage(
         _programType == 'referral_commission' && _enabled
-            ? 'Configuración MLM guardada.'
+            ? 'MLM activo: se acreditará el porcentaje de cada pago de plan confirmado.'
             : state == 'active'
                 ? 'Campaña activa. Los beneficios se liquidan al completar un viaje pagado.'
                 : 'Guardado como borrador. No aplica descuentos ni premios todavía.',
@@ -579,7 +577,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
                     ..._editorFields(),
                     const SizedBox(height: 8),
                     if (_programType == 'referral')
-                      _infoBox('Configura el porcentaje recurrente del líder en Grupos MLM.'),
+                      _infoBox('Los referidos de conductores por pago de plan se configuran en Grupos MLM.'),
                     if (_programType == 'activation' || _programType == 'loyalty' || _programType == 'driver_challenge')
                       _infoBox('Las recompensas se aplican al completar viajes pagados y se liquidan dentro de la app.'),
                     if (const {'coupon', 'activation', 'loyalty', 'driver_challenge'}.contains(_programType))
@@ -644,7 +642,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         'activation' => 'Define el disparador y la recompensa automática.',
         'loyalty' => 'Cada N viajes pagados, el siguiente viaje del pasajero es gratis.',
         'referral' => 'Programa de referidos de conductores; la recompensa se usa dentro de la app.',
-        'referral_commission' => 'El líder recibe una parte de la comisión de Express por sus referidos.',
+        'referral_commission' => 'El líder recibe un porcentaje de cada pago de plan confirmado.',
         'driver_challenge' => 'Incentivo para conductores por metas de viajes.',
         _ => 'Configura el beneficio.',
       };
@@ -780,7 +778,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         ]);
       case 'referral_commission':
         fields.addAll([
-          _textField('Porcentaje de la comisión de Express por viaje', _leaderPercent, hint: 'Ej.: 1', keyboard: const TextInputType.numberWithOptions(decimal: true)),
+          _textField('Porcentaje del pago de plan', _leaderPercent, hint: 'Ej.: 1', keyboard: const TextInputType.numberWithOptions(decimal: true)),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Beneficio de por vida'),
@@ -788,7 +786,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
             onChanged: (value) => _refreshEditor(() => _lifetime = value),
           ),
           if (!_lifetime) _textField('Vigencia del beneficio (meses)', _benefitMonths, keyboard: TextInputType.number),
-          _infoBox('El líder recibe el porcentaje configurado de la comisión de Express por cada viaje completado y pagado de sus conductores referidos.'),
+          _infoBox('El crédito va a la billetera interna del conductor que refirió, únicamente por cada pago de plan confirmado en Bolivia.'),
         ]);
       case 'driver_challenge':
         fields.addAll([
@@ -1188,7 +1186,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         'activation' => const ['Nombre', 'Disparador', 'Recompensa', 'Audiencia', 'Activaciones', 'Estado', 'Acciones'],
         'loyalty' => const ['Nombre', 'Umbral', 'Premio conductor', 'Participando', 'Otorgados', 'Cobrados', 'Créditos', 'Estado', 'Acciones'],
         'referral' => const ['Programa', 'Premio quien refiere', 'Premio referido', 'Condición', 'Estado', 'Acciones'],
-        'referral_commission' => const ['Programa MLM', '% comisión Express', 'Vigencia', 'Estado', 'Acciones'],
+        'referral_commission' => const ['Programa MLM', 'Porcentaje del plan', 'Vigencia', 'Estado', 'Acciones'],
         'driver_challenge' => const ['Nombre', 'Meta', 'Período', 'Recompensa', 'Inscritos (período)', 'Completados', 'Estado', 'Acciones'],
         _ => const ['Nombre', 'Estado', 'Acciones'],
       };
@@ -1229,8 +1227,8 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           '${config['min_paid_trips'] ?? 0} viajes pagados', state, actions,
         ],
       'referral_commission' => [
-          row['name']?.toString() ?? 'Grupos MLM',
-          '${config['company_commission_percent'] ?? config['plan_payment_percent'] ?? '—'}%',
+          row['name']?.toString() ?? 'MLM de pagos de plan',
+          '${config['plan_payment_percent'] ?? '—'}%',
           config['lifetime'] == true ? 'De por vida' : '${config['benefit_months'] ?? '—'} meses', state, actions,
         ],
       'driver_challenge' => [
@@ -1382,24 +1380,24 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         child: Padding(
           padding: const EdgeInsets.all(22),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Grupos MLM — Comisión recurrente por referidos', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-            const Text('El líder recibe el porcentaje configurado de la comisión de Express por cada viaje completado de sus conductores referidos. La comisión sale del corte de la empresa, no del conductor referido.', style: TextStyle(color: _muted)),
+            const Text('Grupos MLM — Comisión por pagos de plan', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            const Text('El conductor que refiere recibe un porcentaje de cada pago de plan confirmado por el conductor referido.', style: TextStyle(color: _muted)),
             const SizedBox(height: 20),
             _twoColumns([
-              _textField('Porcentaje de la comisión de la empresa', _leaderPercent, hint: 'Ej.: 1', keyboard: const TextInputType.numberWithOptions(decimal: true)),
+              _textField('Porcentaje del pago de plan', _leaderPercent, hint: 'Ej.: 1', keyboard: const TextInputType.numberWithOptions(decimal: true)),
               if (!_lifetime) _textField('Vigencia del beneficio (meses)', _benefitMonths, keyboard: TextInputType.number),
             ]),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Beneficio de por vida'),
-              subtitle: const Text('Si está activo, el beneficio no vence mientras el conductor referido complete viajes.'),
+              subtitle: const Text('Si está activo, el beneficio no vence mientras el referido siga pagando planes.'),
               value: _lifetime,
               onChanged: (value) => setState(() => _lifetime = value),
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Programa activo'),
-              subtitle: const Text('Acredita la recompensa al líder en la billetera interna cuando se paga un viaje elegible.'),
+              subtitle: const Text('Aplica a conductores de Bolivia y acredita la comisión en la billetera interna.'),
               value: _enabled,
               onChanged: (value) => setState(() => _enabled = value),
             ),
@@ -1602,7 +1600,7 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         'activation' => 'Recompensas automáticas basadas en acciones de usuarios.',
         'loyalty' => 'Premia a tus pasajeros frecuentes y conductores.',
         'referral' => 'Referidos de conductores y sus recompensas dentro de Express.',
-        'referral_commission' => 'Porcentaje de la comisión de Express por los viajes de los conductores referidos.',
+        'referral_commission' => 'Porcentaje de cada pago de plan confirmado en Bolivia.',
         'driver_challenge' => 'Administra las metas y recompensas para conductores.',
         _ => '',
       };
