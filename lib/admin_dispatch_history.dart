@@ -17,6 +17,11 @@ class AdminDispatchRpc {
   static const unserved = 'admin_dispatch_unserved_v1';
   static const drivers = 'admin_dispatch_request_drivers_v1';
   static const stats = 'admin_dispatch_driver_stats_v1';
+  static const summary = 'admin_dispatch_summary_v1';
+
+  /// Porcentaje entero de [part] sobre [total]; «—» si no hay total.
+  static String percent(num part, num total) =>
+      total <= 0 ? '—' : '${(part * 100 / total).round()}%';
 
   /// Inicio del periodo elegido (hora local): hoy, últimos 7 o 30 días.
   static DateTime periodStart(String period, DateTime now) {
@@ -78,7 +83,7 @@ class AdminDispatchHub extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Column(
         children: [
           const Material(
@@ -86,7 +91,8 @@ class AdminDispatchHub extends StatelessWidget {
             child: TabBar(
               tabs: [
                 Tab(text: 'Despacho manual'),
-                Tab(text: 'Sin conductor'),
+                Tab(text: 'Resumen'),
+                Tab(text: 'No concretadas'),
                 Tab(text: 'Por conductor'),
               ],
             ),
@@ -95,6 +101,7 @@ class AdminDispatchHub extends StatelessWidget {
             child: TabBarView(
               children: [
                 manual,
+                _SummaryTab(channel: channel, zoneId: zoneId),
                 _UnservedTab(channel: channel, zoneId: zoneId),
                 _DriversTab(channel: channel, zoneId: zoneId),
               ],
@@ -124,6 +131,220 @@ class _PeriodBar extends StatelessWidget {
       onSelectionChanged: (v) => onChanged(v.first),
     );
   }
+}
+
+class _SummaryTab extends StatefulWidget {
+  final String channel;
+  final String? zoneId;
+  const _SummaryTab({required this.channel, required this.zoneId});
+
+  @override
+  State<_SummaryTab> createState() => _SummaryTabState();
+}
+
+class _SummaryTabState extends State<_SummaryTab> {
+  String period = 'today';
+  int revision = 0;
+
+  Future<Map<String, dynamic>> _load() async {
+    final zone = widget.zoneId;
+    if (zone == null || zone.isEmpty) return const {};
+    final value = await supabase.rpc(
+      AdminDispatchRpc.summary,
+      params: {
+        'p_channel': widget.channel,
+        'p_zone_id': zone,
+        'p_from': AdminDispatchRpc.periodStart(period, DateTime.now())
+            .toUtc()
+            .toIso8601String(),
+        'p_to': null,
+      },
+    );
+    return value is Map ? Map<String, dynamic>.from(value) : const {};
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(22),
+      children: [
+        const Text('Resumen de despachos',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 6),
+        const Text(
+          'Cuántas solicitudes entran, cuántas se concretan y qué hacen los conductores con ellas. '
+          'Sirve para saber si los usuarios piden y los conductores no aceptan.',
+          style: TextStyle(color: _muted, fontSize: 12),
+        ),
+        const SizedBox(height: 12),
+        _PeriodBar(
+          period: period,
+          onChanged: (v) => setState(() {
+            period = v;
+            revision++;
+          }),
+        ),
+        const SizedBox(height: 14),
+        FutureBuilder<Map<String, dynamic>>(
+          key: ValueKey('summary-$period-$revision'),
+          future: _load(),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting &&
+                !snap.hasData) {
+              return const LinearProgressIndicator();
+            }
+            if (snap.hasError) return Text(friendlyError(snap.error));
+            final data = snap.data ?? const <String, dynamic>{};
+            final t = data['totals'] is Map
+                ? Map<String, dynamic>.from(data['totals'] as Map)
+                : <String, dynamic>{};
+            int n(String k) => (t[k] as num?)?.toInt() ?? 0;
+            final requests = n('requests');
+            if (requests == 0) {
+              return const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(
+                    child: Text('No hubo solicitudes en este periodo.',
+                        style: TextStyle(color: _muted))),
+              );
+            }
+            final notifs = n('notificaciones');
+            final days = _rows(data['days']);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(spacing: 10, runSpacing: 10, children: [
+                  _Kpi('Solicitudes', '$requests', _blue),
+                  _Kpi(
+                      'Concretadas',
+                      '${n('concretadas')} · ${AdminDispatchRpc.percent(n('concretadas'), requests)}',
+                      _green),
+                  _Kpi(
+                      'Sin concretar',
+                      '${n('sin_concretar') + n('buscando')} · ${AdminDispatchRpc.percent(n('sin_concretar') + n('buscando'), requests)}',
+                      _red),
+                  _Kpi(
+                      'Sin ningún conductor notificado',
+                      '${n('sin_notificados')}',
+                      n('sin_notificados') > 0 ? _red : _muted),
+                  _Kpi('Conductores notificados',
+                      '${n('conductores_notificados')}', _blue),
+                  _Kpi('Conductores en línea ahora',
+                      '${data['online_now'] ?? '—'}', _green),
+                  _Kpi('Notificaciones enviadas', '$notifs', _blue),
+                  _Kpi(
+                      'Vistas',
+                      '${n('vistas')} · ${AdminDispatchRpc.percent(n('vistas'), notifs)}',
+                      _muted),
+                  _Kpi(
+                      'Respondieron',
+                      '${n('respuestas')} · ${AdminDispatchRpc.percent(n('respuestas'), notifs)}',
+                      _green),
+                  _Kpi(
+                      'La vieron y no respondieron',
+                      '${n('ignoradas')} · ${AdminDispatchRpc.percent(n('ignoradas'), notifs)}',
+                      _red),
+                  _Kpi('No la abrieron', '${n('sin_abrir')}', _muted),
+                ]),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    border: Border.all(color: _line),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'De cada 100 notificaciones, ${AdminDispatchRpc.percent(n('vistas'), notifs)} fueron vistas y '
+                    '${AdminDispatchRpc.percent(n('respuestas'), notifs)} recibieron respuesta. '
+                    '${AdminDispatchRpc.percent(n('concretadas'), requests)} de las solicitudes terminó en viaje.',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text('Por día',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columnSpacing: 18,
+                    headingRowHeight: 38,
+                    dataRowMinHeight: 36,
+                    dataRowMaxHeight: 40,
+                    columns: const [
+                      DataColumn(label: Text('Día')),
+                      DataColumn(label: Text('Solicitudes'), numeric: true),
+                      DataColumn(label: Text('Concretadas'), numeric: true),
+                      DataColumn(label: Text('Sin concretar'), numeric: true),
+                      DataColumn(label: Text('Sin notificados'), numeric: true),
+                      DataColumn(label: Text('Conductores'), numeric: true),
+                      DataColumn(label: Text('Notificaciones'), numeric: true),
+                      DataColumn(label: Text('Vistas'), numeric: true),
+                      DataColumn(label: Text('Respondieron'), numeric: true),
+                      DataColumn(label: Text('No respondieron'), numeric: true),
+                    ],
+                    rows: [
+                      for (final d in days)
+                        DataRow(cells: [
+                          DataCell(Text(_day(d['day']))),
+                          DataCell(Text('${d['requests']}')),
+                          DataCell(Text('${d['concretadas']}')),
+                          DataCell(Text(
+                              '${(d['sin_concretar'] as num? ?? 0) + (d['buscando'] as num? ?? 0)}')),
+                          DataCell(Text('${d['sin_notificados']}')),
+                          DataCell(Text('${d['conductores_notificados']}')),
+                          DataCell(Text('${d['notificaciones']}')),
+                          DataCell(Text('${d['vistas']}')),
+                          DataCell(Text('${d['respuestas']}')),
+                          DataCell(Text('${d['ignoradas']}')),
+                        ]),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+String _day(Object? raw) {
+  final d = DateTime.tryParse(raw?.toString() ?? '');
+  if (d == null) return '—';
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${two(d.day)}/${two(d.month)}';
+}
+
+class _Kpi extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _Kpi(this.label, this.value, this.color);
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 190,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: _line),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(value,
+                style: TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.w900, color: color)),
+            const SizedBox(height: 4),
+            Text(label, style: const TextStyle(color: _muted, fontSize: 11)),
+          ],
+        ),
+      );
 }
 
 class _UnservedTab extends StatefulWidget {
@@ -170,11 +391,11 @@ class _UnservedTabState extends State<_UnservedTab> {
     return ListView(
       padding: const EdgeInsets.all(22),
       children: [
-        const Text('Solicitudes sin conductor',
+        const Text('Solicitudes no concretadas',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
         const SizedBox(height: 6),
         const Text(
-          'Viajes que se pidieron y terminaron sin conductor (cancelados o vencidos). Toca uno para ver quién fue '
+          'Todo lo que se pidió y no llegó a ser un viaje: cancelado, vencido o todavía buscando conductor. Toca uno para ver quién fue '
           'notificado, quién la vio, quién respondió y a qué distancia estaba.',
           style: TextStyle(color: _muted, fontSize: 12),
         ),
@@ -205,7 +426,7 @@ class _UnservedTabState extends State<_UnservedTab> {
                 padding: EdgeInsets.all(24),
                 child: Center(
                   child: Text(
-                      'No hubo solicitudes sin conductor en este periodo.',
+                      'No hubo solicitudes sin concretar en este periodo.',
                       style: TextStyle(color: _muted)),
                 ),
               );
@@ -214,7 +435,7 @@ class _UnservedTabState extends State<_UnservedTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Wrap(spacing: 8, runSpacing: 8, children: [
-                  _Pill('$total sin conductor', _blue),
+                  _Pill('$total no concretadas', _blue),
                   _Pill('$none sin ningún conductor notificado',
                       none > 0 ? _red : _muted),
                 ]),

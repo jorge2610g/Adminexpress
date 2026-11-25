@@ -11,6 +11,11 @@ void main() {
     expect(AdminDispatchRpc.periodStart('30d', now), DateTime(2026, 10, 27));
   });
 
+  test('porcentajes del resumen', () {
+    expect(AdminDispatchRpc.percent(44, 103), '43%');
+    expect(AdminDispatchRpc.percent(0, 0), '—');
+  });
+
   test('resultados en español', () {
     expect(AdminDispatchRpc.outcomeLabel('vio_y_no_respondio'), 'La vio y no respondió');
     expect(AdminDispatchRpc.outcomeLabel('no_la_abrio'), 'No la abrió');
@@ -22,6 +27,8 @@ void main() {
     for (final n in [AdminDispatchRpc.unserved, AdminDispatchRpc.drivers, AdminDispatchRpc.stats]) {
       expect(sql, contains('function public.$n('));
     }
+    final summarySql = File('supabase/migrations/20261125160000_dispatch_summary.sql').readAsStringSync();
+    expect(summarySql, contains('function public.${AdminDispatchRpc.summary}('));
     expect(File('lib/admin_panel.dart').readAsStringSync(), contains('AdminDispatchHub('));
   });
 }
