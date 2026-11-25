@@ -854,7 +854,8 @@ class _AdminAvisosTabState extends State<AdminAvisosTab> {
             final avisos = audienceFilter == 'all'
                 ? allAvisos
                 : allAvisos
-                    .where((aviso) => aviso['audience'] == audienceFilter)
+                    .where((aviso) => aviso['audience'] == audienceFilter ||
+                        aviso['audience'] == 'all')
                     .toList();
             if (avisos.isEmpty) {
               return const Padding(
