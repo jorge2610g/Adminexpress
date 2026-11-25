@@ -496,7 +496,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
     ('Deudas y ajustes', Icons.account_balance_wallet_outlined),
     ('Requisitos de restaurantes', Icons.fact_check_outlined),
     ('Beneficios Express', Icons.card_giftcard_outlined),
-    ('Publicidad de pasajeros', Icons.campaign_rounded),
+    ('Banners publicitarios', Icons.campaign_rounded),
     ('Asesores de ventas', Icons.badge_rounded),
     ('Billeteras', Icons.account_balance_wallet_rounded),
     ('Viajes sospechosos', Icons.policy_outlined),

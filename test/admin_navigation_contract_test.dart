@@ -21,7 +21,7 @@ void main() {
     expect(labels, hasLength(42));
     expect(labels[24], 'Delivery Fase 2 / Express Plus');
     expect(labels[35], 'Beneficios Express');
-    expect(labels[36], 'Publicidad de pasajeros');
+    expect(labels[36], 'Banners publicitarios');
     expect(labels[37], 'Asesores de ventas');
     expect(labels[38], 'Billeteras');
     expect(labels[39], 'Viajes sospechosos');

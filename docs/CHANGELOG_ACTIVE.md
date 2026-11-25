@@ -1,3 +1,10 @@
+## 2026-11-25 · Banners publicitarios — vista y editor alineados con maqueta
+
+- La lista de Admin usa filtros de Posición/Estado y una tabla con miniatura, título, posición, prioridad, switch Activo, impresiones, clics, CTR y menú Editar/Ver estadísticas/Eliminar.
+- El editor sigue el orden de la referencia: título y descripción, posición/prioridad, preview y carga de imagen, URL, duración, fechas y estado activo. Los datos de anunciante/pago quedan agrupados en un bloque interno opcional.
+- Las migraciones `20261125011240_express_ads_driver_placements_and_metrics.sql` y `20261125012608_admin_landing_banner_delete_v1.sql` están aplicadas al esquema Supabase compartido. No modifican banners existentes ni activan campañas.
+- **Estado:** UI en la rama local `preview/banner-ads-all-surfaces-20261125`; aún faltan Flutter analyze/CI y QA visual con cuenta Preview. El administrador no está publicado.
+
 ## 2026-11-24 · Presentación de Clientes, Conductores y Soporte
 
 - Conductores y Clientes reciben encabezados y métricas propias, filtros de estado y listados tabulares adaptables al ancho. Clientes muestra viajes completados, rating, saldo, estado de push y cuenta; las consultas se limitan al canal y zona elegidos.
