@@ -3,7 +3,7 @@
 - El formulario valida antes de cerrarse y conserva todos los campos si faltan datos o falla el guardado. El error se muestra dentro del diálogo y solo se cierra después de guardar correctamente.
 - Título y descripción se identifican como internos; se elimina URL de imagen y el texto del botón. Cada imagen se carga desde archivo y tiene su URL HTTPS de destino.
 - Inicio/fin se eligen con calendario, permiten quitar fecha y la fecha de fin cubre el día seleccionado. El fin anterior al inicio se rechaza sin cerrar el editor.
-- Dos pruebas de widgets verifican conservación del borrador tras errores y selección/eliminación de fecha. En validación para publicación canónica autorizada.
+- Publicado en PR #219, commit `ec46711f10783c4ef7d98d872c93f46e2ccd0e2f`, deployment [45531286788](https://github.com/jorge2610g/Adminexpress/actions/runs/45531286788) en verde y `version.json` del dominio verificado. Pasaron dos pruebas de widgets (borrador/calendario) y tres de navegación; análisis sin errores. QA con sesión Preview pendiente del propietario.
 
 ## 2026-11-25 · Banners publicitarios — vista y editor alineados con maqueta
 
