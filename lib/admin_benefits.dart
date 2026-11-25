@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'benefit_period_dates.dart';
 import 'core/admin_friendly_error.dart';
 import 'core/supabase_client.dart';
 
@@ -313,6 +314,16 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
     _enabled = false;
     _startsAt = DateTime.now();
     _endsAt = null;
+    if (_programType == 'driver_challenge') _applyPeriodRange();
+  }
+
+  /// Rellena inicio y fin con el día, la semana o el mes en curso según el periodo.
+  /// En «Personalizado» no toca las fechas: las elige el administrador.
+  void _applyPeriodRange() {
+    final range = challengePeriodRange(_period, DateTime.now());
+    if (range == null) return;
+    _startsAt = range.start;
+    _endsAt = range.end;
   }
 
   void _open(Map<String, dynamic> item) {
@@ -792,9 +803,17 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
         fields.addAll([
           _twoColumns([
             _textField('Meta (número de viajes) *', _threshold, hint: '10', keyboard: TextInputType.number),
-            _dropdown('Periodo', _period, const {'daily': 'Diario', 'weekly': 'Semanal', 'monthly': 'Mensual', 'custom': 'Personalizado'}, (value) => _refreshEditor(() => _period = value)),
+            _dropdown('Periodo', _period, const {'daily': 'Diario', 'weekly': 'Semanal', 'monthly': 'Mensual', 'custom': 'Personalizado'}, (value) => _refreshEditor(() { _period = value; _applyPeriodRange(); })),
           ]),
           _dateFields(),
+          if (challengePeriodHint(_period, _startsAt, _endsAt) != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                '${challengePeriodHint(_period, _startsAt, _endsAt)}. Cambia el periodo a «Personalizado» para elegir otras fechas.',
+                style: const TextStyle(color: _muted, fontSize: 12),
+              ),
+            ),
           _twoColumns([
             _dropdown('Tipo de recompensa', _challengeRewardType, const {
               'commission_free': 'Viajes sin comisión',
