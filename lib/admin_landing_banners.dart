@@ -1,16 +1,14 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 
 import 'core/admin_friendly_error.dart';
 import 'core/admin_dropdown_field.dart';
 
-import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/supabase_client.dart';
 import 'banner_calendar_field.dart';
 import 'banner_form_validation.dart';
+import 'banner_slides_editor.dart';
 
 /// Scoped advertising management for passenger and driver app surfaces.
 /// Market's own store promotions remain separate.
@@ -228,12 +226,30 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
     final cta = TextEditingController(
       text: banner?['cta_label']?.toString() ?? 'Descubrir',
     );
-    final imageUrl = TextEditingController(
-      text: banner?['image_url']?.toString() ?? '',
-    );
-    final targetUrl = TextEditingController(
-      text: banner?['target_url']?.toString() ?? '',
-    );
+    final slides = <BannerSlideDraft>[
+      for (final raw in (banner?['slides'] as List?) ?? const [])
+        if (raw is Map)
+          BannerSlideDraft(
+              imageUrl: raw['image_url']?.toString() ?? '',
+              mediaType:
+                  raw['media_type']?.toString() == 'video' ? 'video' : 'image',
+              videoUrl: raw['video_url']?.toString() ?? '',
+              targetUrl: raw['target_url']?.toString() ?? ''),
+    ];
+    if (slides.isEmpty &&
+        banner?['media_type']?.toString() == 'video' &&
+        (banner?['media_url'] ?? '').toString().startsWith('https://')) {
+      slides.add(BannerSlideDraft(
+          mediaType: 'video',
+          videoUrl: banner!['media_url'].toString(),
+          targetUrl: banner['target_url']?.toString() ?? ''));
+    }
+    if (slides.isEmpty &&
+        (banner?['image_url'] ?? '').toString().startsWith('https://')) {
+      slides.add(BannerSlideDraft(
+          imageUrl: banner!['image_url'].toString(),
+          targetUrl: banner['target_url']?.toString() ?? ''));
+    }
     final order = TextEditingController(
       text: banner?['sort_order']?.toString() ?? '100',
     );
@@ -246,13 +262,6 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
     String target = banner?['target_module']?.toString() ?? '';
     String color = banner?['style_key']?.toString() ?? 'blue';
     bool active = banner?['active'] != false;
-    Uint8List? pickedBytes;
-    String? pickedFilename;
-    String mediaType =
-        banner?['media_type']?.toString() == 'video' ? 'video' : 'image';
-    final mediaUrl = TextEditingController(
-      text: banner?['media_url']?.toString() ?? '',
-    );
     final seconds = TextEditingController(
       text: banner?['display_seconds']?.toString() ?? '5',
     );
@@ -271,27 +280,30 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
           const ['home_landing']),
     };
     String placement = placements.isEmpty ? 'home_landing' : placements.first;
-    Uint8List? pickedVideoBytes;
-    String? pickedVideoName;
 
     bool saving = false;
     String? formError;
     Future<void> saveBanner() async {
       final error = validateBannerDraft(
           title: title.text,
-          link: targetUrl.text,
-          hasImage: pickedBytes != null || imageUrl.text.startsWith('https://'),
+          link: slides.isEmpty ? '' : slides.first.targetUrl,
+          hasImage: slides.isNotEmpty &&
+              slides.every((s) =>
+                  s.bytes != null ||
+                  (s.mediaType == 'video'
+                      ? s.videoUrl.startsWith('https://')
+                      : s.imageUrl.startsWith('https://'))),
           seconds: int.tryParse(seconds.text) ?? 0,
           start: DateTime.tryParse(start.text),
           end: DateTime.tryParse(end.text));
       if (error != null) throw StateError(error);
 
-      final link = Uri.tryParse(targetUrl.text.trim());
-      if (link == null || link.scheme != 'https' || link.host.isEmpty) {
-        throw StateError('Cada banner necesita su URL HTTPS de destino.');
-      }
-      if (title.text.trim().isEmpty) {
-        throw StateError('El título es obligatorio.');
+      for (var i = 0; i < slides.length; i++) {
+        final link = Uri.tryParse(slides[i].targetUrl.trim());
+        if (link == null || link.scheme != 'https' || link.host.isEmpty) {
+          throw StateError(
+              'La imagen ${i + 1} necesita su URL HTTPS de destino.');
+        }
       }
       final startsAt = start.text.trim().isEmpty
           ? null
@@ -308,55 +320,38 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
           'Elige al menos un lugar donde aparecerá el anuncio',
         );
       }
-      String url = imageUrl.text.trim();
-      if (pickedBytes != null) {
-        final name = (pickedFilename ?? '').toLowerCase();
-        final ext = name.endsWith('.png')
-            ? 'png'
-            : name.endsWith('.webp')
-                ? 'webp'
-                : 'jpg';
-        final contentType = ext == 'png'
-            ? 'image/png'
-            : ext == 'webp'
-                ? 'image/webp'
-                : 'image/jpeg';
-        final path = '${widget.channel}/${widget.zoneId}/'
-            '${DateTime.now().microsecondsSinceEpoch}.$ext';
+      for (var i = 0; i < slides.length; i++) {
+        final slide = slides[i];
+        if (slide.bytes == null) continue;
+        final name = slide.filename.toLowerCase();
+        final isVideo = slide.mediaType == 'video';
+        final ext = isVideo
+            ? (name.endsWith('.webm') ? 'webm' : 'mp4')
+            : name.endsWith('.png')
+                ? 'png'
+                : name.endsWith('.webp')
+                    ? 'webp'
+                    : 'jpg';
+        final type = isVideo
+            ? (ext == 'webm' ? 'video/webm' : 'video/mp4')
+            : ext == 'png'
+                ? 'image/png'
+                : ext == 'webp'
+                    ? 'image/webp'
+                    : 'image/jpeg';
+        final path =
+            '${widget.channel}/${widget.zoneId}/${DateTime.now().microsecondsSinceEpoch}-$i.$ext';
         await supabase.storage.from('express-landing-banners').uploadBinary(
-              path,
-              pickedBytes!,
-              fileOptions: FileOptions(
-                contentType: contentType,
-                upsert: false,
-              ),
-            );
-        url =
+            path, slide.bytes!,
+            fileOptions: FileOptions(contentType: type, upsert: false));
+        final url =
             supabase.storage.from('express-landing-banners').getPublicUrl(path);
-        imageUrl.text = url;
-        pickedBytes = null;
-      }
-      if (url.isEmpty && mediaType != 'video') {
-        throw StateError('Sube una imagen para el banner.');
-      }
-      String mediaFinalUrl = mediaUrl.text.trim();
-      if (mediaType == 'video' && pickedVideoBytes != null) {
-        final vname = (pickedVideoName ?? '').toLowerCase();
-        final vext = vname.endsWith('.webm') ? 'webm' : 'mp4';
-        final vtype = vext == 'webm' ? 'video/webm' : 'video/mp4';
-        final vpath = '${widget.channel}/${widget.zoneId}/'
-            'video-${DateTime.now().microsecondsSinceEpoch}.$vext';
-        await supabase.storage.from('express-landing-banners').uploadBinary(
-              vpath,
-              pickedVideoBytes!,
-              fileOptions: FileOptions(contentType: vtype, upsert: false),
-            );
-        mediaFinalUrl = supabase.storage
-            .from('express-landing-banners')
-            .getPublicUrl(vpath);
-      }
-      if (mediaType == 'video' && !mediaFinalUrl.startsWith('https://')) {
-        throw StateError('El video necesita un archivo o una URL HTTPS.');
+        if (isVideo) {
+          slide.videoUrl = url;
+        } else {
+          slide.imageUrl = url;
+        }
+        slide.bytes = null;
       }
       final secs = int.tryParse(seconds.text.trim()) ?? 0;
       if (secs < 3 || secs > 60) {
@@ -368,20 +363,8 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
       if (amountText.isNotEmpty && (amountValue == null || amountValue < 0)) {
         throw StateError('El monto debe ser un número mayor o igual a 0.');
       }
-      if (url.isNotEmpty && !url.startsWith('https://')) {
-        throw StateError('La imagen debe tener una URL HTTPS.');
-      }
-      if (targetUrl.text.trim().isNotEmpty &&
-          !targetUrl.text.trim().startsWith('https://')) {
-        throw StateError('El enlace debe comenzar por https://');
-      }
-      if (placements.isEmpty) {
-        throw StateError(
-          'Elige al menos un lugar donde aparecerá el anuncio',
-        );
-      }
       await supabase.rpc(
-        'admin_landing_banner_save_v3',
+        'admin_landing_banner_save_v4',
         params: {
           'p_id': banner?['id'],
           'p_zone_id': widget.zoneId,
@@ -389,23 +372,36 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
           'p_title': title.text.trim(),
           'p_subtitle': subtitle.text.trim(),
           'p_cta_label': cta.text.trim(),
-          'p_image_url': url.isEmpty ? null : url,
+          'p_image_url': slides.first.mediaType == 'video'
+              ? slides.first.videoUrl
+              : slides.first.imageUrl,
           'p_target_module': target.isEmpty ? null : target,
-          'p_target_url':
-              targetUrl.text.trim().isEmpty ? null : targetUrl.text.trim(),
+          'p_target_url': slides.first.targetUrl.trim(),
           'p_style_key': color,
           'p_active': active,
           'p_sort_order': int.tryParse(order.text.trim()) ?? 100,
           'p_starts_at': startsAt?.toUtc().toIso8601String(),
           'p_ends_at': endsAt?.toUtc().toIso8601String(),
-          'p_media_type': mediaType,
-          'p_media_url': mediaType == 'video' ? mediaFinalUrl : null,
+          'p_media_type': slides.first.mediaType,
+          'p_media_url':
+              slides.first.mediaType == 'video' ? slides.first.videoUrl : null,
           'p_display_seconds': secs,
           'p_advertiser_name': advertiser.text.trim(),
           'p_advertiser_contact': advertiserContact.text.trim(),
           'p_amount_bs': amountValue,
           'p_payment_status': paymentStatus,
           'p_placements': placements.toList(),
+          'p_slides': [
+            for (final slide in slides)
+              {
+                'media_type': slide.mediaType,
+                if (slide.mediaType == 'video')
+                  'video_url': slide.videoUrl
+                else
+                  'image_url': slide.imageUrl,
+                'target_url': slide.targetUrl.trim()
+              }
+          ],
         },
       );
       _refresh();
@@ -541,89 +537,19 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Los banners de una misma posición rotan según el tiempo configurado.',
+                            'Las imágenes y videos del carrusel rotan según el tiempo configurado.',
                             style: TextStyle(
                               color: Theme.of(context).hintColor,
                               fontSize: 12,
                             ),
                           ),
                           const SizedBox(height: 18),
-                          const Text(
-                            'Imagen *',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Recomendado: 1280 × 400 px · JPG, PNG o WebP',
-                            style: TextStyle(
-                              color: Theme.of(context).hintColor,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: SizedBox(
-                              width: double.infinity,
-                              height: 190,
-                              child: pickedBytes != null
-                                  ? Image.memory(pickedBytes!,
-                                      fit: BoxFit.cover)
-                                  : imageUrl.text.startsWith('https://')
-                                      ? Image.network(
-                                          imageUrl.text,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) =>
-                                              const _BannerImagePlaceholder(),
-                                        )
-                                      : const _BannerImagePlaceholder(),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 8,
-                            children: [
-                              OutlinedButton.icon(
-                                icon: const Icon(
-                                  Icons.add_photo_alternate_outlined,
-                                ),
-                                label: Text(
-                                  pickedFilename == null
-                                      ? 'Subir imagen'
-                                      : 'Imagen: $pickedFilename',
-                                ),
-                                onPressed: () async {
-                                  final image = await ImagePicker().pickImage(
-                                    source: ImageSource.gallery,
-                                    maxWidth: 1600,
-                                    imageQuality: 86,
-                                  );
-                                  if (image == null) return;
-                                  final bytes = await image.readAsBytes();
-                                  if (bytes.lengthInBytes > 5 * 1024 * 1024) {
-                                    _snack(
-                                        'La imagen debe pesar menos de 5 MB.');
-                                    return;
-                                  }
-                                  update(() {
-                                    pickedBytes = bytes;
-                                    pickedFilename = image.name;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: targetUrl,
-                            decoration: const InputDecoration(
-                              labelText: 'URL de enlace *',
-                              helperText:
-                                  'Al tocar la imagen se abrirá este enlace HTTPS.',
-                              hintText: 'https://ejemplo.com/oferta',
-                            ),
-                          ),
+                          BannerSlidesEditor(
+                              slides: slides,
+                              enabled: !saving,
+                              onChanged: () => update(() {}),
+                              onError: (error) =>
+                                  update(() => formError = error)),
                           const SizedBox(height: 12),
                           LayoutBuilder(
                             builder: (context, constraints) {
@@ -808,12 +734,9 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
     title.dispose();
     subtitle.dispose();
     cta.dispose();
-    imageUrl.dispose();
-    targetUrl.dispose();
     order.dispose();
     start.dispose();
     end.dispose();
-    mediaUrl.dispose();
     seconds.dispose();
     advertiser.dispose();
     advertiserContact.dispose();
