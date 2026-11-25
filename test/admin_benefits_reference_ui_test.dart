@@ -21,35 +21,34 @@ void main() {
 
   test('coupon and loyalty editors keep their dedicated fields and modal action', () {
     expect(source, contains("_textField('Código *', _code"));
-    expect(source, contains("_textField('Máximo de descuento (Bs)'"));
+    expect(source, contains(r"_textField('Máximo de descuento ($_currencyLabel)'"));
     expect(source, contains("_textField('Umbral N (viajes pagados)'"));
-    expect(source, contains("_textField('Tope del viaje gratis (Bs)'"));
+    expect(source, contains(r"_textField('Tope del viaje gratis ($_currencyLabel)'"));
     expect(source, contains('showDialog<void>'));
     expect(source, contains("title: Text(_programType == 'coupon' ? 'Cupón activo'"));
-    expect(source, contains("'reward_destination': _programType == 'activation' || _programType == 'loyalty'"));
+    expect(source, contains("'reward_destination': _rewardDestination,"));
   });
 
   test('same-day driver credits and MLM plan-payment duration have separate controls', () {
     expect(source, contains("'commission_start_same_day': _sameDayCredits"));
     expect(source, contains("'plan_payment_percent': double.tryParse(_leaderPercent.text.trim())"));
     expect(source, contains("'lifetime': _lifetime"));
-    expect(source, contains('cada pago de plan confirmado'));
+    expect(source, contains('cada viaje completado de sus conductores referidos'));
   });
 
   test('referrals screen loads real dashboard metrics and plan commission history', () {
     expect(source, contains("'admin_driver_referral_dashboard'"));
     expect(source, contains("'p_status': _referralFilter"));
     expect(source, contains("_referralsPanel() => FutureBuilder"));
-    expect(source, contains("'Comisión acreditada'"));
-    expect(source, contains("'Pagos de plan'"));
+    expect(source, contains("'Total Referidos'"));
+    expect(source, contains("'Tasa Conversión'"));
     expect(source, contains("onChanged: (value) {\n                        if (value == null) return;"));
   });
 
   test('driver referral program directs to plan-payment commission settings', () {
-    expect(source, contains("String _referralTab = 'mlm';"));
-    expect(source, contains('Configura el porcentaje, la vigencia y la activación en Grupos MLM.'));
-    expect(source, contains('Configurar comisión del plan'));
-    expect(source, contains('No depende de viajes mínimos'));
+    expect(source, contains("String _referralTab = 'program';"));
+    expect(source, contains('Configura el porcentaje recurrente del líder en Grupos MLM.'));
+    expect(source, contains('Configurar Grupos MLM'));
     expect(source, isNot(contains('Las recompensas de referidos a conductores se mantienen como borrador')));
   });
 

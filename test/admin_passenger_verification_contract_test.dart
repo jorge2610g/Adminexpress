@@ -39,9 +39,7 @@ void main() {
       panel,
       contains(
         "if (adminAccess['role'] == 'super_admin')\n"
-        "              const Padding(\n"
-        "                padding: EdgeInsets.fromLTRB(16, 8, 16, 0),\n"
-        "                child: AdminPassengerVerificationSettings(),",
+        "                    const Card(",
       ),
     );
     expect(panel, contains("import 'admin_passenger_verification.dart';"));

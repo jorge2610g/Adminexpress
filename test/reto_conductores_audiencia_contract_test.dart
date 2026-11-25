@@ -21,6 +21,6 @@ void main() {
   });
 
   test('el selector de audiencia del reto ofrece Conductores', () {
-    expect(source, contains("const {'drivers': 'Conductores'}"));
+    expect(source, contains("const {'drivers': 'Conductores', 'all': 'Todos los usuarios'}"));
   });
 }

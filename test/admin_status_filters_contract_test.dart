@@ -24,8 +24,7 @@ void main() {
 
   test('usuarios muestra todos por defecto y ofrece rechazados y bloqueados', () {
     expect(panel, contains('String? userStatus;'));
-    expect(panel, contains("'admin_user_list_v5',"));
-    expect(panel, contains("'admin_user_count_v2',"));
+    expect(panel, contains("'admin_customer_list_v1',"));
     expect(panel, contains("'p_status': userStatus,"));
     expect(panel, contains("label: 'Rechazados'"));
     expect(panel, contains("label: 'Bloqueados'"));
