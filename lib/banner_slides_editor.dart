@@ -1,21 +1,6 @@
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-
-Future<bool> isBannerImage1280x400(Uint8List bytes) async {
-  final codec = await ui.instantiateImageCodec(bytes);
-  try {
-    final frame = await codec.getNextFrame();
-    try {
-      return frame.image.width == 1280 && frame.image.height == 400;
-    } finally {
-      frame.image.dispose();
-    }
-  } finally {
-    codec.dispose();
-  }
-}
 
 class BannerSlideDraft {
   String imageUrl;
@@ -40,13 +25,17 @@ class BannerSlidesEditor extends StatelessWidget {
   final ValueChanged<String> onError;
   final bool enabled;
   final String defaultLink;
+  final double imageAspectRatio;
+  final String imageSizeLabel;
   const BannerSlidesEditor(
       {super.key,
       required this.slides,
       required this.onChanged,
       required this.onError,
       this.enabled = true,
-      this.defaultLink = ''});
+      this.defaultLink = '',
+      this.imageAspectRatio = 3.2,
+      this.imageSizeLabel = '1280 × 400 px'});
 
   @override
   Widget build(BuildContext context) => Column(
@@ -56,8 +45,11 @@ class BannerSlidesEditor extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           const Text(
-              'Combina imágenes y videos. Cada pieza tiene su propio enlace. '
-              'Las imágenes deben medir exactamente 1280 × 400 px.'),
+              'Combina imágenes y videos. Cada pieza tiene su propio enlace.'),
+          Text(
+            'Medida recomendada para esta posición: $imageSizeLabel. '
+            'Si la imagen tiene otra medida, se amplía y recorta para llenar el marco.',
+          ),
           const SizedBox(height: 10),
           for (var i = 0; i < slides.length; i++)
             Card(
@@ -102,7 +94,7 @@ class BannerSlidesEditor extends StatelessWidget {
                           icon: const Icon(Icons.delete_outline_rounded)),
                     ]),
                     AspectRatio(
-                      aspectRatio: 3.2,
+                      aspectRatio: imageAspectRatio,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: ColoredBox(
@@ -157,15 +149,6 @@ class BannerSlidesEditor extends StatelessWidget {
                       final picked = <BannerSlideDraft>[];
                       for (final file in files) {
                         final bytes = await file.readAsBytes();
-                        if (!await isBannerImage1280x400(bytes)) {
-                          if (context.mounted) {
-                            onError(
-                              '${file.name}: la imagen debe medir exactamente '
-                              '1280 × 400 px. Ajusta el archivo y vuelve a subirlo.',
-                            );
-                          }
-                          return;
-                        }
                         if (bytes.lengthInBytes > 5 * 1024 * 1024) {
                           if (context.mounted)
                             onError(

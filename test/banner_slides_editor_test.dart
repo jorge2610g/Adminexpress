@@ -1,21 +1,14 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../lib/banner_placement_dimensions.dart';
 import '../lib/banner_slides_editor.dart';
-import 'dart:ui' as ui;
 
 void main() {
-  test('solo acepta imágenes de 1280 por 400 píxeles', () async {
-    for (final size in [
-      const ui.Size(1280, 400),
-      const ui.Size(1200, 400),
-    ]) {
-      final bytes = await _png(size);
-      expect(
-        await isBannerImage1280x400(bytes),
-        size == const ui.Size(1280, 400),
-      );
-    }
+  test('recomienda medidas y marco según la posición', () {
+    expect(bannerRecommendedDimensions('popup'), '1080 × 1920 px');
+    expect(bannerFrameAspectRatio('popup'), 9 / 16);
+    expect(bannerRecommendedDimensions('map_home'), '1280 × 400 px');
+    expect(bannerFrameAspectRatio('map_home'), 3.2);
   });
 
   testWidgets('permite reordenar, cambiar enlace y quitar slides',
@@ -62,16 +55,4 @@ void main() {
     expect(slides.single.imageUrl, 'https://cdn.example/a.webp');
     expect(tester.takeException(), isNull);
   });
-}
-
-Future<Uint8List> _png(ui.Size size) async {
-  final recorder = ui.PictureRecorder();
-  final canvas = ui.Canvas(recorder);
-  canvas.drawColor(Colors.blue, BlendMode.src);
-  final picture = recorder.endRecording();
-  final image = await picture.toImage(size.width.toInt(), size.height.toInt());
-  final data = await image.toByteData(format: ui.ImageByteFormat.png);
-  image.dispose();
-  picture.dispose();
-  return data!.buffer.asUint8List();
 }

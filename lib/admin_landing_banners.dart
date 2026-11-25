@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/supabase_client.dart';
 import 'banner_calendar_field.dart';
 import 'banner_form_validation.dart';
+import 'banner_placement_dimensions.dart';
 import 'banner_slides_editor.dart';
 
 /// Scoped advertising management for passenger and driver app surfaces.
@@ -537,7 +538,9 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Las imágenes y videos del carrusel rotan según el tiempo configurado.',
+                            'Medida para esta posición: ${bannerRecommendedDimensions(placement)}. '
+                            'La app ampliará y recortará la imagen proporcionalmente para llenar el marco. '
+                            'Las piezas rotan según el tiempo configurado.',
                             style: TextStyle(
                               color: Theme.of(context).hintColor,
                               fontSize: 12,
@@ -547,6 +550,10 @@ class _AdminLandingBannersPageState extends State<AdminLandingBannersPage> {
                           BannerSlidesEditor(
                               slides: slides,
                               enabled: !saving,
+                              imageAspectRatio:
+                                  bannerFrameAspectRatio(placement),
+                              imageSizeLabel:
+                                  bannerRecommendedDimensions(placement),
                               onChanged: () => update(() {}),
                               onError: (error) =>
                                   update(() => formError = error)),
