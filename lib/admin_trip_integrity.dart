@@ -17,6 +17,10 @@ const Map<String, String> _reasonLabels = {
   'origen_y_destino_casi_iguales': 'Origen y destino casi iguales',
   'misma_pareja_repetida': 'Mismo pasajero repetido muchas veces',
   'muchos_viajes_cortos_seguidos': 'Muchos viajes cortos seguidos',
+  'en_curso_muy_corto':
+      'Viaje en curso de menos de 90 segundos con una ruta de más de 500 m',
+  'sin_movimiento_gps':
+      'El conductor casi no se movió (menos de 100 m) en un viaje de más de 500 m',
   'viaje_historico_muy_corto':
       'Terminó en menos de 5 minutos con una distancia larga (revisión del historial)',
 };
