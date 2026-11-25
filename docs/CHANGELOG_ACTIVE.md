@@ -545,3 +545,9 @@ El panel de países dispone de **Preparar países QA** exclusivamente cuando `AD
 - El bloqueo se aplica solo si la deuda acumulada por rol y zona supera el límite; 0 mantiene el comportamiento previo de bloquear cualquier deuda positiva. Los cambios quedan auditados y bajar el tope desconecta a conductores ociosos que queden sobre el nuevo valor.
 - Backend compartido: migraciones `20261023221937_wallet_debt_threshold_settings` (panel y auditoría) y `20261023221938_enforce_wallet_debt_thresholds` (guards de solicitudes y trabajo). Aplicarlas en ese orden antes de desplegar el panel o distribuir la nueva app.
 - Pruebas focalizadas: `test/admin_wallet_debt_limits_test.dart`, junto a `test/admin_zonal_debt_management_test.dart`. No editar deuda ni activar topes de Producción para una prueba QA.
+
+## 2026-11-25 · Historial de alertas de viajes sospechosos
+
+- Las alertas personales automáticas de integridad dejan de mezclarse con los avisos generales.
+- **Viajes sospechosos → Notificaciones** muestra por conductor las alertas registradas, fecha, tipo y estado leído/no leído, con filtros y conteos.
+- El RPC respeta entorno y zona de la cuenta administrativa; el estado refleja lectura dentro de la app y no confirma entrega push al dispositivo.
