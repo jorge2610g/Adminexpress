@@ -2761,8 +2761,8 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   Widget _sectionMetric(String title, String value, IconData icon,
       {Color color = adminBlue}) =>
       Container(
-        constraints: const BoxConstraints(minWidth: 145),
-        padding: const EdgeInsets.all(14),
+        height: 76,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: const Color(0xFFE7ECF3)),
@@ -2774,15 +2774,33 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 11, color: adminMuted)),
-                  const SizedBox(height: 7),
-                  Text(value, style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900, color: color)),
+                  Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10, color: adminMuted)),
+                  const SizedBox(height: 3),
+                  Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: color)),
                 ],
               ),
             ),
-            Icon(icon, color: color, size: 21),
+            Icon(icon, color: color, size: 19),
           ],
         ),
+      );
+
+  Widget _sectionMetrics(List<Widget> metrics) => LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth >= 820 ? 4 : 2;
+          const gap = 10.0;
+          final width =
+              (constraints.maxWidth - gap * (columns - 1)) / columns;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final metric in metrics)
+                SizedBox(width: width, child: metric),
+            ],
+          );
+        },
       );
 
   Widget _driverPageHeader() => Column(
@@ -2821,7 +2839,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
             future: _driverOverview(),
             builder: (context, snapshot) {
               final values = snapshot.data ?? const <String, int>{};
-              return Wrap(spacing: 10, runSpacing: 10, children: [
+              return _sectionMetrics([
                 _sectionMetric('Total', '${values['total'] ?? '…'}', Icons.groups_rounded),
                 _sectionMetric('Pendientes', '${values['pending'] ?? '…'}', Icons.schedule_rounded, color: const Color(0xFFDC2626)),
                 _sectionMetric('Activos', '${values['active'] ?? '…'}', Icons.verified_user_outlined, color: const Color(0xFF15803D)),
@@ -3086,7 +3104,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Wrap(spacing: 10, runSpacing: 10, children: [
+                  _sectionMetrics([
                     _sectionMetric('Total Clientes', metric('total'), Icons.people_outline_rounded),
                     _sectionMetric('Pendientes', metric('pending'), Icons.schedule_rounded, color: const Color(0xFFD97706)),
                     _sectionMetric('Con Viajes', metric('with_trips'), Icons.location_on_outlined, color: const Color(0xFF15803D)),
