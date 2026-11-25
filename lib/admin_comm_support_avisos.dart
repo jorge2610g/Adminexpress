@@ -659,6 +659,7 @@ class AdminAvisosTab extends StatefulWidget {
 class _AdminAvisosTabState extends State<AdminAvisosTab> {
   int revision = 0;
   bool busy = false;
+  String audienceFilter = 'all';
 
   Future<List<Map<String, dynamic>>> _load() async {
     final zone = widget.zoneId;
@@ -813,6 +814,31 @@ class _AdminAvisosTabState extends State<AdminAvisosTab> {
           style: TextStyle(color: _muted, fontSize: 12),
         ),
         const SizedBox(height: 14),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text(
+                'Mostrar:',
+                style: TextStyle(color: _muted, fontWeight: FontWeight.w700),
+              ),
+              for (final option in const [
+                ('all', 'Todos'),
+                ('passengers', 'Pasajeros'),
+                ('drivers', 'Conductores'),
+              ])
+                ChoiceChip(
+                  label: Text(option.$2),
+                  selected: audienceFilter == option.$1,
+                  onSelected: (_) => setState(() => audienceFilter = option.$1),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
         FutureBuilder<List<Map<String, dynamic>>>(
           key: ValueKey('avisos-$revision'),
           future: _load(),
@@ -824,13 +850,19 @@ class _AdminAvisosTabState extends State<AdminAvisosTab> {
             if (snapshot.hasError) {
               return Text(friendlyError(snapshot.error));
             }
-            final avisos = snapshot.data ?? const <Map<String, dynamic>>[];
+            final allAvisos = snapshot.data ?? const <Map<String, dynamic>>[];
+            final avisos = audienceFilter == 'all'
+                ? allAvisos
+                : allAvisos
+                    .where((aviso) => aviso['audience'] == audienceFilter ||
+                        aviso['audience'] == 'all')
+                    .toList();
             if (avisos.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(
                   child: Text(
-                    'Todavía no hay avisos. Crea el primero con “Nuevo aviso”.',
+                    'No hay avisos para este destinatario. Puedes crear uno con “Nuevo aviso”.',
                     style: TextStyle(color: _muted),
                   ),
                 ),
