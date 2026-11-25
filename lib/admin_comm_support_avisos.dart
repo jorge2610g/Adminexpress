@@ -660,6 +660,7 @@ class _AdminAvisosTabState extends State<AdminAvisosTab> {
   int revision = 0;
   bool busy = false;
   String audienceFilter = 'all';
+  String categoryFilter = 'all';
 
   Future<List<Map<String, dynamic>>> _load() async {
     final zone = widget.zoneId;
@@ -839,6 +840,33 @@ class _AdminAvisosTabState extends State<AdminAvisosTab> {
           ),
         ),
         const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text(
+                'Categoría:',
+                style: TextStyle(color: _muted, fontWeight: FontWeight.w700),
+              ),
+              for (final option in const [
+                ('all', 'Todas'),
+                ('aviso', 'Avisos'),
+                ('evento', 'Eventos'),
+                ('importante', 'Importantes'),
+                ('novedad', 'Novedades'),
+              ])
+                ChoiceChip(
+                  label: Text(option.$2),
+                  selected: categoryFilter == option.$1,
+                  onSelected: (_) => setState(() => categoryFilter = option.$1),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
         FutureBuilder<List<Map<String, dynamic>>>(
           key: ValueKey('avisos-$revision'),
           future: _load(),
@@ -857,7 +885,12 @@ class _AdminAvisosTabState extends State<AdminAvisosTab> {
                     .where((aviso) => aviso['audience'] == audienceFilter ||
                         aviso['audience'] == 'all')
                     .toList();
-            if (avisos.isEmpty) {
+            final filteredAvisos = categoryFilter == 'all'
+                ? avisos
+                : avisos
+                    .where((aviso) => aviso['category'] == categoryFilter)
+                    .toList();
+            if (filteredAvisos.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(
@@ -870,7 +903,7 @@ class _AdminAvisosTabState extends State<AdminAvisosTab> {
             }
             return Column(
               children: [
-                for (final aviso in avisos)
+                for (final aviso in filteredAvisos)
                   _AvisoCard(
                     aviso: aviso,
                     busy: busy,
@@ -912,10 +945,12 @@ class _AvisoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = aviso['state']?.toString() ?? '';
     final withPush = aviso['with_push'] == true;
+    final individual = aviso['is_individual'] == true;
     final stateLabel = switch (state) {
       'visible' => 'Visible',
       'programado' => 'Programado',
       'vencido' => 'Vencido',
+      'individual' => 'Alerta personal',
       'draft' => 'Borrador',
       'archived' => 'Archivado',
       _ => state,
@@ -943,8 +978,16 @@ class _AvisoCard extends StatelessWidget {
               const SizedBox(width: 6),
               _Chip(
                 stateLabel,
-                color: state == 'visible' ? const Color(0xFF15803D) : _muted,
+                color: individual
+                    ? const Color(0xFFB45309)
+                    : state == 'visible'
+                        ? const Color(0xFF15803D)
+                        : _muted,
               ),
+              if (individual) ...[
+                const SizedBox(width: 6),
+                const _Chip('Individual · solo lectura', color: _muted),
+              ],
               if (withPush) ...[
                 const SizedBox(width: 6),
                 const _Chip('Con push', color: Color(0xFF7C3AED)),
@@ -972,46 +1015,51 @@ class _AvisoCard extends StatelessWidget {
           Text(
             '${AdminCommRpc.audienceLabels[aviso['audience']] ?? 'Todos'}'
             ' · ${aviso['zone_name'] ?? 'Todas las zonas'}'
-            ' · Leído por ${aviso['read_count'] ?? 0} de ${aviso['audience_size'] ?? 0}'
+            '${individual ? ' · Para ${aviso['recipient_name'] ?? 'una cuenta'}' : ''}'
+            ' · Leído ${aviso['read_count'] ?? 0} de ${aviso['audience_size'] ?? 0}'
             '${expires == null ? ' · No caduca' : ' · Se borra ${_fmt(expires)}'}',
             style: const TextStyle(color: _muted, fontSize: 11),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              TextButton.icon(
-                onPressed: busy ? null : onEdit,
-                icon: const Icon(Icons.edit_outlined, size: 17),
-                label: const Text('Editar'),
-              ),
-              if (published && !withPush)
+          if (!individual) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
                 TextButton.icon(
-                  onPressed: busy ? null : onPush,
-                  icon:
-                      const Icon(Icons.notifications_active_outlined, size: 17),
-                  label: const Text('Enviar push'),
+                  onPressed: busy ? null : onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 17),
+                  label: const Text('Editar'),
                 ),
-              if (published)
+                if (published && !withPush)
+                  TextButton.icon(
+                    onPressed: busy ? null : onPush,
+                    icon: const Icon(
+                      Icons.notifications_active_outlined,
+                      size: 17,
+                    ),
+                    label: const Text('Enviar push'),
+                  ),
+                if (published)
+                  TextButton.icon(
+                    onPressed: busy ? null : onArchive,
+                    icon: const Icon(Icons.inventory_2_outlined, size: 17),
+                    label: const Text('Archivar'),
+                  )
+                else
+                  TextButton.icon(
+                    onPressed: busy ? null : onPublish,
+                    icon: const Icon(Icons.publish_rounded, size: 17),
+                    label: const Text('Publicar'),
+                  ),
                 TextButton.icon(
-                  onPressed: busy ? null : onArchive,
-                  icon: const Icon(Icons.inventory_2_outlined, size: 17),
-                  label: const Text('Archivar'),
-                )
-              else
-                TextButton.icon(
-                  onPressed: busy ? null : onPublish,
-                  icon: const Icon(Icons.publish_rounded, size: 17),
-                  label: const Text('Publicar'),
+                  onPressed: busy ? null : onDelete,
+                  icon: const Icon(Icons.delete_outline_rounded, size: 17),
+                  label: const Text('Eliminar'),
                 ),
-              TextButton.icon(
-                onPressed: busy ? null : onDelete,
-                icon: const Icon(Icons.delete_outline_rounded, size: 17),
-                label: const Text('Eliminar'),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
