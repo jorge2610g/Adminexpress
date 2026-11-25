@@ -3,7 +3,7 @@
 - La lista de Admin usa filtros de Posición/Estado y una tabla con miniatura, título, posición, prioridad, switch Activo, impresiones, clics, CTR y menú Editar/Ver estadísticas/Eliminar.
 - El editor sigue el orden de la referencia: título y descripción, posición/prioridad, preview y carga de imagen, URL, duración, fechas y estado activo. Los datos de anunciante/pago quedan agrupados en un bloque interno opcional.
 - Las migraciones `20261125011240_express_ads_driver_placements_and_metrics.sql` y `20261125012608_admin_landing_banner_delete_v1.sql` están aplicadas al esquema Supabase compartido. No modifican banners existentes ni activan campañas.
-- **Estado:** UI en la rama local `preview/banner-ads-all-surfaces-20261125`; aún faltan Flutter analyze/CI y QA visual con cuenta Preview. El administrador no está publicado.
+- **Publicado:** PR #218, commit `5bbbeb6fe80832e9304c46985ce6916f6a0644ee`, deployment [45526993055](https://github.com/jorge2610g/Adminexpress/actions/runs/45526993055) en verde. Verificados `version.json` y bootstrap en la web canónica. Análisis sin errores, pruebas de navegación 3/3 y checks oficiales aprobados. La suite completa local conserva 9 fallos también reproducidos en la base anterior (Beneficios/Clientes/exportación/verificación). QA visual con sesión Preview pendiente del propietario.
 
 ## 2026-11-24 · Presentación de Clientes, Conductores y Soporte
 
