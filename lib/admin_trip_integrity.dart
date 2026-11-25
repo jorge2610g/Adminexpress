@@ -56,8 +56,11 @@ class AdminTripIntegrityPage extends StatefulWidget {
 
 class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
   String _status = 'open';
+  String _section = 'trips';
+  String _notificationFilter = 'all';
   late Future<List<Map<String, dynamic>>> _future;
   late Future<List<Map<String, dynamic>>> _driversFuture;
+  late Future<List<Map<String, dynamic>>> _notificationsFuture;
 
   @override
   void initState() {
@@ -99,6 +102,207 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
               .toList()
           : <Map<String, dynamic>>[];
     }();
+    _notificationsFuture = () async {
+      if (widget.zoneId == null) return <Map<String, dynamic>>[];
+      final raw = await supabase.rpc('admin_trip_integrity_notifications', params: {
+        'p_zone_id': widget.zoneId,
+        'p_channel': widget.channel,
+      });
+      return raw is List
+          ? raw.whereType<Map>().map((x) => Map<String, dynamic>.from(x)).toList()
+          : <Map<String, dynamic>>[];
+    }();
+  }
+
+  Widget _sectionPicker() => Padding(
+        padding: const EdgeInsets.only(top: 14, bottom: 12),
+        child: SegmentedButton<String>(
+          segments: const [
+            ButtonSegment(
+                value: 'trips',
+                icon: Icon(Icons.policy_outlined),
+                label: Text('Viajes sospechosos')),
+            ButtonSegment(
+                value: 'notifications',
+                icon: Icon(Icons.notifications_active_outlined),
+                label: Text('Notificaciones')),
+          ],
+          selected: {_section},
+          onSelectionChanged: (selection) =>
+              setState(() => _section = selection.first),
+        ),
+      );
+
+  static String _alertLabel(Object? raw) => switch (raw?.toString()) {
+        'trip_integrity_warning' => 'Aviso por irregularidad',
+        'trip_integrity_suspension' => 'Suspensión',
+        'trip_integrity_review' => 'Cuenta en revisión',
+        'trip_integrity_cleared' => 'Aviso actualizado',
+        _ => 'Alerta automática',
+      };
+
+  Widget _notificationsPage() => FutureBuilder<List<Map<String, dynamic>>>(
+        future: _notificationsFuture,
+        builder: (context, snapshot) {
+          final allRows = snapshot.data ?? const <Map<String, dynamic>>[];
+          final rows = allRows.where((row) {
+            if (_notificationFilter == 'unread') return row['is_read'] != true;
+            if (_notificationFilter == 'read') return row['is_read'] == true;
+            return true;
+          }).toList();
+          final unread = allRows.where((row) => row['is_read'] != true).length;
+          final notifiedDrivers = allRows
+              .map((row) => row['driver_id']?.toString())
+              .whereType<String>()
+              .toSet()
+              .length;
+          return ListView(
+            padding: const EdgeInsets.all(22),
+            children: [
+              Row(children: [
+                const Icon(Icons.policy_outlined,
+                    color: Color(0xFF2563EB), size: 30),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text('Viajes sospechosos',
+                        style: TextStyle(
+                            fontSize: 21, fontWeight: FontWeight.w900)),
+                    Text(
+                        'Revisa las alertas personales que recibieron los conductores y si ya las leyeron.',
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xFF667085))),
+                  ]),
+                ),
+                IconButton(
+                    tooltip: 'Actualizar',
+                    onPressed: () => setState(_reload),
+                    icon: const Icon(Icons.refresh_rounded)),
+              ]),
+              _sectionPicker(),
+              if (snapshot.connectionState != ConnectionState.done)
+                const Padding(
+                    padding: EdgeInsets.all(30),
+                    child: Center(child: CircularProgressIndicator()))
+              else if (snapshot.hasError)
+                Text('No se pudieron cargar las notificaciones: ${friendlyError(snapshot.error)}')
+              else ...[
+                Wrap(spacing: 10, runSpacing: 8, children: [
+                  _notificationMetric('Conductores avisados', '$notifiedDrivers',
+                      Icons.person_outline_rounded),
+                  _notificationMetric('Alertas registradas', '${allRows.length}',
+                      Icons.notifications_active_outlined),
+                  _notificationMetric('Pendientes de lectura', '$unread',
+                      Icons.mark_email_unread_outlined),
+                  _notificationMetric('Leídas', '${allRows.length - unread}',
+                      Icons.mark_email_read_outlined),
+                ]),
+                const SizedBox(height: 12),
+                Wrap(spacing: 8, children: [
+                  for (final item in const [
+                    ('all', 'Todas'),
+                    ('unread', 'No leídas'),
+                    ('read', 'Leídas'),
+                  ])
+                    ChoiceChip(
+                      label: Text(item.$2),
+                      selected: _notificationFilter == item.$1,
+                      onSelected: (_) =>
+                          setState(() => _notificationFilter = item.$1),
+                    ),
+                ]),
+                const SizedBox(height: 12),
+                if (rows.isEmpty)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text(allRows.isEmpty
+                          ? 'Todavía no hay alertas personales para conductores en esta zona y entorno.'
+                          : 'No hay notificaciones en este filtro.'),
+                    ),
+                  )
+                else
+                  for (final row in rows) _notificationCard(row),
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Text(
+                      'El registro confirma que la alerta quedó en la app. El estado indica si el conductor la leyó; no representa una confirmación de entrega push.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF667085))),
+                ),
+              ],
+            ],
+          );
+        },
+      );
+
+  Widget _notificationMetric(String label, String value, IconData icon) =>
+      SizedBox(
+        width: 190,
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(children: [
+              Icon(icon, color: const Color(0xFF2563EB)),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                Text(label,
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF667085))),
+                Text(value,
+                    style: const TextStyle(
+                        fontSize: 19, fontWeight: FontWeight.w900)),
+              ])),
+            ]),
+          ),
+        ),
+      );
+
+  Widget _notificationCard(Map<String, dynamic> row) {
+    final read = row['is_read'] == true;
+    final tripId = row['trip_id']?.toString();
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Wrap(spacing: 8, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            Text(row['driver_name']?.toString() ?? 'Conductor',
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+            Chip(
+              label: Text(read ? 'Leída' : 'Pendiente de lectura'),
+              avatar: Icon(read ? Icons.mark_email_read_outlined : Icons.mark_email_unread_outlined,
+                  size: 16),
+              visualDensity: VisualDensity.compact,
+            ),
+            Chip(
+              label: Text(_alertLabel(row['alert_kind'])),
+              visualDensity: VisualDensity.compact,
+            ),
+            Text(_when(row['created_at']),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF667085))),
+          ]),
+          const SizedBox(height: 4),
+          Text(row['title']?.toString() ?? 'Alerta de viaje',
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          if ((row['body']?.toString() ?? '').isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(row['body'].toString()),
+            ),
+          if (tripId != null && tripId.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text('Viaje: $tripId',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF667085))),
+            ),
+        ]),
+      ),
+    );
   }
 
   static String _when(Object? raw) {
@@ -430,6 +634,7 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
     if (widget.zoneId == null) {
       return const Center(child: Text('Selecciona una ciudad para continuar.'));
     }
+    if (_section == 'notifications') return _notificationsPage();
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: _future,
       builder: (context, snapshot) {
@@ -455,6 +660,7 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
                   onPressed: () => setState(_reload),
                   icon: const Icon(Icons.refresh_rounded)),
             ]),
+            _sectionPicker(),
             const SizedBox(height: 12),
             _driversSection(),
             Wrap(spacing: 8, runSpacing: 6, children: [
