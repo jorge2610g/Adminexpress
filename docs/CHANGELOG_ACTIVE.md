@@ -1,3 +1,10 @@
+## 2026-11-25 · Banners: validación persistente, calendario y datos internos
+
+- El formulario valida antes de cerrarse y conserva todos los campos si faltan datos o falla el guardado. El error se muestra dentro del diálogo y solo se cierra después de guardar correctamente.
+- Título y descripción se identifican como internos; se elimina URL de imagen y el texto del botón. Cada imagen se carga desde archivo y tiene su URL HTTPS de destino.
+- Inicio/fin se eligen con calendario, permiten quitar fecha y la fecha de fin cubre el día seleccionado. El fin anterior al inicio se rechaza sin cerrar el editor.
+- Dos pruebas de widgets verifican conservación del borrador tras errores y selección/eliminación de fecha. En validación para publicación canónica autorizada.
+
 ## 2026-11-25 · Banners publicitarios — vista y editor alineados con maqueta
 
 - La lista de Admin usa filtros de Posición/Estado y una tabla con miniatura, título, posición, prioridad, switch Activo, impresiones, clics, CTR y menú Editar/Ver estadísticas/Eliminar.
