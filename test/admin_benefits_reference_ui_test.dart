@@ -33,7 +33,7 @@ void main() {
     expect(source, contains("'commission_start_same_day': _sameDayCredits"));
     expect(source, contains("'plan_payment_percent': double.tryParse(_leaderPercent.text.trim())"));
     expect(source, contains("'lifetime': _lifetime"));
-    expect(source, contains('cada viaje completado de sus conductores referidos'));
+    expect(source, contains('cada pago de plan confirmado'));
   });
 
   test('referrals screen loads real dashboard metrics and plan commission history', () {
@@ -47,7 +47,7 @@ void main() {
 
   test('driver referral program directs to plan-payment commission settings', () {
     expect(source, contains("String _referralTab = 'program';"));
-    expect(source, contains('Configura el porcentaje recurrente del líder en Grupos MLM.'));
+    expect(source, contains('Los referidos de conductores por pago de plan se configuran en Grupos MLM.'));
     expect(source, contains('Configurar Grupos MLM'));
     expect(source, isNot(contains('Las recompensas de referidos a conductores se mantienen como borrador')));
   });
