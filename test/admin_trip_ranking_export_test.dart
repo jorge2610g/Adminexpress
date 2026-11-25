@@ -238,7 +238,7 @@ void main() {
       final day = DateTime(2026, 11, 24);
       expect(adminDriversFileName(day: day), 'conductores-todos-2026-11-24.csv');
       expect(adminDriversFileName(status: 'approved', day: day), 'conductores-aprobados-2026-11-24.csv');
-      expect(adminUsersFileName(day: day), 'usuarios-2026-11-24.csv');
+      expect(adminUsersFileName(day: day), 'clientes-2026-11-24.csv');
     });
 
     test('un teléfono válido conserva el + como texto y otros valores se neutralizan', () {

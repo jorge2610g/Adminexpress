@@ -32,6 +32,6 @@ void main() {
 
   test('la línea Zona ya no imprime el identificador técnico', () {
     expect(benefits, isNot(contains(r'Zona: ${widget.zoneId ?? ')));
-    expect(benefits, contains("'Zona seleccionada'"));
+    expect(benefits, contains("Zona seleccionada: "));
   });
 }
