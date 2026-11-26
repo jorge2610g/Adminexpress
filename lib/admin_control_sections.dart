@@ -3025,7 +3025,9 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                   ),
                   const SizedBox(height: 6),
                   if (row?['service_key'] == 'delivery' ||
-                      row?['service_key'] == 'parcel')
+                      row?['service_key'] == 'parcel' ||
+                      (row?['service_key']?.toString() ?? '')
+                          .startsWith('parcel_'))
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 10),
                       child: Text(
@@ -3071,8 +3073,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                     title: const Text('Permitir ofertas'),
                   ),
                   if (!_environment.isPreview &&
-                      row?['service_key'] != 'delivery' &&
-                      row?['service_key'] != 'parcel')
+                      row?['service_key'] != 'delivery')
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: AdminDropdownField<String>(
@@ -3082,6 +3083,13 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                           helperText: priceMode == 'offer'
                               ? 'El pasajero ofrece su precio y los conductores '
                                   'pueden contraofertar.'
+                              : (row?['service_key']?.toString() ?? '')
+                                          .startsWith('parcel') &&
+                                      priceMode == 'fixed'
+                                  ? 'El precio lo calcula Express con la tarifa '
+                                      'de precio fijo y el pasajero no puede '
+                                      'cambiarlo. Los conductores aún pueden '
+                                      'contraofertar.'
                               : priceMode == 'fixed'
                                   ? 'El precio lo calcula Express (tarifa de '
                                       'precio fijo) y no se puede cambiar. Se '
@@ -3211,7 +3219,6 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
           );
 
           if (row?['service_key'] != 'delivery' &&
-              row?['service_key'] != 'parcel' &&
               (priceMode != (row?['price_mode'] ?? 'offer').toString())) {
             await supabase.rpc(
               'admin_set_zone_service_price_mode_v1',
