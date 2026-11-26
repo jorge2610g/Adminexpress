@@ -2897,9 +2897,18 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
     return (zones: zoneRows, services: serviceRows, zone: zone);
   }
 
+  /// Servicio de viaje → clave de su tarifa de envío (cada vehículo tiene
+  /// configuración de viaje y configuración de envío por separado).
+  static const _parcelKeyFor = {
+    'motorcycle': 'parcel_moto',
+    'economy': 'parcel_auto',
+    'parcel': 'parcel_carga',
+  };
+
   Future<void> _edit(
     List<Map<String, dynamic>> zones, [
     Map<String, dynamic>? row,
+    List<Map<String, dynamic>> allRows = const [],
   ]) async {
     final zoneId = selectedZoneId;
     if (zoneId == null) {
@@ -2923,6 +2932,14 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
     if (!const ['offer', 'fixed', 'both'].contains(priceMode)) {
       priceMode = 'offer';
     }
+    final parcelKey = _parcelKeyFor[row?['service_key']?.toString()];
+    final parcelRow = allRows
+        .where((r) => r['service_key']?.toString() == parcelKey)
+        .firstOrNull;
+    final initialParcelMode = (parcelRow?['price_mode'] ?? 'offer').toString();
+    var parcelMode = const ['offer', 'fixed', 'both'].contains(initialParcelMode)
+        ? initialParcelMode
+        : 'offer';
     var passengerVisible = row?['passenger_visible'] == true;
     var driverVisible = row?['driver_visible'] == true;
     var scheduled = row?['scheduled_enabled'] != false;
@@ -3073,13 +3090,25 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                     title: const Text('Permitir ofertas'),
                   ),
                   if (!_environment.isPreview &&
+                      row?['service_key'] != 'delivery' &&
+                      parcelKey != null &&
+                      row?['service_key'] != 'parcel')
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text('Configuración de viaje',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w900, fontSize: 14)),
+                    ),
+                  if (!_environment.isPreview &&
                       row?['service_key'] != 'delivery')
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: AdminDropdownField<String>(
                         initialValue: priceMode,
                         decoration: InputDecoration(
-                          labelText: 'Tipo de precio en $zoneName',
+                          labelText: row?['service_key'] == 'parcel'
+                              ? 'Envíos en general · tipo de precio en $zoneName'
+                              : 'Tipo de precio en $zoneName',
                           helperText: priceMode == 'offer'
                               ? 'El pasajero ofrece su precio y los conductores '
                                   'pueden contraofertar.'
@@ -3118,6 +3147,54 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                         },
                       ),
                     ),
+                  if (!_environment.isPreview && parcelKey != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                        row?['service_key'] == 'parcel'
+                            ? 'Configuración de envío · Carga'
+                            : 'Configuración de envío',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w900, fontSize: 14)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: AdminDropdownField<String>(
+                        initialValue: parcelMode,
+                        decoration: InputDecoration(
+                          labelText: 'Envíos · tipo de precio en $zoneName',
+                          helperText: parcelMode == 'offer'
+                              ? 'El pasajero ofrece su precio y los conductores '
+                                  'pueden contraofertar.'
+                              : parcelMode == 'fixed'
+                                  ? 'El precio sale de la tarifa de precio fijo '
+                                      'de este envío y el pasajero no puede '
+                                      'cambiarlo. Los conductores aún pueden '
+                                      'contraofertar.'
+                                  : 'El pasajero elige entre precio fijo y '
+                                      'ofrecer su precio. Cada uno usa su tarifa.',
+                          helperMaxLines: 4,
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'offer', child: Text('Solo ofertas')),
+                          DropdownMenuItem(
+                              value: 'fixed', child: Text('Solo precio fijo')),
+                          DropdownMenuItem(
+                              value: 'both',
+                              child: Text('Ambos · el pasajero elige')),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) setLocal(() => parcelMode = value);
+                        },
+                      ),
+                    ),
+                    const Text(
+                      'La tarifa (base, por km y mínima, fija y de ofertas) se '
+                      'configura en Tarifas, eligiendo «Envío · …». Si no hay '
+                      'tarifa propia se usa la de Envíos en general.',
+                      style: TextStyle(fontSize: 12, color: _muted),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: scheduled,
@@ -3229,6 +3306,16 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
               },
             );
           }
+          if (parcelKey != null && parcelMode != initialParcelMode) {
+            await supabase.rpc(
+              'admin_set_zone_service_price_mode_v1',
+              params: {
+                'p_zone_id': zoneId,
+                'p_service_key': parcelKey,
+                'p_price_mode': parcelMode,
+              },
+            );
+          }
         }
 
         if (mounted) {
@@ -3276,7 +3363,13 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
               services: <Map<String, dynamic>>[],
               zone: null,
             );
-        final rows = data.services;
+        final allServiceRows = data.services;
+        // Las tarifas de envío por vehículo se configuran dentro de cada
+        // servicio («Configuración de envío»), no como tarjetas aparte.
+        final rows = allServiceRows
+            .where((r) =>
+                !(r['service_key']?.toString() ?? '').startsWith('parcel_'))
+            .toList();
         final active = rows.where((row) => row['enabled'] == true).length;
         final bidding =
             rows.where((row) => row['allow_bidding'] == true).length;
@@ -3397,7 +3490,7 @@ class _AdminServicesPageState extends State<AdminServicesPage> {
                               'Visible conductor',
                             if (row['scheduled_enabled'] == true) 'Programados',
                           ],
-                          onTap: () => _edit(data.zones, row),
+                          onTap: () => _edit(data.zones, row, allServiceRows),
                         ),
                       );
                     }).toList(),
