@@ -25,6 +25,14 @@ void main() {
     expect(AdminDriverLevelsRpc.missing({}), isEmpty);
   });
 
+  test('la prioridad por nivel en el despacho está en una migración con interruptor', () {
+    final sql = File('supabase/migrations/20261126110000_driver_level_dispatch_priority.sql').readAsStringSync();
+    expect(sql, contains('dispatch_priority_enabled'));
+    expect(sql, contains('dispatch_tolerance_km'));
+    expect(sql, contains('driver_level_rank'));
+    expect(File('lib/admin_driver_levels.dart').readAsStringSync(), contains("'dispatch_priority_enabled'"));
+  });
+
   test('las RPC existen en la migración', () {
     final sql = File('supabase/migrations/20261126100000_driver_levels_phase1.sql').readAsStringSync();
     for (final n in [AdminDriverLevelsRpc.list, AdminDriverLevelsRpc.settingsGet, AdminDriverLevelsRpc.settingsUpdate]) {

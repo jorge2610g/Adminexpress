@@ -122,6 +122,7 @@ class _AdminDriverLevelsPageState extends State<AdminDriverLevelsPage> {
   bool saving = false;
   final controllers = <String, TextEditingController>{};
   Map<String, dynamic>? loadedSettings;
+  bool dispatchPriority = true;
 
   static const fields = <(String, String)>[
     ('window_days', 'Días de la ventana'),
@@ -133,6 +134,7 @@ class _AdminDriverLevelsPageState extends State<AdminDriverLevelsPage> {
     ('elite_min_response', 'Élite: respuesta mínima (%)'),
     ('pro_max_cancel', 'Pro: cancelaciones máximas (%)'),
     ('elite_max_cancel', 'Élite: cancelaciones máximas (%)'),
+    ('dispatch_tolerance_km', 'Franja de cercanía para la prioridad (km)'),
   ];
 
   @override
@@ -158,6 +160,8 @@ class _AdminDriverLevelsPageState extends State<AdminDriverLevelsPage> {
       final s = await supabase.rpc(AdminDriverLevelsRpc.settingsGet);
       if (s is Map) {
         loadedSettings = Map<String, dynamic>.from(s);
+        dispatchPriority =
+            loadedSettings!['dispatch_priority_enabled'] != false;
         for (final f in fields) {
           final text = loadedSettings![f.$1]?.toString() ?? '';
           (controllers[f.$1] ??= TextEditingController()).text = text;
@@ -184,6 +188,7 @@ class _AdminDriverLevelsPageState extends State<AdminDriverLevelsPage> {
       }
       payload[f.$1] = n;
     }
+    payload['dispatch_priority_enabled'] = dispatchPriority;
     setState(() => saving = true);
     try {
       await supabase
@@ -208,7 +213,8 @@ class _AdminDriverLevelsPageState extends State<AdminDriverLevelsPage> {
         const SizedBox(height: 6),
         const Text(
           'Inicio, Pro y Élite según los últimos 30 días: viajes, calificación, respuesta a solicitudes y cancelaciones. '
-          'Por ahora solo informa: no cambia quién recibe las solicitudes ni da premios.',
+          'El nivel decide quién recibe primero el aviso de precio fijo (entre los conductores casi igual de cerca) '
+          'y cómo se ordena su lista de solicitudes. No da premios en dinero.',
           style: TextStyle(color: _muted, fontSize: 12),
         ),
         const SizedBox(height: 14),
@@ -241,7 +247,13 @@ class _AdminDriverLevelsPageState extends State<AdminDriverLevelsPage> {
                 if (widget.canEditSettings && loadedSettings != null) ...[
                   const SizedBox(height: 16),
                   _SettingsCard(
-                      controllers: controllers, saving: saving, onSave: _save),
+                    controllers: controllers,
+                    saving: saving,
+                    onSave: _save,
+                    dispatchPriority: dispatchPriority,
+                    onDispatchPriority: (v) =>
+                        setState(() => dispatchPriority = v),
+                  ),
                 ],
                 const SizedBox(height: 16),
                 const Text('Conductores',
@@ -290,8 +302,15 @@ class _SettingsCard extends StatelessWidget {
   final Map<String, TextEditingController> controllers;
   final bool saving;
   final VoidCallback onSave;
-  const _SettingsCard(
-      {required this.controllers, required this.saving, required this.onSave});
+  final bool dispatchPriority;
+  final ValueChanged<bool> onDispatchPriority;
+  const _SettingsCard({
+    required this.controllers,
+    required this.saving,
+    required this.onSave,
+    required this.dispatchPriority,
+    required this.onDispatchPriority,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -323,7 +342,17 @@ class _SettingsCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 10),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: dispatchPriority,
+            onChanged: onDispatchPriority,
+            title: const Text('Dar prioridad por nivel'),
+            subtitle: const Text(
+              'Élite y Pro reciben primero el aviso de precio fijo si están a menos de la franja de cercanía '
+              'del conductor más cercano. Apagado: solo cuenta la distancia.',
+            ),
+          ),
+          const SizedBox(height: 6),
           FilledButton.icon(
             onPressed: saving ? null : onSave,
             icon: const Icon(Icons.save_outlined),
