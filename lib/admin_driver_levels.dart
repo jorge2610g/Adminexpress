@@ -123,6 +123,7 @@ class _AdminDriverLevelsPageState extends State<AdminDriverLevelsPage> {
   final controllers = <String, TextEditingController>{};
   Map<String, dynamic>? loadedSettings;
   bool dispatchPriority = true;
+  bool passengerBadge = false;
 
   static const fields = <(String, String)>[
     ('window_days', 'Días de la ventana'),
@@ -162,6 +163,7 @@ class _AdminDriverLevelsPageState extends State<AdminDriverLevelsPage> {
         loadedSettings = Map<String, dynamic>.from(s);
         dispatchPriority =
             loadedSettings!['dispatch_priority_enabled'] != false;
+        passengerBadge = loadedSettings!['passenger_badge_enabled'] == true;
         for (final f in fields) {
           final text = loadedSettings![f.$1]?.toString() ?? '';
           (controllers[f.$1] ??= TextEditingController()).text = text;
@@ -189,6 +191,7 @@ class _AdminDriverLevelsPageState extends State<AdminDriverLevelsPage> {
       payload[f.$1] = n;
     }
     payload['dispatch_priority_enabled'] = dispatchPriority;
+    payload['passenger_badge_enabled'] = passengerBadge;
     setState(() => saving = true);
     try {
       await supabase
@@ -253,6 +256,9 @@ class _AdminDriverLevelsPageState extends State<AdminDriverLevelsPage> {
                     dispatchPriority: dispatchPriority,
                     onDispatchPriority: (v) =>
                         setState(() => dispatchPriority = v),
+                    passengerBadge: passengerBadge,
+                    onPassengerBadge: (v) =>
+                        setState(() => passengerBadge = v),
                   ),
                 ],
                 const SizedBox(height: 16),
@@ -304,12 +310,16 @@ class _SettingsCard extends StatelessWidget {
   final VoidCallback onSave;
   final bool dispatchPriority;
   final ValueChanged<bool> onDispatchPriority;
+  final bool passengerBadge;
+  final ValueChanged<bool> onPassengerBadge;
   const _SettingsCard({
     required this.controllers,
     required this.saving,
     required this.onSave,
     required this.dispatchPriority,
     required this.onDispatchPriority,
+    required this.passengerBadge,
+    required this.onPassengerBadge,
   });
 
   @override
@@ -350,6 +360,15 @@ class _SettingsCard extends StatelessWidget {
             subtitle: const Text(
               'Élite y Pro reciben primero el aviso de precio fijo si están a menos de la franja de cercanía '
               'del conductor más cercano. Apagado: solo cuenta la distancia.',
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: passengerBadge,
+            onChanged: onPassengerBadge,
+            title: const Text('Mostrar insignia al pasajero'),
+            subtitle: const Text(
+              'El pasajero ve «Pro» o «Élite» junto a la calificación de su conductor. Apagado: no se muestra.',
             ),
           ),
           const SizedBox(height: 6),
