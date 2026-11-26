@@ -28,6 +28,7 @@ import 'admin_runtime_scope.dart';
 import 'admin_control_sections.dart';
 import 'admin_comm_support_avisos.dart';
 import 'admin_dispatch_history.dart';
+import 'admin_driver_levels.dart';
 import 'admin_driver_requests.dart';
 import 'admin_landing_banners.dart';
 import 'admin_debt_management.dart';
@@ -2300,11 +2301,16 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           zoneId: adminZoneId,
         );
       case 25:
-        return AdminDriverPriorityPage(
+        return AdminDriverPriorityHub(
           channel: _sectionChannel(25),
-          configChannel: 'production',
-          countryCode: adminCountryCode,
           zoneId: adminZoneId,
+          canEditSettings: adminAccess['role'] == 'super_admin' && !_readOnly,
+          priority: AdminDriverPriorityPage(
+            channel: _sectionChannel(25),
+            configChannel: 'production',
+            countryCode: adminCountryCode,
+            zoneId: adminZoneId,
+          ),
         );
       case 26:
         return AdminMarketplacePhase2Page(
