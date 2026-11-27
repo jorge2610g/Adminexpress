@@ -1,0 +1,10 @@
+-- Pasajeros y Conductores se separan por el modo activo de la cuenta:
+--  * Pasajeros: cuentas en modo pasajero (o sin perfil de conductor).
+--  * Conductores: cuentas en modo conductor; los solicitantes aún no aprobados (pendiente, rechazado,
+--    suspendido) siempre se ven para poder gestionarlos. Un conductor aprobado que vuelve a modo
+--    pasajero baja a Pasajeros y se ve en Conductores con el filtro «En modo pasajero».
+-- (Aplicada en Supabase como parche sobre las definiciones vigentes de admin_customer_list_v1,
+--  admin_customer_dashboard_v1, admin_driver_list_v5 y admin_driver_count_v2.)
+-- Condición de pasajeros: coalesce(u.active_mode,'passenger')='passenger' or d.id is null
+-- Condición de conductores: case when v_status='passenger_mode' then approved y modo<>'driver'
+--   when v_status='' then no aprobado o modo='driver' else estado=v_status y (no aprobado o modo='driver') end

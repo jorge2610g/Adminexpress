@@ -1135,6 +1135,7 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
   }
 
   /// Chips de estado de conductores. Por defecto se ven los pendientes.
+  /// «Activos» son los aprobados en modo conductor.
   Widget _driverStatusFilter() {
     void select(String value) {
       setState(() {
@@ -1170,6 +1171,14 @@ class _ExpressAdminPanelState extends State<ExpressAdminPanel> {
           selected: driverStatus == 'suspended',
           showCheck: true,
           onSelected: (_) => select('suspended'),
+        ),
+        // Conductores aprobados que hoy usan la app como pasajeros: se ven en
+        // Pasajeros y vuelven a Activos cuando cambian a modo conductor.
+        AdminPillChoice(
+          label: 'En modo pasajero',
+          selected: driverStatus == 'passenger_mode',
+          showCheck: true,
+          onSelected: (_) => select('passenger_mode'),
         ),
       ],
     );
