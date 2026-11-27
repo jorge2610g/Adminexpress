@@ -1,0 +1,8 @@
+-- Tarifas por horario: cada regla aplica a ambos tipos de precio, solo al fijo o solo a ofertas.
+-- (Aplicada en Supabase como parche sobre las definiciones vigentes.)
+--  * fare_time_rules.price_mode text not null default 'both' check in ('both','fixed','offer').
+--  * effective_fare_rule_at: la regla de horario aplica si price_mode in ('both', modo cotizado);
+--    gana la que coincide exactamente con el modo, luego la más reciente.
+--  * admin_fare_time_rules_list devuelve price_mode.
+--  * admin_fare_time_rule_upsert(..., p_price_mode text default 'both'): valida el valor y solo
+--    considera cruce de horario entre reglas cuyos tipos de precio se solapan.

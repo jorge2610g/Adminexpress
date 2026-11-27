@@ -182,6 +182,10 @@ class _AdminTimeFaresEditorState extends State<AdminTimeFaresEditor> {
           [1, 2, 3, 4, 5, 6, 7]),
     };
     var active = row?['active'] != false;
+    // Aplica a: both = precio fijo y ofertas, fixed = solo precio fijo, offer = solo ofertas.
+    var priceMode = const ['both', 'fixed', 'offer'].contains(row?['price_mode'])
+        ? row!['price_mode'].toString()
+        : 'both';
     var saving = false;
     String? dialogError;
 
@@ -298,6 +302,28 @@ class _AdminTimeFaresEditorState extends State<AdminTimeFaresEditor> {
                           child: _field(minimum, 'Tarifa mínima ($_currency)')),
                     ],
                   ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: priceMode,
+                    decoration: const InputDecoration(
+                      labelText: 'Aplica a',
+                      border: OutlineInputBorder(),
+                      helperText:
+                          'Puedes crear una tarifa nocturna para precio fijo y otra distinta para ofertas.',
+                      helperMaxLines: 2,
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'both', child: Text('Precio fijo y ofertas')),
+                      DropdownMenuItem(
+                          value: 'fixed', child: Text('Solo precio fijo')),
+                      DropdownMenuItem(
+                          value: 'offer', child: Text('Solo ofertas')),
+                    ],
+                    onChanged: saving
+                        ? null
+                        : (v) => setLocal(() => priceMode = v ?? 'both'),
+                  ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     value: active,
@@ -353,6 +379,7 @@ class _AdminTimeFaresEditorState extends State<AdminTimeFaresEditor> {
                           'p_minimum_fare': _parse(minimum.text) ?? 0,
                           'p_active': active,
                           'p_channel': widget.channel,
+                          'p_price_mode': priceMode,
                         });
                         if (dialogContext.mounted) {
                           Navigator.pop(dialogContext, true);
@@ -531,7 +558,8 @@ class _AdminTimeFaresEditorState extends State<AdminTimeFaresEditor> {
                       ),
                       title: Text(
                         '${rule['name']}'
-                        '${rule['active'] == true ? '' : ' (inactiva)'}',
+                        '${rule['active'] == true ? '' : ' (inactiva)'}'
+                        '${rule['price_mode'] == 'fixed' ? ' · solo precio fijo' : rule['price_mode'] == 'offer' ? ' · solo ofertas' : ''}',
                         style: const TextStyle(fontWeight: FontWeight.w900),
                       ),
                       subtitle: Text(
