@@ -405,7 +405,10 @@ class _AdminBenefitsPageState extends State<AdminBenefitsPage> {
           ? (_audience == 'all' ? 'all' : 'drivers')
           : const {'coupon', 'activation', 'loyalty'}.contains(_programType)
               ? (_programType == 'coupon' && _serviceMode == 'delivery' ? 'clients' : 'passengers')
-              : _audience,
+              // Los referidos de este programa son entre conductores: nunca se muestran a pasajeros.
+              : const {'referral', 'referral_commission'}.contains(_programType)
+                  ? 'drivers'
+                  : _audience,
       'target_audience': _targetAudience,
       'discount_absorber': _discountAbsorber,
       'value': _programType == 'driver_challenge' && _challengeRewardType == 'commission_free'
