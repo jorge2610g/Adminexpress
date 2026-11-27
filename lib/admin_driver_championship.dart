@@ -169,8 +169,20 @@ class _AdminDriverChampionshipPageState
       decoration:InputDecoration(labelText:label),
     );
   /// Crear o editar en una ventana emergente (el formulario ya no ocupa la página).
-  Future<void> _showEditor({Map<String,dynamic>? item}) async {
-    if(item==null){_newRecord();}else{_open(item);}
+  Future<void> _showEditor({Map<String,dynamic>? item,Map<String,dynamic>? nextFrom}) async {
+    if(nextFrom!=null){
+      _newRecord();
+      final prevEnd=DateTime.tryParse(nextFrom['ends_at']?.toString()??'')?.toUtc();
+      final base=prevEnd??DateTime.now().toUtc();
+      final first=DateTime(base.year,base.month,base.day);
+      final lastDay=DateTime(first.year,first.month+1,0).day;
+      _starts=first;
+      _ends=DateTime(first.year,first.month,lastDay<30?lastDay:30);
+      _service=nextFrom['service_key']?.toString()??'*';
+      _title.text=nextFrom['title']?.toString()??'Campeonato Express';
+      _rules.text=nextFrom['rules']?.toString()??_rules.text;
+      _state='draft';
+    }else if(item==null){_newRecord();}else{_open(item);}
     await showDialog<void>(context:context,builder:(dialogContext)=>
       StatefulBuilder(builder:(context,setLocal){
         void both(VoidCallback fn){setState(fn);setLocal((){});}
@@ -223,7 +235,8 @@ class _AdminDriverChampionshipPageState
             const SizedBox(height:13),
             _input('Reglas y condiciones',_rules,maxLines:3),
             const SizedBox(height:10),
-            const Text('La clasificación se calcula desde viajes reales completados. '
+            const Text('Cada mes empieza de cero. Los conductores deben aceptar las reglas al empezar. '
+              'La clasificación se calcula desde viajes reales completados. '
               'No se generan pagos automáticos y la clasificación solo es visible '
               'a conductores aprobados de la misma zona y entorno.',
               style:TextStyle(color:Color(0xFF667085),fontSize:12)),
@@ -453,9 +466,15 @@ class _AdminDriverChampionshipPageState
                     _serviceName(row['service_key']?.toString()??'*')+
                     ' · '+_championshipState(row['state']?.toString()??'draft')),
                   selected:_rankId==row['id']?.toString(),
-                  trailing:IconButton(tooltip:'Editar',
-                    icon:const Icon(Icons.edit_outlined),
-                    onPressed:()=>_showEditor(item:row)),
+                  trailing:Row(mainAxisSize:MainAxisSize.min,children:[
+                    TextButton.icon(
+                      onPressed:()=>_showEditor(nextFrom:row),
+                      icon:const Icon(Icons.event_repeat_outlined,size:18),
+                      label:const Text('Crear el mes siguiente')),
+                    IconButton(tooltip:'Editar',
+                      icon:const Icon(Icons.edit_outlined),
+                      onPressed:()=>_showEditor(item:row)),
+                  ]),
                   onTap:()=>setState((){
                     _rankId=row['id']?.toString();_rankService='*';_loadRanking();
                   }),
