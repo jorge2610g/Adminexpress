@@ -118,6 +118,115 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
     }();
   }
 
+  Future<List<Map<String, dynamic>>>? _umbrellaFuture;
+
+  Future<List<Map<String, dynamic>>> _loadUmbrella() async {
+    final raw = await supabase.rpc('admin_moto_comfort_reports_v1', params: {
+      'p_zone_id': widget.zoneId,
+      'p_channel': widget.channel,
+    });
+    return raw is List
+        ? raw.whereType<Map>().map((x) => Map<String, dynamic>.from(x)).toList()
+        : <Map<String, dynamic>>[];
+  }
+
+  Future<void> _setComfortBlocked(String driverId, bool blocked) async {
+    try {
+      await supabase.rpc('admin_moto_comfort_set_blocked_v1',
+          params: {'p_driver_id': driverId, 'p_blocked': blocked});
+      if (!mounted) return;
+      setState(() => _umbrellaFuture = _loadUmbrella());
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(blocked
+              ? 'Moto Confort quitado al conductor.'
+              : 'Moto Confort habilitado de nuevo.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo guardar: ${friendlyError(e)}')));
+    }
+  }
+
+  Widget _umbrellaPage() {
+    _umbrellaFuture ??= _loadUmbrella();
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _umbrellaFuture,
+      builder: (context, snapshot) {
+        final rows = snapshot.data ?? const <Map<String, dynamic>>[];
+        return ListView(
+          padding: const EdgeInsets.all(22),
+          children: [
+            Row(children: [
+              const Icon(Icons.beach_access_outlined,
+                  color: Color(0xFF2563EB), size: 30),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Reportes de sombrilla',
+                          style: TextStyle(
+                              fontSize: 21, fontWeight: FontWeight.w900)),
+                      Text(
+                          'Moto Confort: conductores que lo usan y reportes de pasajeros que dijeron que no había sombrilla. Con 3 reportes se quita Moto Confort automáticamente.',
+                          style: TextStyle(
+                              fontSize: 12, color: Color(0xFF667085))),
+                    ]),
+              ),
+              IconButton(
+                  tooltip: 'Actualizar',
+                  onPressed: () =>
+                      setState(() => _umbrellaFuture = _loadUmbrella()),
+                  icon: const Icon(Icons.refresh)),
+            ]),
+            _sectionPicker(),
+            if (snapshot.connectionState != ConnectionState.done)
+              const Padding(
+                  padding: EdgeInsets.all(30),
+                  child: Center(child: CircularProgressIndicator()))
+            else if (snapshot.hasError)
+              Text('No se pudo cargar: ${friendlyError(snapshot.error)}')
+            else if (rows.isEmpty)
+              const Card(
+                  child: Padding(
+                      padding: EdgeInsets.all(18),
+                      child: Text(
+                          'Todavía no hay conductores en Moto Confort ni reportes.')))
+            else
+              for (final row in rows)
+                Card(
+                  child: ListTile(
+                    leading: Icon(
+                        row['blocked'] == true
+                            ? Icons.block
+                            : Icons.beach_access_outlined,
+                        color: row['blocked'] == true
+                            ? const Color(0xFFDC2626)
+                            : const Color(0xFF2563EB)),
+                    title: Text(row['name']?.toString() ?? 'Conductor'),
+                    subtitle: Text(
+                        'Viajes Confort: ${row['comfort_trips'] ?? 0} · '
+                        'Reportes «sin sombrilla»: ${row['reports_no'] ?? 0} · '
+                        '${row['blocked'] == true ? 'Moto Confort quitado' : row['mode'] == 'comfort' ? 'Conectado como Confort' : 'Económico'}'),
+                    trailing: widget.canEdit
+                        ? (row['blocked'] == true
+                            ? OutlinedButton(
+                                onPressed: () => _setComfortBlocked(
+                                    row['driver_id'].toString(), false),
+                                child: const Text('Habilitar de nuevo'))
+                            : FilledButton(
+                                onPressed: () => _setComfortBlocked(
+                                    row['driver_id'].toString(), true),
+                                child: const Text('Quitar Confort')))
+                        : null,
+                  ),
+                ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _sectionPicker() => Padding(
         padding: const EdgeInsets.only(top: 14, bottom: 12),
         child: SegmentedButton<String>(
@@ -130,6 +239,10 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
                 value: 'notifications',
                 icon: Icon(Icons.notifications_active_outlined),
                 label: Text('Notificaciones')),
+            ButtonSegment(
+                value: 'umbrella',
+                icon: Icon(Icons.beach_access_outlined),
+                label: Text('Sombrillas (Moto Confort)')),
           ],
           selected: {_section},
           onSelectionChanged: (selection) =>
@@ -639,6 +752,7 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
       return const Center(child: Text('Selecciona una ciudad para continuar.'));
     }
     if (_section == 'notifications') return _notificationsPage();
+    if (_section == 'umbrella') return _umbrellaPage();
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: _future,
       builder: (context, snapshot) {
