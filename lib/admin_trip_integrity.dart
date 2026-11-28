@@ -130,6 +130,30 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
         : <Map<String, dynamic>>[];
   }
 
+  Future<void> _dismissUmbrella(String reportId, bool dismissed) async {
+    try {
+      await supabase.rpc('admin_moto_umbrella_dismiss_v1',
+          params: {'p_report_id': reportId, 'p_dismissed': dismissed});
+      if (!mounted) return;
+      setState(() => _umbrellaFuture = _loadUmbrella());
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(dismissed
+              ? 'Reporte descartado: no cuenta como oportunidad.'
+              : 'Reporte restaurado.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo guardar: ${friendlyError(e)}')));
+    }
+  }
+
+  static String _reportDate(Object? raw) {
+    final d = DateTime.tryParse(raw?.toString() ?? '')?.toLocal();
+    if (d == null) return '';
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(d.day)}/${two(d.month)}/${d.year} ${two(d.hour)}:${two(d.minute)}';
+  }
+
   Future<void> _setComfortBlocked(String driverId, bool blocked) async {
     try {
       await supabase.rpc('admin_moto_comfort_set_blocked_v1',
@@ -168,7 +192,7 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
                           style: TextStyle(
                               fontSize: 21, fontWeight: FontWeight.w900)),
                       Text(
-                          'Moto Confort: conductores que lo usan y reportes de pasajeros que dijeron que no había sombrilla. Con 3 reportes se quita Moto Confort automáticamente.',
+                          'Moto Confort: conductores que lo usan y reportes de pasajeros que dijeron que no había sombrilla. Cada día con reporte gasta una oportunidad (3); con el cuarto queda inhabilitado hasta que soporte lo habilite.',
                           style: TextStyle(
                               fontSize: 12, color: Color(0xFF667085))),
                     ]),
@@ -195,7 +219,7 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
             else
               for (final row in rows)
                 Card(
-                  child: ListTile(
+                  child: ExpansionTile(
                     leading: Icon(
                         row['blocked'] == true
                             ? Icons.block
@@ -206,19 +230,51 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
                     title: Text(row['name']?.toString() ?? 'Conductor'),
                     subtitle: Text(
                         'Viajes Confort: ${row['comfort_trips'] ?? 0} · '
-                        'Reportes «sin sombrilla»: ${row['reports_no'] ?? 0} · '
-                        '${row['blocked'] == true ? 'Moto Confort quitado' : row['mode'] == 'comfort' ? 'Conectado como Confort' : 'Económico'}'),
-                    trailing: widget.canEdit
-                        ? (row['blocked'] == true
-                            ? OutlinedButton(
-                                onPressed: () => _setComfortBlocked(
-                                    row['driver_id'].toString(), false),
-                                child: const Text('Habilitar de nuevo'))
-                            : FilledButton(
-                                onPressed: () => _setComfortBlocked(
-                                    row['driver_id'].toString(), true),
-                                child: const Text('Quitar Confort')))
-                        : null,
+                        'Oportunidades usadas: ${row['strikes'] ?? 0} de 3 · '
+                        '${row['blocked'] == true ? 'Inhabilitado: debe contactar a soporte' : row['suspended_until'] != null ? 'Suspendido hasta mañana 6:00' : row['mode'] == 'comfort' ? 'Conectado como Confort' : 'Económico'}'),
+                    childrenPadding:
+                        const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    children: [
+                      if ((row['reports'] as List? ?? const []).isEmpty)
+                        const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text('Sin reportes de «sin sombrilla».'))
+                      else
+                        for (final rep in (row['reports'] as List))
+                          ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                                'Reporte del ${_reportDate((rep as Map)['created_at'])}'
+                                '${rep['dismissed'] == true ? ' · descartado' : ''}',
+                                style: TextStyle(
+                                    decoration: rep['dismissed'] == true
+                                        ? TextDecoration.lineThrough
+                                        : null)),
+                            trailing: widget.canEdit
+                                ? TextButton(
+                                    onPressed: () => _dismissUmbrella(
+                                        rep['id'].toString(),
+                                        rep['dismissed'] != true),
+                                    child: Text(rep['dismissed'] == true
+                                        ? 'Restaurar'
+                                        : 'Descartar reporte'))
+                                : null,
+                          ),
+                      if (widget.canEdit)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: row['blocked'] == true
+                              ? OutlinedButton(
+                                  onPressed: () => _setComfortBlocked(
+                                      row['driver_id'].toString(), false),
+                                  child: const Text('Habilitar de nuevo'))
+                              : FilledButton(
+                                  onPressed: () => _setComfortBlocked(
+                                      row['driver_id'].toString(), true),
+                                  child: const Text('Quitar Confort')),
+                        ),
+                    ],
                   ),
                 ),
           ],
