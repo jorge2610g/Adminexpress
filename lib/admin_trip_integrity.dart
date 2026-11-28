@@ -162,8 +162,8 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
       setState(() => _umbrellaFuture = _loadUmbrella());
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(blocked
-              ? 'Moto Confort quitado al conductor.'
-              : 'Moto Confort habilitado de nuevo.')));
+              ? 'Moto Plus quitado al conductor.'
+              : 'Moto Plus habilitado de nuevo.')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -192,7 +192,7 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
                           style: TextStyle(
                               fontSize: 21, fontWeight: FontWeight.w900)),
                       Text(
-                          'Moto Confort: conductores que lo usan y reportes de pasajeros que dijeron que no había sombrilla. Cada día con reporte gasta una oportunidad (3); con el cuarto queda inhabilitado hasta que soporte lo habilite.',
+                          'Moto Plus: conductores que lo usan y reportes de pasajeros que dijeron que no había sombrilla. Cada día con reporte gasta una oportunidad (3); con el cuarto queda inhabilitado hasta que soporte lo habilite.',
                           style: TextStyle(
                               fontSize: 12, color: Color(0xFF667085))),
                     ]),
@@ -215,7 +215,7 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
                   child: Padding(
                       padding: EdgeInsets.all(18),
                       child: Text(
-                          'Todavía no hay conductores en Moto Confort ni reportes.')))
+                          'Todavía no hay conductores en Moto Plus ni reportes.')))
             else
               for (final row in rows)
                 Card(
@@ -229,9 +229,9 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
                             : const Color(0xFF2563EB)),
                     title: Text(row['name']?.toString() ?? 'Conductor'),
                     subtitle: Text(
-                        'Viajes Confort: ${row['comfort_trips'] ?? 0} · '
+                        'Viajes Plus: ${row['comfort_trips'] ?? 0} · '
                         'Oportunidades usadas: ${row['strikes'] ?? 0} de 3 · '
-                        '${row['blocked'] == true ? 'Inhabilitado: debe contactar a soporte' : row['suspended_until'] != null ? 'Suspendido hasta mañana 6:00' : row['mode'] == 'comfort' ? 'Conectado como Confort' : 'Económico'}'),
+                        '${row['blocked'] == true ? 'Inhabilitado: debe contactar a soporte' : row['suspended_until'] != null ? 'Suspendido hasta mañana 6:00' : row['mode'] == 'comfort' ? 'Conectado como Plus' : 'Express'}'),
                     childrenPadding:
                         const EdgeInsets.fromLTRB(16, 0, 16, 12),
                     children: [
@@ -272,7 +272,7 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
                               : FilledButton(
                                   onPressed: () => _setComfortBlocked(
                                       row['driver_id'].toString(), true),
-                                  child: const Text('Quitar Confort')),
+                                  child: const Text('Quitar Plus')),
                         ),
                     ],
                   ),
@@ -298,7 +298,7 @@ class _AdminTripIntegrityPageState extends State<AdminTripIntegrityPage> {
             ButtonSegment(
                 value: 'umbrella',
                 icon: Icon(Icons.beach_access_outlined),
-                label: Text('Sombrillas (Moto Confort)')),
+                label: Text('Sombrillas (Moto Plus)')),
           ],
           selected: {_section},
           onSelectionChanged: (selection) =>
